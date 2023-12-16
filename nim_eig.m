@@ -35,4 +35,6 @@ function nim_out = nim_eig(nim, opts)
 
   disp("Eigenvectors and eigenvalues calculated for " + i + " points.");
   nim_out = nim;
+
+  disp("Done");
 end
