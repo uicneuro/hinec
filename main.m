@@ -12,7 +12,7 @@ function main(imgpath, nimpath)
 
     nim = nim_read(imgpath);
     nim = nim_dt_spd(nim);
-    nim = nim_eig(nim);
+    %nim = nim_eig(nim);
     nim = nim_fa(nim);
     nim_save(nim, nimpath);
 

@@ -39,23 +39,22 @@ function nim_interp(nim,p)
   [XX,YY,ZZ] = meshgrid(X,Y,Z);
 
   % Get dimensions
-  NX = size(XX,1);
-  NY = size(XX,2);
-  NZ = size(XX,3);
+  % NX = size(XX,1);
+  % NY = size(XX,2);
+  % NZ = size(XX,3);
 
   % Voxel center points
-  xzcenter = 0.5.*(X(1:end-1) + X(2:end));
-  yzcenter = 0.5.*(Y(1:end-1) + Y(2:end));
-  zzcenter = 0.5.*(Z(1:end-1) + Z(2:end));
-  [Xcenter,Ycenter,Zcenter] = meshgrid(xzcenter,yzcenter,zzcenter);
+  % xzcenter = 0.5.*(X(1:end-1) + X(2:end));
+  % yzcenter = 0.5.*(Y(1:end-1) + Y(2:end));
+  % zzcenter = 0.5.*(Z(1:end-1) + Z(2:end));
+  % [Xcenter,Ycenter,Zcenter] = meshgrid(xzcenter,yzcenter,zzcenter);
 
   % hold off;
 
-  % Vectors for each grid point
-  % Interpolate vectors
-  Vxp = InterpCtoV3D(Vx);
-  Vyp = InterpCtoV3D(Vy);
-  Vzp = InterpCtoV3D(Vz);
+  % Interpolate the vectors at vertices from the vectors at centers 
+  Vxp = InterpCtoV3D(Vx); 
+  Vyp = InterpCtoV3D(Vy);  
+  Vzp = InterpCtoV3D(Vz);  
 
   % Diffusion tensor at the center of each voxel
   % figure(1);
@@ -84,9 +83,9 @@ function nim_interp(nim,p)
   % D = deriv_mat(xi);
   % Np = size(D(:,1),1);
 
-  for ez=1:Nvox_z
-    for ey=1:Nvox_y
-      for ex=1:Nvox_x
+  for ez=1:1
+    for ey=1:1
+      for ex=1:1
 
         dx = X(ex+1)-X(ex);
         dy = Y(ey+1)-Y(ey);
@@ -106,6 +105,10 @@ function nim_interp(nim,p)
       end  % for ez
     end  % for ey
   end  % for ex
+
+    %  indices_X = find(isnan(X) == 1)
+    %  indices_Xf = find(isnan(Xf) == 1)
+    %  indices_Vxf = find(isnan(Vxf) == 1)
 
   hold off;
 
