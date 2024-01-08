@@ -83,9 +83,9 @@ function nim_interp(nim,p)
   % D = deriv_mat(xi);
   % Np = size(D(:,1),1);
 
-  for ez=1:1
-    for ey=1:1
-      for ex=1:1
+  for ez=1:Nvox_x
+    for ey=1:Nvox_y
+      for ex=1:Nvox_z
 
         dx = X(ex+1)-X(ex);
         dy = Y(ey+1)-Y(ey);
@@ -105,10 +105,6 @@ function nim_interp(nim,p)
       end  % for ez
     end  % for ey
   end  % for ex
-
-    %  indices_X = find(isnan(X) == 1)
-    %  indices_Xf = find(isnan(Xf) == 1)
-    %  indices_Vxf = find(isnan(Vxf) == 1)
 
   hold off;
 
