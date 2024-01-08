@@ -1,12 +1,22 @@
-function nim_interp(nim)
+function nim_interp(nim,p)
+  arguments
+    % nim struct
+    nim
+
+    % interpolation order
+    p = 3;
+  end
+
   hdr
 
   Nvox_x = nim.hdr.ImageSize(1);
   Nvox_y = nim.hdr.ImageSize(2);
   Nvox_z = nim.hdr.ImageSize(3);
+
   [X,~] = zwuni(Nvox_x);     % [-1 1]
   [Y,~] = zwuni(Nvox_y);
   [Z,~] = zwuni(Nvox_z);
+
   X = X .* floor(Nvox_x/2);  % Scale. [-Nvox/2 Nvox/2]
   Y = Y .* floor(Nvox_y/2);
   Z = Z .* floor(Nvox_z/2);
@@ -42,34 +52,34 @@ function nim_interp(nim)
   Vyp = InterpCtoV3D(Vy);
   Vzp = InterpCtoV3D(Vz);
 
-
   % Diffusion tensor at the center of each voxel
-  figure(1);
-  plotcubicgrid(NX,NY,NZ,XX,YY,ZZ);
-  quiver3(Xcenter,Ycenter,Zcenter, Vx, Vy, Vz, 'k-', 'LineWidth', 2);
-  title("DT vector at voxel center");
-  subtitle("Original data");
+  % figure(1);
+  % plotcubicgrid(NX,NY,NZ,XX,YY,ZZ);
+  % quiver3(Xcenter,Ycenter,Zcenter, Vx, Vy, Vz, 'k-', 'LineWidth', 2);
+  % title("DT vector at voxel center");
+  % subtitle("Original data");
+  % 
+  % % Diffusion tensor at vertices
+  % figure(2);
+  % plotcubicgrid(NX,NY,NZ,XX,YY,ZZ);
+  % quiver3(Xcenter,Ycenter,Zcenter, Vx, Vy, Vz, 'b-.', 'LineWidth', 2);
+  % title("DT vectors at Voxel Vertices");
+  % subtitle("Preprocessed");
+  % hold off;
+  % 
+  % % Diffusion tensor interpolated to each collocation points
+  % figure(3);
+  % plotcubicgrid(NX,NY,NZ,XX,YY,ZZ); hold on;
+  % title("DT vectors at collocation grid points (interpolated)");
+  % subtitle("Interpolated (spline)");
 
-  % Diffusion tensor at vertices
-  figure(2);
-  plotcubicgrid(NX,NY,NZ,XX,YY,ZZ);
-  quiver3(Xcenter,Ycenter,Zcenter, Vx, Vy, Vz, 'b-.', 'LineWidth', 2);
-  title("DT vectors at Voxel Vertices");
-  subtitle("Preprocessed");
-  hold off;
-
-  % Diffusion tensor interpolated to each collocation points
-  figure(3);
-  plotcubicgrid(NX,NY,NZ,XX,YY,ZZ); hold on;
-  title("DT vectors at collocation grid points (interpolated)");
-  subtitle("Interpolated (spline)");
-
-  [zi,~] = zwuni(3);
+  [zi,~] = zwuni(p);
   xi = 0.5*(1+zi); % on [0,1]
  
   % D = deriv_mat(xi);
   % Np = size(D(:,1),1);
 
+  
   for ez=1:Nvox_z
     for ey=1:Nvox_y
       for ex=1:Nvox_x
@@ -94,6 +104,9 @@ function nim_interp(nim)
   end  % for ex
 
   hold off;
+
+  savefile = 'nim_interp';
+  save(savefile,'Xf','Yf','Zf','Vxf','Vyf','Vzf')
 
 end
 
