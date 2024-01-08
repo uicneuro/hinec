@@ -7,7 +7,12 @@ function nim_interp(nim,p)
     p = 3;
   end
 
-  hdr
+  %hdr
+    lw='linewidth';               %%% Plotting defs
+    fs='fontsize';                %%% Plotting defs
+    intp = 'interpreter';         %%% Plotting defs
+    ltx  = 'latex';               %%% Plotting defs
+    format compact;
 
   Nvox_x = nim.hdr.ImageSize(1);
   Nvox_y = nim.hdr.ImageSize(2);
@@ -227,3 +232,15 @@ function plotcubicgrid(NX,NY,NZ,XX,YY,ZZ)
   axis equal;
 
 end  % function plotcubicgrid
+
+% computes the N+1 uniform nodes z and weights on [-1,1]
+function [z,w] = zwuni(N)
+    
+    n = N+1;
+    
+    z=(0:N)'; z = -1 + 2*z./N;
+    
+    w=ones(n,1); w=2*w./N;
+    w(1)=.5*w(1);
+    w(n)=.5*w(n);
+end
