@@ -79,7 +79,6 @@ function nim_interp(nim,p)
   % D = deriv_mat(xi);
   % Np = size(D(:,1),1);
 
-  
   for ez=1:Nvox_z
     for ey=1:Nvox_y
       for ex=1:Nvox_x
