@@ -53,17 +53,21 @@ function nim_out = nim_dt_spd(nim, opts)
   for x=1:nim.xdim
     for y=1:nim.ydim
       for z=1:nim.zdim
+
+        % Regions that are not the brain
         if enable_mask && nim.mask(x,y,z) == 0
-          % Regions that are not the brain
           nim.DT(x,y,z,:) = zeros(1,6);
           nim.evec(x,y,z,:,:) = zeros(3,3);
           nim.eval(x,y,z,:) = zeros(3,1);
+
+        % b0 is zero
         elseif nim.img_b0(x,y,z) == 0
           nim.DT(x,y,z,:) = zeros(1,6);
           nim.evec(x,y,z,:,:) = zeros(3,3);
           nim.eval(x,y,z,:) = zeros(3,1);
+
+         % For each voxel inside the brain,
         else
-          % For each voxel inside the brain,
 
           % Solve using LSF
           Y_i = reshape(Y(x,y,z,:), [nim.size_bi 1]);
@@ -100,6 +104,12 @@ function nim_out = nim_dt_spd(nim, opts)
           % Sort eigenvalues (descending)
           [lM, ilM] = maxk(l,3);
           QM = Q(:, ilM);
+
+              if(~isempty(find(isnan(QM)==1)))
+                  QM
+                  pause
+              end
+
           nim.evec(x,y,z,:,:) = QM;
           nim.eval(x,y,z,:)   = lM;
         end
@@ -109,12 +119,14 @@ function nim_out = nim_dt_spd(nim, opts)
 
       end %for z
     end % for y
+
     progress = floor((vox_i / vox_n) * 100);
     dt_progress = datetime('now', 'Format', 'hh:mm:ss');
     fprintf("[%s]  Voxel "+vox_i+"/"+vox_n+" ("+progress+" %%. BFGS: "+bfgs_nvox+") \r", string(dt_progress));
   end % for x
   warning("on", "MATLAB:rankDeficientMatrix");
   fprintf("\n");
+
 
   % ns_nz = bfgs_nsteps(bfgs_nsteps ~= 0);
   % ns_nz_sz = size(ns_nz, 1);

@@ -3,4 +3,4 @@ load sample.mat
 
 % interpolation order
 p = 3;
-nim_interp(nim);
+nim_interp(nim,p);
