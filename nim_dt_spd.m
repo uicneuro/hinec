@@ -105,13 +105,15 @@ function nim_out = nim_dt_spd(nim, opts)
           [lM, ilM] = maxk(l,3);
           QM = Q(:, ilM);
 
-              if(~isempty(find(isnan(QM)==1)))
-                  QM
-                  pause
-              end
-
           nim.evec(x,y,z,:,:) = QM;
           nim.eval(x,y,z,:)   = lM;
+
+         if(~isempty(find(isnan(D)==1)))
+              nim.DT(x,y,z,:) = zeros(size(D));
+              nim.evec(x,y,z,:,:) = zeros(size(QM));
+              nim.eval(x,y,z,:)   = zeros(size(lM));
+         end
+
         end
 
         % For progress logging
@@ -126,7 +128,6 @@ function nim_out = nim_dt_spd(nim, opts)
   end % for x
   warning("on", "MATLAB:rankDeficientMatrix");
   fprintf("\n");
-
 
   % ns_nz = bfgs_nsteps(bfgs_nsteps ~= 0);
   % ns_nz_sz = size(ns_nz, 1);
