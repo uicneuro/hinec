@@ -52,6 +52,14 @@ function nim_interp(nim,p)
   vox_i = 1;          % Voxel index
   vox_n = nim.size3;  % Total voxel count
 
+  XX = zeros(p+1,p+1,p+1,Nvox_x,Nvox_y,Nvox_z);
+  YY = zeros(p+1,p+1,p+1,Nvox_x,Nvox_y,Nvox_z);
+  ZZ = zeros(p+1,p+1,p+1,Nvox_x,Nvox_y,Nvox_z);
+
+  Vx = zeros(p+1,p+1,p+1,Nvox_x,Nvox_y,Nvox_z);
+  Vy = zeros(p+1,p+1,p+1,Nvox_x,Nvox_y,Nvox_z);
+  Vz = zeros(p+1,p+1,p+1,Nvox_x,Nvox_y,Nvox_z);
+
   for ez=1:Nvox_z
     for ey=1:Nvox_y
       for ex=1:Nvox_x
@@ -67,6 +75,14 @@ function nim_interp(nim,p)
         Vxf = interp3(X,Y,Z,Vxp,XXf,YYf,ZZf,'spline');
         Vyf = interp3(X,Y,Z,Vyp,XXf,YYf,ZZf,'spline');
         Vzf = interp3(X,Y,Z,Vzp,XXf,YYf,ZZf,'spline');
+
+        XX(:,:,:,ex,ey,ez) = XXf;
+        YY(:,:,:,ex,ey,ez) = YYf;
+        ZZ(:,:,:,ex,ey,ez) = ZZf;
+
+        Vx(:,:,:,ex,ey,ez) = Vxf;
+        Vy(:,:,:,ex,ey,ez) = Vyf;
+        Vz(:,:,:,ex,ey,ez) = Vzf;
 
         %quiver3(Xf,Yf,Zf,Vxf,Vyf,Vzf, '-k', 'LineWidth', 2);
         %axis equal
@@ -84,7 +100,7 @@ function nim_interp(nim,p)
   hold off;
 
   savefile = 'nim_interp';
-  save(savefile,'Xf','Yf','Zf','Vxf','Vyf','Vzf')
+  save(savefile,'XX','YY','ZZ','Vx','Vy','Vz')
 
 end
 
