@@ -1,4 +1,4 @@
-function nim_plot(nim,indx,indy,indz, figindex)
+function nim_plot(nim,indx,indy,indz,figindex)
   arguments
     % nim struct
     nim

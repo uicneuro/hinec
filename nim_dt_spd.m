@@ -40,7 +40,6 @@ function nim_out = nim_dt_spd(nim, opts)
   % ylabel(ax, "Number of Steps", "FontSize", opts.FontSize);
   % set(ax, "NextPlot", "replacechildren");
 
-
   bfgs_nvox = 0;
   bfgs_nsteps = zeros(nim.size3, 1);
 
