@@ -16,14 +16,14 @@ function nim_plotall(nim)
   for i=1:Nvox_x/hx
       for j=1:Nvox_y/hy
           for k=1:Nvox_z/hz
-      indx = ((i-1)*hx).*ones(1,hx) + (1:hx);
-      indy = ((j-1)*hy).*ones(1,hy) + (1:hy);
-      indz = ((k-1)*hz).*ones(1,hz) + (1:hz);
-
-      nim_plot(nim, indx, indy, indz, figindex);
-      figindex = figindex+1;
-      end
-
+              
+              indx = ((i-1)*hx).*ones(1,hx) + (1:hx);
+              indy = ((j-1)*hy).*ones(1,hy) + (1:hy);
+              indz = ((k-1)*hz).*ones(1,hz) + (1:hz);
+        
+              nim_plot(nim, indx, indy, indz, figindex);
+              figindex = figindex+1;
+          end
       end
   end
 end

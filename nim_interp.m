@@ -7,12 +7,11 @@ function nim_interp(nim,p)
     p = 3;
   end
 
-  %hdr
-    lw='linewidth';               %%% Plotting defs
-    fs='fontsize';                %%% Plotting defs
-    intp = 'interpreter';         %%% Plotting defs
-    ltx  = 'latex';               %%% Plotting defs
-    format compact;
+  lw='linewidth';               %%% Plotting defs
+  fs='fontsize';                %%% Plotting defs
+  intp = 'interpreter';         %%% Plotting defs
+  ltx  = 'latex';               %%% Plotting defs
+  format compact;
 
   Nvox_x = nim.hdr.ImageSize(1);
   Nvox_y = nim.hdr.ImageSize(2);
@@ -38,44 +37,10 @@ function nim_interp(nim,p)
   % Voxel Vertices
   [XX,YY,ZZ] = meshgrid(X,Y,Z);
 
-  % Get dimensions
-  % NX = size(XX,1);
-  % NY = size(XX,2);
-  % NZ = size(XX,3);
-
-  % Voxel center points
-  % xzcenter = 0.5.*(X(1:end-1) + X(2:end));
-  % yzcenter = 0.5.*(Y(1:end-1) + Y(2:end));
-  % zzcenter = 0.5.*(Z(1:end-1) + Z(2:end));
-  % [Xcenter,Ycenter,Zcenter] = meshgrid(xzcenter,yzcenter,zzcenter);
-
-  % hold off;
-
   % Interpolate the vectors at vertices from the vectors at centers 
   Vxp = InterpCtoV3D(Vx); 
   Vyp = InterpCtoV3D(Vy);  
   Vzp = InterpCtoV3D(Vz);  
-
-  % Diffusion tensor at the center of each voxel
-  % figure(1);
-  % plotcubicgrid(NX,NY,NZ,XX,YY,ZZ);
-  % quiver3(Xcenter,Ycenter,Zcenter, Vx, Vy, Vz, 'k-', 'LineWidth', 2);
-  % title("DT vector at voxel center");
-  % subtitle("Original data");
-  % 
-  % % Diffusion tensor at vertices
-  % figure(2);
-  % plotcubicgrid(NX,NY,NZ,XX,YY,ZZ);
-  % quiver3(Xcenter,Ycenter,Zcenter, Vx, Vy, Vz, 'b-.', 'LineWidth', 2);
-  % title("DT vectors at Voxel Vertices");
-  % subtitle("Preprocessed");
-  % hold off;
-  % 
-  % % Diffusion tensor interpolated to each collocation points
-  % figure(3);
-  % plotcubicgrid(NX,NY,NZ,XX,YY,ZZ); hold on;
-  % title("DT vectors at collocation grid points (interpolated)");
-  % subtitle("Interpolated (spline)");
 
   [zi,~] = zwuni(p);
   xi = 0.5*(1+zi); % on [0,1]
@@ -83,9 +48,13 @@ function nim_interp(nim,p)
   % D = deriv_mat(xi);
   % Np = size(D(:,1),1);
 
-  for ez=1:Nvox_x
+  % For logging progress
+  vox_i = 1;          % Voxel index
+  vox_n = nim.size3;  % Total voxel count
+
+  for ez=1:Nvox_z
     for ey=1:Nvox_y
-      for ex=1:Nvox_z
+      for ex=1:Nvox_x
 
         dx = X(ex+1)-X(ex);
         dy = Y(ey+1)-Y(ey);
@@ -94,17 +63,23 @@ function nim_interp(nim,p)
         yf = Y(ey) + xi*dy;  % output points
         zf = Z(ez) + xi*dz;
 
-        [Xf,Yf,Zf] = meshgrid(xf,yf,zf);  % Meshgrid needed for interp3() :(
-        Vxf = interp3(X,Y,Z,Vxp,Xf,Yf,Zf,'spline');
-        Vyf = interp3(X,Y,Z,Vyp,Xf,Yf,Zf,'spline');
-        Vzf = interp3(X,Y,Z,Vzp,Xf,Yf,Zf,'spline');
+        [XXf,YYf,ZZf] = meshgrid(xf,yf,zf);  % Meshgrid needed for interp3() :(
+        Vxf = interp3(X,Y,Z,Vxp,XXf,YYf,ZZf,'spline');
+        Vyf = interp3(X,Y,Z,Vyp,XXf,YYf,ZZf,'spline');
+        Vzf = interp3(X,Y,Z,Vzp,XXf,YYf,ZZf,'spline');
 
-        quiver3(Xf,Yf,Zf,Vxf,Vyf,Vzf, '-k', 'LineWidth', 2);
-        axis equal
+        %quiver3(Xf,Yf,Zf,Vxf,Vyf,Vzf, '-k', 'LineWidth', 2);
+        %axis equal
 
-      end  % for ez
+        vox_i = vox_i + 1;
+      end   % for ex
     end  % for ey
-  end  % for ex
+
+    progress = floor((vox_i / vox_n) * 100);
+    dt_progress = datetime('now', 'Format', 'hh:mm:ss');
+    fprintf("[%s] interpolated Voxel "+vox_i+"/"+vox_n+" ("+progress+" %%", string(dt_progress));
+
+  end  % for ez
 
   hold off;
 
@@ -211,7 +186,7 @@ function plotcubicgrid(NX,NY,NZ,XX,YY,ZZ)
         X1(:,k) = XX(:,j,k);
         Y1(:,k) = YY(:,j,k);
         Z1(:,k) = ZZ(:,j,k);
-    end
+    end 
     plot3(X1,Y1,Z1,'r-', X1',Y1',Z1','r-' );
     hold on;
   end
