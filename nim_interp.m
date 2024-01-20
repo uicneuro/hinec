@@ -73,12 +73,12 @@ function nim_interp(nim,p)
 
         vox_i = vox_i + 1;
       end   % for ex
-    end  % for ey
 
-    progress = floor((vox_i / vox_n) * 100);
+    progress = (vox_i / vox_n) * 100;
     dt_progress = datetime('now', 'Format', 'hh:mm:ss');
-    fprintf("[%s] interpolated Voxel "+vox_i+"/"+vox_n+" ("+progress+" %%", string(dt_progress));
-
+    fprintf("[%s] interpolated Voxel "+vox_i+"/"+vox_n+" "+progress+" %%", string(dt_progress));
+    fprintf("\n");
+    end  % for ey
   end  % for ez
 
   hold off;
