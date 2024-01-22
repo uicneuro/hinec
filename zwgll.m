@@ -1,4 +1,4 @@
-      function [z,w] = zwgll(p);
+      function [z,w] = zwgll(p)
 
 %
 %
