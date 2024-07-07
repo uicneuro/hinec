@@ -14,3 +14,8 @@ To run the program on the provided sample NiFTI file, and save it to "sample.mat
 ```matlab
 main nifti_sample/sample sample.mat
 ```
+
+### Requirements
+
+Addons:
+- `Image Processing Toolbox`
