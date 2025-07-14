@@ -74,3 +74,4 @@ External Softwares:
 - `Statistical Parametric Mapping`
   - Must add folder SPM12 in the root directory
 - `FSL`
+  - Must be initialized before use

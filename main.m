@@ -27,7 +27,7 @@ else
         fprintf("Starting preprocessing...\n");
         
         % Preprocess the raw data
-        nim_preprocessing(imgpath);
+        nim_preprocessing(imgpath, false, 'JHU-tract');
         
         % Check if the preprocessing was successful
         if isfile(img_file)
@@ -51,7 +51,12 @@ nim = nim_dt_spd(nim);
 %nim = nim_eig(nim);
 nim = nim_fa(nim);
 % Calculate parcellation
-nim = nim_parcellation(nim, 'nifti_sample/parcellation_sample/parcellation_mask.nii.gz');
+parcellation_mask_file = 'nifti_sample/parcellation_sample/parcellation_mask.nii.gz';
+nim = nim_parcellation(nim, parcellation_mask_file);
+% Store parcellation mask file path for reference
+nim.parcellation_mask_file = parcellation_mask_file;
+% Load parcellation labels
+nim = nim_load_labels(nim);
 nim_save(nim, nimpath);
 
 end_time = datetime('now', 'Format', 'yyyy-MM-dd hh:mm:ss');
