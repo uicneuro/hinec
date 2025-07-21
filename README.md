@@ -68,6 +68,7 @@ Addons:
 
 - `Image Processing Toolbox`
 - `Statistics and Machine Learning Toolbox`
+- `Tools for NIfTI and ANALYZE image`
 
 External Softwares:
 

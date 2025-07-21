@@ -8,7 +8,16 @@ arguments
 end
 
 % include folders to path
-addpaths();
+addpath('nim_preprocessing/');
+addpath('nim_plots');
+addpath('nim_utils');
+addpath('nim_calculation');
+addpath('nim_parcellation');
+addpath('nim_tractography');
+addpath(genpath('spm12'));
+addpath('utils');
+addpath('nifti_sample');
+addpath('bfgs');
 
 
 % Define the file extensions and suffixes
@@ -48,7 +57,7 @@ fprintf("HINEC START: %s\n", string(start_time));
 nim = nim_read(imgpath);
 % Calculate diffusion tensor
 nim = nim_dt_spd(nim);
-%nim = nim_eig(nim);
+nim = nim_eig(nim);
 nim = nim_fa(nim);
 % Calculate parcellation
 parcellation_mask_file = 'nifti_sample/parcellation_sample/parcellation_mask.nii.gz';
