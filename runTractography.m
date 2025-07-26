@@ -33,15 +33,17 @@ end
 fprintf('Setting up tractography parameters...\n');
 options = struct();
 options.seed_density = 1;
-options.step_size = 0.5;
-options.fa_threshold = 0.15;  % Lower threshold to get more tracks
+options.step_size = 0.2;      % Smaller steps for better tracking
+options.fa_threshold = 0.1;   % Lower threshold to continue in gray matter boundaries
+options.termination_fa = 0.05;% Even lower termination threshold
 options.angle_thresh = 60;    % More permissive angle
-options.max_steps = 1000;     % Reasonable step limit
+options.max_steps = 5000;     % Higher step limit for longer tracks
+options.min_length = 10;      % Minimum 10mm track length
 options.order = 1;
 options.interp_method = 'linear';
 
 % Create brain-only seed mask with lower FA threshold
-seed_mask = nim.FA > 0.1;  % Lower FA threshold for more seeds
+seed_mask = nim.FA > 0.08;  % Even lower FA threshold for more seeds
 if isfield(nim, 'parcellation_mask')
     brain_mask = nim.parcellation_mask > 0;
     seed_mask = seed_mask & brain_mask;

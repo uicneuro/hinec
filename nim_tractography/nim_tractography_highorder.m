@@ -20,16 +20,22 @@ if ~isfield(options, 'seed_density')
     options.seed_density = 1;
 end
 if ~isfield(options, 'step_size')
-    options.step_size = 0.5;
+    options.step_size = 0.2;  % Smaller step size for better tracking
 end
 if ~isfield(options, 'fa_threshold')
-    options.fa_threshold = 0.2;
+    options.fa_threshold = 0.1;  % Lower threshold to continue in lower FA areas
 end
 if ~isfield(options, 'angle_thresh')
-    options.angle_thresh = 45;
+    options.angle_thresh = 60;  % More permissive angle threshold
 end
 if ~isfield(options, 'max_steps')
-    options.max_steps = 2000;
+    options.max_steps = 5000;  % Higher step limit for longer tracks
+end
+if ~isfield(options, 'min_length')
+    options.min_length = 10;  % Minimum track length in mm
+end
+if ~isfield(options, 'termination_fa')
+    options.termination_fa = 0.05;  % Lower termination threshold
 end
 if ~isfield(options, 'order')
     options.order = 3;
@@ -101,7 +107,16 @@ for i = 1:size(seed_points, 1)
     for direction = [-1, 1]
         track = track_fiber(nim, seed, direction, options, cos_angle_thresh, voxel_size);
         
-        if size(track, 1) > 2 % Minimum track length
+        % Calculate track length in mm
+        track_length_mm = 0;
+        if size(track, 1) > 1
+            for t = 2:size(track, 1)
+                track_length_mm = track_length_mm + norm(track(t,:) - track(t-1,:)) * options.step_size;
+            end
+        end
+        
+        % Only keep tracks above minimum length
+        if track_length_mm >= options.min_length
             track_count = track_count + 1;
             tracks{track_count} = track;
         end
@@ -139,49 +154,97 @@ end
 end
 
 function track = track_fiber(nim, seed, direction, options, cos_angle_thresh, voxel_size)
-% Track a single fiber from seed point
+% Track a single fiber from seed point using improved high-order FACT
 track = seed;
 current_pos = seed;
 prev_direction = [];
+
+% Get initial direction
+initial_dir = get_initial_direction_ho(nim, seed, options);
+if isempty(initial_dir)
+    return;
+end
+
+% Apply direction flip for bidirectional tracking
+initial_dir = initial_dir * direction;
+prev_direction = initial_dir;
 
 for step = 1:options.max_steps
     % Get interpolated direction at current position
     [dir_vec, fa_val] = interpolate_direction(nim, current_pos, options);
     
-    if isempty(dir_vec) || fa_val < options.fa_threshold
+    % More lenient termination criteria
+    if isempty(dir_vec) || fa_val < options.termination_fa
         break;
     end
     
-    % Ensure consistent direction
+    % Ensure consistent direction (flip if needed)
     if ~isempty(prev_direction)
         if dot(dir_vec, prev_direction) < 0
             dir_vec = -dir_vec;
         end
         
-        % Check angle constraint
-        if dot(dir_vec, prev_direction) < cos_angle_thresh
+        % Check curvature constraint
+        curvature_check = dot(dir_vec, prev_direction);
+        if curvature_check < cos_angle_thresh
             break;
         end
     end
     
-    % Apply initial direction
-    dir_vec = dir_vec * direction;
-    direction = 1; % Only apply initial direction once
+    % High-order integration (RK4 for spline, RK2 for linear)
+    if strcmp(options.interp_method, "spline") && options.order > 1
+        % RK4 integration for high-order
+        current_pos = rk4_step(nim, current_pos, dir_vec, options);
+    else
+        % RK2 integration (midpoint method)
+        k1 = dir_vec * options.step_size;
+        mid_pos = current_pos + 0.5 * k1;
+        
+        % Get direction at midpoint
+        [mid_dir, mid_fa] = interpolate_direction(nim, mid_pos, options);
+        if ~isempty(mid_dir) && mid_fa >= options.termination_fa
+            % Ensure direction consistency at midpoint
+            if dot(mid_dir, dir_vec) < 0
+                mid_dir = -mid_dir;
+            end
+            k2 = mid_dir * options.step_size;
+            current_pos = current_pos + k2;
+        else
+            current_pos = current_pos + k1;
+        end
+    end
     
-    % Take step
-    current_pos = current_pos + dir_vec * options.step_size;
-    
-    % Check bounds
-    if any(current_pos < 1) || any(current_pos > size(nim.FA))
+    % Check bounds with buffer
+    dims = size(nim.FA);
+    if any(current_pos < 1.5) || any(current_pos > dims - 0.5)
         break;
     end
     
-    % Check if we're still in brain tissue (parcellation > 0)
+    % More lenient brain tissue check
     if isfield(nim, 'parcellation_mask')
         pos_int = round(current_pos);
         if all(pos_int >= 1) && all(pos_int <= size(nim.parcellation_mask))
-            if nim.parcellation_mask(pos_int(1), pos_int(2), pos_int(3)) == 0
-                break; % Stop tracking in non-brain areas
+            if nim.parcellation_mask(pos_int(1), pos_int(2), pos_int(3)) <= 0
+                % Check boundary neighbors
+                boundary_ok = false;
+                for dx = -1:1
+                    for dy = -1:1
+                        for dz = -1:1
+                            check_pos = pos_int + [dx, dy, dz];
+                            if all(check_pos >= 1) && all(check_pos <= size(nim.parcellation_mask))
+                                if nim.parcellation_mask(check_pos(1), check_pos(2), check_pos(3)) > 0
+                                    boundary_ok = true;
+                                    break;
+                                end
+                            end
+                        end
+                        if boundary_ok, break; end
+                    end
+                    if boundary_ok, break; end
+                end
+                if ~boundary_ok
+                    break;
+                end
             end
         end
     end
@@ -191,21 +254,66 @@ for step = 1:options.max_steps
 end
 end
 
+function initial_dir = get_initial_direction_ho(nim, pos, options)
+% Get initial direction at seed point for high-order method
+[initial_dir, fa_val] = interpolate_direction(nim, pos, options);
+if isempty(initial_dir) || fa_val < options.termination_fa
+    initial_dir = [];
+end
+end
+
+function new_pos = rk4_step(nim, pos, dir_vec, options)
+% RK4 integration step for high-order tracking
+h = options.step_size;
+
+k1 = h * dir_vec;
+[k2_dir, ~] = interpolate_direction(nim, pos + 0.5*k1, options);
+if ~isempty(k2_dir)
+    if dot(k2_dir, dir_vec) < 0, k2_dir = -k2_dir; end
+    k2 = h * k2_dir;
+else
+    k2 = k1;
+end
+
+[k3_dir, ~] = interpolate_direction(nim, pos + 0.5*k2, options);
+if ~isempty(k3_dir)
+    if dot(k3_dir, dir_vec) < 0, k3_dir = -k3_dir; end
+    k3 = h * k3_dir;
+else
+    k3 = k2;
+end
+
+[k4_dir, ~] = interpolate_direction(nim, pos + k3, options);
+if ~isempty(k4_dir)
+    if dot(k4_dir, dir_vec) < 0, k4_dir = -k4_dir; end
+    k4 = h * k4_dir;
+else
+    k4 = k3;
+end
+
+new_pos = pos + (k1 + 2*k2 + 2*k3 + k4) / 6;
+end
+
 function [direction, fa_value] = interpolate_direction(nim, pos, options)
-% Interpolate direction vector at given position using high-order interpolation
+% Improved interpolation with better termination criteria
 direction = [];
 fa_value = 0;
 
-% Check if position is within bounds
+% Check if position is within bounds with buffer
 dims = size(nim.FA);
-if any(pos < 1) || any(pos > dims)
+if any(pos < 1.1) || any(pos > dims - 0.1)
     return;
 end
 
-% Get FA value at position
-fa_value = interp3(nim.FA, pos(2), pos(1), pos(3), 'linear', 0);
+% Get FA value at position with bounds checking
+try
+    fa_value = interp3(nim.FA, pos(2), pos(1), pos(3), 'linear', 0);
+catch
+    return;
+end
 
-if fa_value < options.fa_threshold
+% More lenient FA check
+if fa_value < options.termination_fa
     return;
 end
 
@@ -218,52 +326,100 @@ else
     direction = interpolate_eigenvector_linear(nim, pos);
 end
 
-% Normalize direction
+% Normalize direction and check validity
 if ~isempty(direction)
-    direction = direction / norm(direction);
+    dir_norm = norm(direction);
+    if dir_norm > 1e-6  % More lenient normalization check
+        direction = direction / dir_norm;
+    else
+        direction = [];
+    end
 end
 end
 
 function dir_vec = interpolate_eigenvector_linear(nim, pos)
-% Linear interpolation of eigenvector
+% Improved linear interpolation of eigenvector
 try
-    % Extract primary eigenvector (first column of evec)
+    % Check bounds more carefully
+    dims = size(nim.evec);
+    if any(pos < 1.01) || pos(1) > dims(1)-0.01 || pos(2) > dims(2)-0.01 || pos(3) > dims(3)-0.01
+        dir_vec = [];
+        return;
+    end
+    
+    % Extract primary eigenvector components
     v1_x = squeeze(nim.evec(:,:,:,1,1));
     v1_y = squeeze(nim.evec(:,:,:,2,1));
     v1_z = squeeze(nim.evec(:,:,:,3,1));
     
-    % Interpolate each component
+    % Robust trilinear interpolation
     x_comp = interp3(v1_x, pos(2), pos(1), pos(3), 'linear', 0);
     y_comp = interp3(v1_y, pos(2), pos(1), pos(3), 'linear', 0);
     z_comp = interp3(v1_z, pos(2), pos(1), pos(3), 'linear', 0);
     
     dir_vec = [x_comp, y_comp, z_comp];
-catch
+    
+    % Improved validity check
+    dir_norm = norm(dir_vec);
+    if dir_norm < 1e-6 || any(isnan(dir_vec)) || any(isinf(dir_vec))
+        dir_vec = [];
+    end
+    
+catch ME
+    fprintf('Warning: Linear eigenvector interpolation failed at position [%.2f, %.2f, %.2f]: %s\n', ...
+            pos(1), pos(2), pos(3), ME.message);
     dir_vec = [];
 end
 end
 
 function dir_vec = interpolate_eigenvector_spline(nim, pos, order)
-% High-order spline interpolation of eigenvector
+% Improved high-order spline interpolation of eigenvector
 try
-    % Get neighborhood for interpolation
-    radius = ceil(order/2);
-    x_range = max(1, floor(pos(1)) - radius) : min(size(nim.evec,1), ceil(pos(1)) + radius);
-    y_range = max(1, floor(pos(2)) - radius) : min(size(nim.evec,2), ceil(pos(2)) + radius);
-    z_range = max(1, floor(pos(3)) - radius) : min(size(nim.evec,3), ceil(pos(3)) + radius);
+    % Check bounds first
+    dims = size(nim.evec);
+    radius = max(2, ceil(order/2));
+    
+    if pos(1) < radius || pos(1) > dims(1)-radius || ...
+       pos(2) < radius || pos(2) > dims(2)-radius || ...
+       pos(3) < radius || pos(3) > dims(3)-radius
+        % Near boundary, use linear interpolation
+        dir_vec = interpolate_eigenvector_linear(nim, pos);
+        return;
+    end
+    
+    % Get neighborhood for spline interpolation
+    x_range = max(1, floor(pos(1)) - radius) : min(dims(1), ceil(pos(1)) + radius);
+    y_range = max(1, floor(pos(2)) - radius) : min(dims(2), ceil(pos(2)) + radius);
+    z_range = max(1, floor(pos(3)) - radius) : min(dims(3), ceil(pos(3)) + radius);
+    
+    % Ensure we have enough points for spline
+    if length(x_range) < 4 || length(y_range) < 4 || length(z_range) < 4
+        dir_vec = interpolate_eigenvector_linear(nim, pos);
+        return;
+    end
     
     % Extract primary eigenvector components in neighborhood
     v1_local = nim.evec(x_range, y_range, z_range, :, 1);
     
-    % Use spline interpolation
-    [X, Y, Z] = meshgrid(y_range, x_range, z_range);
+    % Create coordinate grids
+    [Y, X, Z] = meshgrid(y_range, x_range, z_range);
     
-    x_comp = interp3(X, Y, Z, squeeze(v1_local(:,:,:,1)), pos(2), pos(1), pos(3), 'spline', 0);
-    y_comp = interp3(X, Y, Z, squeeze(v1_local(:,:,:,2)), pos(2), pos(1), pos(3), 'spline', 0);
-    z_comp = interp3(X, Y, Z, squeeze(v1_local(:,:,:,3)), pos(2), pos(1), pos(3), 'spline', 0);
+    % Spline interpolation with error handling
+    x_comp = interp3(Y, X, Z, squeeze(v1_local(:,:,:,1)), pos(2), pos(1), pos(3), 'spline', 0);
+    y_comp = interp3(Y, X, Z, squeeze(v1_local(:,:,:,2)), pos(2), pos(1), pos(3), 'spline', 0);
+    z_comp = interp3(Y, X, Z, squeeze(v1_local(:,:,:,3)), pos(2), pos(1), pos(3), 'spline', 0);
     
     dir_vec = [x_comp, y_comp, z_comp];
-catch
+    
+    % Check validity
+    dir_norm = norm(dir_vec);
+    if dir_norm < 1e-6 || any(isnan(dir_vec)) || any(isinf(dir_vec))
+        % Fallback to linear if spline fails
+        dir_vec = interpolate_eigenvector_linear(nim, pos);
+    end
+    
+catch ME
+    fprintf('Warning: Spline interpolation failed, using linear fallback: %s\n', ME.message);
     % Fallback to linear interpolation
     dir_vec = interpolate_eigenvector_linear(nim, pos);
 end
