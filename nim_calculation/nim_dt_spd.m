@@ -107,7 +107,15 @@ function nim_out = nim_dt_spd(nim, opts)
           nim.evec(x,y,z,:,:) = QM;
           nim.eval(x,y,z,:)   = lM;
 
-         if(~isempty(find(isnan(D)==1)))
+         % Enhanced tensor validation (fix for NaN/Inf issues)
+         if(~isempty(find(isnan(D)==1)) || ~isempty(find(isinf(D)==1)))
+              nim.DT(x,y,z,:) = zeros(size(D));
+              nim.evec(x,y,z,:,:) = zeros(size(QM));
+              nim.eval(x,y,z,:)   = zeros(size(lM));
+         end
+         
+         % Additional check for unrealistic eigenvalues
+         if any(lM < 0) || any(lM > 0.01) % Typical diffusivity range
               nim.DT(x,y,z,:) = zeros(size(D));
               nim.evec(x,y,z,:,:) = zeros(size(QM));
               nim.eval(x,y,z,:)   = zeros(size(lM));

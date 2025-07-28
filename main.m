@@ -14,6 +14,7 @@ addpath('nim_utils');
 addpath('nim_calculation');
 addpath('nim_parcellation');
 addpath('nim_tractography');
+addpath('nim_tests');  % Add diagnostic and test functions
 addpath(genpath('spm12'));
 addpath('utils');
 addpath('nifti_sample');
