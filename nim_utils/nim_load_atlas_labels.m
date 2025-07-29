@@ -15,33 +15,32 @@ end
 
 % Define XML file paths based on atlas type
 if strcmpi(atlas_type, 'JHU')
-  % For JHU atlas, check multiple possible locations
+  % JHU White Matter Labels atlas (48 regions)
   potential_files = {
     fullfile(fsl_path, 'data/atlases/JHU/JHU-ICBM-labels-1mm.xml'),
-    fullfile(fsl_path, 'data/atlases/JHU-labels.xml'),
-    '/Users/12salty/Documents/research-chun/fsl/data/atlases/JHU-labels.xml' % Direct path to the file you shared
+    '/Users/12salty/Documents/research-chun/fsl/data/atlases/JHU-labels.xml'
     };
   
   xml_file = '';
   for i = 1:length(potential_files)
     if exist(potential_files{i}, 'file')
       xml_file = potential_files{i};
-      fprintf('Found JHU atlas XML file: %s\n', xml_file);
+      fprintf('Found JHU white matter labels XML: %s\n', xml_file);
       break;
     end
   end
 elseif strcmpi(atlas_type, 'JHU-tract')
-  % For JHU-tract atlas, check multiple possible locations
+  % JHU White Matter Tractography atlas (~20 tracts)
   potential_files = {
     fullfile(fsl_path, 'data/atlases/JHU/JHU-ICBM-tracts-maxprob-thr0-1mm.xml'),
-    '/Users/12salty/Documents/research-chun/fsl/data/atlases/JHU-tracts.xml' % Direct path to the file you shared
+    '/Users/12salty/Documents/research-chun/fsl/data/atlases/JHU-tracts.xml'
     };
   
   xml_file = '';
   for i = 1:length(potential_files)
     if exist(potential_files{i}, 'file')
       xml_file = potential_files{i};
-      fprintf('Found JHU-tract atlas XML file: %s\n', xml_file);
+      fprintf('Found JHU white matter tracts XML: %s\n', xml_file);
       break;
     end
   end

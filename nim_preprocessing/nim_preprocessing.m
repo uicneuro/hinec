@@ -131,7 +131,7 @@ try
     fprintf('\n--- Step 4: Atlas Processing ---\n');
     step_start = tic;
     
-    [parcellation_mask_output, atlas_labels_file] = preproc_atlas_resampling_fixed(...
+    [parcellation_mask_output, atlas_labels_file] = preproc_atlas_resampling(...
         output_file, output_dir, file_prefix, atlas_type);
     
     preprocessing_report.parcellation_mask = parcellation_mask_output;
