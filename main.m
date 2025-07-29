@@ -60,8 +60,9 @@ nim = nim_read(imgpath);
 nim = nim_dt_spd(nim);
 nim = nim_eig(nim);
 nim = nim_fa(nim);
-% Calculate parcellation
-parcellation_mask_file = 'nifti_sample/parcellation_sample/parcellation_mask.nii.gz';
+% Calculate parcellation using the fixed loader
+[output_dir, ~, ~] = fileparts(imgpath);
+parcellation_mask_file = fullfile(output_dir, 'parcellation_mask.nii.gz');
 nim = nim_parcellation(nim, parcellation_mask_file);
 % Store parcellation mask file path for reference
 nim.parcellation_mask_file = parcellation_mask_file;

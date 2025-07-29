@@ -1,149 +1,211 @@
 function nim_preprocessing(file_prefix, run_eddy, atlas_type)
-% nim_preprocessing: Preprocess DWI data with optional eddy current correction
+% nim_preprocessing: Modular DWI preprocessing pipeline
 %
 % Arguments:
-% file_prefix - The prefix for the file paths
-% run_eddy - Boolean flag to indicate whether to run eddy current correction (true/false)
-% atlas_type - Optional parameter to specify atlas type ('HarvardOxford' or 'JHU')
-%              Default is 'HarvardOxford'
+%   file_prefix - The prefix for the file paths
+%   run_eddy - Boolean flag for eddy current correction (optional, default: false)
+%   atlas_type - Atlas type ('HarvardOxford', 'JHU', 'JHU-tract', default: 'HarvardOxford')
 
+fprintf('HINEC DWI Preprocessing Pipeline\n');
+fprintf('================================\n');
+
+% Set default parameters
 if nargin < 3
-  atlas_type = 'HarvardOxford';
+    atlas_type = 'HarvardOxford';
+end
+if nargin < 2
+    run_eddy = false;
 end
 
-% Ensure the necessary FSL environment variables are set
+% Display pipeline information
+fprintf('File prefix: %s\n', file_prefix);
+fprintf('Atlas type: %s\n', atlas_type);
+fprintf('Eddy correction: %s\n', char(string(run_eddy)));
+fprintf('--------------------------------\n');
+
+% Initialize preprocessing report
+preprocessing_report = struct();
+preprocessing_report.start_time = datetime('now');
+preprocessing_report.file_prefix = char(file_prefix);
+preprocessing_report.atlas_type = atlas_type;
+preprocessing_report.eddy_enabled = run_eddy;
+preprocessing_report.steps_completed = {};
+preprocessing_report.errors = {};
+
+% Source FSL environment
+fprintf('Initializing FSL environment...\n');
 fsl_path = getenv('FSLDIR');
 if isempty(fsl_path)
-  error('FSLDIR environment variable is not set. Please ensure FSL is installed and configured.');
+    error('FSLDIR environment variable is not set. Please ensure FSL is installed and configured.');
 end
-
-% Source the FSL environment to ensure dependencies like fslpython are available
 system('source $FSLDIR/etc/fslconf/fsl.sh');
 
-% Define the suffixes for different files
-suffix_raw = '_raw.nii.gz';
-suffix_bvec = '.bvec';
-suffix_bval = '.bval';
-suffix_brain_mask = '_M.nii.gz';  % This is the final name for the mask file
-suffix_processed = '.nii.gz';
-suffix_eddy_corrected = '_eddy_corrected.nii.gz';
-suffix_acqp = '_acqp.txt';
-suffix_index = '_index.txt';
-suffix_atlas_labels = '_atlas_labels.mat';
-
-% Construct file paths based on the file prefix and suffixes
-dwi_file = file_prefix + suffix_raw;
-bvec_file = file_prefix + suffix_bvec;
-bval_file = file_prefix + suffix_bval;
-brain_mask_file = file_prefix + suffix_brain_mask;
-output_file = file_prefix + suffix_processed;
+% Define file paths
+dwi_file = file_prefix + "_raw.nii.gz";
+bvec_file = file_prefix + ".bvec";
+bval_file = file_prefix + ".bval";
+brain_mask_file = file_prefix + "_M.nii.gz";
+output_file = file_prefix + ".nii.gz";
 output_dir = fileparts(output_file);
-atlas_labels_file = file_prefix + suffix_atlas_labels;
 
-% Intermediate file paths
-b0_file = fullfile(output_dir, 'b0.nii.gz');
-bet_mask_file = fullfile(output_dir, 'nodif_brain_mask.nii.gz');
-eddy_corrected_file = file_prefix + suffix_eddy_corrected;
-dti_output_prefix = fullfile(output_dir, 'dti');
-acqp_file = file_prefix + suffix_acqp;
-index_file = file_prefix + suffix_index;
+% Verify input files exist
+input_files = {dwi_file, bvec_file, bval_file};
+input_descriptions = {'raw DWI', 'b-vectors', 'b-values'};
 
-% Step 1: Extract b0 image (first volume) from DWI data
-cmd_extract_b0 = sprintf('%s/bin/fslroi %s %s 0 1', fsl_path, dwi_file, b0_file);
-[status, cmdout] = system(cmd_extract_b0);
-if status ~= 0
-  error('Error in fslroi: %s', cmdout);
+fprintf('Verifying input files...\n');
+for i = 1:length(input_files)
+    if ~isfile(input_files{i})
+        error('Required input file not found: %s (%s)', input_files{i}, input_descriptions{i});
+    end
+    file_info = dir(input_files{i});
+    fprintf('  ✓ %s: %s (%.1f MB)\n', input_descriptions{i}, input_files{i}, file_info.bytes/1024/1024);
 end
 
-% Step 2: Create brain mask using FSL's BET tool
-cmd_bet = sprintf('%s/bin/bet %s %s -m', fsl_path, b0_file, fullfile(output_dir, 'nodif_brain'));
-[status, cmdout] = system(cmd_bet);
-if status ~= 0
-  error('Error in bet: %s', cmdout);
-end
+preprocessing_report.input_files = containers.Map(input_descriptions, input_files);
 
-% Step 2.5: Rename the mask file to the final mask filename
-if isfile(bet_mask_file)
-  movefile(bet_mask_file, brain_mask_file);
-else
-  error('BET mask file not found: %s', bet_mask_file);
-end
-
-% Step 3: Create a copy of the raw file and rename it as the final product
-copyfile(dwi_file, output_file);
-
-% Step 3.5: Eddy Current Correction
-% if run_eddy
-% Use FSL's eddy tool with the necessary parameters
-% cmd_eddy = sprintf('%s/bin/eddy --imain=%s --mask=%s --bvecs=%s --bvals=%s --out=%s --acqp=%s --index=%s', ...
-%   fsl_path, dwi_file, brain_mask_file, bvec_file, bval_file, eddy_corrected_file, acqp_file, index_file);
-% [status, cmdout] = system(cmd_eddy);
-% if status ~= 0
-%   error('Error in eddy: %s', cmdout);
-% end
-% end
-
-% Step 4: Resample the selected atlas to match the dimensions of the final product
-if strcmpi(atlas_type, 'JHU')
-  % JHU White-Matter atlas
-  atlas_path = fullfile(fsl_path, 'data/atlases/JHU/JHU-ICBM-labels-1mm.nii.gz');
-  % You can choose one of the following JHU atlases:
-  % atlas_path = fullfile(fsl_path, 'data/atlases/JHU/JHU-ICBM-labels-1mm.nii.gz');
-  % atlas_path = fullfile(fsl_path, 'data/atlases/JHU/JHU-ICBM-tracts-maxprob-thr0-1mm.nii.gz');
-  % atlas_path = fullfile(fsl_path, 'data/atlases/JHU/JHU-WhiteMatter-labels-1mm.nii.gz');
-elseif strcmpi(atlas_type, 'JHU-tract')
-  % JHU White-Matter Tract atlas
-  atlas_path = fullfile(fsl_path, 'data/atlases/JHU/JHU-ICBM-tracts-maxprob-thr0-1mm.nii.gz');
-else
-  % Default: Harvard-Oxford atlas
-  atlas_path = fullfile(fsl_path, 'data/atlases/HarvardOxford/HarvardOxford-cort-maxprob-thr0-1mm.nii.gz');
-end
-resampled_parcellation_mask = fullfile(output_dir, 'resampled_parcellation_mask.nii.gz');
-
-% Use flirt with nearest neighbor interpolation to preserve labels
-cmd_resample = sprintf('%s/bin/flirt -in %s -ref %s -out %s -applyxfm -usesqform -interp nearestneighbour', ...
-  fsl_path, atlas_path, output_file, resampled_parcellation_mask);
-[status, cmdout] = system(cmd_resample);
-if status ~= 0
-  error('Error in resampling the parcellation atlas with flirt: %s', cmdout);
-end
-
-% Step 5: (Optional) Use flirt to apply the resampled parcellation mask to the final product
-% Update output filename to include atlas information
-parcellation_mask_output = fullfile(output_dir, 'parcellation_mask.nii.gz');
-copyfile(resampled_parcellation_mask, parcellation_mask_output);
-
-% Step 6: Load atlas labels and save them
 try
-  % Add the path to nim_utils if needed
-  if ~exist('nim_load_atlas_labels', 'file')
-    addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'nim_utils'));
-  end
-  
-  % Load the atlas labels
-  atlas_labels = nim_load_atlas_labels(atlas_type);
-  fprintf('Loaded %d parcellation labels\n', atlas_labels.map.Count);
-  
-  % Add atlas type information to the structure
-  atlas_labels.atlas_type = atlas_type;
-  
-  % For JHU atlas, also add which specific JHU atlas was used
-  if strcmpi(atlas_type, 'JHU')
-    [~, atlas_name, ~] = fileparts(atlas_path);
-    atlas_labels.atlas_variant = atlas_name;
-  elseif strcmpi(atlas_type, 'JHU-tract')
-    [~, atlas_name, ~] = fileparts(atlas_path);
-    atlas_labels.atlas_variant = atlas_name;
-  end
-  
-  % Save the atlas labels
-  save(atlas_labels_file, 'atlas_labels');
-  
-  disp(['Atlas labels saved to: ' atlas_labels_file]);
-catch ex
-  warning(ex.identifier, 'Error loading atlas labels: %s', ex.message);
+    %% Step 1: Extract b0 volume
+    fprintf('\n--- Step 1: B0 Extraction ---\n');
+    step_start = tic;
+    
+    b0_file = preproc_extract_b0(dwi_file, output_dir);
+    preprocessing_report.b0_file = b0_file;
+    preprocessing_report.steps_completed{end+1} = 'b0_extraction';
+    
+    step_time = toc(step_start);
+    fprintf('Step 1 completed in %.1f seconds\n', step_time);
+    
+    %% Step 2: Brain extraction
+    fprintf('\n--- Step 2: Brain Extraction ---\n');
+    step_start = tic;
+    
+    brain_mask_file = preproc_brain_extraction(b0_file, output_dir, brain_mask_file);
+    preprocessing_report.brain_mask_file = brain_mask_file;
+    preprocessing_report.steps_completed{end+1} = 'brain_extraction';
+    
+    step_time = toc(step_start);
+    fprintf('Step 2 completed in %.1f seconds\n', step_time);
+    
+    %% Step 3: Copy raw data as processed (or eddy correction if enabled)
+    fprintf('\n--- Step 3: DWI Processing ---\n');
+    step_start = tic;
+    
+    if run_eddy
+        fprintf('Eddy current correction requested...\n');
+        
+        % Check for required eddy files
+        acqp_file = file_prefix + "_acqp.txt";
+        index_file = file_prefix + "_index.txt";
+        
+        if isfile(acqp_file) && isfile(index_file)
+            eddy_corrected_file = preproc_eddy_correction(dwi_file, brain_mask_file, ...
+                bvec_file, bval_file, acqp_file, index_file, file_prefix);
+            
+            if ~isempty(eddy_corrected_file) && isfile(eddy_corrected_file)
+                copyfile(eddy_corrected_file, output_file);
+                preprocessing_report.eddy_corrected = true;
+                preprocessing_report.eddy_file = eddy_corrected_file;
+            else
+                fprintf('Eddy correction failed, using raw data\n');
+                copyfile(dwi_file, output_file);
+                preprocessing_report.eddy_corrected = false;
+            end
+        else
+            fprintf('Missing eddy files (%s, %s), using raw data\n', acqp_file, index_file);
+            copyfile(dwi_file, output_file);
+            preprocessing_report.eddy_corrected = false;
+        end
+    else
+        fprintf('Using raw DWI data (no eddy correction)\n');
+        copyfile(dwi_file, output_file);
+        preprocessing_report.eddy_corrected = false;
+    end
+    
+    preprocessing_report.output_file = output_file;
+    preprocessing_report.steps_completed{end+1} = 'dwi_processing';
+    
+    step_time = toc(step_start);
+    fprintf('Step 3 completed in %.1f seconds\n', step_time);
+    
+    %% Step 4: Atlas resampling and label loading
+    fprintf('\n--- Step 4: Atlas Processing ---\n');
+    step_start = tic;
+    
+    [parcellation_mask_output, atlas_labels_file] = preproc_atlas_resampling_fixed(...
+        output_file, output_dir, file_prefix, atlas_type);
+    
+    preprocessing_report.parcellation_mask = parcellation_mask_output;
+    preprocessing_report.atlas_labels_file = atlas_labels_file;
+    preprocessing_report.steps_completed{end+1} = 'atlas_processing';
+    
+    step_time = toc(step_start);
+    fprintf('Step 4 completed in %.1f seconds\n', step_time);
+    
+    %% Step 5: Cleanup intermediate files
+    fprintf('\n--- Step 5: Cleanup ---\n');
+    step_start = tic;
+    
+    final_files = {
+        output_file;                                       % Processed DWI
+        brain_mask_file;                                   % Brain mask
+        parcellation_mask_output;                          % Parcellation
+        atlas_labels_file                                  % Atlas labels
+    };
+    
+    cleanup_report = preproc_cleanup(output_dir, file_prefix, final_files);
+    preprocessing_report.cleanup_report = cleanup_report;
+    preprocessing_report.steps_completed{end+1} = 'cleanup';
+    
+    step_time = toc(step_start);
+    fprintf('Step 5 completed in %.1f seconds\n', step_time);
+    
+    % Finalize report
+    preprocessing_report.end_time = datetime('now');
+    preprocessing_report.total_duration = preprocessing_report.end_time - preprocessing_report.start_time;
+    preprocessing_report.success = true;
+    
+    % Store report for potential future use
+    report_file = file_prefix + "_preprocessing_report.mat";
+    save(report_file, 'preprocessing_report');
+    
+    fprintf('\n=== PREPROCESSING COMPLETE ===\n');
+    fprintf('✅ All steps completed successfully\n');
+    fprintf('⏱ Total processing time: %s\n', char(preprocessing_report.total_duration));
+    fprintf('📁 Output directory: %s\n', output_dir);
+    fprintf('🧠 Atlas used: %s\n', atlas_type);
+    fprintf('📊 Report saved to: %s\n', report_file);
+    
+    % Display final summary
+    fprintf('\nFINAL FILES:\n');
+    if isfield(preprocessing_report, 'cleanup_report') && isfield(preprocessing_report.cleanup_report, 'files_kept')
+        for i = 1:length(preprocessing_report.cleanup_report.files_kept)
+            file_record = preprocessing_report.cleanup_report.files_kept{i};
+            if file_record.exists
+                fprintf('  ✓ %s (%.1f MB)\n', file_record.path, file_record.size_mb);
+            else
+                fprintf('  ✗ %s (MISSING)\n', file_record.path);
+            end
+        end
+    end
+    
+    fprintf('\nPreprocessing pipeline completed successfully! 🎉\n');
+    
+catch ME
+    % Record error information
+    error_info = struct();
+    error_info.message = ME.message;
+    error_info.identifier = ME.identifier;
+    error_info.stack = ME.stack;
+    error_info.timestamp = datetime('now');
+    
+    preprocessing_report.errors{end+1} = error_info;
+    preprocessing_report.success = false;
+    
+    fprintf('\n❌ PREPROCESSING PIPELINE FAILED ❌\n');
+    fprintf('Error in %s (line %d): %s\n', ME.stack(1).name, ME.stack(1).line, ME.message);
+    
+    % Re-throw the error
+    rethrow(ME);
 end
 
-% Display completion message
-disp('DWI preprocessing complete.');
 end

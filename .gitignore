@@ -74,3 +74,5 @@ octave-workspace
 spm12/*
 
 sample.mat
+
+nifti/*
