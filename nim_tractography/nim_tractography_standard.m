@@ -75,7 +75,7 @@ end
 
 fprintf('Starting standard tractography...\n');
 fprintf('Parameters: step=%.2f, FA_thresh=%.2f, angle_thresh=%.1f\n', ...
-        options.step_size, options.fa_threshold, options.angle_thresh);
+    options.step_size, options.fa_threshold, options.angle_thresh);
 
 % Get image dimensions
 dims = size(nim.FA);
@@ -88,7 +88,7 @@ end
 fprintf('Pre-computing eigenvector components...\n');
 % FIX: Ensure we're extracting PRIMARY eigenvector (largest eigenvalue)
 nim.v1_x = squeeze(nim.evec(:,:,:,1,1));  % First component of first eigenvector
-nim.v1_y = squeeze(nim.evec(:,:,:,2,1));  % Second component of first eigenvector  
+nim.v1_y = squeeze(nim.evec(:,:,:,2,1));  % Second component of first eigenvector
 nim.v1_z = squeeze(nim.evec(:,:,:,3,1));  % Third component of first eigenvector
 
 % Verify eigenvector extraction at center voxel
@@ -174,8 +174,8 @@ for i = 1:size(seed_points, 1)
         rate = i / elapsed;
         eta = (size(seed_points, 1) - i) / rate;
         fprintf('\n%d/%d (%.1f seeds/s, ETA: %.1f min) ', i, size(seed_points, 1), rate, eta/60);
-        m = memory;
-        fprintf('\nMemory: %.1f GB used', m.MemUsedMATLAB/1e9);
+        % m = memory;
+        % fprintf('\nMemory: %.1f GB used', m.MemUsedMATLAB/1e9);
     end
     
     seed = seed_points(i, :);
