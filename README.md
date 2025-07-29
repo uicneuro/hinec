@@ -4,8 +4,8 @@ Human brain white matter tractography pipeline
 
 ## Instructions
 
-1. Launch MATLAB and use `cd` in MATLAB to navigate to the HINEC directory.
-2. Invoke the `main` function.
+1.  Launch MATLAB and use `cd` in MATLAB to navigate to the HINEC directory.
+2.  Invoke the `main` function.
 
 ### Usage
 
@@ -13,66 +13,56 @@ Human brain white matter tractography pipeline
 
 To run any command without running the main function, the paths must be added with the command `addpaths`.
 
-#### Running HINEC
-
-To run the program on the provided sample NiFTI file, and save it to "sample.mat", run the following in MATLAB.
-
-```matlab
-main nifti_sample/sample sample.mat
-```
-
-### Usage (Parcellation)
-
 #### Data Preparation
 
-To run hinec with parcellation, prepare the following files:
+To run HINEC from scratch, you must provide a raw NIfTI file (`.nii.gz`), a b-vector file (`.bvec`), and a b-value file (`.bval`). These files should share the same prefix and be organized as follows:
 
-- raw NIFTI file
-- bvec and bval file
-- index file (index.txt)
-- acquisition parameters (acqp.txt)
+*   `{prefix}_raw.nii.gz`
+*   `{prefix}.bvec`
+*   `{prefix}.bval`
 
-Name them all with same prefix. The naming scheme is as below:
+For example, if your prefix is `my_data`, you should have:
 
-- {name}\_raw.nii.gz
-- {name}.bvec
-- {name}.bval
-- {name}\_index.txt
-- {name}\_acqp.txt
+*   `my_data_raw.nii.gz`
+*   `my_data.bvec`
+*   `my_data.bval`
 
 #### Running HINEC
 
-To run data processing only, use the following command:
+To process your data and save the output to a `.mat` file, run the following command in MATLAB, replacing `{data_location}` with the path to your files and `{prefix}` with your chosen prefix:
 
 ```matlab
-main {data location} {nim data file}
+main('{data_location}/{prefix}', 'output.mat')
 ```
 
-- `data location` refers to the location of the data along with the prefix
-  - e.g. nifti_sample/parcellation_sample/sample
-- `nim data file` refers to the location of save file generated (must be .mat)
-  - e.g. sample.mat
+For instance, if your data is in a folder named `input_data`, the command would be:
+
+```matlab
+main('input_data/my_data', 'output.mat')
+```
+
+The pipeline will automatically perform all necessary preprocessing steps, including brain extraction, parcellation, and diffusion tensor calculation, and save the final results to `output.mat`.
+
+### Viewing Parcellation Results
 
 To view the data by each parcellation, use the following commands:
 
 ```matlab
-load {name}.mat
+load('output.mat');
 nim_plotparcelall(nim);
 ```
-
-The total process can be executed by editing and running `runhinec`.
 
 ## Requirements
 
 Addons:
 
-- `Image Processing Toolbox`
-- `Statistics and Machine Learning Toolbox`
-- `Tools for NIfTI and ANALYZE image`
+-   `Image Processing Toolbox`
+-   `Statistics and Machine Learning Toolbox`
+-   `Tools for NIfTI and ANALYZE image`
 
 External Softwares:
 
-- `Statistical Parametric Mapping`
-  - Must add folder SPM12 in the root directory
-- `FSL`
-  - Must be initialized before use
+-   `Statistical Parametric Mapping`
+    -   Must add folder SPM12 in the root directory
+-   `FSL`
+    -   Must be initialized before use
