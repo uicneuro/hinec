@@ -22,7 +22,7 @@ end
 % Define output paths
 resampled_parcellation_mask = fullfile(output_dir, 'resampled_parcellation_mask.nii.gz');
 parcellation_mask_output = fullfile(output_dir, 'parcellation_mask.nii.gz');
-atlas_labels_file = file_prefix + "_atlas_labels.mat";
+atlas_labels_file = [file_prefix '_atlas_labels.mat'];
 
 % Select atlas based on type
 atlas_path = get_atlas_path(fsl_path, atlas_type);

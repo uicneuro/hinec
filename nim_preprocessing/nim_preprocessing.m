@@ -97,10 +97,10 @@ end
 system('source $FSLDIR/etc/fslconf/fsl.sh');
 
 % Define file paths
-dwi_raw_file = file_prefix + "_raw.nii.gz";
-bvec_file = file_prefix + ".bvec";
-bval_file = file_prefix + ".bval";
-output_file = file_prefix + ".nii.gz";
+dwi_raw_file = [file_prefix '_raw.nii.gz'];
+bvec_file = [file_prefix '.bvec'];
+bval_file = [file_prefix '.bval'];
+output_file = [file_prefix '.nii.gz'];
 output_dir = fileparts(output_file);
 if isempty(output_dir)
     output_dir = pwd;
@@ -139,7 +139,7 @@ try
     fprintf('\n=== Step 2: Initial Brain Extraction ===\n');
     step_start = tic;
     
-    initial_brain_mask_file = file_prefix + "_M_initial.nii.gz";
+    initial_brain_mask_file = [file_prefix '_M_initial.nii.gz'];
     brain_mask_file = preproc_brain_extraction(b0_file, output_dir, initial_brain_mask_file);
     preprocessing_report.initial_brain_mask_file = brain_mask_file;
     preprocessing_report.steps_completed{end+1} = 'initial_brain_extraction';
@@ -193,8 +193,8 @@ try
         step_start = tic;
         
         % Check for required eddy files
-        acqp_file = file_prefix + "_acqp.txt";
-        index_file = file_prefix + "_index.txt";
+        acqp_file = [file_prefix '_acqp.txt'];
+        index_file = [file_prefix '_index.txt'];
         
         if isfile(acqp_file) && isfile(index_file)
             try
@@ -241,11 +241,11 @@ try
     step_start = tic;
     
     % Copy current processed DWI to final location for DTI calculation
-    final_dwi_file = file_prefix + "_processed.nii.gz";
+    final_dwi_file = [file_prefix '_processed.nii.gz'];
     copyfile(current_dwi_file, final_dwi_file);
     
     % Copy final b-vectors
-    final_bvec_file = file_prefix + "_processed.bvec";
+    final_bvec_file = [file_prefix '_processed.bvec'];
     copyfile(current_bvec_file, final_bvec_file);
     
     % Load the processed DWI data for DTI calculation
@@ -258,7 +258,7 @@ try
     nim_data = nim_fa(nim_data);
     
     % Save preliminary FA map
-    preliminary_fa_file = file_prefix + "_preliminary_FA.nii.gz";
+    preliminary_fa_file = [file_prefix '_preliminary_FA.nii.gz'];
     fa_data = nim_data.FA;
     
     % Create FA volume header based on original DWI
@@ -293,7 +293,7 @@ try
     else
         fprintf('\n=== Step 7: Brain Mask Improvement (SKIPPED) ===\n');
         % Copy initial mask to final location
-        final_mask_file = file_prefix + "_M.nii.gz";
+        final_mask_file = [file_prefix '_M.nii.gz'];
         copyfile(brain_mask_file, final_mask_file);
         brain_mask_file = final_mask_file;
     end
@@ -317,9 +317,9 @@ try
     step_start = tic;
     
     % Copy files to final locations with standard names
-    final_output_bvec = file_prefix + ".bvec";   % Final b-vectors
-    final_output_bval = file_prefix + ".bval";   % Copy of b-values
-    final_output_mask = file_prefix + "_M.nii.gz";  % Final brain mask
+    final_output_bvec = [file_prefix '.bvec'];   % Final b-vectors
+    final_output_bval = [file_prefix '.bval'];   % Copy of b-values
+    final_output_mask = [file_prefix '_M.nii.gz'];  % Final brain mask
     
     % Copy processed DWI to final output location
     if ~strcmp(final_dwi_file, output_file)
@@ -371,7 +371,7 @@ try
     preprocessing_report.success = true;
     
     % Store report for potential future use
-    report_file = file_prefix + "_preprocessing_report.mat";
+    report_file = [file_prefix '_preprocessing_report.mat'];
     save(report_file, 'preprocessing_report');
     
     fprintf('\n========================================\n');
@@ -421,8 +421,8 @@ try
     
     fprintf('\n🚀 Your data is now ready for DTI analysis and tractography! 🚀\n');
     fprintf('Next steps:\n');
-    fprintf('  1. Run main(\''%s\'', \'output.mat\') for full DTI analysis\n', char(output_file));
-    fprintf('  2. Use runTractography(\'output.mat\') for tractography analysis\n');
+    fprintf('  1. Run main(''%s'', ''output.mat'') for full DTI analysis\n', char(output_file));
+    fprintf('  2. Use runTractography(''output.mat'') for tractography analysis\n');
     
 catch ME
     % Record comprehensive error information
@@ -437,7 +437,7 @@ catch ME
     preprocessing_report.end_time = datetime('now');
     
     % Save error report
-    error_report_file = file_prefix + "_preprocessing_error_report.mat";
+    error_report_file = [file_prefix '_preprocessing_error_report.mat'];
     save(error_report_file, 'preprocessing_report');
     
     fprintf('\n❌ ENHANCED PREPROCESSING FAILED ❌\n');

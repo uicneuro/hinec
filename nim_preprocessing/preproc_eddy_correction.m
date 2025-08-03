@@ -29,7 +29,7 @@ if isempty(fsl_path)
 end
 
 % Define output file path
-eddy_corrected_file = strrep(file_prefix, '_raw', '') + "_eddy_corrected.nii.gz";
+eddy_corrected_file = [strrep(file_prefix, '_raw', '') '_eddy_corrected.nii.gz'];
 
 % Verify required input files exist
 required_files = {dwi_file, brain_mask_file, bvec_file, bval_file, acqp_file, index_file};
@@ -69,7 +69,7 @@ if status ~= 0
 end
 
 % Verify the output file was created
-eddy_corrected_file = eddy_output_prefix + ".nii.gz";
+eddy_corrected_file = [eddy_output_prefix '.nii.gz'];
 if ~isfile(eddy_corrected_file)
     error('Eddy correction failed: output file not found at %s', eddy_corrected_file);
 end

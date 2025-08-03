@@ -12,7 +12,7 @@ function improved_mask_file = preproc_mask_improvement(brain_mask_file, fa_file,
 fprintf('Step: Brain mask improvement and validation...\n');
 
 % Define output file path
-improved_mask_file = strrep(file_prefix, '_raw', '') + "_mask_improved.nii.gz";
+improved_mask_file = [strrep(file_prefix, '_raw', '') '_mask_improved.nii.gz'];
 
 % Verify input files exist
 if ~isfile(brain_mask_file)
@@ -72,12 +72,12 @@ if mask_percentage > 50 || mean_fa_outside > 0.1
     fprintf('Applying improved brain extraction...\n');
     
     % Extract b0 for better brain extraction
-    temp_b0 = strrep(file_prefix, '_raw', '') + "_temp_b0_for_mask.nii.gz";
+    temp_b0 = [strrep(file_prefix, '_raw', '') '_temp_b0_for_mask.nii.gz'];
     
     % Get the b0 volume from the FA's header info to find the original DWI
     dwi_file = strrep(fa_file, '_FA', '');
     if ~isfile(dwi_file)
-        dwi_file = strrep(file_prefix, '_raw', '') + ".nii.gz";
+        dwi_file = [strrep(file_prefix, '_raw', '') '.nii.gz'];
     end
     
     if isfile(dwi_file)
@@ -87,14 +87,14 @@ if mask_percentage > 50 || mean_fa_outside > 0.1
         
         if status == 0
             % Apply bet with more conservative settings
-            temp_bet_prefix = strrep(file_prefix, '_raw', '') + "_temp_bet";
+            temp_bet_prefix = [strrep(file_prefix, '_raw', '') '_temp_bet'];
             cmd_bet = sprintf('%s/bin/bet %s %s -m -f 0.3 -R', fsl_path, temp_b0, temp_bet_prefix);
             
             fprintf('Improving brain extraction: %s\n', cmd_bet);
             [status, cmdout] = system(cmd_bet);
             
             if status == 0
-                new_mask = temp_bet_prefix + "_mask.nii.gz";
+                new_mask = [temp_bet_prefix '_mask.nii.gz'];
                 if isfile(new_mask)
                     % Test the new mask
                     V_new = spm_vol(new_mask);
@@ -131,7 +131,7 @@ if mask_percentage > 50 || mean_fa_outside > 0.1
             if isfile(temp_b0)
                 delete(temp_b0);
             end
-            temp_files = {temp_bet_prefix + ".nii.gz", temp_bet_prefix + "_mask.nii.gz"};
+            temp_files = {[temp_bet_prefix '.nii.gz'], [temp_bet_prefix '_mask.nii.gz']};
             for i = 1:length(temp_files)
                 if isfile(temp_files{i})
                     delete(temp_files{i});
@@ -154,7 +154,7 @@ end
 fprintf('Applying morphological operations to improve mask...\n');
 
 % Fill holes and smooth using FSL
-temp_filled = strrep(file_prefix, '_raw', '') + "_temp_filled.nii.gz";
+temp_filled = [strrep(file_prefix, '_raw', '') '_temp_filled.nii.gz'];
 
 % Fill holes and apply morphological operations
 cmd_morph = sprintf(['%s/bin/fslmaths %s -fillh -s 0.5 -thr 0.5 -bin %s'], ...

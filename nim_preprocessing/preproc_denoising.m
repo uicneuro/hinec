@@ -16,7 +16,7 @@ end
 fprintf('Step: Denoising using %s method...\n', method);
 
 % Define output file path
-denoised_file = strrep(file_prefix, '_raw', '') + "_denoised.nii.gz";
+denoised_file = [strrep(file_prefix, '_raw', '') '_denoised.nii.gz'];
 
 % Verify input file exists
 if ~isfile(dwi_file)
@@ -62,7 +62,7 @@ if status ~= 0
 end
 
 % Define noise map output
-noise_map_file = strrep(file_prefix, '_raw', '') + "_noise_map.nii.gz";
+noise_map_file = [strrep(file_prefix, '_raw', '') '_noise_map.nii.gz'];
 
 % Run MRtrix3 dwidenoise
 cmd_denoise = sprintf('dwidenoise %s %s -noise %s -force', ...

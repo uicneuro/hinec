@@ -19,7 +19,7 @@ if isempty(fsl_path)
 end
 
 % Define output file path
-motion_corrected_file = strrep(file_prefix, '_raw', '') + "_motion_corrected.nii.gz";
+motion_corrected_file = [strrep(file_prefix, '_raw', '') '_motion_corrected.nii.gz'];
 
 % Verify required input files exist
 required_files = {dwi_file, bvec_file, bval_file};
@@ -87,9 +87,9 @@ fprintf('✓ Motion correction completed: %s (%.1f MB)\n', motion_corrected_file
 fprintf('  Processing time: %.1f seconds\n', elapsed_time);
 
 % Report on motion parameters
-motion_params_file = motion_output_prefix + ".par";
-motion_rms_rel_file = motion_output_prefix + "_rel_mean.rms";
-motion_rms_abs_file = motion_output_prefix + "_abs_mean.rms";
+motion_params_file = [motion_output_prefix '.par'];
+motion_rms_rel_file = [motion_output_prefix '_rel_mean.rms'];
+motion_rms_abs_file = [motion_output_prefix '_abs_mean.rms'];
 
 if isfile(motion_params_file)
     motion_params = load(motion_params_file);
@@ -129,7 +129,7 @@ if size(bvecs, 1) == 3
 end
 
 % Apply rotations from motion correction
-mat_dir = motion_output_prefix + ".mat";
+mat_dir = [motion_output_prefix '.mat'];
 if isfolder(mat_dir)
     corrected_bvecs = bvecs;
     mat_files = dir(fullfile(mat_dir, 'MAT_*'));

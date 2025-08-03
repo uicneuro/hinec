@@ -14,10 +14,10 @@ fprintf('Step 7: Cleaning up intermediate files...\n');
 % Default files to keep if not specified
 if nargin < 3 || isempty(keep_files)
     keep_files = {
-        file_prefix + ".nii.gz";                           % Processed DWI
-        file_prefix + "_M.nii.gz";                         % Brain mask
+        [file_prefix '.nii.gz'];                           % Processed DWI
+        [file_prefix '_M.nii.gz'];                         % Brain mask
         fullfile(output_dir, 'parcellation_mask.nii.gz');  % Parcellation
-        file_prefix + "_atlas_labels.mat"                  % Atlas labels
+        [file_prefix '_atlas_labels.mat']                  % Atlas labels
     };
 end
 
