@@ -196,10 +196,107 @@ try
         fprintf('\n=== Step 5: Eddy Current Correction ===\n');
         step_start = tic;
         
-        % Check for required eddy files
+        % Define eddy parameter files
         acqp_file = [file_prefix '_acqp.txt'];
         index_file = [file_prefix '_index.txt'];
+        json_file = [file_prefix '.json'];
         
+        % Create parameter files from JSON if they don't exist
+        if ~isfile(acqp_file) || ~isfile(index_file)
+            fprintf('Creating eddy parameter files from JSON metadata...\n');
+            
+            if isfile(json_file)
+                try
+                    % Read JSON file
+                    json_text = fileread(json_file);
+                    json_data = jsondecode(json_text);
+                    
+                    % Extract phase encoding direction and readout time
+                    if isfield(json_data, 'PhaseEncodingDirection') && isfield(json_data, 'TotalReadoutTime')
+                        phase_dir = json_data.PhaseEncodingDirection;
+                        readout_time = json_data.TotalReadoutTime;
+                        
+                        fprintf('  Phase encoding direction: %s\n', phase_dir);
+                        fprintf('  Total readout time: %.6f seconds\n', readout_time);
+                        
+                        % Convert phase encoding direction to FSL format
+                        % i = x-direction, j = y-direction, k = z-direction
+                        % + = positive direction, - = negative direction
+                        switch phase_dir
+                            case 'i'
+                                pe_vector = '1 0 0';
+                            case 'i-'
+                                pe_vector = '-1 0 0';
+                            case 'j'
+                                pe_vector = '0 1 0';
+                            case 'j-'
+                                pe_vector = '0 -1 0';
+                            case 'k'
+                                pe_vector = '0 0 1';
+                            case 'k-'
+                                pe_vector = '0 0 -1';
+                            otherwise
+                                error('Unknown phase encoding direction: %s', phase_dir);
+                        end
+                        
+                        % Create acqp.txt file
+                        acqp_content = sprintf('%s %.6f', pe_vector, readout_time);
+                        fid = fopen(acqp_file, 'w');
+                        if fid == -1
+                            error('Could not create acqp file: %s', acqp_file);
+                        end
+                        fprintf(fid, '%s\n', acqp_content);
+                        fclose(fid);
+                        fprintf('  ✓ Created %s\n', acqp_file);
+                        
+                        % Count volumes and create index.txt
+                        [status, vol_output] = system(sprintf('fslnvols %s', current_dwi_file));
+                        if status == 0
+                            num_vols = str2double(strtrim(vol_output));
+                            if isnan(num_vols) || num_vols <= 0
+                                error('Invalid volume count: %s', vol_output);
+                            end
+                            
+                            % Create index file (all volumes use acquisition 1)
+                            index_content = repmat('1 ', 1, num_vols);
+                            fid = fopen(index_file, 'w');
+                            if fid == -1
+                                error('Could not create index file: %s', index_file);
+                            end
+                            fprintf(fid, '%s\n', strtrim(index_content));
+                            fclose(fid);
+                            fprintf('  ✓ Created %s for %d volumes\n', index_file, num_vols);
+                        else
+                            error('Could not count volumes in %s: %s', current_dwi_file, vol_output);
+                        end
+                        
+                    else
+                        error('JSON file missing required fields: PhaseEncodingDirection and/or TotalReadoutTime');
+                    end
+                    
+                catch ME
+                    fprintf('⚠ Failed to create parameter files from JSON: %s\n', ME.message);
+                    fprintf('  You may need to create %s and %s manually\n', acqp_file, index_file);
+                    preprocessing_report.warnings{end+1} = sprintf('Failed to create eddy parameter files: %s', ME.message);
+                    preprocessing_report.eddy_corrected = false;
+                    step_time = toc(step_start);
+                    fprintf('Step 5 completed in %.1f seconds\n', step_time);
+                    return;
+                end
+            else
+                fprintf('⚠ JSON file not found: %s\n', json_file);
+                fprintf('  Cannot create eddy parameter files automatically\n');
+                preprocessing_report.warnings{end+1} = 'JSON file not found for eddy parameter creation';
+                preprocessing_report.eddy_corrected = false;
+                step_time = toc(step_start);
+                fprintf('Step 5 completed in %.1f seconds\n', step_time);
+                return;
+            end
+        else
+            fprintf('Using existing eddy parameter files\n');
+        end
+        
+        % Now run eddy correction with parameter files
         if isfile(acqp_file) && isfile(index_file)
             try
                 eddy_corrected_file = preproc_eddy_correction(current_dwi_file, brain_mask_file, ...
@@ -228,8 +325,8 @@ try
                 fprintf('⚠ Eddy correction failed: %s\n', ME.message);
             end
         else
-            fprintf('Missing eddy files (%s, %s), skipping eddy correction\n', acqp_file, index_file);
-            preprocessing_report.warnings{end+1} = 'Missing eddy parameter files';
+            fprintf('⚠ Could not create or find eddy parameter files, skipping eddy correction\n');
+            preprocessing_report.warnings{end+1} = 'Could not create eddy parameter files';
             preprocessing_report.eddy_corrected = false;
         end
         
