@@ -56,8 +56,8 @@ fprintf('Using MRtrix3 dwidenoise (MP-PCA method)...\n');
 % Check if MRtrix3 is available
 [status, ~] = system('which dwidenoise');
 if status ~= 0
-    fprintf('⚠ MRtrix3 not found, falling back to FSL-based denoising\n');
-    denoised_file = denoise_fsl_susan(dwi_file, denoised_file);
+    fprintf('⚠ MRtrix3 not found, falling back to Gaussian smoothing\n');
+    denoised_file = denoise_gaussian(dwi_file, denoised_file);
     return;
 end
 
@@ -160,8 +160,8 @@ if license('test', 'image_toolbox')
     fprintf('Using MATLAB Image Processing Toolbox...\n');
     denoise_matlab_nlmeans(dwi_file, denoised_file);
 else
-    fprintf('⚠ Image Processing Toolbox not available, falling back to FSL SUSAN\n');
-    denoised_file = denoise_fsl_susan(dwi_file, denoised_file);
+    fprintf('⚠ Image Processing Toolbox not available, falling back to Gaussian smoothing\n');
+    denoised_file = denoise_gaussian(dwi_file, denoised_file);
 end
 
 end

@@ -138,8 +138,8 @@ if isfolder(mat_dir)
         if i <= size(bvecs, 1)
             mat_file = fullfile(mat_files(i).folder, mat_files(i).name);
             if isfile(mat_file)
-                % Load transformation matrix
-                transform_mat = load(mat_file);
+                % Load transformation matrix as ASCII
+transform_mat = load(mat_file, '-ascii');
                 if size(transform_mat, 1) == 4 && size(transform_mat, 2) == 4
                     % Extract rotation matrix (top-left 3x3)
                     rotation_mat = transform_mat(1:3, 1:3);

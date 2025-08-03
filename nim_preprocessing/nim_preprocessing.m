@@ -17,6 +17,9 @@ function nim_preprocessing(file_prefix, varargin)
 fprintf('HINEC DWI Preprocessing Pipeline\n');
 fprintf('================================\n');
 
+% Ensure file_prefix is a character array (handle string input)
+file_prefix = char(file_prefix);
+
 % Handle backward compatibility and set default parameters
 if length(varargin) == 0
     options = struct();
@@ -112,8 +115,9 @@ input_descriptions = {'raw DWI', 'b-vectors', 'b-values'};
 
 fprintf('Verifying input files...\n');
 for i = 1:length(input_files)
+    fprintf('  Checking: %s\n', input_files{i});
     if ~isfile(input_files{i})
-        error('Required input file not found: %s (%s)', input_files{i}, input_descriptions{i});
+        error('Required input file not found: %s (%s)', char(input_files{i}), char(input_descriptions{i}));
     end
     file_info = dir(input_files{i});
     fprintf('  ✓ %s: %s (%.1f MB)\n', input_descriptions{i}, input_files{i}, file_info.bytes/1024/1024);
@@ -240,16 +244,17 @@ try
     fprintf('\n=== Step 6: Preliminary DTI Calculation ===\n');
     step_start = tic;
     
+    % Define final output bvec file path
+    final_bvec_file = [file_prefix '.bvec'];
+
     % Copy current processed DWI to final location for DTI calculation
-    final_dwi_file = [file_prefix '_processed.nii.gz'];
-    copyfile(current_dwi_file, final_dwi_file);
-    
+    copyfile(current_dwi_file, output_file);
+
     % Copy final b-vectors
-    final_bvec_file = [file_prefix '_processed.bvec'];
     copyfile(current_bvec_file, final_bvec_file);
-    
-    % Load the processed DWI data for DTI calculation
-    nim_data = nim_read(final_dwi_file);
+
+    % Load the processed DWI data for DTI calculation, providing explicit paths
+    nim_data = nim_read(output_file, 'BvalPath', bval_file, 'BvecPath', final_bvec_file, 'Mask', 'off');
     
     % Calculate DTI tensors
     nim_data = nim_dt_spd(nim_data);
@@ -262,7 +267,7 @@ try
     fa_data = nim_data.FA;
     
     % Create FA volume header based on original DWI
-    V_dwi = spm_vol(final_dwi_file);
+V_dwi = spm_vol(output_file);
     V_fa = V_dwi(1);  % Use first volume as template
     V_fa.fname = preliminary_fa_file;
     V_fa.private.dat.fname = preliminary_fa_file;
@@ -317,49 +322,40 @@ try
     step_start = tic;
     
     % Copy files to final locations with standard names
-    final_output_bvec = [file_prefix '.bvec'];   % Final b-vectors
-    final_output_bval = [file_prefix '.bval'];   % Copy of b-values
-    final_output_mask = [file_prefix '_M.nii.gz'];  % Final brain mask
-    
-    % Copy processed DWI to final output location
-    if ~strcmp(final_dwi_file, output_file)
-        copyfile(final_dwi_file, output_file);
-    end
-    
-    % Copy final b-vectors
-    if ~strcmp(current_bvec_file, final_output_bvec)
-        copyfile(current_bvec_file, final_output_bvec);
-    end
-    
-    % Copy b-values
-    if ~strcmp(bval_file, final_output_bval)
-        copyfile(bval_file, final_output_bval);
-    end
-    
-    % Copy final brain mask
-    if ~strcmp(brain_mask_file, final_output_mask)
-        copyfile(brain_mask_file, final_output_mask);
-    end
+final_output_bval = [file_prefix '.bval'];   % Copy of b-values
+final_output_mask = [file_prefix '_M.nii.gz'];  % Final brain mask
+
+% B-vectors are already at final_bvec_file, which is the final output location
+
+% Copy b-values
+if ~strcmp(bval_file, final_output_bval)
+    copyfile(bval_file, final_output_bval);
+end
+
+% Copy final brain mask
+if ~strcmp(brain_mask_file, final_output_mask)
+    copyfile(brain_mask_file, final_output_mask);
+end
     
     % Define files to keep for cleanup
     final_files = {
-        output_file;                               % Final processed DWI
-        final_output_bvec;                         % Final b-vectors  
-        final_output_bval;                         % B-values
-        final_output_mask;                         % Final brain mask
-        parcellation_mask_output;                  % Parcellation
-        atlas_labels_file;                         % Atlas labels
-        preliminary_fa_file                        % Preliminary FA for reference
-    };
+    output_file;                               % Final processed DWI
+    final_bvec_file;                         % Final b-vectors
+    final_output_bval;                         % B-values
+    final_output_mask;                         % Final brain mask
+    parcellation_mask_output;                  % Parcellation
+    atlas_labels_file;                         % Atlas labels
+    preliminary_fa_file                        % Preliminary FA for reference
+};
     
     cleanup_report = preproc_cleanup(output_dir, file_prefix, final_files);
     preprocessing_report.cleanup_report = cleanup_report;
     preprocessing_report.steps_completed{end+1} = 'finalization';
     
     % Update final file assignments in report
-    preprocessing_report.final_dwi_file = output_file;
-    preprocessing_report.final_bvec_file = final_output_bvec;
-    preprocessing_report.final_bval_file = final_output_bval;
+preprocessing_report.final_dwi_file = output_file;
+preprocessing_report.final_bvec_file = final_bvec_file;
+preprocessing_report.final_bval_file = final_output_bval;
     preprocessing_report.final_mask_file = final_output_mask;
     
     step_time = toc(step_start);
@@ -399,14 +395,14 @@ try
     % Display final files
     fprintf('\nFINAL OUTPUT FILES:\n');
     final_outputs = {
-        output_file, 'Processed DWI data';
-        final_output_bvec, 'Final b-vectors';
-        final_output_bval, 'B-values';
-        final_output_mask, 'Brain mask';
-        parcellation_mask_output, 'Parcellation mask';
-        atlas_labels_file, 'Atlas labels';
-        preliminary_fa_file, 'Preliminary FA map'
-    };
+    output_file, 'Processed DWI data';
+    final_bvec_file, 'Final b-vectors';
+    final_output_bval, 'B-values';
+    final_output_mask, 'Brain mask';
+    parcellation_mask_output, 'Parcellation mask';
+    atlas_labels_file, 'Atlas labels';
+    preliminary_fa_file, 'Preliminary FA map'
+};
     
     for i = 1:size(final_outputs, 1)
         file_path = final_outputs{i, 1};
