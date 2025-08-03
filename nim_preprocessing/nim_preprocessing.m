@@ -240,75 +240,44 @@ try
         preprocessing_report.eddy_corrected = false;
     end
     
-    %% Step 6: Calculate preliminary FA for mask improvement
-    fprintf('\n=== Step 6: Preliminary DTI Calculation ===\n');
+    %% Step 6: Copy processed data to final location
+    fprintf('\n=== Step 6: Copy Processed Data to Final Location ===\n');
     step_start = tic;
     
     % Define final output bvec file path
     final_bvec_file = [file_prefix '.bvec'];
 
-    % Copy current processed DWI to final location for DTI calculation
+    % Copy current processed DWI to final location
     copyfile(current_dwi_file, output_file);
 
     % Copy final b-vectors
     copyfile(current_bvec_file, final_bvec_file);
-
-    % Load the processed DWI data for DTI calculation, providing explicit paths
-    nim_data = nim_read(output_file, 'BvalPath', bval_file, 'BvecPath', final_bvec_file, 'Mask', 'off');
     
-    % Calculate DTI tensors
-    nim_data = nim_dt_spd(nim_data);
-    
-    % Calculate FA
-    nim_data = nim_fa(nim_data);
-    
-    % Save preliminary FA map
-    preliminary_fa_file = [file_prefix '_preliminary_FA.nii.gz'];
-    fa_data = nim_data.FA;
-    
-    % Create FA volume header based on original DWI
-V_dwi = spm_vol(output_file);
-    V_fa = V_dwi(1);  % Use first volume as template
-    V_fa.fname = preliminary_fa_file;
-    V_fa.private.dat.fname = preliminary_fa_file;
-    V_fa.dt = [spm_type('float32') 0];
-    
-    % Write FA data
-    spm_write_vol(V_fa, fa_data);
-    
-    preprocessing_report.preliminary_fa_file = preliminary_fa_file;
-    preprocessing_report.steps_completed{end+1} = 'preliminary_dti';
+    preprocessing_report.steps_completed{end+1} = 'copy_final_data';
     
     step_time = toc(step_start);
     fprintf('Step 6 completed in %.1f seconds\n', step_time);
     
-    %% Step 7: Brain mask improvement (if enabled)
-    if options.improve_mask
-        fprintf('\n=== Step 7: Brain Mask Improvement ===\n');
-        step_start = tic;
-        
-        improved_mask_file = preproc_mask_improvement(brain_mask_file, preliminary_fa_file, file_prefix);
-        brain_mask_file = improved_mask_file;  % Use improved mask going forward
-        
-        preprocessing_report.improved_mask_file = improved_mask_file;
-        preprocessing_report.steps_completed{end+1} = 'mask_improvement';
-        
-        step_time = toc(step_start);
-        fprintf('Step 7 completed in %.1f seconds\n', step_time);
-    else
-        fprintf('\n=== Step 7: Brain Mask Improvement (SKIPPED) ===\n');
-        % Copy initial mask to final location
-        final_mask_file = [file_prefix '_M.nii.gz'];
-        copyfile(brain_mask_file, final_mask_file);
-        brain_mask_file = final_mask_file;
-    end
+    %% Step 7: Copy brain mask to final location
+    fprintf('\n=== Step 7: Copy Brain Mask to Final Location ===\n');
+    step_start = tic;
+    
+    % Copy initial mask to final location (improvement will happen in main.m with FA data)
+    final_mask_file = [file_prefix '_M.nii.gz'];
+    copyfile(brain_mask_file, final_mask_file);
+    brain_mask_file = final_mask_file;
+    
+    preprocessing_report.steps_completed{end+1} = 'copy_brain_mask';
+    
+    step_time = toc(step_start);
+    fprintf('Step 7 completed in %.1f seconds\n', step_time);
     
     %% Step 8: Atlas processing
     fprintf('\n=== Step 8: Atlas Processing ===\n');
     step_start = tic;
     
     [parcellation_mask_output, atlas_labels_file] = preproc_atlas_resampling(...
-        final_dwi_file, output_dir, file_prefix, options.atlas_type);
+        output_file, output_dir, file_prefix, options.atlas_type);
     
     preprocessing_report.parcellation_mask = parcellation_mask_output;
     preprocessing_report.atlas_labels_file = atlas_labels_file;
@@ -344,8 +313,7 @@ end
     final_output_bval;                         % B-values
     final_output_mask;                         % Final brain mask
     parcellation_mask_output;                  % Parcellation
-    atlas_labels_file;                         % Atlas labels
-    preliminary_fa_file                        % Preliminary FA for reference
+    atlas_labels_file                         % Atlas labels
 };
     
     cleanup_report = preproc_cleanup(output_dir, file_prefix, final_files);
@@ -400,8 +368,7 @@ preprocessing_report.final_bval_file = final_output_bval;
     final_output_bval, 'B-values';
     final_output_mask, 'Brain mask';
     parcellation_mask_output, 'Parcellation mask';
-    atlas_labels_file, 'Atlas labels';
-    preliminary_fa_file, 'Preliminary FA map'
+    atlas_labels_file, 'Atlas labels'
 };
     
     for i = 1:size(final_outputs, 1)

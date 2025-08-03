@@ -22,8 +22,8 @@ addpath('bfgs');
 
 
 % Define the file extensions and suffixes
-img_file = imgpath + ".nii.gz";
-raw_file = imgpath + "_raw.nii.gz";
+img_file = [char(imgpath) '.nii.gz'];
+raw_file = [char(imgpath) '_raw.nii.gz'];
 
 % Check if the processed NIfTI file exists
 if isfile(img_file)
@@ -77,6 +77,36 @@ nim = nim_parcellation(nim, parcellation_mask_file);
 nim.parcellation_mask_file = parcellation_mask_file;
 % Load parcellation labels
 nim = nim_load_labels(nim);
+
+% Brain mask improvement using FA data (final step)
+fprintf("Improving brain mask using FA data...\n");
+brain_mask_file = [char(imgpath) '_M.nii.gz'];
+if isfile(brain_mask_file)
+    % Improve the brain mask using FA data directly from nim structure
+    improved_mask_file = preproc_mask_improvement(brain_mask_file, nim.FA, char(imgpath));
+    
+    % Update the mask in the nim structure if improvement was successful
+    if isfile(improved_mask_file)
+        % Load the improved mask
+        V_improved = spm_vol(improved_mask_file);
+        improved_mask_data = spm_read_vols(V_improved);
+        
+        % Update the brain mask in nim structure if it exists
+        if isfield(nim, 'mask')
+            nim.mask = improved_mask_data;
+        end
+        
+        fprintf("✓ Brain mask improved and updated\n");
+        
+        % Replace the original mask file with the improved one
+        copyfile(improved_mask_file, brain_mask_file);
+    else
+        fprintf("⚠ Brain mask improvement failed, keeping original\n");
+    end
+else
+    fprintf("⚠ No brain mask found to improve\n");
+end
+
 nim_save(nim, nimpath);
 
 end_time = datetime('now', 'Format', 'yyyy-MM-dd hh:mm:ss');

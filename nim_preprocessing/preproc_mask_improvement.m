@@ -1,15 +1,15 @@
-function improved_mask_file = preproc_mask_improvement(brain_mask_file, fa_file, file_prefix)
+function improved_mask_file = preproc_mask_improvement(brain_mask_file, fa_data, file_prefix)
 % preproc_mask_improvement: Improve brain mask quality using FA data
 %
 % Arguments:
 %   brain_mask_file - Path to the initial brain mask
-%   fa_file - Path to the FA map for mask refinement
+%   fa_data - FA data array (from nim.FA) for mask refinement
 %   file_prefix - Prefix for output files
 %
 % Returns:
 %   improved_mask_file - Path to the improved brain mask
 
-fprintf('Step: Brain mask improvement and validation...\n');
+fprintf('Step: Brain mask improvement and validation using FA data...\n');
 
 % Define output file path
 improved_mask_file = [strrep(file_prefix, '_raw', '') '_mask_improved.nii.gz'];
@@ -19,8 +19,8 @@ if ~isfile(brain_mask_file)
     error('Brain mask file not found: %s', brain_mask_file);
 end
 
-if ~isfile(fa_file)
-    error('FA file not found: %s', fa_file);
+if isempty(fa_data)
+    error('FA data is empty or not provided');
 end
 
 % Ensure FSL is available
@@ -31,12 +31,9 @@ end
 
 fprintf('Loading brain mask and FA data...\n');
 
-% Load original mask and FA data for analysis
+% Load original mask for analysis (FA data already provided)
 V_mask = spm_vol(brain_mask_file);
 mask_data = spm_read_vols(V_mask);
-
-V_fa = spm_vol(fa_file);
-fa_data = spm_read_vols(V_fa);
 
 % Analyze original mask quality
 mask_volume = sum(mask_data(:) > 0.5);
@@ -74,11 +71,8 @@ if mask_percentage > 50 || mean_fa_outside > 0.1
     % Extract b0 for better brain extraction
     temp_b0 = [strrep(file_prefix, '_raw', '') '_temp_b0_for_mask.nii.gz'];
     
-    % Get the b0 volume from the FA's header info to find the original DWI
-    dwi_file = strrep(fa_file, '_FA', '');
-    if ~isfile(dwi_file)
-        dwi_file = [strrep(file_prefix, '_raw', '') '.nii.gz'];
-    end
+    % Find the original DWI file
+    dwi_file = [strrep(file_prefix, '_raw', '') '.nii.gz'];
     
     if isfile(dwi_file)
         % Extract first volume (assumed to be b0 or close to it)
