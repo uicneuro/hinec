@@ -21,7 +21,7 @@ fprintf('Step 3: Eddy current and motion correction...\n');
 % COMMENTED OUT - Eddy current correction is not currently implemented
 % Uncomment and modify the following code to enable eddy correction:
 
-%{
+
 % Ensure FSL is available
 fsl_path = getenv('FSLDIR');
 if isempty(fsl_path)
@@ -29,7 +29,7 @@ if isempty(fsl_path)
 end
 
 % Define output file path
-eddy_corrected_file = file_prefix + "_eddy_corrected.nii.gz";
+eddy_corrected_file = strrep(file_prefix, '_raw', '') + "_eddy_corrected.nii.gz";
 
 % Verify required input files exist
 required_files = {dwi_file, brain_mask_file, bvec_file, bval_file, acqp_file, index_file};
@@ -69,6 +69,7 @@ if status ~= 0
 end
 
 % Verify the output file was created
+eddy_corrected_file = eddy_output_prefix + ".nii.gz";
 if ~isfile(eddy_corrected_file)
     error('Eddy correction failed: output file not found at %s', eddy_corrected_file);
 end
@@ -93,12 +94,5 @@ for i = 1:length(eddy_outputs)
         fprintf('  ✓ %s (%.1f MB)\n', eddy_outputs{i}, file_info.bytes/1024/1024);
     end
 end
-%}
-
-% For now, just return empty since eddy correction is disabled
-eddy_corrected_file = '';
-fprintf('⚠ Eddy current correction is currently disabled.\n');
-fprintf('  To enable: uncomment the code in %s\n', mfilename);
-fprintf('  Ensure you have valid acqp.txt and index.txt files.\n');
 
 end

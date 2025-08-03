@@ -36,8 +36,17 @@ else
         fprintf("Found raw data: %s\n", raw_file);
         fprintf("Starting preprocessing...\n");
         
-        % Preprocess the raw data
-        nim_preprocessing(imgpath, false, 'JHU-tract');
+        % Set up preprocessing options for comprehensive processing
+        preproc_options = struct();
+        preproc_options.run_denoising = true;
+        preproc_options.denoise_method = 'dwidenoise';  % Use the best denoising method
+        preproc_options.run_motion_correction = true;
+        preproc_options.run_eddy = true;  % Enable eddy correction for better quality
+        preproc_options.improve_mask = true;  % Critical for good tractography
+        preproc_options.atlas_type = 'JHU-tract';
+        
+        % Preprocess the raw data with enhanced pipeline
+        nim_preprocessing(imgpath, preproc_options);
         
         % Check if the preprocessing was successful
         if isfile(img_file)
