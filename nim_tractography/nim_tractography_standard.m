@@ -109,21 +109,31 @@ end
 if isempty(options.seed_mask)
     options.seed_mask = nim.FA > options.fa_threshold;
     
-    % Exclude non-brain areas if parcellation is available
-    if isfield(nim, 'parcellation_mask')
+    % Priority 1: Use the preprocessed brain mask if available
+    brain_mask = [];
+    if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+        brain_mask = nim.mask > 0.5;
+        fprintf('Using preprocessed brain mask from nim.mask\n');
+    elseif isfield(nim, 'parcellation_mask')
+        % Fallback: Use parcellation mask if no preprocessed brain mask
         brain_mask = nim.parcellation_mask > 0;
-        
+        fprintf('Using parcellation mask as brain mask (fallback)\n');
+    end
+    
+    if ~isempty(brain_mask)
         % FIX: Exclude bottom slices to avoid inferior brain artifacts
         z_exclude = max(1, round(dims(3) * 0.1)); % Exclude bottom 10% of slices
         brain_mask(:, :, 1:z_exclude) = 0;
         fprintf('Excluded bottom %d slices to avoid susceptibility artifacts\n', z_exclude);
         
         options.seed_mask = options.seed_mask & brain_mask;
-        fprintf('Applied brain mask from parcellation (excluding label 0)\n');
+        fprintf('Applied brain mask constraint to seed generation\n');
         
         % OPTIMIZATION 2: Pre-compute dilated brain mask for boundary checking
         fprintf('Pre-computing dilated brain mask...\n');
         nim.dilated_brain_mask = imdilate(brain_mask, ones(3,3,3));
+    else
+        fprintf('⚠ WARNING: No brain mask found - using FA-only seed mask\n');
     end
 end
 

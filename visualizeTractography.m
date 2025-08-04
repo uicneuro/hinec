@@ -77,7 +77,7 @@ end
 colormap(gray);
 
 % Plot tracks with direction-based coloring
-max_tracks = min(1000, length(tracks));
+max_tracks = min(2000, length(tracks));
 track_indices = round(linspace(1, length(tracks), max_tracks));
 
 for i = 1:max_tracks

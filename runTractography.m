@@ -32,22 +32,31 @@ end
 %% Set tractography parameters
 fprintf('Setting up tractography parameters...\n');
 options = struct();
-options.seed_density = 1;
-options.step_size = 0.2;      % Smaller steps for better tracking
-options.fa_threshold = 0.1;   % Lower threshold to continue in gray matter boundaries
-options.termination_fa = 0.05;% Even lower termination threshold
-options.angle_thresh = 60;    % More permissive angle
-options.max_steps = 5000;     % Higher step limit for longer tracks
-options.min_length = 10;      % Minimum 10mm track length
-options.order = 1;
-options.interp_method = 'linear';
+options.seed_density = 5;           % 5x more seeds per voxel
+options.step_size = 0.2;            % Keep - good value
+options.fa_threshold = 0.25;        % Slightly higher for cleaner tracks
+options.termination_fa = 0.1;       % Higher to avoid CSF/gray matter
+options.angle_thresh = 25;          % More conservative turning
+options.max_steps = 2000;           % Shorter max to avoid spurious long tracks
+options.min_length = 20;            % Longer minimum for meaningful tracks
+options.order = 2;                  % Does not matter for standard tractography
+options.interp_method = 'cubic';    % Does not matter for standard tractography
 
 % Create brain-only seed mask with lower FA threshold
 seed_mask = nim.FA > 0.08;  % Even lower FA threshold for more seeds
-if isfield(nim, 'parcellation_mask')
+
+% Priority 1: Use the preprocessed brain mask if available
+if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+    brain_mask = nim.mask > 0.5;
+    seed_mask = seed_mask & brain_mask;
+    fprintf('Seed mask restricted to brain tissue (preprocessed mask)\n');
+elseif isfield(nim, 'parcellation_mask')
+    % Fallback: Use parcellation mask if no preprocessed brain mask
     brain_mask = nim.parcellation_mask > 0;
     seed_mask = seed_mask & brain_mask;
-    fprintf('Seed mask restricted to brain tissue (parcellation > 0)\n');
+    fprintf('Seed mask restricted to brain tissue (parcellation mask fallback)\n');
+else
+    fprintf('⚠ WARNING: No brain mask found - using FA-only seed mask\n');
 end
 options.seed_mask = seed_mask;
 
@@ -198,8 +207,8 @@ view(45, 30);  % Better viewing angle
 % Add color explanation
 if ~isempty(colors_used)
     text(0.02, 0.98, 'Red: L-R, Green: A-P, Blue: S-I', ...
-         'Units', 'normalized', 'VerticalAlignment', 'top', ...
-         'BackgroundColor', 'white', 'FontSize', 8);
+        'Units', 'normalized', 'VerticalAlignment', 'top', ...
+        'BackgroundColor', 'white', 'FontSize', 8);
 end
 end
 

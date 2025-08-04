@@ -76,11 +76,18 @@ voxel_size = [1, 1, 1]; % Default voxel size, could be extracted from header
 if isempty(options.seed_mask)
     options.seed_mask = nim.FA > options.fa_threshold;
     
-    % Exclude non-brain areas (parcellation label 0) if parcellation is available
-    if isfield(nim, 'parcellation_mask')
+    % Priority 1: Use the preprocessed brain mask if available
+    if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+        brain_mask = nim.mask > 0.5;
+        options.seed_mask = options.seed_mask & brain_mask;
+        fprintf('Applied brain mask from nim.mask (preprocessed)\n');
+    elseif isfield(nim, 'parcellation_mask')
+        % Fallback: Use parcellation mask if no preprocessed brain mask
         brain_mask = nim.parcellation_mask > 0;
         options.seed_mask = options.seed_mask & brain_mask;
-        fprintf('Applied brain mask from parcellation (excluding label 0)\n');
+        fprintf('Applied brain mask from parcellation (fallback)\n');
+    else
+        fprintf('⚠ WARNING: No brain mask found - using FA-only seed mask\n');
     end
 end
 
@@ -220,10 +227,16 @@ for step = 1:options.max_steps
         break;
     end
     
-    % More lenient brain tissue check
-    if isfield(nim, 'parcellation_mask')
-        pos_int = round(current_pos);
-        if all(pos_int >= 1) && all(pos_int <= size(nim.parcellation_mask))
+    % Brain tissue boundary check - use proper brain mask
+    pos_int = round(current_pos);
+    if all(pos_int >= 1) && all(pos_int <= dims)
+        % Priority 1: Use preprocessed brain mask
+        if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+            if nim.mask(pos_int(1), pos_int(2), pos_int(3)) <= 0.5
+                break;
+            end
+        elseif isfield(nim, 'parcellation_mask')
+            % Fallback: Use parcellation mask with boundary check
             if nim.parcellation_mask(pos_int(1), pos_int(2), pos_int(3)) <= 0
                 % Check boundary neighbors
                 boundary_ok = false;
