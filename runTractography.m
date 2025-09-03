@@ -32,15 +32,15 @@ end
 %% Set tractography parameters
 fprintf('Setting up tractography parameters...\n');
 options = struct();
-options.seed_density = 5;           % 5x more seeds per voxel
-options.step_size = 0.2;            % Keep - good value
-options.fa_threshold = 0.25;        % Slightly higher for cleaner tracks
-options.termination_fa = 0.1;       % Higher to avoid CSF/gray matter
-options.angle_thresh = 25;          % More conservative turning
-options.max_steps = 2000;           % Shorter max to avoid spurious long tracks
-options.min_length = 20;            % Longer minimum for meaningful tracks
-options.order = 2;                  % Does not matter for standard tractography
-options.interp_method = 'cubic';    % Does not matter for standard tractography
+options.seed_density = 5;           % Number of seeds per voxel - higher values create denser tracking
+options.step_size = 0.2;            % Step size in voxels - smaller values give smoother but slower tracking
+options.fa_threshold = 0.25;        % FA threshold for seed placement - higher values place seeds in high-anisotropy areas only
+options.termination_fa = 0.1;       % FA threshold for track termination - lower values allow tracking into lower anisotropy regions
+options.angle_thresh = 25;          % Maximum turning angle in degrees - lower values create straighter, more conservative tracks
+options.max_steps = 2000;           % Maximum steps per track - limits track length to prevent runaway tracking
+options.min_length = 20;            % Minimum track length in mm - filters out short spurious tracks
+options.order = 2;                  % Integration order (unused in standard tractography)
+options.interp_method = 'cubic';    % Interpolation method (unused in standard tractography)
 
 % Create brain-only seed mask with lower FA threshold
 seed_mask = nim.FA > 0.08;  % Even lower FA threshold for more seeds
