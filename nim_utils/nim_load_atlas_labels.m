@@ -17,6 +17,7 @@ end
 if strcmpi(atlas_type, 'JHU')
   % JHU White Matter Labels atlas (48 regions)
   potential_files = {
+    fullfile(fsl_path, 'data/atlases/JHU-labels.xml'),
     fullfile(fsl_path, 'data/atlases/JHU/JHU-ICBM-labels-1mm.xml'),
     '/Users/12salty/Documents/research-chun/fsl/data/atlases/JHU-labels.xml'
     };
@@ -32,6 +33,7 @@ if strcmpi(atlas_type, 'JHU')
 elseif strcmpi(atlas_type, 'JHU-tract')
   % JHU White Matter Tractography atlas (~20 tracts)
   potential_files = {
+    fullfile(fsl_path, 'data/atlases/JHU-tracts.xml'),
     fullfile(fsl_path, 'data/atlases/JHU/JHU-ICBM-tracts-maxprob-thr0-1mm.xml'),
     '/Users/12salty/Documents/research-chun/fsl/data/atlases/JHU-tracts.xml'
     };
