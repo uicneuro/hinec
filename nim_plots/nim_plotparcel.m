@@ -51,7 +51,14 @@ Vzind = Vz(linear_indices);
 
 % Get parcel name if available
 parcel_name = '';
-if isfield(nim, 'atlas_labels') && isfield(nim.atlas_labels, 'map')
+
+% Try new direct access arrays first (preferred)
+if isfield(nim, 'labels') && parcel_id <= length(nim.labels) && ~isempty(nim.labels{parcel_id})
+    parcel_name = nim.labels{parcel_id};
+elseif isfield(nim, 'region_names') && parcel_id <= length(nim.region_names) && strlength(nim.region_names(parcel_id)) > 0
+    parcel_name = char(nim.region_names(parcel_id));
+% Fall back to old map access for compatibility
+elseif isfield(nim, 'atlas_labels') && isfield(nim.atlas_labels, 'map')
     try
         if nim.atlas_labels.map.isKey(parcel_id)
             parcel_name = nim.atlas_labels.map(parcel_id);

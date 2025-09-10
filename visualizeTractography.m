@@ -3,28 +3,22 @@ function visualizeTractography(tracks_file, nim_file)
 %
 % Usage:
 %   visualizeTractography('tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat')
-%   visualizeTractography() % Uses most recent tracks file
+%
+% Arguments:
+%   tracks_file - Path to tracks .mat file (REQUIRED)
+%   nim_file - Path to nim .mat file (REQUIRED)
 
-if nargin < 1
-    % Find most recent tracks file
-    tracks_dir = 'tractography_results';
-    if ~exist(tracks_dir, 'dir')
-        error('No tractography results directory found. Run tractography first.');
-    end
-    
-    files = dir(fullfile(tracks_dir, 'tracks_*.mat'));
-    if isempty(files)
-        error('No tracks files found in %s', tracks_dir);
-    end
-    
-    % Get most recent file
-    [~, idx] = max([files.datenum]);
-    tracks_file = fullfile(tracks_dir, files(idx).name);
-    fprintf('Using most recent tracks file: %s\n', tracks_file);
+% Validate required arguments
+if nargin < 2
+    error('visualizeTractography requires 2 arguments: tracks_file, nim_file');
 end
 
-if nargin < 2
-    nim_file = 'sample_parcellated.mat';
+if ~ischar(tracks_file) && ~isstring(tracks_file)
+    error('tracks_file must be a string path to .mat file');
+end
+
+if ~ischar(nim_file) && ~isstring(nim_file)
+    error('nim_file must be a string path to .mat file');
 end
 
 % Load tracks data
