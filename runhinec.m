@@ -7,6 +7,7 @@ load sample_parcellated.mat
 % nim_plotall(nim);
 % nim_plotall_opt(nim);
 nim_plotparcelall(nim);
+% nim_plotparcellation(nim);
 
 % interpolation order
 % p = 3;

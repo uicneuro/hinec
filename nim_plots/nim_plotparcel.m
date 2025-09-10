@@ -49,16 +49,35 @@ Vxind = Vx(linear_indices);
 Vyind = Vy(linear_indices);
 Vzind = Vz(linear_indices);
 
+% Get parcel name if available
+parcel_name = '';
+if isfield(nim, 'atlas_labels') && isfield(nim.atlas_labels, 'map')
+    try
+        if nim.atlas_labels.map.isKey(parcel_id)
+            parcel_name = nim.atlas_labels.map(parcel_id);
+        end
+    catch
+        % If any error occurs, continue without the name
+    end
+end
+
+% Create figure title
+if ~isempty(parcel_name)
+    title_str = ['Parcel ' num2str(parcel_id) ': ' parcel_name];
+else
+    title_str = ['Parcel ' num2str(parcel_id)];
+end
+
 figure(figindex);
 hold on;
 quiver3(XXcind, YYcind, ZZcind, Vxind, Vyind, Vzind, 'AutoScale', 'off');
-hold off;
+% hold off;
 
 axis([-Nvox_x / 2, Nvox_x / 2, -Nvox_y / 2, Nvox_y / 2, -Nvox_z / 2, Nvox_z / 2]);
 xlabel('X');
 ylabel('Y');
 zlabel('Z');
-title(['Parcel ' num2str(parcel_id)]);
+title(title_str);
 drawnow;
 pause;
 end
