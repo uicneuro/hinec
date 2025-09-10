@@ -21,9 +21,14 @@ function nim_out = nim_eig(nim, opts)
           [Q, L] = eig(nim_reshape_d(nim.DT(x, y, z, :)));
           L = [ L(1, 1) L(2, 2) L(3, 3) ];
           
-          % Sort eigenvalues (descending)
+          % Sort eigenvalues (descending) - CRITICAL: largest eigenvalue = primary diffusion direction
           [ML, IL] = maxk(L, 3);
           MQ = Q(:, IL);
+          
+          % Verify eigenvalue sorting (largest should be first)
+          if ML(1) < ML(2) || ML(1) < ML(3)
+            warning('Eigenvalue sorting failed at voxel [%d,%d,%d]', x, y, z);
+          end
 
           nim.evec(x, y, z, :, :) = MQ;
           nim.eval(x, y, z, :) = ML;
