@@ -1,22 +1,31 @@
 function nim = nim_read(datapath, opts)
 arguments
-  % Path to NIfTI-1 file
-  datapath string
-  
-  % Should read binary mask data from "_M" files
-  opts.Mask {mustBeMember(opts.Mask, ["on", "off"])} = "on"
-  
-  % Should read b-values from ".bval" files
-  opts.Bval {mustBeMember(opts.Bval, ["on", "off"])} = "on"
-  
-  % Should read b-vectors from ".bvec" files
-  opts.Bvec {mustBeMember(opts.Bvec, ["on", "off"])} = "on"
-  
-  % Specify b-value threshold (inclusive) for determining b0 images
-  % Default is not zero, to account for b0 images taken with low, nonzero b values
-  % (e.g. Phillips scanners)
-  opts.B0Threshold = 5
+    % Path to NIfTI-1 file
+    datapath string
+
+    % --- Optional file paths ---
+    % Override for b-values file path
+    opts.BvalPath string = ""
+    % Override for b-vectors file path
+    opts.BvecPath string = ""
+    % Override for mask file path
+    opts.MaskPath string = ""
+
+    % --- Toggles for reading files ---
+    % Should read binary mask data
+    opts.Mask {mustBeMember(opts.Mask, ["on", "off"])} = "on"
+    % Should read b-values from ".bval" files
+    opts.Bval {mustBeMember(opts.Bval, ["on", "off"])} = "on"
+    % Should read b-vectors from ".bvec" files
+    opts.Bvec {mustBeMember(opts.Bvec, ["on", "off"])} = "on"
+
+    % --- DTI parameters ---
+    % Specify b-value threshold (inclusive) for determining b0 images
+    opts.B0Threshold = 5
 end
+
+% Ensure datapath is a character vector for robust file operations
+datapath = char(datapath);
 
 % Read NIfTI-1 header
 nim.hdr = niftiinfo(datapath);
@@ -31,13 +40,25 @@ nim.size_bi = 1;
 nim.img = niftiread(datapath);
 disp("Loaded " + nim.hdr.Version + " file of dimensions: " + nim.xdim + "*" + nim.ydim + "*" + nim.zdim);
 
+% Strip the .nii.gz extension to get the base file path for fallbacks
+if endsWith(datapath, '.nii.gz')
+    base_path = datapath(1:end-7);
+else
+    base_path = datapath;
+end
+
 % Read the b-matrix
 if opts.Bval == "on"
-  nim.bval = transpose(str2num(string(fileread(datapath + ".bval"))));
+    bval_filepath = "";
+    if opts.BvalPath ~= ""
+        bval_filepath = opts.BvalPath;
+    else
+        bval_filepath = base_path + ".bval";
+    end
+    nim.bval = transpose(str2num(string(fileread(bval_filepath))));
   
   % Number of b0 images
   nim.size_b0 = sum(nim.bval == 0);
-  disp(nim.hdr.ImageSize);
   nim.size_bi = nim.hdr.ImageSize(4)-nim.size_b0;
   
   % Separate b0 and bi images
@@ -55,8 +76,14 @@ else
 end
 
 if opts.Bvec == "on"
+    bvec_filepath = "";
+    if opts.BvecPath ~= ""
+        bvec_filepath = opts.BvecPath;
+    else
+        bvec_filepath = base_path + ".bvec";
+    end
   % Each line contains x, y, z elements
-  lines = splitlines(fileread(datapath + ".bvec"));
+  lines = splitlines(fileread(bvec_filepath));
   gx = str2num(string(lines(1))); %#ok<*ST2NM>
   gy = str2num(string(lines(2)));
   gz = str2num(string(lines(3)));
@@ -69,11 +96,16 @@ end
 
 % Read mask
 if opts.Mask == "on"
-  nim.mask = niftiread(datapath + "_M");
-  disp("Found brain mask");
+    mask_filepath = "";
+    if opts.MaskPath ~= ""
+        mask_filepath = opts.MaskPath;
+    else
+        mask_filepath = base_path + "_M.nii.gz";
+    end
+    nim.mask = niftiread(mask_filepath);
+    disp("Found brain mask");
 else
   nim.mask = zeros(1, 0);
 end
 
 end
-
