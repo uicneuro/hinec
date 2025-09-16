@@ -3,7 +3,10 @@
     "allow": [
       "Bash(find:*)",
       "Bash(mkdir:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git log:*)",
+      "Read(//Users/12salty/Documents/research-chun/fsl/data/atlases/**)",
+      "Bash(matlab -batch:*)"
     ],
     "deny": []
   }
