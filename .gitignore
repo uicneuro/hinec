@@ -76,3 +76,5 @@ spm12/*
 sample.mat
 
 nifti/*
+
+*_figures/*
