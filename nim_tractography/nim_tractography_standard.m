@@ -306,24 +306,26 @@ end
 
 function seed_points = generate_seed_points_fact(seed_mask, density, dims)
 % FACT: Generate seed points for voxel-center based tracking
+% FACT uses only voxel centers, no sub-voxel seeding
 [x, y, z] = ind2sub(dims, find(seed_mask));
 base_seeds = [x, y, z];
 n_base = size(base_seeds, 1);
 
 if density <= 1
+    % FACT: Use only voxel centers (no random offsets)
     seed_points = base_seeds;
 else
-    % Pre-allocate for efficiency
-    n_total = n_base * density;
-    seed_points = zeros(n_total, 3);
-    
-    idx = 1;
-    for i = 1:n_base
-        for j = 1:density
-            offset = (rand(1, 3) - 0.5) * 0.8;
-            seed_points(idx, :) = base_seeds(i, :) + offset;
-            idx = idx + 1;
-        end
+    % FACT: Multiple seeds per voxel at voxel center only
+    % Generate multiple instances of the same voxel center
+    seed_points = repmat(base_seeds, density, 1);
+
+    % Optional: Add very small perturbation to avoid identical tracks
+    % but keep within voxel center for FACT
+    if density > 1
+        n_total = size(seed_points, 1);
+        % Add tiny random offset (±0.01 voxels) to break ties
+        perturbation = (rand(n_total, 3) - 0.5) * 0.02;
+        seed_points = seed_points + perturbation;
     end
 end
 end
@@ -349,7 +351,10 @@ function [track, step_timing] = track_fiber_fact(nim, seed, direction, options, 
 
 % FACT: Start from voxel center
 current_pos = round(seed);
-track = current_pos;
+% Pre-allocate track array for performance
+track = zeros(options.max_steps + 1, 3);
+track(1, :) = current_pos;
+track_length = 1;
 prev_direction = [];
 
 % Initialize timing
@@ -399,10 +404,12 @@ for step = 1:options.max_steps
         end
     end
 
-    % FACT: Step to adjacent voxel (not sub-voxel)
-    % Move in direction of primary eigenvector to next voxel
-    step_vector = sign(dir_vec);  % Get direction to adjacent voxel
-    next_pos = current_pos + step_vector;
+    % FACT: Step in direction of primary eigenvector using step size
+    % Use proper step size (default 1.0 for FACT) in direction of eigenvector
+    next_pos = current_pos + dir_vec * options.step_size;
+
+    % FACT: Round to nearest voxel center for discrete tracking
+    next_pos = round(next_pos);
 
     % Check bounds
     if any(next_pos < 1) || any(next_pos > dims)
@@ -429,9 +436,18 @@ for step = 1:options.max_steps
 
     % FACT: Move to next voxel center
     current_pos = next_pos;
-    track = [track; current_pos];
+
+    % Avoid adding identical positions (can happen with rounding)
+    if ~isequal(current_pos, track(track_length, :))
+        track_length = track_length + 1;
+        track(track_length, :) = current_pos;
+    end
+
     prev_direction = dir_vec;
 end
+
+% Trim track array to actual length
+track = track(1:track_length, :);
 end
 
 function initial_dir = get_initial_direction_fact(nim, pos, options)
