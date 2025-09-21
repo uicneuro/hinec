@@ -218,28 +218,46 @@ for i = 1:size(seed_points, 1)
     end
     
     seed = seed_points(i, :);
-    
-    % Track in both directions
-    for direction = [-1, 1]
-        if options.enable_diagnostics
-            [track, step_timing] = track_fiber_fact(nim, seed, direction, options, cos_angle_thresh);
-            timing.interpolation_time = timing.interpolation_time + step_timing.interpolation_time;
-            timing.boundary_time = timing.boundary_time + step_timing.boundary_time;
-            timing.step_count = timing.step_count + step_timing.step_count;
-        else
-            track = track_fiber_fact(nim, seed, direction, options, cos_angle_thresh);
-        end
-        
-        % Calculate track length in mm (CORRECTED)
-        if size(track, 1) > 1
-            % Vectorized length calculation
-            track_length_mm = sum(vecnorm(diff(track), 2, 2));
-            
-            % Only keep tracks above minimum length
-            if track_length_mm >= options.min_length
-                track_count = track_count + 1;
-                tracks{track_count} = track;
-            end
+
+    % Track in both directions and combine into one track
+    if options.enable_diagnostics
+        [track_forward, step_timing_fwd] = track_fiber_fact(nim, seed, +1, options, cos_angle_thresh);
+        [track_backward, step_timing_bwd] = track_fiber_fact(nim, seed, -1, options, cos_angle_thresh);
+        timing.interpolation_time = timing.interpolation_time + step_timing_fwd.interpolation_time + step_timing_bwd.interpolation_time;
+        timing.boundary_time = timing.boundary_time + step_timing_fwd.boundary_time + step_timing_bwd.boundary_time;
+        timing.step_count = timing.step_count + step_timing_fwd.step_count + step_timing_bwd.step_count;
+    else
+        track_forward = track_fiber_fact(nim, seed, +1, options, cos_angle_thresh);
+        track_backward = track_fiber_fact(nim, seed, -1, options, cos_angle_thresh);
+    end
+
+    % Combine tracks: backward (flipped) + seed + forward
+    if size(track_backward, 1) > 1
+        % Remove seed point from backward track and flip order
+        track_backward = flipud(track_backward(2:end, :));
+    else
+        track_backward = [];
+    end
+
+    if size(track_forward, 1) > 1
+        % Remove seed point from forward track
+        track_forward = track_forward(2:end, :);
+    else
+        track_forward = [];
+    end
+
+    % Combine into one continuous track
+    combined_track = [track_backward; seed; track_forward];
+
+    % Calculate track length in mm (CORRECTED)
+    if size(combined_track, 1) > 1
+        % Vectorized length calculation
+        track_length_mm = sum(vecnorm(diff(combined_track), 2, 2));
+
+        % Only keep tracks above minimum length
+        if track_length_mm >= options.min_length
+            track_count = track_count + 1;
+            tracks{track_count} = combined_track;
         end
     end
 end
