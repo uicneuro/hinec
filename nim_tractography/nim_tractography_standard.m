@@ -298,8 +298,9 @@ else
     track_stats = struct('num_tracks', 0);
 end
 
-% Save everything
-save(output_file, 'tracks', 'options', 'track_stats', 'track_lengths', 'dims');
+% Save everything - use v7.3 format for large variables (>2GB support)
+fprintf('Saving results (using MAT v7.3 for large file support)...\n');
+save(output_file, 'tracks', 'options', 'track_stats', 'track_lengths', 'dims', '-v7.3');
 fprintf('Results saved to: %s\n', output_file);
 
 end
