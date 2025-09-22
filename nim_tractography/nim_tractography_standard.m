@@ -1,17 +1,20 @@
 function tracks = nim_tractography_standard(data_path, varargin)
 % nim_tractography_standard: FACT (Fiber Assignment by Continuous Tracking) Tractography
 %
-% FACT ALGORITHM IMPLEMENTATION:
+% TRUE FACT ALGORITHM IMPLEMENTATION:
 % - Uses discrete voxel tensors (NO interpolation)
-% - Voxel-to-voxel stepping (NO sub-voxel positioning)
+% - Voxel-to-voxel stepping with step_size=1.0 (NO sub-voxel positioning)
+% - Position rounding after each step: round(pos + dir_vec * step_size)
+% - Seeds start at voxel centers only
 % - Primary eigenvector direction from nearest voxel center
 % - True deterministic tractography without smoothing
 %
 % DIFFERENCES FROM INTERPOLATED METHODS:
 % - Direction sampling: Voxel center only (vs. linear/spline interpolation)
-% - Position updates: Voxel-to-voxel (vs. sub-voxel positioning)
+% - Position updates: Discrete voxel-to-voxel (vs. continuous sub-voxel)
+% - Step size: Always 1.0 voxel units (vs. fractional steps)
 % - Computational cost: Lower (no interpolation calculations)
-% - Track characteristics: More angular, discrete steps
+% - Track characteristics: More angular, discrete voxel-aligned steps
 %
 % Arguments:
 %   data_path - Path to .mat file containing nim structure or nim structure itself
@@ -20,11 +23,12 @@ function tracks = nim_tractography_standard(data_path, varargin)
 % Returns:
 %   tracks - Cell array of fiber tracks (each track is Nx3 matrix)
 %
-% FACT PARAMETERS:
+% TRUE FACT PARAMETERS:
 %   termination_fa - FA threshold for termination (default: 0.05)
 %   angle_thresh - Maximum angle change between voxels (default: 60°)
 %   max_steps - Maximum tracking steps (default: 5000)
-%   step_size - Should be 1.0 for pure FACT (voxel-to-voxel)
+%   step_size - Always 1.0 for true FACT (voxel-to-voxel discrete stepping)
+%   seed_density - Seeds per voxel, all at voxel centers (default: 1)
 %
 % USAGE EXAMPLES:
 %   tracks = nim_tractography_standard('data.mat'); % Basic FACT
@@ -47,7 +51,7 @@ if ~isfield(options, 'seed_density')
     options.seed_density = 1;
 end
 if ~isfield(options, 'step_size')
-    options.step_size = 1.0;  % FACT: Use 1.0 for voxel-to-voxel stepping
+    options.step_size = 1.0;  % FACT: Voxel-to-voxel stepping (discrete)
 end
 if ~isfield(options, 'fa_threshold')
     options.fa_threshold = 0.1;
@@ -100,7 +104,7 @@ if ~isfield(nim, 'FA')
     error('FA values not found in nim structure. Please run nim_fa() first.');
 end
 
-fprintf('Starting FACT tractography...\n');
+fprintf('Starting TRUE FACT tractography...\n');
 fprintf('FACT Parameters: step=%.2f (voxel units), FA_thresh=%.2f, angle_thresh=%.1f\u00b0\n', ...
     options.step_size, options.fa_threshold, options.angle_thresh);
 fprintf('FACT Mode: Discrete voxel tensors, no interpolation\n');
@@ -324,27 +328,29 @@ fprintf('Results saved to: %s\n', output_file);
 end
 
 function seed_points = generate_seed_points_fact(seed_mask, density, dims)
-% FACT: Generate seed points for voxel-center based tracking
-% FACT uses only voxel centers, no sub-voxel seeding
+% FACT: Generate seed points at voxel centers for discrete tracking
+% TRUE FACT starts from voxel centers and uses discrete voxel-to-voxel movement
+
 [x, y, z] = ind2sub(dims, find(seed_mask));
 base_seeds = [x, y, z];
 n_base = size(base_seeds, 1);
 
 if density <= 1
-    % FACT: Use only voxel centers (no random offsets)
+    % Single seed per voxel at voxel center (proper FACT)
     seed_points = base_seeds;
 else
-    % FACT: Multiple seeds per voxel at voxel center only
-    % Generate multiple instances of the same voxel center
-    seed_points = repmat(base_seeds, density, 1);
+    % Multiple seeds per voxel, still at voxel centers
+    % For true FACT, we don't use sub-voxel positions
+    n_total = n_base * density;
+    seed_points = zeros(n_total, 3);
 
-    % Optional: Add very small perturbation to avoid identical tracks
-    % but keep within voxel center for FACT
-    if density > 1
-        n_total = size(seed_points, 1);
-        % Add tiny random offset (±0.01 voxels) to break ties
-        perturbation = (rand(n_total, 3) - 0.5) * 0.02;
-        seed_points = seed_points + perturbation;
+    idx = 1;
+    for i = 1:n_base
+        for j = 1:density
+            % All seeds at voxel center (no random offset for true FACT)
+            seed_points(idx, :) = base_seeds(i, :);
+            idx = idx + 1;
+        end
     end
 end
 end
@@ -352,11 +358,11 @@ end
 function [track, step_timing] = track_fiber_fact(nim, seed, direction, options, cos_angle_thresh)
 % FACT: Track fiber using discrete voxel tensors (NO interpolation)
 %
-% FACT TRACKING ALGORITHM:
-% - Start from seed voxel center
+% TRUE FACT TRACKING ALGORITHM:
+% - Start from seed voxel center (rounded seed position)
 % - Get direction from current voxel tensor only
-% - Step to adjacent voxel in direction of primary eigenvector
-% - No sub-voxel positioning or interpolation
+% - Step in direction with step_size=1.0 then round position
+% - Ensures discrete voxel-to-voxel movement, no sub-voxel positioning
 %
 % Arguments:
 %   nim - NIM structure with diffusion tensors
@@ -368,8 +374,8 @@ function [track, step_timing] = track_fiber_fact(nim, seed, direction, options, 
 % Returns:
 %   track - Array of voxel positions along fiber track
 
-% FACT: Start from voxel center
-current_pos = round(seed);
+% FACT: Start from voxel center (TRUE FACT discrete positioning)
+current_pos = round(seed);  % Ensure seed is at voxel center
 % Pre-allocate track array for performance
 track = zeros(options.max_steps + 1, 3);
 track(1, :) = current_pos;
@@ -424,11 +430,8 @@ for step = 1:options.max_steps
     end
 
     % FACT: Step in direction of primary eigenvector using step size
-    % Use proper step size (default 1.0 for FACT) in direction of eigenvector
-    next_pos = current_pos + dir_vec * options.step_size;
-
-    % FACT: Round to nearest voxel center for discrete tracking
-    next_pos = round(next_pos);
+    % TRUE FACT: Round position after each step to ensure discrete voxel-to-voxel movement
+    next_pos = round(current_pos + dir_vec * options.step_size);
 
     % Check bounds
     if any(next_pos < 1) || any(next_pos > dims)
@@ -453,14 +456,12 @@ for step = 1:options.max_steps
         end
     end
 
-    % FACT: Move to next voxel center
+    % FACT: Move to next position (continuous)
     current_pos = next_pos;
 
-    % Avoid adding identical positions (can happen with rounding)
-    if ~isequal(current_pos, track(track_length, :))
-        track_length = track_length + 1;
-        track(track_length, :) = current_pos;
-    end
+    % Add position to track
+    track_length = track_length + 1;
+    track(track_length, :) = current_pos;
 
     prev_direction = dir_vec;
 end

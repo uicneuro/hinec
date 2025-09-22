@@ -29,18 +29,18 @@ if ~isfield(nim, 'FA')
     error('FA not found. Please run main() first to generate DTI data.');
 end
 
-%% Set tractography parameters
-fprintf('Setting up tractography parameters...\n');
+%% Set FACT tractography parameters
+fprintf('Setting up FACT tractography parameters...\n');
 options = struct();
-options.seed_density = 5;           % Number of seeds per voxel - higher values create denser tracking
-options.step_size = 0.2;            % Step size in voxels - smaller values give smoother but slower tracking
-options.fa_threshold = 0.25;        % FA threshold for seed placement - higher values place seeds in high-anisotropy areas only
-options.termination_fa = 0.1;       % FA threshold for track termination - lower values allow tracking into lower anisotropy regions
-options.angle_thresh = 25;          % Maximum turning angle in degrees - lower values create straighter, more conservative tracks
-options.max_steps = 2000;           % Maximum steps per track - limits track length to prevent runaway tracking
+options.seed_density = 3;           % Number of seeds per voxel - multiple seeds at voxel centers
+options.step_size = 1.0;            % Step size in voxels - FACT uses voxel-to-voxel stepping (discrete)
+options.fa_threshold = 0.2;         % FA threshold for seed placement - moderate threshold for good coverage
+options.termination_fa = 0.1;       % FA threshold for track termination - allows tracking into gray matter boundaries
+options.angle_thresh = 35;          % Maximum turning angle in degrees - slightly more permissive for FACT
+options.max_steps = 1000;           % Maximum steps per track - reasonable limit for discrete tracking
 options.min_length = 20;            % Minimum track length in mm - filters out short spurious tracks
-options.order = 2;                  % Integration order (unused in standard tractography)
-options.interp_method = 'cubic';    % Interpolation method (unused in standard tractography)
+options.order = 1;                  % FACT uses first-order integration
+options.interp_method = 'none';     % FACT samples nearest voxel tensor (no interpolation)
 
 % Create brain-only seed mask with lower FA threshold
 seed_mask = nim.FA > 0.08;  % Even lower FA threshold for more seeds
@@ -60,8 +60,8 @@ else
 end
 options.seed_mask = seed_mask;
 
-%% Run tractography
-fprintf('Running standard tractography...\n');
+%% Run FACT tractography
+fprintf('Running FACT tractography...\n');
 tic;
 tracks = nim_tractography_standard(nim, options);
 elapsed_time = toc;
