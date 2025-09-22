@@ -50,6 +50,9 @@ end
 if ~isfield(options, 'seed_density')
     options.seed_density = 1;
 end
+if ~isfield(options, 'seed_strategy')
+    options.seed_strategy = "uniform";
+end
 if ~isfield(options, 'step_size')
     options.step_size = 0.5;  % FACT: Predefined step size Δ for Euler method
 end
@@ -80,6 +83,11 @@ end
 if ~isfield(options, 'enable_diagnostics')
     options.enable_diagnostics = true;  % Enable timing diagnostics
 end
+if ~isfield(options, 'use_fa_seed_filter')
+    options.use_fa_seed_filter = false;
+end
+
+options.seed_strategy = lower(string(options.seed_strategy));
 
 % Initialize timing diagnostics
 if options.enable_diagnostics
@@ -140,42 +148,66 @@ end
 
 % Create seed mask if not provided
 if isempty(options.seed_mask)
-    options.seed_mask = nim.FA > options.fa_threshold;
-    
-    % Priority 1: Use the preprocessed brain mask if available
-    brain_mask = [];
-    if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
-        brain_mask = nim.mask > 0.5;
-        fprintf('Using preprocessed brain mask from nim.mask\n');
-    elseif isfield(nim, 'parcellation_mask')
-        % Fallback: Use parcellation mask if no preprocessed brain mask
-        brain_mask = nim.parcellation_mask > 0;
-        fprintf('Using parcellation mask as brain mask (fallback)\n');
+    switch options.seed_strategy
+        case "fa_threshold"
+            fprintf('Seed strategy `fa_threshold`: using FA > %.2f to define seeds\n', options.fa_threshold);
+            options.seed_mask = nim.FA > options.fa_threshold;
+        otherwise
+            brain_mask = [];
+            if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+                brain_mask = nim.mask > 0.5;
+                fprintf('Using preprocessed brain mask from nim.mask\n');
+            elseif isfield(nim, 'parcellation_mask')
+                brain_mask = nim.parcellation_mask > 0;
+                fprintf('Using parcellation mask as brain mask (fallback)\n');
+            end
+
+            if ~isempty(brain_mask)
+                % Exclude inferior slices that frequently contain susceptibility artifacts
+                z_exclude = max(1, round(dims(3) * 0.1));
+                brain_mask(:, :, 1:z_exclude) = 0;
+                fprintf('Excluded bottom %d slices to avoid susceptibility artifacts\n', z_exclude);
+
+                if any(brain_mask(:))
+                    options.seed_mask = brain_mask;
+                    fprintf('Using brain mask for seed placement\n');
+                    if options.use_fa_seed_filter
+                        options.seed_mask = options.seed_mask & (nim.FA > options.fa_threshold);
+                        fprintf('Applied FA threshold %.2f to refine seed mask\n', options.fa_threshold);
+                    else
+                        fprintf('Skipping FA-based filtering for seeding (uniform grid)\n');
+                    end
+                else
+                    fprintf('⚠ WARNING: Brain mask empty after exclusions - reverting to FA threshold seeding\n');
+                    options.seed_mask = nim.FA > options.fa_threshold;
+                    options.seed_strategy = "fa_threshold";
+                end
+            else
+                fprintf('⚠ WARNING: No brain mask found - falling back to FA threshold seeding\n');
+                options.seed_mask = nim.FA > options.fa_threshold;
+                options.seed_strategy = "fa_threshold";
+            end
     end
-    
-    if ~isempty(brain_mask)
-        % FIX: Exclude bottom slices to avoid inferior brain artifacts
-        z_exclude = max(1, round(dims(3) * 0.1)); % Exclude bottom 10% of slices
-        brain_mask(:, :, 1:z_exclude) = 0;
-        fprintf('Excluded bottom %d slices to avoid susceptibility artifacts\n', z_exclude);
-        
-        options.seed_mask = options.seed_mask & brain_mask;
-        fprintf('Applied brain mask constraint to seed generation\n');
-        
-        % OPTIMIZATION 2: Pre-compute dilated brain mask for boundary checking
-        fprintf('Pre-computing dilated brain mask...\n');
-        nim.dilated_brain_mask = imdilate(brain_mask, ones(3,3,3));
-    else
-        fprintf('⚠ WARNING: No brain mask found - using FA-only seed mask\n');
-    end
+else
+    options.seed_mask = options.seed_mask > 0;
 end
+
+options.seed_mask = logical(options.seed_mask);
+fprintf('Pre-computing dilated brain mask for boundary checking...\n');
+nim.dilated_brain_mask = imdilate(options.seed_mask, ones(3,3,3));
 
 % Generate seed points
 if options.enable_diagnostics
     timing.seed_start = tic;
 end
 
-seed_points = generate_seed_points_fact(options.seed_mask, options.seed_density, dims);
+[seed_points, seed_info] = generate_seed_points_fact(options.seed_mask, options, dims);
+fprintf('Seed strategy: %s\n', char(options.seed_strategy));
+fprintf('Seeding layout: %s\n', seed_info.description);
+fprintf('Seeds per seeded voxel: %.2f\n', seed_info.seeds_per_voxel);
+if ~isnan(seed_info.voxel_spacing)
+    fprintf('Approximate inter-seed spacing: %.3f voxels\n', seed_info.voxel_spacing);
+end
 fprintf('Generated %d seed points\n', size(seed_points, 1));
 
 if options.enable_diagnostics
@@ -350,32 +382,77 @@ fprintf('Results saved to: %s\n', output_file);
 
 end
 
-function seed_points = generate_seed_points_fact(seed_mask, density, dims)
-% FACT: Generate seed points with flexible positioning for tensor field tracking
-% Seeds can be placed anywhere within valid voxels
+function [seed_points, seed_info] = generate_seed_points_fact(seed_mask, options, dims)
+% FACT: Generate seed points for tensor field tracking
+% Default strategy places a uniform lattice of seeds inside each seeded voxel
 
-[x, y, z] = ind2sub(dims, find(seed_mask));
-base_seeds = [x, y, z];
-n_base = size(base_seeds, 1);
+mask_idx = find(seed_mask);
+if isempty(mask_idx)
+    seed_points = zeros(0, 3);
+    seed_info = struct('description', 'uniform (empty mask)', ...
+                       'seeds_per_voxel', 0, ...
+                       'voxel_spacing', NaN);
+    return;
+end
 
-if density <= 1
-    % Single seed per voxel with small random offset
-    seed_points = base_seeds + (rand(n_base, 3) - 0.5) * 0.4;
-else
-    % Multiple seeds per voxel with random positions
-    n_total = n_base * density;
-    seed_points = zeros(n_total, 3);
+[x, y, z] = ind2sub(dims, mask_idx);
+base_voxels = [x, y, z];
+num_voxels = size(base_voxels, 1);
 
-    idx = 1;
-    for i = 1:n_base
-        for j = 1:density
-            % Random position within voxel for better field sampling
-            offset = (rand(1, 3) - 0.5) * 0.8;
-            seed_points(idx, :) = base_seeds(i, :) + offset;
-            idx = idx + 1;
+strategy = lower(string(options.seed_strategy));
+
+density = max(1, options.seed_density);
+
+if strcmp(strategy, "random")
+    % Backwards-compatible stochastic seeding inside voxels
+    if density <= 1
+        offsets = (rand(num_voxels, 3) - 0.5) * 0.4;
+        seed_points = base_voxels + offsets;
+        seeds_per_voxel = 1;
+    else
+        density_int = max(1, round(density));
+        seed_points = zeros(num_voxels * density_int, 3);
+        idx = 1;
+        for i = 1:num_voxels
+            for j = 1:density_int
+                offset = (rand(1, 3) - 0.5) * 0.8;
+                seed_points(idx, :) = base_voxels(i, :) + offset;
+                idx = idx + 1;
+            end
         end
+        seeds_per_voxel = density_int;
+    end
+
+    seed_info = struct('description', 'random jitter within seeded voxels', ...
+                       'seeds_per_voxel', double(seeds_per_voxel), ...
+                       'voxel_spacing', NaN);
+    return;
+end
+
+% Deterministic lattice seeding inside each voxel
+per_axis = max(1, ceil(density^(1/3)));
+axis_edges = linspace(-0.5, 0.5, per_axis + 1);
+axis_offsets = (axis_edges(1:end-1) + axis_edges(2:end)) / 2;
+[ox, oy, oz] = ndgrid(axis_offsets, axis_offsets, axis_offsets);
+offsets = [ox(:), oy(:), oz(:)];
+num_offsets = size(offsets, 1);
+
+seed_points = zeros(num_voxels * num_offsets, 3);
+idx = 1;
+for i = 1:num_voxels
+    voxel_center = base_voxels(i, :);
+    for j = 1:num_offsets
+        seed_points(idx, :) = voxel_center + offsets(j, :);
+        idx = idx + 1;
     end
 end
+
+voxel_spacing = 1 / per_axis;
+description = sprintf('uniform grid (%d×%d×%d sub-voxel lattice)', per_axis, per_axis, per_axis);
+
+seed_info = struct('description', description, ...
+                   'seeds_per_voxel', double(num_offsets), ...
+                   'voxel_spacing', voxel_spacing);
 end
 
 function [track, step_timing] = track_fiber_fact(nim, seed, direction, options, cos_angle_thresh)
