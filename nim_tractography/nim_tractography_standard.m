@@ -195,7 +195,13 @@ fprintf('==============================\n');
 tracks = cell(size(seed_points, 1) * 2, 1);
 track_count = 0;
 
-% Track generation without strict validation
+% Track generation with failure diagnostics
+failure_reasons = struct();
+failure_reasons.no_initial_direction = 0;
+failure_reasons.immediate_fa_fail = 0;
+failure_reasons.no_boundary_exit = 0;
+failure_reasons.short_tracks = 0;
+failure_reasons.successful = 0;
 
 % Convert angle threshold to cosine for efficiency
 cos_angle_thresh = cos(deg2rad(options.angle_thresh));
@@ -237,6 +243,12 @@ for i = 1:size(seed_points, 1)
         track_backward = track_fiber_fact(nim, seed, -1, options, cos_angle_thresh);
     end
 
+    % Diagnostic: Check if tracks were generated
+    if isempty(track_forward) && isempty(track_backward)
+        failure_reasons.no_initial_direction = failure_reasons.no_initial_direction + 1;
+        continue;
+    end
+
     % Combine tracks: backward (flipped) + seed + forward
     if size(track_backward, 1) > 1
         % Remove seed point from backward track and flip order
@@ -264,6 +276,9 @@ for i = 1:size(seed_points, 1)
         if track_length_mm >= options.min_length
             track_count = track_count + 1;
             tracks{track_count} = combined_track;
+            failure_reasons.successful = failure_reasons.successful + 1;
+        else
+            failure_reasons.short_tracks = failure_reasons.short_tracks + 1;
         end
     end
 end
@@ -292,6 +307,16 @@ end
 total_attempts = size(seed_points, 1) * 2;
 success_rate = (track_count / total_attempts) * 100;
 fprintf('\nGenerated %d valid tracks (filtered from %d total attempts - %.1f%% success rate)\n', track_count, total_attempts, success_rate);
+
+% Detailed failure analysis
+fprintf('\n=== FAILURE ANALYSIS ===\n');
+fprintf('No initial direction: %d (%.1f%%)\n', failure_reasons.no_initial_direction, 100*failure_reasons.no_initial_direction/total_attempts);
+fprintf('Short tracks (<20mm): %d (%.1f%%)\n', failure_reasons.short_tracks, 100*failure_reasons.short_tracks/total_attempts);
+fprintf('Successful tracks: %d (%.1f%%)\n', failure_reasons.successful, 100*failure_reasons.successful/total_attempts);
+other_failures = total_attempts - failure_reasons.no_initial_direction - failure_reasons.short_tracks - failure_reasons.successful;
+fprintf('Other failures: %d (%.1f%%)\n', other_failures, 100*other_failures/total_attempts);
+fprintf('========================\n');
+
 if success_rate < 10
     fprintf('⚠️  WARNING: Extremely low success rate! Check algorithm parameters.\n');
 end
