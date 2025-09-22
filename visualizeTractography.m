@@ -84,7 +84,7 @@ addParameter(p, 'export_dpi', 300, @(x) isnumeric(x) && x > 0);
 
 % Track filtering parameters
 addParameter(p, 'filter_mode', 'pass_through', @(x) ismember(x, {'pass_through', 'start_in', 'end_in', 'connect_to'}));
-addParameter(p, 'min_overlap', 0.1, @(x) isnumeric(x) && x >= 0 && x <= 1);
+addParameter(p, 'min_overlap', 0.3, @(x) isnumeric(x) && x >= 0 && x <= 1);
 addParameter(p, 'max_tracks', [], @(x) isempty(x) || (isnumeric(x) && x > 0));
 
 % Visualization parameters
@@ -834,7 +834,7 @@ track_count = 0;
 
 for i = 1:length(tracks)
     track = tracks{i};
-    if size(track, 1) < 4  % Require at least 4 points to eliminate gray straight lines
+    if size(track, 1) < 10  % Require at least 10 points to reduce spurious tracks
         continue;
     end
 
@@ -872,12 +872,28 @@ for i = 1:length(tracks)
             end
     end
 
-    % Apply minimum overlap constraint
+    % Apply minimum overlap constraint with enhanced filtering
     if include_track && options.min_overlap > 0
         region_points = sum(track_labels == region_id);
         total_points = length(track_labels);
         overlap_ratio = region_points / total_points;
-        include_track = overlap_ratio >= options.min_overlap;
+
+        % For pass_through mode, be more strict - require either:
+        % 1. Track starts or ends in the region (meaningful connection), OR
+        % 2. Track has substantial overlap (>= min_overlap)
+        if strcmp(options.filter_mode, 'pass_through')
+            valid_labels = track_labels(track_labels > 0);
+            starts_or_ends_in_region = false;
+            if ~isempty(valid_labels)
+                starts_or_ends_in_region = (valid_labels(1) == region_id) || (valid_labels(end) == region_id);
+            end
+
+            % Include if it starts/ends in region OR has substantial overlap
+            include_track = starts_or_ends_in_region || (overlap_ratio >= options.min_overlap);
+        else
+            % For other modes, use standard overlap check
+            include_track = overlap_ratio >= options.min_overlap;
+        end
     end
 
     if include_track
