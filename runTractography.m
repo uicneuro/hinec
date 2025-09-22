@@ -32,9 +32,9 @@ end
 %% Set FACT tractography parameters
 fprintf('Setting up FACT tractography parameters...\n');
 options = struct();
-options.seed_density = 1;           % Number of seeds per voxel - one seed per quality voxel
+options.seed_density = 4;           % Number of seeds per voxel - denser seeding for better coverage
 options.step_size = 0.5;            % FACT step size Δ for Euler method: r_{i+1} = r_i + e1(r_i)*Δ
-options.fa_threshold = 0.2;         % FA threshold for seed placement - moderate threshold for good coverage
+options.fa_threshold = 0.15;        % FA threshold for seed placement - lower threshold for more seeds
 options.termination_fa = 0.1;       % FA threshold for track termination - allows tracking into gray matter boundaries
 options.angle_thresh = 35;          % Maximum turning angle in degrees - slightly more permissive for FACT
 options.max_steps = 1000;           % Maximum Euler steps per track
@@ -43,7 +43,7 @@ options.order = 1;                  % FACT uses first-order integration
 options.interp_method = 'none';     % FACT samples nearest voxel tensor (no interpolation)
 
 % Create brain-only seed mask with proper FA threshold
-seed_mask = nim.FA > 0.2;  % Use same threshold as fa_threshold for quality seeds
+seed_mask = nim.FA > 0.15;  % Use same threshold as fa_threshold for quality seeds
 
 % Priority 1: Use the preprocessed brain mask if available
 if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
