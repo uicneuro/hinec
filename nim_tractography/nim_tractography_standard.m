@@ -195,12 +195,7 @@ fprintf('==============================\n');
 tracks = cell(size(seed_points, 1) * 2, 1);
 track_count = 0;
 
-% Failure tracking
-failure_stats = struct();
-failure_stats.too_short = 0;
-failure_stats.no_direction = 0;
-failure_stats.too_short_mm = 0;
-failure_stats.total_generated = 0;
+% Track generation without strict validation
 
 % Convert angle threshold to cosine for efficiency
 cos_angle_thresh = cos(deg2rad(options.angle_thresh));
@@ -260,22 +255,15 @@ for i = 1:size(seed_points, 1)
     % Combine into one continuous track
     combined_track = [track_backward; seed; track_forward];
 
-    % Validate track quality before saving
-    if size(combined_track, 1) >= 4  % Require minimum 4 points
+    % Save all generated tracks - let the algorithm speak for itself
+    if size(combined_track, 1) > 1
         % Calculate track length in mm
         track_length_mm = sum(vecnorm(diff(combined_track), 2, 2));
 
-        % Check if track has meaningful direction
-        directions = diff(combined_track);
-        if ~isempty(directions)
-            avg_direction = mean(directions, 1);
-            direction_magnitude = norm(avg_direction);
-
-            % Only save tracks with good length AND meaningful direction
-            if track_length_mm >= options.min_length && direction_magnitude > 1e-6
-                track_count = track_count + 1;
-                tracks{track_count} = combined_track;
-            end
+        % Only apply minimum length filter
+        if track_length_mm >= options.min_length
+            track_count = track_count + 1;
+            tracks{track_count} = combined_track;
         end
     end
 end
