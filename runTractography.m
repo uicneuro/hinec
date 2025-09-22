@@ -32,12 +32,12 @@ end
 %% Set FACT tractography parameters
 fprintf('Setting up FACT tractography parameters...\n');
 options = struct();
-options.seed_density = 3;           % Number of seeds per voxel - multiple seeds at voxel centers
-options.step_size = 1.0;            % Step size in voxels - FACT uses voxel-to-voxel stepping (discrete)
+options.seed_density = 3;           % Number of seeds per voxel - flexible positioning within voxels
+options.step_size = 1.0;            % Not used - FACT calculates exact voxel boundary intersections
 options.fa_threshold = 0.2;         % FA threshold for seed placement - moderate threshold for good coverage
 options.termination_fa = 0.1;       % FA threshold for track termination - allows tracking into gray matter boundaries
 options.angle_thresh = 35;          % Maximum turning angle in degrees - slightly more permissive for FACT
-options.max_steps = 1000;           % Maximum steps per track - reasonable limit for discrete tracking
+options.max_steps = 5000;           % Maximum voxel boundary crossings per track - higher for longer fibers
 options.min_length = 20;            % Minimum track length in mm - filters out short spurious tracks
 options.order = 1;                  % FACT uses first-order integration
 options.interp_method = 'none';     % FACT samples nearest voxel tensor (no interpolation)

@@ -596,7 +596,7 @@ function plot_tracks_with_color(tracks, nim, options)
 
 for i = 1:length(tracks)
     track = tracks{i};
-    if size(track, 1) < 2
+    if size(track, 1) < 4  % Require at least 4 points to eliminate gray straight lines
         continue;
     end
 
@@ -792,7 +792,7 @@ fprintf('  Plotting %d tracks (ALL)...\n', length(tracks));
 
 for i = 1:length(tracks)
     track = tracks{i};
-    if size(track, 1) >= 2
+    if size(track, 1) >= 4  % Require at least 4 points for meaningful tracks
         % Direction-based color
         directions = diff(track);
         if ~isempty(directions)
@@ -826,7 +826,7 @@ track_count = 0;
 
 for i = 1:length(tracks)
     track = tracks{i};
-    if size(track, 1) < 2
+    if size(track, 1) < 4  % Require at least 4 points to eliminate gray straight lines
         continue;
     end
 
