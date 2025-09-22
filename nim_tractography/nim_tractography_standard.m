@@ -267,19 +267,11 @@ for i = 1:size(seed_points, 1)
     % Combine into one continuous track
     combined_track = [track_backward; seed; track_forward];
 
-    % Save all generated tracks - let the algorithm speak for itself
+    % Save ALL generated tracks - no filters at all
     if size(combined_track, 1) > 1
-        % Calculate track length in mm
-        track_length_mm = sum(vecnorm(diff(combined_track), 2, 2));
-
-        % Only apply minimum length filter
-        if track_length_mm >= options.min_length
-            track_count = track_count + 1;
-            tracks{track_count} = combined_track;
-            failure_reasons.successful = failure_reasons.successful + 1;
-        else
-            failure_reasons.short_tracks = failure_reasons.short_tracks + 1;
-        end
+        track_count = track_count + 1;
+        tracks{track_count} = combined_track;
+        failure_reasons.successful = failure_reasons.successful + 1;
     end
 end
 
@@ -311,10 +303,9 @@ fprintf('\nGenerated %d valid tracks (filtered from %d total attempts - %.1f%% s
 % Detailed failure analysis
 fprintf('\n=== FAILURE ANALYSIS ===\n');
 fprintf('No initial direction: %d (%.1f%%)\n', failure_reasons.no_initial_direction, 100*failure_reasons.no_initial_direction/total_attempts);
-fprintf('Short tracks (<20mm): %d (%.1f%%)\n', failure_reasons.short_tracks, 100*failure_reasons.short_tracks/total_attempts);
 fprintf('Successful tracks: %d (%.1f%%)\n', failure_reasons.successful, 100*failure_reasons.successful/total_attempts);
-other_failures = total_attempts - failure_reasons.no_initial_direction - failure_reasons.short_tracks - failure_reasons.successful;
-fprintf('Other failures: %d (%.1f%%)\n', other_failures, 100*other_failures/total_attempts);
+other_failures = total_attempts - failure_reasons.no_initial_direction - failure_reasons.successful;
+fprintf('Failed during generation: %d (%.1f%%)\n', other_failures, 100*other_failures/total_attempts);
 fprintf('========================\n');
 
 if success_rate < 10
