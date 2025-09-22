@@ -603,6 +603,11 @@ for i = 1:length(tracks)
     % Get track color based on mode
     track_color = get_track_color(track, nim, options.color_mode);
 
+    % Skip tracks with invalid color (empty means skip)
+    if isempty(track_color)
+        continue;
+    end
+
     % Plot track
     plot3(track(:,1), track(:,2), track(:,3), ...
           'Color', track_color, 'LineWidth', options.line_width);
@@ -623,10 +628,10 @@ switch color_mode
             if avg_direction_norm > 0
                 color = abs(avg_direction) / avg_direction_norm;
             else
-                color = [0.5, 0.5, 0.5];
+                color = [];  % Return empty to skip tracks with no meaningful direction
             end
         else
-            color = [0.5, 0.5, 0.5];
+            color = [];  % Return empty to skip tracks with no direction data
         end
 
     case 'fa'
@@ -652,10 +657,10 @@ switch color_mode
                 rng(mode_label); % Consistent color for same region
                 color = rand(1, 3) * 0.8 + 0.2;
             else
-                color = [0.5, 0.5, 0.5];
+                color = [];  % Return empty to skip tracks with no meaningful direction
             end
         else
-            color = [0.5, 0.5, 0.5];
+            color = [];  % Return empty to skip tracks with no direction data
         end
 
     otherwise
@@ -801,14 +806,17 @@ for i = 1:length(tracks)
             if avg_direction_norm > 0
                 color = abs(avg_direction) / avg_direction_norm;
             else
-                color = [0.5, 0.5, 0.5];
+                color = [];  % Return empty to skip tracks with no meaningful direction
             end
         else
-            color = [0.5, 0.5, 0.5];
+            color = [];  % Return empty to skip tracks with no direction data
         end
 
-        plot3(track(:,1), track(:,2), track(:,3), ...
-              'Color', color, 'LineWidth', options.line_width);
+        % Skip tracks with invalid color (empty means skip)
+        if ~isempty(color)
+            plot3(track(:,1), track(:,2), track(:,3), ...
+                  'Color', color, 'LineWidth', options.line_width);
+        end
     end
 end
 end

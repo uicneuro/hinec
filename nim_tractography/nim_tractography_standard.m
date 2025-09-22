@@ -253,15 +253,22 @@ for i = 1:size(seed_points, 1)
     % Combine into one continuous track
     combined_track = [track_backward; seed; track_forward];
 
-    % Calculate track length in mm (CORRECTED)
-    if size(combined_track, 1) > 1
-        % Vectorized length calculation
+    % Validate track quality before saving
+    if size(combined_track, 1) >= 4  % Require minimum 4 points
+        % Calculate track length in mm
         track_length_mm = sum(vecnorm(diff(combined_track), 2, 2));
 
-        % Only keep tracks above minimum length
-        if track_length_mm >= options.min_length
-            track_count = track_count + 1;
-            tracks{track_count} = combined_track;
+        % Check if track has meaningful direction
+        directions = diff(combined_track);
+        if ~isempty(directions)
+            avg_direction = mean(directions, 1);
+            direction_magnitude = norm(avg_direction);
+
+            % Only save tracks with good length AND meaningful direction
+            if track_length_mm >= options.min_length && direction_magnitude > 1e-6
+                track_count = track_count + 1;
+                tracks{track_count} = combined_track;
+            end
         end
     end
 end
@@ -287,7 +294,7 @@ if options.enable_diagnostics
     fprintf('========================\n');
 end
 
-fprintf('\nGenerated %d valid tracks\n', track_count);
+fprintf('\nGenerated %d valid tracks (filtered from %d total attempts)\n', track_count, size(seed_points, 1) * 2);
 
 % SAVE RESULTS AUTOMATICALLY
 output_dir = 'tractography_results';
@@ -432,9 +439,18 @@ for segment = 1:options.max_steps
     % Calculate intersection with voxel boundary
     [boundary_pos, exit_distance] = calculate_voxel_boundary_intersection(current_pos, dir_vec, dims);
 
-    % Check if boundary position is valid
-    if isempty(boundary_pos) || any(boundary_pos < 1) || any(boundary_pos > dims)
+    % Check if boundary position is valid or if we're stuck
+    if isempty(boundary_pos) || any(boundary_pos < 1) || any(boundary_pos > dims) || exit_distance < 1e-6
         break;
+    end
+
+    % Prevent tracks from getting stuck in place
+    if track_length > 1
+        prev_pos = track(track_length, :);
+        movement_distance = norm(boundary_pos - prev_pos);
+        if movement_distance < 0.1  % Track not moving significantly
+            break;
+        end
     end
 
     % Brain tissue check at boundary
