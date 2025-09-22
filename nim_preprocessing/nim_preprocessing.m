@@ -10,6 +10,9 @@ function nim_preprocessing(file_prefix, varargin)
 %     .run_eddy - Boolean flag for eddy current correction (default: true)
 %     .improve_mask - Boolean flag for mask improvement (default: true)
 %     .atlas_type - Atlas type (default: 'HarvardOxford')
+%     .phase_encoding_direction - Phase encoding axis for eddy (e.g. 'j-', default: "")
+%     .total_readout_time - Readout time in seconds for each acquisition (default: [])
+%     .eddy_index_vector - Optional acquisition indices per volume (default: [])
 %
 % Legacy usage (backward compatibility):
 %   nim_preprocessing(file_prefix, run_eddy, atlas_type)
@@ -60,7 +63,10 @@ default_options = struct(...
     'run_motion_correction', true, ...
     'run_eddy', true, ...
     'improve_mask', true, ...
-    'atlas_type', 'HarvardOxford' ...
+    'atlas_type', 'HarvardOxford', ...
+    'phase_encoding_direction', "", ...
+    'total_readout_time', [], ...
+    'eddy_index_vector', [] ...
 );
 
 % Merge user options with defaults
@@ -199,105 +205,26 @@ try
         % Define eddy parameter files
         acqp_file = [file_prefix '_acqp.txt'];
         index_file = [file_prefix '_index.txt'];
-        json_file = [file_prefix '.json'];
-        
-        % Create parameter files from JSON if they don't exist
+
+        % Create parameter files from preprocessing options when needed
+        missing_params_warning = '';
         if ~isfile(acqp_file) || ~isfile(index_file)
-            fprintf('Creating eddy parameter files from JSON metadata...\n');
-            
-            if isfile(json_file)
-                try
-                    % Read JSON file
-                    json_text = fileread(json_file);
-                    json_data = jsondecode(json_text);
-                    
-                    % Extract phase encoding direction and readout time
-                    if isfield(json_data, 'PhaseEncodingDirection') && isfield(json_data, 'TotalReadoutTime')
-                        phase_dir = json_data.PhaseEncodingDirection;
-                        readout_time = json_data.TotalReadoutTime;
-                        
-                        fprintf('  Phase encoding direction: %s\n', phase_dir);
-                        fprintf('  Total readout time: %.6f seconds\n', readout_time);
-                        
-                        % Convert phase encoding direction to FSL format
-                        % i = x-direction, j = y-direction, k = z-direction
-                        % + = positive direction, - = negative direction
-                        switch phase_dir
-                            case 'i'
-                                pe_vector = '1 0 0';
-                            case 'i-'
-                                pe_vector = '-1 0 0';
-                            case 'j'
-                                pe_vector = '0 1 0';
-                            case 'j-'
-                                pe_vector = '0 -1 0';
-                            case 'k'
-                                pe_vector = '0 0 1';
-                            case 'k-'
-                                pe_vector = '0 0 -1';
-                            otherwise
-                                error('Unknown phase encoding direction: %s', phase_dir);
-                        end
-                        
-                        % Create acqp.txt file
-                        acqp_content = sprintf('%s %.6f', pe_vector, readout_time);
-                        fid = fopen(acqp_file, 'w');
-                        if fid == -1
-                            error('Could not create acqp file: %s', acqp_file);
-                        end
-                        fprintf(fid, '%s\n', acqp_content);
-                        fclose(fid);
-                        fprintf('  ✓ Created %s\n', acqp_file);
-                        
-                        % Count volumes and create index.txt
-                        [status, vol_output] = system(sprintf('fslnvols %s', current_dwi_file));
-                        if status == 0
-                            num_vols = str2double(strtrim(vol_output));
-                            if isnan(num_vols) || num_vols <= 0
-                                error('Invalid volume count: %s', vol_output);
-                            end
-                            
-                            % Create index file (all volumes use acquisition 1)
-                            index_content = repmat('1 ', 1, num_vols);
-                            fid = fopen(index_file, 'w');
-                            if fid == -1
-                                error('Could not create index file: %s', index_file);
-                            end
-                            fprintf(fid, '%s\n', strtrim(index_content));
-                            fclose(fid);
-                            fprintf('  ✓ Created %s for %d volumes\n', index_file, num_vols);
-                        else
-                            error('Could not count volumes in %s: %s', current_dwi_file, vol_output);
-                        end
-                        
-                    else
-                        error('JSON file missing required fields: PhaseEncodingDirection and/or TotalReadoutTime');
-                    end
-                    
-                catch ME
-                    fprintf('⚠ Failed to create parameter files from JSON: %s\n', ME.message);
-                    fprintf('  You may need to create %s and %s manually\n', acqp_file, index_file);
-                    preprocessing_report.warnings{end+1} = sprintf('Failed to create eddy parameter files: %s', ME.message);
-                    preprocessing_report.eddy_corrected = false;
-                    step_time = toc(step_start);
-                    fprintf('Step 5 completed in %.1f seconds\n', step_time);
-                    return;
-                end
+            fprintf('Creating eddy parameter files from preprocessing options...\n');
+            [created, creation_message] = create_eddy_parameter_files(acqp_file, index_file, current_dwi_file, options);
+            if created
+                fprintf('  ✓ %s\n', creation_message);
             else
-                fprintf('⚠ JSON file not found: %s\n', json_file);
-                fprintf('  Cannot create eddy parameter files automatically\n');
-                preprocessing_report.warnings{end+1} = 'JSON file not found for eddy parameter creation';
-                preprocessing_report.eddy_corrected = false;
-                step_time = toc(step_start);
-                fprintf('Step 5 completed in %.1f seconds\n', step_time);
-                return;
+                missing_params_warning = creation_message;
             end
         else
             fprintf('Using existing eddy parameter files\n');
         end
-        
+
+        % Decide whether eddy can run
+        can_run_eddy = isfile(acqp_file) && isfile(index_file) && isempty(missing_params_warning);
+
         % Now run eddy correction with parameter files
-        if isfile(acqp_file) && isfile(index_file)
+        if can_run_eddy
             try
                 eddy_corrected_file = preproc_eddy_correction(current_dwi_file, brain_mask_file, ...
                     current_bvec_file, bval_file, acqp_file, index_file, file_prefix);
@@ -325,8 +252,11 @@ try
                 fprintf('⚠ Eddy correction failed: %s\n', ME.message);
             end
         else
-            fprintf('⚠ Could not create or find eddy parameter files, skipping eddy correction\n');
-            preprocessing_report.warnings{end+1} = 'Could not create eddy parameter files';
+            if isempty(missing_params_warning)
+                missing_params_warning = 'Eddy correction skipped: parameter files not available';
+            end
+            fprintf('⚠ %s\n', missing_params_warning);
+            preprocessing_report.warnings{end+1} = missing_params_warning;
             preprocessing_report.eddy_corrected = false;
         end
         
@@ -515,4 +445,151 @@ catch ME
     rethrow(ME);
 end
 
+end
+
+function [success, message] = create_eddy_parameter_files(acqp_file, index_file, current_dwi_file, options)
+% Helper: generate eddy parameter files from preprocessing options
+success = false;
+message = '';
+
+phase_info = options.phase_encoding_direction;
+readout_info = options.total_readout_time;
+index_vector = options.eddy_index_vector;
+
+% Normalise phase encoding specification to a cell array of strings
+if isstring(phase_info)
+    phase_list = cellstr(phase_info(:));
+elseif ischar(phase_info)
+    phase_list = {phase_info};
+elseif iscell(phase_info)
+    phase_list = phase_info(:);
+else
+    phase_list = {};
+end
+phase_list = cellfun(@(c) strtrim(char(c)), phase_list, 'UniformOutput', false);
+phase_list = phase_list(~cellfun(@isempty, phase_list));
+
+% Normalise readout times to a numeric row vector
+if isempty(readout_info)
+    readout_values = [];
+elseif iscell(readout_info)
+    readout_values = cellfun(@double, readout_info);
+else
+    readout_values = double(readout_info);
+end
+readout_values = readout_values(:)';
+
+if isempty(phase_list) || isempty(readout_values)
+    message = 'Provide options.phase_encoding_direction and options.total_readout_time to generate eddy parameter files.';
+    return;
+end
+
+if numel(readout_values) == 1 && numel(phase_list) > 1
+    readout_values = repmat(readout_values, 1, numel(phase_list));
+end
+
+if numel(readout_values) ~= numel(phase_list)
+    message = 'Number of entries in total_readout_time must match phase_encoding_direction.';
+    return;
+end
+
+if any(~isfinite(readout_values) | readout_values <= 0)
+    message = 'total_readout_time values must be positive, finite numbers (seconds).';
+    return;
+end
+
+% Write acqp file with one line per acquisition
+try
+    fid = fopen(acqp_file, 'w');
+    if fid == -1
+        message = sprintf('Could not create acqp file: %s', acqp_file);
+        return;
+    end
+    cleanup_acqp = onCleanup(@() fclose(fid));
+    for i = 1:numel(phase_list)
+        pe_vector = phase_encoding_direction_to_vector(phase_list{i});
+        fprintf(fid, '%s %.6f\n', pe_vector, readout_values(i));
+    end
+    clear cleanup_acqp; % closes file
+catch ME
+    message = sprintf('Failed to write acqp file: %s', ME.message);
+    return;
+end
+
+% Count diffusion volumes to build index file
+[status, vol_output] = system(sprintf('fslnvols %s', current_dwi_file));
+if status ~= 0
+    message = sprintf('Could not count volumes in %s: %s', current_dwi_file, strtrim(vol_output));
+    return;
+end
+
+num_vols = str2double(strtrim(vol_output));
+if isnan(num_vols) || num_vols <= 0
+    message = sprintf('Invalid volume count returned by fslnvols: %s', vol_output);
+    return;
+end
+
+if isempty(index_vector)
+    index_vector = ones(1, num_vols);
+else
+    index_vector = double(index_vector(:)');
+    if numel(index_vector) ~= num_vols
+        message = sprintf('Provided eddy_index_vector has %d entries but dataset has %d volumes.', numel(index_vector), num_vols);
+        return;
+    end
+    if any(~isfinite(index_vector)) || any(index_vector < 1) || any(abs(index_vector - round(index_vector)) > 0)
+        message = 'eddy_index_vector must contain positive integer acquisition indices.';
+        return;
+    end
+end
+
+if max(index_vector) > numel(phase_list)
+    message = sprintf('eddy_index_vector references acquisition %d, but only %d acquisition lines provided.', max(index_vector), numel(phase_list));
+    return;
+end
+
+try
+    fid = fopen(index_file, 'w');
+    if fid == -1
+        message = sprintf('Could not create index file: %s', index_file);
+        return;
+    end
+    cleanup_index = onCleanup(@() fclose(fid));
+    fprintf(fid, '%d ', index_vector);
+    fprintf(fid, '\n');
+    clear cleanup_index;
+catch ME
+    message = sprintf('Failed to write index file: %s', ME.message);
+    return;
+end
+
+success = true;
+message = 'Created acqp/index parameter files using preprocessing options.';
+end
+
+function pe_vector = phase_encoding_direction_to_vector(direction)
+% Convert a BIDS-style phase encoding direction (e.g., 'j-') to FSL vector
+direction = lower(strtrim(direction));
+if isempty(direction)
+    error('Phase encoding direction cannot be empty.');
+end
+
+sign = 1;
+if direction(end) == '-'
+    sign = -1;
+    direction = direction(1:end-1);
+elseif direction(end) == '+'
+    direction = direction(1:end-1);
+end
+
+switch direction
+    case {'i', 'x'}
+        pe_vector = sprintf('%d 0 0', sign);
+    case {'j', 'y'}
+        pe_vector = sprintf('0 %d 0', sign);
+    case {'k', 'z'}
+        pe_vector = sprintf('0 0 %d', sign);
+    otherwise
+        error('Unsupported phase encoding axis: %s', direction);
+end
 end

@@ -76,6 +76,7 @@ spm12/*
 sample.mat
 
 nifti/*
+ISMRM/*
 
 *_figures*/*
 

@@ -86,6 +86,9 @@ end
 if ~isfield(options, 'use_fa_seed_filter')
     options.use_fa_seed_filter = false;
 end
+if ~isfield(options, 'inferior_slice_fraction')
+    options.inferior_slice_fraction = 0.1;
+end
 
 options.seed_strategy = lower(string(options.seed_strategy));
 
@@ -163,10 +166,15 @@ if isempty(options.seed_mask)
             end
 
             if ~isempty(brain_mask)
-                % Exclude inferior slices that frequently contain susceptibility artifacts
-                z_exclude = max(1, round(dims(3) * 0.1));
-                brain_mask(:, :, 1:z_exclude) = 0;
-                fprintf('Excluded bottom %d slices to avoid susceptibility artifacts\n', z_exclude);
+                % Optionally discard inferior slices that often contain susceptibility artifacts
+                if options.inferior_slice_fraction > 0
+                    z_exclude = max(1, round(dims(3) * options.inferior_slice_fraction));
+                    brain_mask(:, :, 1:z_exclude) = 0;
+                    fprintf('Excluded bottom %d slices (%.1f%% of volume)\n', z_exclude, options.inferior_slice_fraction * 100);
+                else
+                    z_exclude = 0;
+                    fprintf('Inferior slice exclusion disabled\n');
+                end
 
                 if any(brain_mask(:))
                     options.seed_mask = brain_mask;
