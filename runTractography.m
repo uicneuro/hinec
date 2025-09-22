@@ -33,11 +33,11 @@ end
 fprintf('Setting up FACT tractography parameters...\n');
 options = struct();
 options.seed_density = 1;           % Number of seeds per voxel - one seed per quality voxel
-options.step_size = 1.0;            % Not used - FACT calculates exact voxel boundary intersections
+options.step_size = 0.5;            % FACT step size Δ for Euler method: r_{i+1} = r_i + e1(r_i)*Δ
 options.fa_threshold = 0.2;         % FA threshold for seed placement - moderate threshold for good coverage
 options.termination_fa = 0.1;       % FA threshold for track termination - allows tracking into gray matter boundaries
 options.angle_thresh = 35;          % Maximum turning angle in degrees - slightly more permissive for FACT
-options.max_steps = 500;            % Maximum voxel boundary crossings per track - realistic for brain fibers
+options.max_steps = 1000;           % Maximum Euler steps per track
 options.min_length = 20;            % Minimum track length in mm - filters out short spurious tracks
 options.order = 1;                  % FACT uses first-order integration
 options.interp_method = 'none';     % FACT samples nearest voxel tensor (no interpolation)

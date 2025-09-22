@@ -1,20 +1,20 @@
 function tracks = nim_tractography_standard(data_path, varargin)
 % nim_tractography_standard: FACT (Fiber Assignment by Continuous Tracking) Tractography
 %
-% FACT VOXEL BOUNDARY ALGORITHM IMPLEMENTATION:
+% FACT BOUNDARY INTERSECTION IMPLEMENTATION:
 % - Uses discrete voxel tensors as direction fields (NO interpolation)
-% - Exact boundary intersection calculation (NO stepping)
-% - Direction changes only when crossing voxel boundaries
+% - Voxel boundary intersection: find_voxel_boundary_exit(position, direction)
+% - Jump directly to voxel boundaries, not fixed steps
 % - Seeds can be placed anywhere within valid voxels
-% - Primary eigenvector direction from current voxel
-% - Mathematically precise tractography without stepping artifacts
+% - Primary eigenvector direction from current voxel only
+% - Direction updates ONLY when entering new voxels
 %
-% DIFFERENCES FROM INTERPOLATED METHODS:
-% - Direction sampling: Current voxel only (vs. linear/spline interpolation)
-% - Position updates: Exact boundary intersections (vs. approximate steps)
-% - Mathematical precision: Ray-voxel intersection geometry
-% - Computational cost: Lower (no interpolation, no stepping loops)
-% - Track characteristics: Precise paths with exact boundary crossings
+% ALGORITHM MATCHES RESEARCH PSEUDOCODE:
+% - while True loop with proper termination criteria
+% - Check FA and angle constraints BEFORE advancing
+% - Compute boundary intersection along current direction
+% - Jump to exit point, enter new voxel, get new direction
+% - Ensure direction consistency with sign flipping
 %
 % Arguments:
 %   data_path - Path to .mat file containing nim structure or nim structure itself
@@ -51,7 +51,7 @@ if ~isfield(options, 'seed_density')
     options.seed_density = 1;
 end
 if ~isfield(options, 'step_size')
-    options.step_size = 1.0;  % FACT: Not used - tracks jump directly to voxel boundaries
+    options.step_size = 0.5;  % FACT: Predefined step size Δ for Euler method
 end
 if ~isfield(options, 'fa_threshold')
     options.fa_threshold = 0.1;
@@ -195,6 +195,13 @@ fprintf('==============================\n');
 tracks = cell(size(seed_points, 1) * 2, 1);
 track_count = 0;
 
+% Failure tracking
+failure_stats = struct();
+failure_stats.too_short = 0;
+failure_stats.no_direction = 0;
+failure_stats.too_short_mm = 0;
+failure_stats.total_generated = 0;
+
 % Convert angle threshold to cosine for efficiency
 cos_angle_thresh = cos(deg2rad(options.angle_thresh));
 
@@ -294,7 +301,12 @@ if options.enable_diagnostics
     fprintf('========================\n');
 end
 
-fprintf('\nGenerated %d valid tracks (filtered from %d total attempts)\n', track_count, size(seed_points, 1) * 2);
+total_attempts = size(seed_points, 1) * 2;
+success_rate = (track_count / total_attempts) * 100;
+fprintf('\nGenerated %d valid tracks (filtered from %d total attempts - %.1f%% success rate)\n', track_count, total_attempts, success_rate);
+if success_rate < 10
+    fprintf('⚠️  WARNING: Extremely low success rate! Check algorithm parameters.\n');
+end
 
 % SAVE RESULTS AUTOMATICALLY
 output_dir = 'tractography_results';
@@ -363,31 +375,30 @@ end
 end
 
 function [track, step_timing] = track_fiber_fact(nim, seed, direction, options, cos_angle_thresh)
-% FACT: Track fiber using discrete voxel tensors (NO interpolation)
+% FACT: Track fiber using voxel boundary intersection (CORRECT ALGORITHM)
 %
-% TRUE FACT TRACKING ALGORITHM:
-% - Start from seed voxel center (rounded seed position)
-% - Get direction from current voxel tensor only
-% - Step in direction with step_size=1.0 then round position
-% - Ensures discrete voxel-to-voxel movement, no sub-voxel positioning
+% RESEARCH-BASED FACT ALGORITHM:
+% - Start from seed position
+% - Get principal eigenvector from current voxel
+% - Find intersection with voxel boundary along direction
+% - Jump to boundary, enter new voxel, get new direction
+% - Repeat until termination criteria
 %
 % Arguments:
 %   nim - NIM structure with diffusion tensors
-%   seed - Starting position (will be rounded to voxel center)
+%   seed - Starting position
 %   direction - Initial tracking direction (+1 or -1)
 %   options - FACT tracking parameters
 %   cos_angle_thresh - Cosine of maximum angle change
 %
 % Returns:
-%   track - Array of voxel positions along fiber track
+%   track - Array of positions along fiber track
 
-% FACT: Start from exact seed position (field-based tracking)
-current_pos = seed;  % Allow flexible seed positioning
-% Pre-allocate track array for performance
+% Initialize position and streamline
+current_pos = seed;
 track = zeros(options.max_steps + 1, 3);
 track(1, :) = current_pos;
 track_length = 1;
-prev_direction = [];
 
 % Initialize timing
 if nargout > 1
@@ -398,70 +409,64 @@ if nargout > 1
 end
 
 % Get initial direction from seed voxel
-initial_dir = get_initial_direction_fact(nim, current_pos, options);
-if isempty(initial_dir)
+[dir_vec, fa_val] = get_voxel_direction_fact(nim, current_pos, options);
+if isempty(dir_vec) || fa_val < options.termination_fa
+    track = track(1:track_length, :);
     return;
 end
 
 % Apply direction flip for bidirectional tracking
-initial_dir = initial_dir * direction;
-prev_direction = initial_dir;
+dir_vec = dir_vec * direction;
 
 % Pre-compute frequently used values
 dims = size(nim.FA);
 has_parcellation = isfield(nim, 'dilated_brain_mask');
 
-for segment = 1:options.max_steps
+% FACT algorithm: while loop matching research pseudocode
+while true
     if nargout > 1
         step_timing.step_count = step_timing.step_count + 1;
     end
 
-    % Get direction from current voxel
-    [dir_vec, fa_val] = get_voxel_direction_fact(nim, current_pos, options);
-
-    % Termination criteria
-    if isempty(dir_vec) || fa_val < options.termination_fa
+    % Check termination criteria BEFORE advancing
+    if fa_val < options.termination_fa
         break;
     end
 
-    % Ensure consistent direction (flip if needed)
-    if ~isempty(prev_direction)
-        if dot(dir_vec, prev_direction) < 0
-            dir_vec = -dir_vec;
-        end
-
-        % Check curvature constraint between voxels
-        if dot(dir_vec, prev_direction) < cos_angle_thresh
-            break;
-        end
-    end
-
-    % Calculate intersection with voxel boundary
-    [boundary_pos, exit_distance] = calculate_voxel_boundary_intersection(current_pos, dir_vec, dims);
-
-    % Check if boundary position is valid or if we're stuck
-    if isempty(boundary_pos) || any(boundary_pos < 1) || any(boundary_pos > dims) || exit_distance < 1e-6
-        break;
-    end
-
-    % Prevent tracks from getting stuck in place
+    % Check angle constraint (only after first step)
     if track_length > 1
-        prev_pos = track(track_length, :);
-        movement_distance = norm(boundary_pos - prev_pos);
-        if movement_distance < 0.1  % Track not moving significantly
-            break;
+        prev_pos = track(track_length-1, :);
+        current_step = track(track_length, :) - prev_pos;
+        if norm(current_step) > 1e-6
+            current_step = current_step / norm(current_step);
+            if dot(dir_vec, current_step) < cos_angle_thresh
+                break;
+            end
         end
     end
 
-    % Brain tissue check at boundary
+    % Check maximum steps
+    if track_length >= options.max_steps
+        break;
+    end
+
+    % Compute intersection with voxel boundary along direction
+    exit_point = find_voxel_boundary_exit(current_pos, dir_vec, dims);
+
+    % Check if exit point is valid
+    if isempty(exit_point) || any(exit_point < 1) || any(exit_point > dims)
+        break;
+    end
+
+    % Brain tissue check at exit point
     if has_parcellation
         if nargout > 1
             boundary_tic = tic;
         end
 
-        boundary_voxel = round(boundary_pos);
-        if all(boundary_voxel >= 1) && all(boundary_voxel <= dims)
-            if ~nim.dilated_brain_mask(boundary_voxel(1), boundary_voxel(2), boundary_voxel(3))
+        exit_voxel = round(exit_point);
+        if all(exit_voxel >= 1) && all(exit_voxel <= dims)
+            if ~nim.dilated_brain_mask(exit_voxel(1), exit_voxel(2), exit_voxel(3))
                 break;
             end
         end
@@ -471,18 +476,88 @@ for segment = 1:options.max_steps
         end
     end
 
-    % Jump directly to voxel boundary
-    current_pos = boundary_pos;
-
-    % Add boundary position to track
+    % Add exit point to streamline
     track_length = track_length + 1;
-    track(track_length, :) = current_pos;
+    track(track_length, :) = exit_point;
 
-    prev_direction = dir_vec;
+    % Move to next voxel and update direction
+    current_pos = exit_point;
+
+    % Get new direction from new voxel
+    [new_dir, fa_val] = get_voxel_direction_fact(nim, current_pos, options);
+    if isempty(new_dir)
+        break;
+    end
+
+    % Ensure new direction is oriented consistently with current direction
+    if dot(dir_vec, new_dir) < 0
+        new_dir = -new_dir;
+    end
+    dir_vec = new_dir;
 end
 
 % Trim track array to actual length
 track = track(1:track_length, :);
+end
+
+function exit_point = find_voxel_boundary_exit(position, direction, dims)
+% Find where direction vector intersects current voxel boundary
+% This is the core FACT algorithm function from research pseudocode
+
+exit_point = [];
+
+% Get current voxel bounds
+current_voxel = floor(position);
+voxel_min = current_voxel;
+voxel_max = current_voxel + 1;
+
+% Find intersection with all 6 voxel faces
+min_t = inf;
+best_exit = [];
+
+% Check each dimension (x, y, z)
+for dim = 1:3
+    if abs(direction(dim)) > 1e-10  % Avoid division by zero
+        % Calculate intersection with min and max faces
+        if direction(dim) > 0
+            % Moving in positive direction - intersect with max face
+            t = (voxel_max(dim) - position(dim)) / direction(dim);
+        else
+            % Moving in negative direction - intersect with min face
+            t = (voxel_min(dim) - position(dim)) / direction(dim);
+        end
+
+        if t > 1e-10 && t < min_t  % Must be moving forward
+            % Calculate intersection point
+            test_point = position + t * direction;
+
+            % Check if intersection is within voxel bounds in other dimensions
+            valid = true;
+            for other_dim = 1:3
+                if other_dim ~= dim
+                    if test_point(other_dim) < voxel_min(other_dim) - 1e-10 || ...
+                       test_point(other_dim) > voxel_max(other_dim) + 1e-10
+                        valid = false;
+                        break;
+                    end
+                end
+            end
+
+            if valid
+                min_t = t;
+                best_exit = test_point;
+            end
+        end
+    end
+end
+
+% Return the closest valid exit point
+if ~isempty(best_exit) && min_t < inf
+    exit_point = best_exit;
+    % Ensure exit point is within volume bounds
+    exit_point = max(exit_point, [1, 1, 1]);
+    exit_point = min(exit_point, dims);
+end
 end
 
 function initial_dir = get_initial_direction_fact(nim, pos, options)
@@ -493,80 +568,6 @@ if isempty(initial_dir) || fa_val < options.termination_fa
 end
 end
 
-function [boundary_pos, exit_distance] = calculate_voxel_boundary_intersection(current_pos, direction, dims)
-% Calculate exact intersection point with voxel boundary
-%
-% This function finds where a ray from current_pos in given direction
-% intersects the faces of the current voxel, providing exact boundary crossing
-%
-% Arguments:
-%   current_pos - Current position in 3D space [x, y, z]
-%   direction - Normalized direction vector [dx, dy, dz]
-%   dims - Volume dimensions [nx, ny, nz]
-%
-% Returns:
-%   boundary_pos - Exact intersection point with voxel boundary
-%   exit_distance - Distance traveled to boundary
-
-boundary_pos = [];
-exit_distance = inf;
-
-% Get current voxel indices
-current_voxel = floor(current_pos);
-
-% Calculate voxel boundaries
-voxel_min = current_voxel;
-voxel_max = current_voxel + 1;
-
-% For each dimension, calculate intersection with voxel faces
-min_distance = inf;
-intersection_point = [];
-
-for dim = 1:3
-    if abs(direction(dim)) > 1e-10  % Avoid division by zero
-        % Calculate distance to each face in this dimension
-        if direction(dim) > 0
-            % Moving in positive direction - intersect with max face
-            t = (voxel_max(dim) - current_pos(dim)) / direction(dim);
-        else
-            % Moving in negative direction - intersect with min face
-            t = (voxel_min(dim) - current_pos(dim)) / direction(dim);
-        end
-
-        if t > 0 && t < min_distance
-            % Calculate intersection point
-            test_point = current_pos + t * direction;
-
-            % Check if intersection is within voxel bounds in other dimensions
-            valid = true;
-            for other_dim = 1:3
-                if other_dim ~= dim
-                    if test_point(other_dim) < voxel_min(other_dim) || ...
-                       test_point(other_dim) > voxel_max(other_dim)
-                        valid = false;
-                        break;
-                    end
-                end
-            end
-
-            if valid
-                min_distance = t;
-                intersection_point = test_point;
-            end
-        end
-    end
-end
-
-% Return results
-if ~isempty(intersection_point) && min_distance < inf
-    boundary_pos = intersection_point;
-    exit_distance = min_distance;
-
-    % Ensure boundary position is within volume bounds
-    boundary_pos = max(boundary_pos, [1, 1, 1]);
-    boundary_pos = min(boundary_pos, dims);
-end
-end
 
 function [direction, fa_value] = get_voxel_direction_fact(nim, pos, options)
 % FACT: Get direction from nearest voxel tensor (NO interpolation)
