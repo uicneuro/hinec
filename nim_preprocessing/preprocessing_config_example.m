@@ -25,6 +25,9 @@ switch lower(profile)
         options.run_eddy = false;
         options.improve_mask = false;
         options.atlas_type = 'HarvardOxford';
+        options.phase_encoding_direction = "";
+        options.total_readout_time = [];
+        options.eddy_index_vector = [];
         
         fprintf('Quick processing profile:\n');
         fprintf('  - No denoising\n');
@@ -42,11 +45,14 @@ switch lower(profile)
         options.run_eddy = false;  % Often requires special parameter files
         options.improve_mask = true;
         options.atlas_type = 'HarvardOxford';
+        options.phase_encoding_direction = "";
+        options.total_readout_time = [];
+        options.eddy_index_vector = [];
         
         fprintf('Standard processing profile (recommended):\n');
         fprintf('  - MRtrix3 MP-PCA denoising\n');
         fprintf('  - Motion correction with b-vector rotation\n');
-        fprintf('  - Eddy correction (if parameter files available)\n');
+        fprintf('  - Eddy correction (configure phase/readout if enabling)\n');
         fprintf('  - Improved brain masking\n');
         fprintf('  - Processing time: ~10-20 minutes\n');
         
@@ -59,11 +65,15 @@ switch lower(profile)
         options.run_eddy = true;
         options.improve_mask = true;
         options.atlas_type = 'JHU-tract';
+        options.phase_encoding_direction = 'j-';  % Replace with dataset-specific axis (e.g., 'j' or 'j-')
+        options.total_readout_time = 0.05;         % Replace with dataset-specific total readout time (seconds)
+        options.eddy_index_vector = [];
         
         fprintf('Comprehensive processing profile:\n');
         fprintf('  - MRtrix3 MP-PCA denoising\n');
         fprintf('  - Motion correction with b-vector rotation\n');
-        fprintf('  - Eddy current correction (requires acqp.txt and index.txt)\n');
+        fprintf('  - Eddy current correction (requires acqp/index parameters)\n');
+        fprintf('    * Set phase_encoding_direction and total_readout_time in options\n');
         fprintf('  - Advanced brain mask improvement\n');
         fprintf('  - JHU tractography atlas\n');
         fprintf('  - Processing time: ~1-3 hours (depending on eddy)\n');
@@ -77,11 +87,15 @@ switch lower(profile)
         options.run_eddy = true;
         options.improve_mask = true;  % Critical for tractography
         options.atlas_type = 'JHU-tract';
+        options.phase_encoding_direction = 'j-';
+        options.total_readout_time = 0.05;
+        options.eddy_index_vector = [];
         
         fprintf('Tractography-optimized processing profile:\n');
         fprintf('  - MP-PCA denoising for clean diffusion estimates\n');
         fprintf('  - Motion correction to prevent wobbly streamlines\n');
         fprintf('  - Eddy correction for accurate tensor estimation\n');
+        fprintf('    * Provide phase_encoding_direction and total_readout_time values\n');
         fprintf('  - Advanced mask improvement to prevent tracts outside brain\n');
         fprintf('  - JHU tractography atlas for white matter analysis\n');
         fprintf('  - Processing time: ~1-3 hours\n');

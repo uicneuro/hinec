@@ -33,7 +33,7 @@ if ~isfield(options, 'filter_mode')
     options.filter_mode = 'pass_through';
 end
 if ~isfield(options, 'min_overlap')
-    options.min_overlap = 0.1; % 10% of track must be in region
+    options.min_overlap = 0.3; % 30% of track must be in region for better filtering
 end
 if ~isfield(options, 'show_region')
     options.show_region = true;
@@ -52,6 +52,9 @@ if ~isfield(options, 'line_width')
 end
 if ~isfield(options, 'show_stats')
     options.show_stats = true;
+end
+if ~isfield(options, 'min_track_length')
+    options.min_track_length = 10; % Minimum track length in points to reduce spurious tracks
 end
 
 % Validate inputs
@@ -143,8 +146,8 @@ track_count = 0;
 
 for i = 1:length(tracks)
     track = tracks{i};
-    if size(track, 1) < 2
-        continue;
+    if size(track, 1) < options.min_track_length
+        continue; % Skip tracks that are too short
     end
     
     % Get parcellation labels along the track
@@ -180,13 +183,29 @@ for i = 1:length(tracks)
                 include_track = ismember(region_id, unique_regions) && length(unique_regions) > 1;
             end
     end
-    
-    % Apply minimum overlap constraint
+
+    % Apply minimum overlap constraint with enhanced filtering
     if include_track && options.min_overlap > 0
         region_points = sum(track_labels == region_id);
         total_points = length(track_labels);
         overlap_ratio = region_points / total_points;
-        include_track = overlap_ratio >= options.min_overlap;
+
+        % For pass_through mode, be more strict - require either:
+        % 1. Track starts or ends in the region (meaningful connection), OR
+        % 2. Track has substantial overlap (>= min_overlap)
+        if strcmp(options.filter_mode, 'pass_through')
+            valid_labels = track_labels(track_labels > 0);
+            starts_or_ends_in_region = false;
+            if ~isempty(valid_labels)
+                starts_or_ends_in_region = (valid_labels(1) == region_id) || (valid_labels(end) == region_id);
+            end
+
+            % Include if it starts/ends in region OR has substantial overlap
+            include_track = starts_or_ends_in_region || (overlap_ratio >= options.min_overlap);
+        else
+            % For other modes, use standard overlap check
+            include_track = overlap_ratio >= options.min_overlap;
+        end
     end
     
     if include_track
