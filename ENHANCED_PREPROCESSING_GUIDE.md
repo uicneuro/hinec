@@ -34,8 +34,7 @@ options.fieldmap_file = 'ISMRM/ISMRM_fmap_Hz.nii.gz';  % Your field map
 options.phase_encoding_dir = 'y';  % Adjust for your acquisition
 options.dwell_time = 0.00058;      % Adjust for your scanner
 options.eddy_method = 'eddy_correct';  % Fallback method
-options.create_wm_mask = true;     % Enhanced seeding
-
+options.create_wm_mask = true;
 % Run enhanced preprocessing
 nim_preprocessing_enhanced('ISMRM/ISMRM', options);
 ```
@@ -89,8 +88,7 @@ options.eddy_method = 'eddy';        % Advanced method (requires acqp/index)
 ### **Enhanced Seeding Options**
 
 ```matlab
-options.create_wm_mask = true;   % Create white matter mask for seeding
-```
+options.create_wm_mask = true;```
 
 ## 📁 **File Requirements**
 
@@ -208,7 +206,6 @@ options.run_denoising = true;
 options.denoise_method = 'dwidenoise';
 options.run_motion_correction = true;
 options.eddy_method = 'eddy';  % If you have acqp/index files
-options.create_wm_mask = true;
 ```
 
 ## 📚 **References**

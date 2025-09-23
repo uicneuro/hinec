@@ -53,7 +53,6 @@ options.eddy_method = 'eddy_correct';  % Use fallback method since no acqp/index
 options.run_denoising = true;
 options.denoise_method = 'dwidenoise';
 options.run_motion_correction = true;
-options.create_wm_mask = true;  % Create white matter mask for better tractography
 options.atlas_type = 'HarvardOxford';
 
 %% Display configuration
@@ -62,7 +61,6 @@ fprintf('  Field map correction: %s\n', char(string(options.run_fieldmap_correct
 fprintf('  Field map file: %s\n', options.fieldmap_file);
 fprintf('  Phase encoding: %s\n', options.phase_encoding_dir);
 fprintf('  Eddy method: %s\n', options.eddy_method);
-fprintf('  Create WM mask: %s\n', char(string(options.create_wm_mask)));
 
 %% Run enhanced preprocessing
 fprintf('\nStarting enhanced preprocessing...\n');

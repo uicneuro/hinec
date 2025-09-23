@@ -87,6 +87,7 @@ end
 % Define the file extensions and suffixes
 img_file = [char(imgpath) '.nii.gz'];
 raw_file = [char(imgpath) '_raw.nii.gz'];
+t1_file = [char(imgpath) '_T1.nii.gz'];
 
 % Check if the processed NIfTI file exists
 if isfile(img_file)
@@ -97,8 +98,18 @@ else
     % Check if the raw data exists
     if isfile(raw_file)
         fprintf("Found raw data: %s\n", raw_file);
+
+        % Check for T1 structural data
+        if isfile(t1_file)
+            fprintf("Found T1 structural data: %s\n", t1_file);
+            t1_available = true;
+        else
+            fprintf("T1 structural data not found: %s\n", t1_file);
+            t1_available = false;
+        end
+
         fprintf("Starting preprocessing...\n");
-        
+
         % Set up preprocessing options
         if isfield(options, 'preprocessing_options')
             preproc_options = options.preprocessing_options;
@@ -111,6 +122,11 @@ else
             preproc_options.improve_mask = true;
             preproc_options.atlas_type = 'JHU-tract';
         end
+
+        % Add T1 registration options
+        preproc_options.t1_available = t1_available;
+        preproc_options.t1_file = t1_file;
+        preproc_options.use_t1_registration = t1_available;
         
         % Preprocess the raw data
         nim_preprocessing(imgpath, preproc_options);

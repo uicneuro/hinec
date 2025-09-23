@@ -42,8 +42,7 @@ options.min_length = 35;            % Minimum track length in mm - filters out s
 options.order = 1;                  % FACT uses first-order integration
 options.interp_method = 'none';     % FACT samples nearest voxel tensor (no interpolation)
 
-% ENHANCED SEEDING STRATEGY - Prioritize white matter with boundary protection
-% Check for enhanced preprocessing white matter mask first
+% ENHANCED SEEDING STRATEGY - Use brain mask for comprehensive coverage
 [data_dir, data_name, ~] = fileparts(data_path);
 if isempty(data_dir)
     data_dir = pwd;

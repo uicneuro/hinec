@@ -410,7 +410,7 @@ try
 
     % Use current_dwi_file (with all corrections) as reference for atlas resampling
     [parcellation_mask_output, atlas_labels_file] = preproc_atlas_resampling(...
-        current_dwi_file, output_dir, file_prefix, options.atlas_type);
+        current_dwi_file, output_dir, file_prefix, options.atlas_type, options);
     
     preprocessing_report.parcellation_mask = parcellation_mask_output;
     preprocessing_report.atlas_labels_file = atlas_labels_file;
@@ -450,9 +450,7 @@ end
     };
 
     % Add enhanced files if they exist
-    if isfield(preprocessing_report, 'wm_mask_file') && exist(preprocessing_report.wm_mask_file, 'file')
-        final_files{end+1} = preprocessing_report.wm_mask_file;
-    end
+    % (No enhanced files currently generated)
     
     cleanup_report = preproc_cleanup(output_dir, file_prefix, final_files);
     preprocessing_report.cleanup_report = cleanup_report;
@@ -490,9 +488,6 @@ preprocessing_report.final_bval_file = final_output_bval;
     end
     if isfield(preprocessing_report, 'eddy_method_used') && strcmp(preprocessing_report.eddy_method_used, 'eddy_correct')
         enhanced_features{end+1} = 'Alternative eddy current correction';
-    end
-    if isfield(preprocessing_report, 'wm_mask_file')
-        enhanced_features{end+1} = 'White matter mask for better tractography';
     end
 
     if ~isempty(enhanced_features)
