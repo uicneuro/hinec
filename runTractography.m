@@ -32,7 +32,7 @@ end
 %% Set FACT tractography parameters
 fprintf('Setting up FACT tractography parameters...\n');
 options = struct();
-options.seed_density = 8;           % VERY DENSE: 8 seeds per voxel for complete uniform coverage
+options.seed_density = 4;           % VERY DENSE: 8 seeds per voxel for complete uniform coverage
 options.step_size = 0.5;            % FACT step size Δ for Euler method: r_{i+1} = r_i + e1(r_i)*Δ
 options.fa_threshold = 0.05;        % Low FA threshold - not used for seeding, only for tracking quality
 options.termination_fa = 0.05;      % Low termination threshold for extensive tracking
