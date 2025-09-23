@@ -34,11 +34,11 @@ fprintf('Setting up FACT tractography parameters...\n');
 options = struct();
 options.seed_density = 4;           % VERY DENSE: 8 seeds per voxel for complete uniform coverage
 options.step_size = 0.5;            % FACT step size Δ for Euler method: r_{i+1} = r_i + e1(r_i)*Δ
-options.fa_threshold = 0.05;        % Low FA threshold - not used for seeding, only for tracking quality
-options.termination_fa = 0.05;      % Low termination threshold for extensive tracking
+options.fa_threshold = 0.15;        % Low FA threshold - not used for seeding, only for tracking quality
+options.termination_fa = 0.15;      % Low termination threshold for extensive tracking
 options.angle_thresh = 35;          % Maximum turning angle in degrees - slightly more permissive for FACT
 options.max_steps = 1000;           % Maximum Euler steps per track
-options.min_length = 20;            % Minimum track length in mm - filters out short spurious tracks
+options.min_length = 35;            % Minimum track length in mm - filters out short spurious tracks
 options.order = 1;                  % FACT uses first-order integration
 options.interp_method = 'none';     % FACT samples nearest voxel tensor (no interpolation)
 
