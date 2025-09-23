@@ -1,24 +1,14 @@
 function visualizeTractographySlices(tracks_file, nim_file, varargin)
-% VISUALIZETRACTOGRAPHYSLICES: Interactive 2D slice viewer for tractography
-%
-% Displays tractography in three orthogonal planes (axial, sagittal, coronal)
-% with interactive sliders for navigating through brain slices.
+% VISUALIZETRACTOGRAPHYSLICES: Interactive slice controller for tractography
 %
 % Usage:
-%   visualizeTractographySlices('tracks.mat', 'data.mat')
+%   visualizeTractographySlices('tracks.mat', 'nim.mat')
 %   visualizeTractographySlices(..., 'tolerance', 2)
 %   visualizeTractographySlices(..., 'show_crosshairs', true)
 %
-% Arguments:
-%   tracks_file - Path to tracks .mat file
-%   nim_file - Path to nim .mat file
-%
-% Optional Parameters:
-%   'tolerance' - Slice thickness in voxels (default: 2)
-%   'show_crosshairs' - Show crosshair lines (default: true)
-%   'color_mode' - Track coloring ('direction', 'uniform') (default: 'direction')
-%   'show_anatomy' - Show FA background (default: true)
-%   'alpha' - FA background transparency (default: 0.6)
+% The controller window lets you adjust axial, sagittal, and coronal slice
+% positions. Press "Render View" to open a dedicated figure showing the
+% selected slices with the current options.
 
 %% Parse input arguments
 p = inputParser;
@@ -38,11 +28,10 @@ addpath('nim_tractography');
 addpath('nim_utils');
 addpath('nim_plots');
 
-fprintf('=== TRACTOGRAPHY SLICE VIEWER ===\n');
+fprintf('=== TRACTOGRAPHY SLICE CONTROLLER ===\n');
 fprintf('Loading data...\n');
 
 %% Load data
-% Load tracks
 if ~exist(tracks_file, 'file')
     error('Tracks file not found: %s', tracks_file);
 end
@@ -53,7 +42,6 @@ else
     error('No tracks field found in tracks file');
 end
 
-% Load nim data
 if ~exist(nim_file, 'file')
     error('NIM file not found: %s', nim_file);
 end
@@ -64,321 +52,208 @@ else
     error('No nim field found in nim file');
 end
 
-% Validate required fields
 if ~isfield(nim, 'FA')
     error('FA field required in nim structure');
 end
 
-fprintf('Loaded %d tracks\n', length(tracks));
 dims = size(nim.FA);
-fprintf('Volume dimensions: %d x %d x %d\n', dims(1), dims(2), dims(3));
+fprintf('Loaded %d tracks | Volume dimensions: %d x %d x %d\n', ...
+        length(tracks), dims(1), dims(2), dims(3));
 
-%% Initialize figure and UI
-fig = figure('Name', 'Tractography Slice Viewer', ...
-             'Position', [100, 50, 1400, 900], ...
-             'Color', 'w', ...
-             'CloseRequestFcn', @closeFigure);
+fprintf('Precomputing track slice lookup tables (one-time)...\n');
+slice_lookup = buildTrackSliceLookup(tracks, dims);
+fprintf('Lookup ready. Interactive rendering will reuse cached indices.\n');
 
-% Store data in figure for callbacks
-setappdata(fig, 'tracks', tracks);
-setappdata(fig, 'nim', nim);
-setappdata(fig, 'dims', dims);
-setappdata(fig, 'opts', opts);
+%% Initialize controller UI
+control_fig = figure('Name', 'Tractography Slice Controls', ...
+                     'Position', [100, 100, 630, 260], ...
+                     'Color', 'w', ...
+                     'NumberTitle', 'off', ...
+                     'Resize', 'off', ...
+                     'CloseRequestFcn', @closeFigure);
 
-% Initialize slice positions (middle of each dimension)
+% Store data for callbacks
+setappdata(control_fig, 'tracks', tracks);
+setappdata(control_fig, 'nim', nim);
+setappdata(control_fig, 'dims', dims);
+setappdata(control_fig, 'opts', opts);
+setappdata(control_fig, 'slice_lookup', slice_lookup);
+
 slices = struct();
-slices.axial = round(dims(3) / 2);      % Z slice
-slices.sagittal = round(dims(1) / 2);   % X slice
-slices.coronal = round(dims(2) / 2);    % Y slice
-setappdata(fig, 'slices', slices);
+slices.axial = round(dims(3) / 2);
+slices.sagittal = round(dims(1) / 2);
+slices.coronal = round(dims(2) / 2);
+setappdata(control_fig, 'slices', slices);
 
-% Initialize crosshair lines storage
-crosshairs = struct();
-setappdata(fig, 'crosshairs', crosshairs);
+control_panel = uipanel('Parent', control_fig, ...
+                        'Position', [0, 0, 1, 1], ...
+                        'BackgroundColor', [0.95, 0.95, 0.95], ...
+                        'BorderType', 'line');
 
-%% Create UI layout
-% Main viewing area (top 75% of figure)
-main_panel = uipanel('Parent', fig, ...
-                     'Position', [0, 0.25, 1, 0.75], ...
-                     'BackgroundColor', 'w', ...
-                     'BorderType', 'none');
-
-% Control panel (bottom 25% of figure)
-control_panel = uipanel('Parent', fig, ...
-                       'Position', [0, 0, 1, 0.25], ...
-                       'BackgroundColor', [0.95, 0.95, 0.95], ...
-                       'BorderType', 'line');
-
-%% Create subplot axes
-% Axial view (top-left)
-ax_axial = axes('Parent', main_panel, ...
-                'Position', [0.05, 0.52, 0.4, 0.4]);
-title(ax_axial, sprintf('Axial (Top View) - Z = %d', slices.axial));
-xlabel(ax_axial, 'X'); ylabel(ax_axial, 'Y');
-axis(ax_axial, 'equal', 'tight');
-hold(ax_axial, 'on');
-
-% Sagittal view (top-right)
-ax_sagittal = axes('Parent', main_panel, ...
-                   'Position', [0.55, 0.52, 0.4, 0.4]);
-title(ax_sagittal, sprintf('Sagittal (Side View) - X = %d', slices.sagittal));
-xlabel(ax_sagittal, 'Y'); ylabel(ax_sagittal, 'Z');
-axis(ax_sagittal, 'equal', 'tight');
-hold(ax_sagittal, 'on');
-
-% Coronal view (bottom-left)
-ax_coronal = axes('Parent', main_panel, ...
-                  'Position', [0.05, 0.05, 0.4, 0.4]);
-title(ax_coronal, sprintf('Coronal (Front View) - Y = %d', slices.coronal));
-xlabel(ax_coronal, 'X'); ylabel(ax_coronal, 'Z');
-axis(ax_coronal, 'equal', 'tight');
-hold(ax_coronal, 'on');
-
-% Info panel (bottom-right)
-ax_info = axes('Parent', main_panel, ...
-               'Position', [0.55, 0.05, 0.4, 0.4]);
-axis(ax_info, 'off');
-hold(ax_info, 'on');
-
-% Store axes handles
-setappdata(fig, 'ax_axial', ax_axial);
-setappdata(fig, 'ax_sagittal', ax_sagittal);
-setappdata(fig, 'ax_coronal', ax_coronal);
-setappdata(fig, 'ax_info', ax_info);
-
-%% Create slider controls
-% Axial slider
-uicontrol('Parent', control_panel, ...
-          'Style', 'text', ...
+%% Slider controls
+uicontrol('Parent', control_panel, 'Style', 'text', ...
           'String', 'Axial (Z):', ...
-          'Position', [20, 140, 80, 20], ...
-          'FontSize', 10, ...
-          'HorizontalAlignment', 'left');
+          'Position', [20, 190, 80, 18], ...
+          'FontSize', 10, 'HorizontalAlignment', 'left');
+slider_axial = uicontrol('Parent', control_panel, 'Style', 'slider', ...
+          'Position', [110, 190, 260, 20], ...
+          'Min', 1, 'Max', dims(3), 'Value', slices.axial, ...
+          'SliderStep', [1/(dims(3)-1), min(1, 10/(dims(3)-1))], ...
+          'Callback', @updateAxialSlice);
+text_axial = uicontrol('Parent', control_panel, 'Style', 'text', ...
+          'Position', [380, 190, 50, 20], 'String', num2str(slices.axial), ...
+          'FontSize', 10);
 
-slider_axial = uicontrol('Parent', control_panel, ...
-                        'Style', 'slider', ...
-                        'Position', [100, 140, 300, 20], ...
-                        'Min', 1, 'Max', dims(3), ...
-                        'Value', slices.axial, ...
-                        'SliderStep', [1/(dims(3)-1), 10/(dims(3)-1)], ...
-                        'Callback', @updateAxialSlice);
-
-text_axial = uicontrol('Parent', control_panel, ...
-                      'Style', 'text', ...
-                      'Position', [410, 140, 50, 20], ...
-                      'String', num2str(slices.axial), ...
-                      'FontSize', 10);
-
-% Sagittal slider
-uicontrol('Parent', control_panel, ...
-          'Style', 'text', ...
+uicontrol('Parent', control_panel, 'Style', 'text', ...
           'String', 'Sagittal (X):', ...
-          'Position', [20, 100, 80, 20], ...
-          'FontSize', 10, ...
-          'HorizontalAlignment', 'left');
+          'Position', [20, 150, 80, 18], ...
+          'FontSize', 10, 'HorizontalAlignment', 'left');
+slider_sagittal = uicontrol('Parent', control_panel, 'Style', 'slider', ...
+          'Position', [110, 150, 260, 20], ...
+          'Min', 1, 'Max', dims(1), 'Value', slices.sagittal, ...
+          'SliderStep', [1/(dims(1)-1), min(1, 10/(dims(1)-1))], ...
+          'Callback', @updateSagittalSlice);
+text_sagittal = uicontrol('Parent', control_panel, 'Style', 'text', ...
+          'Position', [380, 150, 50, 20], 'String', num2str(slices.sagittal), ...
+          'FontSize', 10);
 
-slider_sagittal = uicontrol('Parent', control_panel, ...
-                           'Style', 'slider', ...
-                           'Position', [100, 100, 300, 20], ...
-                           'Min', 1, 'Max', dims(1), ...
-                           'Value', slices.sagittal, ...
-                           'SliderStep', [1/(dims(1)-1), 10/(dims(1)-1)], ...
-                           'Callback', @updateSagittalSlice);
-
-text_sagittal = uicontrol('Parent', control_panel, ...
-                         'Style', 'text', ...
-                         'Position', [410, 100, 50, 20], ...
-                         'String', num2str(slices.sagittal), ...
-                         'FontSize', 10);
-
-% Coronal slider
-uicontrol('Parent', control_panel, ...
-          'Style', 'text', ...
+uicontrol('Parent', control_panel, 'Style', 'text', ...
           'String', 'Coronal (Y):', ...
-          'Position', [20, 60, 80, 20], ...
-          'FontSize', 10, ...
-          'HorizontalAlignment', 'left');
+          'Position', [20, 110, 80, 18], ...
+          'FontSize', 10, 'HorizontalAlignment', 'left');
+slider_coronal = uicontrol('Parent', control_panel, 'Style', 'slider', ...
+          'Position', [110, 110, 260, 20], ...
+          'Min', 1, 'Max', dims(2), 'Value', slices.coronal, ...
+          'SliderStep', [1/(dims(2)-1), min(1, 10/(dims(2)-1))], ...
+          'Callback', @updateCoronalSlice);
+text_coronal = uicontrol('Parent', control_panel, 'Style', 'text', ...
+          'Position', [380, 110, 50, 20], 'String', num2str(slices.coronal), ...
+          'FontSize', 10);
 
-slider_coronal = uicontrol('Parent', control_panel, ...
-                          'Style', 'slider', ...
-                          'Position', [100, 60, 300, 20], ...
-                          'Min', 1, 'Max', dims(2), ...
-                          'Value', slices.coronal, ...
-                          'SliderStep', [1/(dims(2)-1), 10/(dims(2)-1)], ...
-                          'Callback', @updateCoronalSlice);
+setappdata(control_fig, 'slider_axial', slider_axial);
+setappdata(control_fig, 'slider_sagittal', slider_sagittal);
+setappdata(control_fig, 'slider_coronal', slider_coronal);
+setappdata(control_fig, 'text_axial', text_axial);
+setappdata(control_fig, 'text_sagittal', text_sagittal);
+setappdata(control_fig, 'text_coronal', text_coronal);
 
-text_coronal = uicontrol('Parent', control_panel, ...
-                        'Style', 'text', ...
-                        'Position', [410, 60, 50, 20], ...
-                        'String', num2str(slices.coronal), ...
-                        'FontSize', 10);
+%% Additional controls
+uicontrol('Parent', control_panel, 'Style', 'text', ...
+          'String', 'Slice thickness (voxels):', ...
+          'Position', [20, 70, 150, 20], ...
+          'FontSize', 10, 'HorizontalAlignment', 'left');
 
-% Store slider handles
-setappdata(fig, 'slider_axial', slider_axial);
-setappdata(fig, 'slider_sagittal', slider_sagittal);
-setappdata(fig, 'slider_coronal', slider_coronal);
-setappdata(fig, 'text_axial', text_axial);
-setappdata(fig, 'text_sagittal', text_sagittal);
-setappdata(fig, 'text_coronal', text_coronal);
+tolerance_spinner = uicontrol('Parent', control_panel, 'Style', 'edit', ...
+          'Position', [170, 70, 60, 22], ...
+          'String', num2str(opts.tolerance), ...
+          'Callback', @updateTolerance);
 
-%% Add control buttons
-% Tolerance control
-uicontrol('Parent', control_panel, ...
-          'Style', 'text', ...
-          'String', 'Slice Thickness:', ...
-          'Position', [500, 140, 100, 20], ...
-          'FontSize', 10, ...
-          'HorizontalAlignment', 'left');
+checkbox_crosshairs = uicontrol('Parent', control_panel, 'Style', 'checkbox', ...
+          'Position', [250, 70, 150, 22], ...
+          'String', 'Show crosshairs', ...
+          'Value', opts.show_crosshairs, ...
+          'Callback', @toggleCrosshairs);
 
-tolerance_spinner = uicontrol('Parent', control_panel, ...
-                             'Style', 'edit', ...
-                             'Position', [600, 140, 40, 20], ...
-                             'String', num2str(opts.tolerance), ...
-                             'Callback', @updateTolerance);
+checkbox_anatomy = uicontrol('Parent', control_panel, 'Style', 'checkbox', ...
+          'Position', [250, 40, 150, 22], ...
+          'String', 'Show anatomy', ...
+          'Value', opts.show_anatomy, ...
+          'Callback', @toggleAnatomy);
 
-% Crosshairs toggle
-checkbox_crosshairs = uicontrol('Parent', control_panel, ...
-                               'Style', 'checkbox', ...
-                               'Position', [500, 100, 150, 20], ...
-                               'String', 'Show Crosshairs', ...
-                               'Value', opts.show_crosshairs, ...
-                               'Callback', @toggleCrosshairs);
+uicontrol('Parent', control_panel, 'Style', 'pushbutton', ...
+          'Position', [430, 190, 170, 32], ...
+          'String', 'Render View', ...
+          'FontSize', 11, 'FontWeight', 'bold', ...
+          'Callback', @renderCurrentView);
 
-% Anatomy toggle
-checkbox_anatomy = uicontrol('Parent', control_panel, ...
-                            'Style', 'checkbox', ...
-                            'Position', [500, 60, 150, 20], ...
-                            'String', 'Show Anatomy', ...
-                            'Value', opts.show_anatomy, ...
-                            'Callback', @toggleAnatomy);
-
-% Reset button
-uicontrol('Parent', control_panel, ...
-          'Style', 'pushbutton', ...
-          'Position', [700, 100, 100, 30], ...
-          'String', 'Reset View', ...
+uicontrol('Parent', control_panel, 'Style', 'pushbutton', ...
+          'Position', [430, 145, 170, 30], ...
+          'String', 'Reset to Center', ...
           'FontSize', 10, ...
           'Callback', @resetView);
 
-% Export button
-uicontrol('Parent', control_panel, ...
-          'Style', 'pushbutton', ...
-          'Position', [700, 60, 100, 30], ...
-          'String', 'Export View', ...
+uicontrol('Parent', control_panel, 'Style', 'pushbutton', ...
+          'Position', [430, 105, 170, 30], ...
+          'String', 'Render && Export PNG', ...
           'FontSize', 10, ...
           'Callback', @exportView);
 
-% Instructions text
-uicontrol('Parent', control_panel, ...
-          'Style', 'text', ...
-          'Position', [850, 20, 500, 140], ...
-          'String', sprintf(['INSTRUCTIONS:\n' ...
-                            '• Use sliders to navigate through slices\n' ...
-                            '• Crosshairs show current position across views\n' ...
-                            '• Adjust slice thickness to see more tracks\n' ...
-                            '• Toggle anatomy to show/hide FA background\n' ...
-                            '• Export saves current view as image']), ...
-          'FontSize', 9, ...
-          'HorizontalAlignment', 'left', ...
+uicontrol('Parent', control_panel, 'Style', 'text', ...
+          'Position', [20, 10, 580, 24], ...
+          'String', 'Adjust slices, then press "Render View" to open a figure. Use "Render && Export" to save a snapshot.', ...
+          'FontSize', 9, 'HorizontalAlignment', 'left', ...
           'BackgroundColor', [0.95, 0.95, 0.95]);
 
-%% Initial rendering
-updateAllViews(fig);
-updateInfo(fig);
-
-fprintf('Slice viewer ready!\n');
-fprintf('Use sliders to navigate through slices\n');
+fprintf('Controller ready. Adjust sliders and press "Render View" when ready.\n');
 
 end
 
-
-%% ============================================================================
-%% CALLBACK FUNCTIONS
-%% ============================================================================
+%% =========================================================================
+%% CALLBACKS
+%% =========================================================================
 
 function updateAxialSlice(hObject, ~)
-% Update axial slice position
 fig = ancestor(hObject, 'figure');
+dims = getappdata(fig, 'dims');
 slices = getappdata(fig, 'slices');
-slices.axial = round(get(hObject, 'Value'));
+value = round(get(hObject, 'Value'));
+value = min(max(value, 1), dims(3));
+slices.axial = value;
 setappdata(fig, 'slices', slices);
-
-% Update display
-text_handle = getappdata(fig, 'text_axial');
-set(text_handle, 'String', num2str(slices.axial));
-
-% Redraw
-updateAxialView(fig);
-updateCrosshairs(fig);
+set(getappdata(fig, 'text_axial'), 'String', num2str(slices.axial));
 end
 
 function updateSagittalSlice(hObject, ~)
-% Update sagittal slice position
 fig = ancestor(hObject, 'figure');
+dims = getappdata(fig, 'dims');
 slices = getappdata(fig, 'slices');
-slices.sagittal = round(get(hObject, 'Value'));
+value = round(get(hObject, 'Value'));
+value = min(max(value, 1), dims(1));
+slices.sagittal = value;
 setappdata(fig, 'slices', slices);
-
-% Update display
-text_handle = getappdata(fig, 'text_sagittal');
-set(text_handle, 'String', num2str(slices.sagittal));
-
-% Redraw
-updateSagittalView(fig);
-updateCrosshairs(fig);
+set(getappdata(fig, 'text_sagittal'), 'String', num2str(slices.sagittal));
 end
 
 function updateCoronalSlice(hObject, ~)
-% Update coronal slice position
 fig = ancestor(hObject, 'figure');
+dims = getappdata(fig, 'dims');
 slices = getappdata(fig, 'slices');
-slices.coronal = round(get(hObject, 'Value'));
+value = round(get(hObject, 'Value'));
+value = min(max(value, 1), dims(2));
+slices.coronal = value;
 setappdata(fig, 'slices', slices);
-
-% Update display
-text_handle = getappdata(fig, 'text_coronal');
-set(text_handle, 'String', num2str(slices.coronal));
-
-% Redraw
-updateCoronalView(fig);
-updateCrosshairs(fig);
+set(getappdata(fig, 'text_coronal'), 'String', num2str(slices.coronal));
 end
 
 function updateTolerance(hObject, ~)
-% Update slice tolerance
 fig = ancestor(hObject, 'figure');
 opts = getappdata(fig, 'opts');
 new_tol = str2double(get(hObject, 'String'));
-if ~isnan(new_tol) && new_tol > 0 && new_tol <= 10
-    opts.tolerance = new_tol;
-    setappdata(fig, 'opts', opts);
-    updateAllViews(fig);
-else
+if isnan(new_tol) || new_tol <= 0
     set(hObject, 'String', num2str(opts.tolerance));
+    return;
 end
+opts.tolerance = max(0, round(new_tol));
+setappdata(fig, 'opts', opts);
+set(hObject, 'String', num2str(opts.tolerance));
 end
 
 function toggleCrosshairs(hObject, ~)
-% Toggle crosshairs visibility
 fig = ancestor(hObject, 'figure');
 opts = getappdata(fig, 'opts');
-opts.show_crosshairs = get(hObject, 'Value');
+opts.show_crosshairs = logical(get(hObject, 'Value'));
 setappdata(fig, 'opts', opts);
-updateCrosshairs(fig);
 end
 
 function toggleAnatomy(hObject, ~)
-% Toggle anatomy visibility
 fig = ancestor(hObject, 'figure');
 opts = getappdata(fig, 'opts');
-opts.show_anatomy = get(hObject, 'Value');
+opts.show_anatomy = logical(get(hObject, 'Value'));
 setappdata(fig, 'opts', opts);
-updateAllViews(fig);
 end
 
-function resetView(~, ~)
-% Reset to middle slices
-fig = gcf;
+function resetView(hObject, ~)
+fig = ancestor(hObject, 'figure');
 dims = getappdata(fig, 'dims');
 slices = struct();
 slices.axial = round(dims(3) / 2);
@@ -386,306 +261,251 @@ slices.sagittal = round(dims(1) / 2);
 slices.coronal = round(dims(2) / 2);
 setappdata(fig, 'slices', slices);
 
-% Update sliders
 set(getappdata(fig, 'slider_axial'), 'Value', slices.axial);
 set(getappdata(fig, 'slider_sagittal'), 'Value', slices.sagittal);
 set(getappdata(fig, 'slider_coronal'), 'Value', slices.coronal);
+
 set(getappdata(fig, 'text_axial'), 'String', num2str(slices.axial));
 set(getappdata(fig, 'text_sagittal'), 'String', num2str(slices.sagittal));
 set(getappdata(fig, 'text_coronal'), 'String', num2str(slices.coronal));
-
-updateAllViews(fig);
 end
 
-function exportView(~, ~)
-% Export current view
-timestamp = datestr(now, 'yyyymmdd_HHMMSS');
-filename = sprintf('tractography_slices_%s.png', timestamp);
-print(gcf, filename, '-dpng', '-r300');
-fprintf('Exported view to: %s\n', filename);
+function renderCurrentView(hObject, ~)
+fig = ancestor(hObject, 'figure');
+renderSlices(fig, 'display');
 end
 
-function closeFigure(hObject, ~)
-% Clean up when closing
-delete(hObject);
+function exportView(hObject, ~)
+fig = ancestor(hObject, 'figure');
+render_fig = renderSlices(fig, 'export');
+if isempty(render_fig)
+    return;
+end
+filename = sprintf('tractography_slices_%s.png', datestr(now, 'yyyymmdd_HHMMSS'));
+print(render_fig, filename, '-dpng', '-r300');
+close(render_fig);
+fprintf('Exported render to %s\n', filename);
 end
 
-
-%% ============================================================================
-%% VIEW UPDATE FUNCTIONS
-%% ============================================================================
-
-function updateAllViews(fig)
-% Update all three views
-updateAxialView(fig);
-updateSagittalView(fig);
-updateCoronalView(fig);
-updateCrosshairs(fig);
-updateInfo(fig);
+function closeFigure(fig, ~)
+if ishghandle(fig)
+    delete(fig);
+end
 end
 
-function updateAxialView(fig)
-% Update axial (top) view - XY plane at Z slice
-ax = getappdata(fig, 'ax_axial');
-cla(ax);
-hold(ax, 'on');
+%% =========================================================================
+%% RENDERING HELPERS
+%% =========================================================================
 
-nim = getappdata(fig, 'nim');
-tracks = getappdata(fig, 'tracks');
-slices = getappdata(fig, 'slices');
-opts = getappdata(fig, 'opts');
-dims = getappdata(fig, 'dims');
-
-% Show anatomy slice
-if opts.show_anatomy && isfield(nim, 'FA')
-    fa_slice = nim.FA(:, :, slices.axial);
-    imagesc(ax, fa_slice', 'AlphaData', opts.alpha);
-    colormap(ax, gray);
+function render_fig = renderSlices(control_fig, mode)
+if nargin < 2
+    mode = 'display';
 end
 
-% Get and plot tracks in slice
-tracks_in_slice = getTracksInSlice(tracks, 'z', slices.axial, opts.tolerance);
-for i = 1:length(tracks_in_slice)
-    track = tracks_in_slice{i};
-    if size(track, 1) > 1
-        color = getTrackColor(track, opts.color_mode);
-        plot(ax, track(:,1), track(:,2), 'Color', color, 'LineWidth', 1.5);
-    end
-end
+tracks = getappdata(control_fig, 'tracks');
+nim = getappdata(control_fig, 'nim');
+dims = getappdata(control_fig, 'dims');
+slices = getappdata(control_fig, 'slices');
+opts = getappdata(control_fig, 'opts');
+slice_lookup = getappdata(control_fig, 'slice_lookup');
 
-% Set view properties
-xlim(ax, [1, dims(1)]);
-ylim(ax, [1, dims(2)]);
-title(ax, sprintf('Axial (Top View) - Z = %d', slices.axial));
-xlabel(ax, 'X'); ylabel(ax, 'Y');
-axis(ax, 'equal', 'tight');
-grid(ax, 'on');
-hold(ax, 'off');
-end
-
-function updateSagittalView(fig)
-% Update sagittal (side) view - YZ plane at X slice
-ax = getappdata(fig, 'ax_sagittal');
-cla(ax);
-hold(ax, 'on');
-
-nim = getappdata(fig, 'nim');
-tracks = getappdata(fig, 'tracks');
-slices = getappdata(fig, 'slices');
-opts = getappdata(fig, 'opts');
-dims = getappdata(fig, 'dims');
-
-% Show anatomy slice
-if opts.show_anatomy && isfield(nim, 'FA')
-    fa_slice = squeeze(nim.FA(slices.sagittal, :, :));
-    imagesc(ax, fa_slice', 'AlphaData', opts.alpha);
-    colormap(ax, gray);
-end
-
-% Get and plot tracks in slice
-tracks_in_slice = getTracksInSlice(tracks, 'x', slices.sagittal, opts.tolerance);
-for i = 1:length(tracks_in_slice)
-    track = tracks_in_slice{i};
-    if size(track, 1) > 1
-        color = getTrackColor(track, opts.color_mode);
-        plot(ax, track(:,2), track(:,3), 'Color', color, 'LineWidth', 1.5);
-    end
-end
-
-% Set view properties
-xlim(ax, [1, dims(2)]);
-ylim(ax, [1, dims(3)]);
-title(ax, sprintf('Sagittal (Side View) - X = %d', slices.sagittal));
-xlabel(ax, 'Y'); ylabel(ax, 'Z');
-axis(ax, 'equal', 'tight');
-grid(ax, 'on');
-hold(ax, 'off');
-end
-
-function updateCoronalView(fig)
-% Update coronal (front) view - XZ plane at Y slice
-ax = getappdata(fig, 'ax_coronal');
-cla(ax);
-hold(ax, 'on');
-
-nim = getappdata(fig, 'nim');
-tracks = getappdata(fig, 'tracks');
-slices = getappdata(fig, 'slices');
-opts = getappdata(fig, 'opts');
-dims = getappdata(fig, 'dims');
-
-% Show anatomy slice
-if opts.show_anatomy && isfield(nim, 'FA')
-    fa_slice = squeeze(nim.FA(:, slices.coronal, :));
-    imagesc(ax, fa_slice', 'AlphaData', opts.alpha);
-    colormap(ax, gray);
-end
-
-% Get and plot tracks in slice
-tracks_in_slice = getTracksInSlice(tracks, 'y', slices.coronal, opts.tolerance);
-for i = 1:length(tracks_in_slice)
-    track = tracks_in_slice{i};
-    if size(track, 1) > 1
-        color = getTrackColor(track, opts.color_mode);
-        plot(ax, track(:,1), track(:,3), 'Color', color, 'LineWidth', 1.5);
-    end
-end
-
-% Set view properties
-xlim(ax, [1, dims(1)]);
-ylim(ax, [1, dims(3)]);
-title(ax, sprintf('Coronal (Front View) - Y = %d', slices.coronal));
-xlabel(ax, 'X'); ylabel(ax, 'Z');
-axis(ax, 'equal', 'tight');
-grid(ax, 'on');
-hold(ax, 'off');
-end
-
-function updateCrosshairs(fig)
-% Update crosshair lines across all views
-opts = getappdata(fig, 'opts');
-if ~opts.show_crosshairs
-    % Remove existing crosshairs
-    removeCrosshairs(fig);
+if isempty(tracks)
+    warning('No tracks available to render.');
+    render_fig = [];
     return;
 end
 
-slices = getappdata(fig, 'slices');
-dims = getappdata(fig, 'dims');
-
-% Remove old crosshairs
-removeCrosshairs(fig);
-
-% Axial view crosshairs (show sagittal and coronal positions)
-ax = getappdata(fig, 'ax_axial');
-hold(ax, 'on');
-h1 = plot(ax, [slices.sagittal, slices.sagittal], [1, dims(2)], 'r--', 'LineWidth', 0.5);
-h2 = plot(ax, [1, dims(1)], [slices.coronal, slices.coronal], 'g--', 'LineWidth', 0.5);
-hold(ax, 'off');
-
-% Sagittal view crosshairs (show coronal and axial positions)
-ax = getappdata(fig, 'ax_sagittal');
-hold(ax, 'on');
-h3 = plot(ax, [slices.coronal, slices.coronal], [1, dims(3)], 'g--', 'LineWidth', 0.5);
-h4 = plot(ax, [1, dims(2)], [slices.axial, slices.axial], 'b--', 'LineWidth', 0.5);
-hold(ax, 'off');
-
-% Coronal view crosshairs (show sagittal and axial positions)
-ax = getappdata(fig, 'ax_coronal');
-hold(ax, 'on');
-h5 = plot(ax, [slices.sagittal, slices.sagittal], [1, dims(3)], 'r--', 'LineWidth', 0.5);
-h6 = plot(ax, [1, dims(1)], [slices.axial, slices.axial], 'b--', 'LineWidth', 0.5);
-hold(ax, 'off');
-
-% Store crosshair handles
-crosshairs = struct('h1', h1, 'h2', h2, 'h3', h3, 'h4', h4, 'h5', h5, 'h6', h6);
-setappdata(fig, 'crosshairs', crosshairs);
+fig_visible = 'on';
+if strcmp(mode, 'export')
+    fig_visible = 'off';
 end
 
-function removeCrosshairs(fig)
-% Remove existing crosshair lines
-crosshairs = getappdata(fig, 'crosshairs');
-if ~isempty(crosshairs)
-    fields = fieldnames(crosshairs);
-    for i = 1:length(fields)
-        h = crosshairs.(fields{i});
-        if ishandle(h)
-            delete(h);
-        end
-    end
-end
-setappdata(fig, 'crosshairs', struct());
+render_fig = figure('Name', sprintf('Slice Render [X=%d Y=%d Z=%d]', ...
+                                    slices.sagittal, slices.coronal, slices.axial), ...
+                    'Color', 'w', 'NumberTitle', 'off', ...
+                    'Visible', fig_visible, ...
+                    'Position', [760, 120, 820, 740]);
+
+t = tiledlayout(render_fig, 2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
+
+ax_axial = nexttile(t, 1);
+drawSlice(ax_axial, 'z', slices.axial, slices, nim, tracks, slice_lookup, opts, dims);
+
+ax_sagittal = nexttile(t, 2);
+drawSlice(ax_sagittal, 'x', slices.sagittal, slices, nim, tracks, slice_lookup, opts, dims);
+
+ax_coronal = nexttile(t, 3);
+drawSlice(ax_coronal, 'y', slices.coronal, slices, nim, tracks, slice_lookup, opts, dims);
+
+ax_info = nexttile(t, 4);
+drawInfoPanel(ax_info, tracks, slices, opts, nim);
+
+drawnow;
 end
 
-function updateInfo(fig)
-% Update information panel
-ax = getappdata(fig, 'ax_info');
+function drawSlice(ax, orientation, slice_value, slices, nim, tracks, slice_lookup, opts, dims)
 cla(ax);
+hold(ax, 'on');
+show_anatomy = opts.show_anatomy && isfield(nim, 'FA');
 
-tracks = getappdata(fig, 'tracks');
-slices = getappdata(fig, 'slices');
-opts = getappdata(fig, 'opts');
+switch orientation
+    case 'z'
+        if show_anatomy
+            fa_slice = nim.FA(:, :, slice_value);
+            imagesc(ax, fa_slice', 'AlphaData', opts.alpha);
+            colormap(ax, gray);
+        end
+        tracks_in_slice = getTracksInSlice(tracks, slice_lookup, 'z', slice_value, opts.tolerance);
+        for k = 1:length(tracks_in_slice)
+            track = tracks_in_slice{k};
+            if size(track, 1) > 1
+                color = getTrackColor(track, opts.color_mode);
+                plot(ax, track(:,1), track(:,2), 'Color', color, 'LineWidth', 1.5);
+            end
+        end
+        xlim(ax, [1, dims(1)]);
+        ylim(ax, [1, dims(2)]);
+        xlabel(ax, 'X'); ylabel(ax, 'Y');
+        title(ax, sprintf('Axial (Z = %d)', slice_value));
+        if opts.show_crosshairs
+            plot(ax, [slices.sagittal, slices.sagittal], [1, dims(2)], 'r--', 'LineWidth', 0.5);
+            plot(ax, [1, dims(1)], [slices.coronal, slices.coronal], 'g--', 'LineWidth', 0.5);
+        end
 
-% Calculate statistics
-total_tracks = length(tracks);
+    case 'x'
+        if show_anatomy
+            fa_slice = squeeze(nim.FA(slice_value, :, :));
+            imagesc(ax, fa_slice', 'AlphaData', opts.alpha);
+            colormap(ax, gray);
+        end
+        tracks_in_slice = getTracksInSlice(tracks, slice_lookup, 'x', slice_value, opts.tolerance);
+        for k = 1:length(tracks_in_slice)
+            track = tracks_in_slice{k};
+            if size(track, 1) > 1
+                color = getTrackColor(track, opts.color_mode);
+                plot(ax, track(:,2), track(:,3), 'Color', color, 'LineWidth', 1.5);
+            end
+        end
+        xlim(ax, [1, dims(2)]);
+        ylim(ax, [1, dims(3)]);
+        xlabel(ax, 'Y'); ylabel(ax, 'Z');
+        title(ax, sprintf('Sagittal (X = %d)', slice_value));
+        if opts.show_crosshairs
+            plot(ax, [slices.coronal, slices.coronal], [1, dims(3)], 'g--', 'LineWidth', 0.5);
+            plot(ax, [1, dims(2)], [slices.axial, slices.axial], 'b--', 'LineWidth', 0.5);
+        end
+
+    case 'y'
+        if show_anatomy
+            fa_slice = squeeze(nim.FA(:, slice_value, :));
+            imagesc(ax, fa_slice', 'AlphaData', opts.alpha);
+            colormap(ax, gray);
+        end
+        tracks_in_slice = getTracksInSlice(tracks, slice_lookup, 'y', slice_value, opts.tolerance);
+        for k = 1:length(tracks_in_slice)
+            track = tracks_in_slice{k};
+            if size(track, 1) > 1
+                color = getTrackColor(track, opts.color_mode);
+                plot(ax, track(:,1), track(:,3), 'Color', color, 'LineWidth', 1.5);
+            end
+        end
+        xlim(ax, [1, dims(1)]);
+        ylim(ax, [1, dims(3)]);
+        xlabel(ax, 'X'); ylabel(ax, 'Z');
+        title(ax, sprintf('Coronal (Y = %d)', slice_value));
+        if opts.show_crosshairs
+            plot(ax, [slices.sagittal, slices.sagittal], [1, dims(3)], 'r--', 'LineWidth', 0.5);
+            plot(ax, [1, dims(1)], [slices.axial, slices.axial], 'b--', 'LineWidth', 0.5);
+        end
+end
+
+set(ax, 'YDir', 'normal');
+axis(ax, 'equal', 'tight');
+grid(ax, 'on');
+hold(ax, 'off');
+end
+
+function drawInfoPanel(ax, tracks, slices, opts, nim)
+cla(ax);
+axis(ax, 'off');
+hold(ax, 'on');
+
 track_lengths = cellfun(@(x) size(x, 1), tracks);
 
-% Display info
-text(ax, 0.1, 0.9, 'TRACTOGRAPHY STATISTICS', ...
-     'FontSize', 12, 'FontWeight', 'bold');
-
+text(ax, 0.05, 0.9, 'TRACTOGRAPHY STATISTICS', 'FontSize', 12, 'FontWeight', 'bold');
 info_text = sprintf(['Total tracks: %d\n' ...
-                    'Mean length: %.1f points\n' ...
-                    'Current position: [%d, %d, %d]\n' ...
-                    'Slice tolerance: %d voxels\n'], ...
-                    total_tracks, mean(track_lengths), ...
-                    slices.sagittal, slices.coronal, slices.axial, ...
-                    opts.tolerance);
+                     'Mean length: %.1f points\n' ...
+                     'Current slice: X=%d  Y=%d  Z=%d\n' ...
+                     'Slice tolerance: %d voxels'], ...
+                     length(tracks), mean(track_lengths), ...
+                     slices.sagittal, slices.coronal, slices.axial, opts.tolerance);
+text(ax, 0.05, 0.6, info_text, 'FontSize', 10, 'VerticalAlignment', 'top');
 
-text(ax, 0.1, 0.7, info_text, 'FontSize', 10, ...
-     'VerticalAlignment', 'top');
+if isfield(nim, 'labels') && ~isempty(nim.labels)
+    text(ax, 0.05, 0.32, sprintf('Atlas regions available: %d', numel(nim.labels)), 'FontSize', 9);
+end
 
-% Color legend
-text(ax, 0.1, 0.3, 'COLOR LEGEND:', 'FontSize', 10, 'FontWeight', 'bold');
 if strcmp(opts.color_mode, 'direction')
-    text(ax, 0.1, 0.2, 'Red: Left-Right (X)', 'FontSize', 9, 'Color', [1, 0, 0]);
-    text(ax, 0.1, 0.1, 'Green: Anterior-Posterior (Y)', 'FontSize', 9, 'Color', [0, 0.7, 0]);
-    text(ax, 0.1, 0.0, 'Blue: Superior-Inferior (Z)', 'FontSize', 9, 'Color', [0, 0, 1]);
+    legend_text = 'Color legend: X=Red, Y=Green, Z=Blue';
 else
-    text(ax, 0.1, 0.2, 'Uniform coloring', 'FontSize', 9);
+    legend_text = sprintf('Color mode: %s', opts.color_mode);
+end
+text(ax, 0.05, 0.20, legend_text, 'FontSize', 9);
+
+axis(ax, [0 1 0 1]);
+hold(ax, 'off');
 end
 
-axis(ax, 'off');
-xlim(ax, [0, 1]);
-ylim(ax, [0, 1]);
-end
-
-
-%% ============================================================================
+%% =========================================================================
 %% UTILITY FUNCTIONS
-%% ============================================================================
+%% =========================================================================
 
-function tracks_in_slice = getTracksInSlice(tracks, dimension, position, tolerance)
-% Extract tracks that pass through a slice
+function tracks_in_slice = getTracksInSlice(tracks, slice_lookup, dimension, position, tolerance)
 tracks_in_slice = {};
-count = 0;
-
-for i = 1:length(tracks)
-    track = tracks{i};
-    if isempty(track)
-        continue;
-    end
-
-    % Get relevant coordinate based on dimension
-    switch dimension
-        case 'x'
-            coords = track(:, 1);
-        case 'y'
-            coords = track(:, 2);
-        case 'z'
-            coords = track(:, 3);
-        otherwise
-            continue;
-    end
-
-    % Check if track passes through slice (with tolerance)
-    min_pos = position - tolerance;
-    max_pos = position + tolerance;
-    in_slice = (coords >= min_pos) & (coords <= max_pos);
-
-    if any(in_slice)
-        % Extract the portion of track in/near slice
-        count = count + 1;
-        tracks_in_slice{count} = track;
-    end
+if isempty(tracks)
+    return;
 end
+
+switch dimension
+    case 'x'
+        lookup_cells = slice_lookup.x;
+        axis_dim = slice_lookup.dims(1);
+    case 'y'
+        lookup_cells = slice_lookup.y;
+        axis_dim = slice_lookup.dims(2);
+    case 'z'
+        lookup_cells = slice_lookup.z;
+        axis_dim = slice_lookup.dims(3);
+    otherwise
+        lookup_cells = {};
+        axis_dim = 0;
+end
+
+if axis_dim == 0 || isempty(lookup_cells)
+    return;
+end
+
+position = max(1, min(axis_dim, round(position)));
+tolerance = max(0, round(tolerance));
+pos_min = max(1, position - tolerance);
+pos_max = min(axis_dim, position + tolerance);
+
+idx_cells = lookup_cells(pos_min:pos_max);
+if all(cellfun(@isempty, idx_cells))
+    return;
+end
+
+track_ids = unique([idx_cells{:}]);
+if isempty(track_ids)
+    return;
+end
+
+tracks_in_slice = tracks(track_ids);
 end
 
 function color = getTrackColor(track, color_mode)
-% Get color for a track based on coloring mode
 switch color_mode
     case 'direction'
-        % Color by average direction
         if size(track, 1) > 1
             directions = diff(track);
             avg_dir = mean(directions, 1);
@@ -697,12 +517,36 @@ switch color_mode
         else
             color = [0.5, 0.5, 0.5];
         end
-
-    case 'uniform'
-        % Single color for all tracks
-        color = [0.2, 0.6, 0.8];
-
     otherwise
-        color = [0.5, 0.5, 0.5];
+        color = [0.2, 0.6, 0.8];
+end
+end
+
+function lookup = buildTrackSliceLookup(tracks, dims)
+lookup = struct();
+lookup.dims = dims;
+lookup.x = cell(dims(1), 1);
+lookup.y = cell(dims(2), 1);
+lookup.z = cell(dims(3), 1);
+
+for idx = 1:length(tracks)
+    track = tracks{idx};
+    if isempty(track)
+        continue;
+    end
+
+    x_idx = unique(max(1, min(dims(1), round(track(:,1)))));
+    y_idx = unique(max(1, min(dims(2), round(track(:,2)))));
+    z_idx = unique(max(1, min(dims(3), round(track(:,3)))));
+
+    for xi = transpose(x_idx)
+        lookup.x{xi}(end+1) = idx; %#ok<AGROW>
+    end
+    for yi = transpose(y_idx)
+        lookup.y{yi}(end+1) = idx; %#ok<AGROW>
+    end
+    for zi = transpose(z_idx)
+        lookup.z{zi}(end+1) = idx; %#ok<AGROW>
+    end
 end
 end

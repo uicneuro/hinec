@@ -32,33 +32,44 @@ end
 %% Set FACT tractography parameters
 fprintf('Setting up FACT tractography parameters...\n');
 options = struct();
-options.seed_density = 4;           % Number of seeds per voxel - denser seeding for better coverage
+options.seed_density = 8;           % VERY DENSE: 8 seeds per voxel for complete uniform coverage
 options.step_size = 0.5;            % FACT step size Δ for Euler method: r_{i+1} = r_i + e1(r_i)*Δ
-options.fa_threshold = 0.15;        % FA threshold for seed placement - lower threshold for more seeds
-options.termination_fa = 0.1;       % FA threshold for track termination - allows tracking into gray matter boundaries
+options.fa_threshold = 0.05;        % Low FA threshold - not used for seeding, only for tracking quality
+options.termination_fa = 0.05;      % Low termination threshold for extensive tracking
 options.angle_thresh = 35;          % Maximum turning angle in degrees - slightly more permissive for FACT
 options.max_steps = 1000;           % Maximum Euler steps per track
 options.min_length = 20;            % Minimum track length in mm - filters out short spurious tracks
 options.order = 1;                  % FACT uses first-order integration
 options.interp_method = 'none';     % FACT samples nearest voxel tensor (no interpolation)
 
-% Create brain-only seed mask with proper FA threshold
-seed_mask = nim.FA > 0.15;  % Use same threshold as fa_threshold for quality seeds
-
-% Priority 1: Use the preprocessed brain mask if available
+% UNIFORM GRID-BASED SEEDING - No FA threshold needed for seeding
+% Create brain mask (not FA-based) for uniform coverage
 if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
     brain_mask = nim.mask > 0.5;
-    seed_mask = seed_mask & brain_mask;
-    fprintf('Seed mask restricted to brain tissue (preprocessed mask)\n');
+    fprintf('Using brain tissue mask for uniform grid seeding\n');
 elseif isfield(nim, 'parcellation_mask')
-    % Fallback: Use parcellation mask if no preprocessed brain mask
+    % Fallback: Use parcellation mask for brain boundary
     brain_mask = nim.parcellation_mask > 0;
-    seed_mask = seed_mask & brain_mask;
-    fprintf('Seed mask restricted to brain tissue (parcellation mask fallback)\n');
+    fprintf('Using parcellation mask for uniform grid seeding\n');
 else
-    fprintf('⚠ WARNING: No brain mask found - using FA-only seed mask\n');
+    % Last resort: Use FA mask but with low threshold for brain boundary only
+    brain_mask = nim.FA > 0.05;  % Very low threshold just to define brain tissue
+    fprintf('⚠ WARNING: Using FA > 0.05 to define brain boundary for seeding\n');
 end
+
+% Generate uniform grid across entire brain - NOT FA dependent
+seed_mask = brain_mask;
 options.seed_mask = seed_mask;
+
+% Show seeding statistics
+total_brain_voxels = sum(brain_mask(:));
+total_seed_locations = sum(seed_mask(:));
+estimated_seeds = total_seed_locations * options.seed_density;
+fprintf('UNIFORM GRID SEEDING:\n');
+fprintf('  Brain voxels: %d\n', total_brain_voxels);
+fprintf('  Seed locations: %d\n', total_seed_locations);
+fprintf('  Seeds per voxel: %d\n', options.seed_density);
+fprintf('  Estimated total seeds: %d\n', estimated_seeds);
 
 %% Run FACT tractography
 fprintf('Running FACT tractography...\n');

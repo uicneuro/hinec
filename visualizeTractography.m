@@ -27,7 +27,8 @@ function visualizeTractography(tracks_file, nim_file, varargin)
 %
 % Track Filtering:
 %   'filter_mode' - 'pass_through', 'start_in', 'end_in', 'connect_to' (default: 'pass_through')
-%   'min_overlap' - Minimum region overlap ratio 0-1 (default: 0.1)
+%   'min_overlap' - Minimum region overlap ratio 0-1 (default: 0.05)
+%   'min_region_points' - Minimum in-region track points for pass-through (default: 3)
 %   'max_tracks' - Max tracks to display (default: 2000 whole, inf others)
 %
 % Visualization:
@@ -84,7 +85,8 @@ addParameter(p, 'export_dpi', 300, @(x) isnumeric(x) && x > 0);
 
 % Track filtering parameters
 addParameter(p, 'filter_mode', 'pass_through', @(x) ismember(x, {'pass_through', 'start_in', 'end_in', 'connect_to'}));
-addParameter(p, 'min_overlap', 0.3, @(x) isnumeric(x) && x >= 0 && x <= 1);
+addParameter(p, 'min_overlap', 0.05, @(x) isnumeric(x) && x >= 0 && x <= 1);
+addParameter(p, 'min_region_points', 3, @(x) isnumeric(x) && x >= 0);
 addParameter(p, 'max_tracks', [], @(x) isempty(x) || (isnumeric(x) && x > 0));
 
 % Visualization parameters
@@ -136,6 +138,10 @@ end
 if strcmp(options.mode, 'region') && isempty(options.region_id)
     error('region_id is required when mode is "region". Use: visualizeTractography(..., "region", 5)');
 end
+
+% Normalize thresholds
+options.min_region_points = max(0, round(options.min_region_points));
+options.min_overlap = max(0, min(1, options.min_overlap));
 
 % Set default max_tracks based on mode
 if isempty(options.max_tracks)
@@ -364,6 +370,10 @@ filtered_tracks = filter_tracks_by_region(tracks, nim.parcellation_mask, region_
 
 if isempty(filtered_tracks)
     warning('No tracks found for region %d with current filter settings', region_id);
+    if strcmp(options.filter_mode, 'pass_through')
+        fprintf('  Hint: lower "min_overlap" (currently %.2f) or "min_region_points" (currently %d) to capture thin tracts.\n', ...
+                options.min_overlap, options.min_region_points);
+    end
     fig_handle = [];
     export_filename = '';
     return;
@@ -705,7 +715,7 @@ for s = slices
     fa_slice = nim.FA(:, :, s);
     [X, Y] = meshgrid(1:size(fa_slice, 2), 1:size(fa_slice, 1));
     Z = ones(size(X)) * s;
-    surf(X, Y, Z, fa_slice', 'EdgeColor', 'none', 'FaceAlpha', alpha_value);
+    surf(X, Y, Z, fa_slice, 'EdgeColor', 'none', 'FaceAlpha', alpha_value);
 end
 colormap(gray);
 end
@@ -840,59 +850,51 @@ for i = 1:length(tracks)
 
     % Get parcellation labels along the track
     track_labels = get_track_parcellation_labels(track, parcellation_mask);
+    if isempty(track_labels)
+        continue;
+    end
 
-    % Apply filtering based on mode
     include_track = false;
+    valid_labels = track_labels(track_labels > 0);
 
     switch options.filter_mode
         case 'pass_through'
-            % Track passes through the region at any point
             include_track = any(track_labels == region_id);
 
         case 'start_in'
-            % Track starts in the region
-            valid_labels = track_labels(track_labels > 0);
             if ~isempty(valid_labels)
                 include_track = valid_labels(1) == region_id;
             end
 
         case 'end_in'
-            % Track ends in the region
-            valid_labels = track_labels(track_labels > 0);
             if ~isempty(valid_labels)
                 include_track = valid_labels(end) == region_id;
             end
 
         case 'connect_to'
-            % Track connects the region to any other region
-            valid_labels = track_labels(track_labels > 0);
             if ~isempty(valid_labels)
                 unique_regions = unique(valid_labels);
-                include_track = ismember(region_id, unique_regions) && length(unique_regions) > 1;
+                include_track = ismember(region_id, unique_regions) && numel(unique_regions) > 1;
             end
     end
 
-    % Apply minimum overlap constraint with enhanced filtering
-    if include_track && options.min_overlap > 0
+    if include_track
         region_points = sum(track_labels == region_id);
-        total_points = length(track_labels);
-        overlap_ratio = region_points / total_points;
-
-        % For pass_through mode, be more strict - require either:
-        % 1. Track starts or ends in the region (meaningful connection), OR
-        % 2. Track has substantial overlap (>= min_overlap)
-        if strcmp(options.filter_mode, 'pass_through')
-            valid_labels = track_labels(track_labels > 0);
-            starts_or_ends_in_region = false;
-            if ~isempty(valid_labels)
-                starts_or_ends_in_region = (valid_labels(1) == region_id) || (valid_labels(end) == region_id);
-            end
-
-            % Include if it starts/ends in region OR has substantial overlap
-            include_track = starts_or_ends_in_region || (overlap_ratio >= options.min_overlap);
+        if region_points == 0
+            include_track = false;
         else
-            % For other modes, use standard overlap check
-            include_track = overlap_ratio >= options.min_overlap;
+            total_points = numel(track_labels);
+            overlap_ratio = region_points / total_points;
+            starts_or_ends_in_region = ~isempty(valid_labels) && ...
+                (valid_labels(1) == region_id || valid_labels(end) == region_id);
+
+            if strcmp(options.filter_mode, 'pass_through')
+                meets_overlap = (options.min_overlap <= 0) || (overlap_ratio >= options.min_overlap);
+                meets_points = (options.min_region_points <= 0) || (region_points >= options.min_region_points);
+                include_track = starts_or_ends_in_region || meets_overlap || meets_points;
+            elseif options.min_overlap > 0
+                include_track = overlap_ratio >= options.min_overlap;
+            end
         end
     end
 
@@ -902,7 +904,6 @@ for i = 1:length(tracks)
     end
 end
 
-% Trim to actual size
 filtered_tracks = filtered_tracks(1:track_count);
 end
 
@@ -1161,6 +1162,9 @@ end
 
 fprintf('Filter mode: %s\n', options.filter_mode);
 fprintf('Minimum overlap: %.1f%%\n', options.min_overlap * 100);
+if strcmp(options.filter_mode, 'pass_through')
+    fprintf('Min in-region points: %d\n', options.min_region_points);
+end
 fprintf('Number of tracks: %d\n', length(tracks));
 
 if ~isempty(tracks)
@@ -1182,6 +1186,9 @@ function display_grid_statistics(region_info, options, total_tracks)
 fprintf('\n=== GRID VISUALIZATION STATISTICS ===\n');
 fprintf('Filter mode: %s\n', options.filter_mode);
 fprintf('Minimum overlap: %.1f%%\n', options.min_overlap * 100);
+if strcmp(options.filter_mode, 'pass_through')
+    fprintf('Min in-region points: %d\n', options.min_region_points);
+end
 if options.show_all_tracks
     fprintf('Track limits: NONE (ALL tracks displayed)\n');
 else
@@ -1302,8 +1309,9 @@ log_file = fullfile(metadata_dir, 'export_log.txt');
 log_entry = sprintf('[%s] %s\n', char(datetime('now', 'Format', 'yyyy-MM-dd HH:mm:ss')), filename);
 log_entry = [log_entry sprintf('  Mode: %s, Format: %s, DPI: %d\n', ...
                                options.mode, options.export_format, options.export_dpi)];
-log_entry = [log_entry sprintf('  Filter: %s, Color: %s, Max tracks: %d\n', ...
-                               options.filter_mode, options.color_mode, options.max_tracks)];
+log_entry = [log_entry sprintf('  Filter: %s (overlap %.2f, minPts %d), Color: %s, Max tracks: %d\n', ...
+                               options.filter_mode, options.min_overlap, options.min_region_points, ...
+                               options.color_mode, options.max_tracks)];
 if strcmp(options.mode, 'region')
     log_entry = [log_entry sprintf('  Region ID: %d\n', options.region_id)];
 end
