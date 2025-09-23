@@ -42,34 +42,75 @@ options.min_length = 35;            % Minimum track length in mm - filters out s
 options.order = 1;                  % FACT uses first-order integration
 options.interp_method = 'none';     % FACT samples nearest voxel tensor (no interpolation)
 
-% UNIFORM GRID-BASED SEEDING - No FA threshold needed for seeding
-% Create brain mask (not FA-based) for uniform coverage
-if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
-    brain_mask = nim.mask > 0.5;
-    fprintf('Using brain tissue mask for uniform grid seeding\n');
-elseif isfield(nim, 'parcellation_mask')
-    % Fallback: Use parcellation mask for brain boundary
-    brain_mask = nim.parcellation_mask > 0;
-    fprintf('Using parcellation mask for uniform grid seeding\n');
-else
-    % Last resort: Use FA mask but with low threshold for brain boundary only
-    brain_mask = nim.FA > 0.05;  % Very low threshold just to define brain tissue
-    fprintf('⚠ WARNING: Using FA > 0.05 to define brain boundary for seeding\n');
+% ENHANCED SEEDING STRATEGY - Prioritize white matter with boundary protection
+% Check for enhanced preprocessing white matter mask first
+[data_dir, data_name, ~] = fileparts(data_path);
+if isempty(data_dir)
+    data_dir = pwd;
 end
 
-% Generate uniform grid across entire brain - NOT FA dependent
-seed_mask = brain_mask;
+% Look for enhanced preprocessing white matter mask
+wm_mask_file = fullfile(data_dir, [data_name '_WM_mask.nii.gz']);
+if exist(wm_mask_file, 'file')
+    fprintf('Found enhanced preprocessing white matter mask: %s\n', wm_mask_file);
+    try
+        % Load white matter mask from enhanced preprocessing
+        wm_mask = niftiread(wm_mask_file);
+        seed_mask = logical(wm_mask);
+        fprintf('✓ Using enhanced white matter mask for seeding (%d voxels)\n', sum(seed_mask(:)));
+        seeding_strategy = 'enhanced_white_matter';
+    catch ME
+        fprintf('⚠ Could not load WM mask (%s), falling back to FA-based seeding\n', ME.message);
+        seed_mask = [];
+    end
+else
+    seed_mask = [];
+end
+
+% Fallback seeding strategies if enhanced WM mask not available
+if isempty(seed_mask)
+    % Strategy 1: FA-based white matter seeding with boundary erosion
+    if isfield(nim, 'FA') && any(nim.FA(:) > 0.2)
+        fprintf('Creating FA-based white matter mask (FA > 0.2, eroded boundaries)\n');
+        wm_mask = nim.FA > 0.2;  % Higher threshold for white matter
+
+        % Erode to remove boundary voxels that cause artifacts
+        se = strel('sphere', 1);  % 1-voxel erosion
+        wm_mask = imerode(wm_mask, se);
+
+        seed_mask = wm_mask;
+        seeding_strategy = 'fa_based_white_matter';
+        fprintf('✓ Using FA-based white matter seeding (%d voxels)\n', sum(seed_mask(:)));
+    else
+        % Strategy 2: Standard brain mask with erosion
+        if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+            brain_mask = nim.mask > 0.5;
+            fprintf('Using brain tissue mask with boundary erosion\n');
+        elseif isfield(nim, 'parcellation_mask')
+            brain_mask = nim.parcellation_mask > 0;
+            fprintf('Using parcellation mask with boundary erosion\n');
+        else
+            brain_mask = nim.FA > 0.05;
+            fprintf('⚠ WARNING: Using FA > 0.05 for brain boundary\n');
+        end
+
+        % Erode brain mask to avoid boundary artifacts
+        se = strel('sphere', 1);
+        seed_mask = imerode(brain_mask, se);
+        seeding_strategy = 'eroded_brain_mask';
+        fprintf('✓ Using eroded brain mask for seeding (%d voxels)\n', sum(seed_mask(:)));
+    end
+end
 options.seed_mask = seed_mask;
 
-% Show seeding statistics
-total_brain_voxels = sum(brain_mask(:));
+% Show enhanced seeding statistics
 total_seed_locations = sum(seed_mask(:));
 estimated_seeds = total_seed_locations * options.seed_density;
-fprintf('UNIFORM GRID SEEDING:\n');
-fprintf('  Brain voxels: %d\n', total_brain_voxels);
+fprintf('ENHANCED SEEDING STRATEGY: %s\n', seeding_strategy);
 fprintf('  Seed locations: %d\n', total_seed_locations);
 fprintf('  Seeds per voxel: %d\n', options.seed_density);
 fprintf('  Estimated total seeds: %d\n', estimated_seeds);
+fprintf('  Quality improvement: Boundary erosion reduces edge artifacts\n');
 
 %% Run FACT tractography
 fprintf('Running FACT tractography...\n');

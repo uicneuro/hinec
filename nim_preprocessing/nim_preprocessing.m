@@ -61,7 +61,14 @@ default_options = struct(...
     'run_denoising', true, ...
     'denoise_method', 'dwidenoise', ...
     'run_motion_correction', true, ...
+    'run_fieldmap_correction', true, ...
+    'fieldmap_file', '', ...
+    'fieldmap_units', 'auto', ...
+    'phase_encoding_dir', 'y', ...
+    'dwell_time', 0.00058, ...
+    'eddy_method', 'auto', ...
     'run_eddy', true, ...
+    'create_wm_mask', true, ...
     'improve_mask', true, ...
     'atlas_type', 'HarvardOxford', ...
     'phase_encoding_direction', "", ...
@@ -78,12 +85,48 @@ for i = 1:length(option_fields)
     end
 end
 
+%% Auto-detect field map file if not provided
+if options.run_fieldmap_correction && isempty(options.fieldmap_file)
+    fprintf('Auto-detecting field map file...\n');
+
+    % Get directory from file_prefix
+    [file_dir, file_base, ~] = fileparts(file_prefix);
+    if isempty(file_dir)
+        file_dir = pwd;
+    end
+
+    % Look for field map files following {name}_ naming convention
+    fmap_patterns = {
+        fullfile(file_dir, [file_base '_fmap_Hz.nii.gz']),
+        fullfile(file_dir, [file_base '_fmap_RadPerSec.nii.gz'])
+    };
+
+    for i = 1:length(fmap_patterns)
+        if exist(fmap_patterns{i}, 'file')
+            options.fieldmap_file = fmap_patterns{i};
+            fprintf('Found field map: %s\n', options.fieldmap_file);
+            break;
+        end
+    end
+
+    if isempty(options.fieldmap_file)
+        fprintf('⚠ No field map found. Field map correction will be skipped.\n');
+        options.run_fieldmap_correction = false;
+    end
+end
+
 % Display pipeline information
 fprintf('File prefix: %s\n', file_prefix);
 fprintf('Configuration:\n');
 fprintf('  Denoising: %s (%s)\n', char(string(options.run_denoising)), options.denoise_method);
 fprintf('  Motion correction: %s\n', char(string(options.run_motion_correction)));
-fprintf('  Eddy correction: %s\n', char(string(options.run_eddy)));
+fprintf('  Field map correction: %s\n', char(string(options.run_fieldmap_correction)));
+if options.run_fieldmap_correction
+    fprintf('    Field map file: %s\n', options.fieldmap_file);
+    fprintf('    Phase encoding: %s\n', options.phase_encoding_dir);
+end
+fprintf('  Eddy correction: %s (%s)\n', char(string(options.run_eddy)), options.eddy_method);
+fprintf('  Create WM mask: %s\n', char(string(options.create_wm_mask)));
 fprintf('  Mask improvement: %s\n', char(string(options.improve_mask)));
 fprintf('  Atlas type: %s\n', options.atlas_type);
 fprintf('-------------------------------------------\n');
@@ -172,10 +215,39 @@ try
     else
         fprintf('\n=== Step 3: Denoising (SKIPPED) ===\n');
     end
+
+    %% Step 4: Field Map Distortion Correction (if enabled)
+    if options.run_fieldmap_correction
+        fprintf('\n=== Step 4: Field Map Distortion Correction ===\n');
+        step_start = tic;
+
+        try
+            fieldmap_corrected_file = preproc_fieldmap_correction(current_dwi_file, ...
+                options.fieldmap_file, file_prefix, ...
+                'phase_dir', options.phase_encoding_dir, ...
+                'dwell_time', options.dwell_time, ...
+                'units', options.fieldmap_units, ...
+                'mask_file', brain_mask_file);
+
+            current_dwi_file = fieldmap_corrected_file;
+            preprocessing_report.fieldmap_corrected_file = fieldmap_corrected_file;
+            preprocessing_report.steps_completed{end+1} = 'fieldmap_correction';
+
+            fprintf('✓ Field map correction successful\n');
+        catch ME
+            warning('HINEC:FieldMapFailed', 'Field map correction failed: %s', ME.message);
+            preprocessing_report.warnings{end+1} = sprintf('Field map correction failed: %s', ME.message);
+        end
+
+        step_time = toc(step_start);
+        fprintf('Step 4 completed in %.1f seconds\n', step_time);
+    else
+        fprintf('\n=== Step 4: Field Map Distortion Correction (SKIPPED) ===\n');
+    end
     
-    %% Step 4: Motion correction (if enabled)
+    %% Step 5: Motion correction (if enabled)
     if options.run_motion_correction
-        fprintf('\n=== Step 4: Motion Correction ===\n');
+        fprintf('\n=== Step 5: Motion Correction ===\n');
         step_start = tic;
         
         motion_corrected_file = preproc_motion_correction(current_dwi_file, current_bvec_file, bval_file, file_prefix);
@@ -192,83 +264,186 @@ try
         preprocessing_report.steps_completed{end+1} = 'motion_correction';
         
         step_time = toc(step_start);
-        fprintf('Step 4 completed in %.1f seconds\n', step_time);
+        fprintf('Step 5 completed in %.1f seconds\n', step_time);
     else
-        fprintf('\n=== Step 4: Motion Correction (SKIPPED) ===\n');
+        fprintf('\n=== Step 5: Motion Correction (SKIPPED) ===\n');
     end
-    
-    %% Step 5: Eddy current correction (if enabled)
-    if options.run_eddy
-        fprintf('\n=== Step 5: Eddy Current Correction ===\n');
-        step_start = tic;
-        
-        % Define eddy parameter files
-        acqp_file = [file_prefix '_acqp.txt'];
-        index_file = [file_prefix '_index.txt'];
 
-        % Create parameter files from preprocessing options when needed
-        missing_params_warning = '';
-        if ~isfile(acqp_file) || ~isfile(index_file)
-            fprintf('Creating eddy parameter files from preprocessing options...\n');
-            [created, creation_message] = create_eddy_parameter_files(acqp_file, index_file, current_dwi_file, options);
-            if created
-                fprintf('  ✓ %s\n', creation_message);
+    %% Step 6: Enhanced Eddy current correction (if enabled)
+    if options.run_eddy
+        fprintf('\n=== Step 6: Enhanced Eddy Current Correction ===\n');
+        step_start = tic;
+
+        % Determine best eddy correction method
+        if strcmp(options.eddy_method, 'auto')
+            % Check if proper eddy files exist
+            acqp_file = [file_prefix '_acqp.txt'];
+            index_file = [file_prefix '_index.txt'];
+
+            if exist(acqp_file, 'file') && exist(index_file, 'file')
+                eddy_method = 'eddy';
             else
-                missing_params_warning = creation_message;
+                eddy_method = 'eddy_correct';
             end
         else
-            fprintf('Using existing eddy parameter files\n');
+            eddy_method = options.eddy_method;
+            acqp_file = [file_prefix '_acqp.txt'];
+            index_file = [file_prefix '_index.txt'];
         end
 
-        % Decide whether eddy can run
-        can_run_eddy = isfile(acqp_file) && isfile(index_file) && isempty(missing_params_warning);
+        fprintf('Using eddy correction method: %s\n', eddy_method);
 
-        % Now run eddy correction with parameter files
-        if can_run_eddy
-            try
-                eddy_corrected_file = preproc_eddy_correction(current_dwi_file, brain_mask_file, ...
-                    current_bvec_file, bval_file, acqp_file, index_file, file_prefix);
-                
-                if ~isempty(eddy_corrected_file) && isfile(eddy_corrected_file)
+        try
+            if strcmp(eddy_method, 'eddy_correct')
+                % Use simple eddy_correct as fallback
+                fprintf('Applying basic eddy current correction...\n');
+                eddy_corrected_file = [file_prefix '_eddy_corrected.nii.gz'];
+
+                % Set PATH to include FSL bin directory for eddy_correct script
+                old_path = getenv('PATH');
+                new_path = sprintf('%s/bin:%s', fsl_path, old_path);
+                setenv('PATH', new_path);
+
+                cmd = sprintf('%s/bin/eddy_correct %s %s 0', fsl_path, current_dwi_file, eddy_corrected_file);
+                [status, result] = system(cmd);
+
+                % Restore original PATH
+                setenv('PATH', old_path);
+
+                if status == 0 && exist(eddy_corrected_file, 'file')
                     current_dwi_file = eddy_corrected_file;
-                    
-                    % Update b-vectors to eddy-corrected ones
-                    eddy_corrected_bvec = strrep(eddy_corrected_file, '.nii.gz', '.eddy_rotated_bvecs');
-                    if isfile(eddy_corrected_bvec)
-                        current_bvec_file = eddy_corrected_bvec;
-                    end
-                    
                     preprocessing_report.eddy_corrected_file = eddy_corrected_file;
-                    preprocessing_report.eddy_corrected_bvec = current_bvec_file;
+                    preprocessing_report.eddy_method_used = 'eddy_correct';
                     preprocessing_report.eddy_corrected = true;
                     preprocessing_report.steps_completed{end+1} = 'eddy_correction';
+                    fprintf('✓ Basic eddy correction successful\n');
                 else
-                    preprocessing_report.warnings{end+1} = 'Eddy correction failed, continuing without it';
+                    error('eddy_correct failed: %s', result);
+                end
+            else
+                % Use standard eddy with parameter files
+                % Create parameter files from preprocessing options when needed
+                missing_params_warning = '';
+                if ~isfile(acqp_file) || ~isfile(index_file)
+                    fprintf('Creating eddy parameter files from preprocessing options...\n');
+                    [created, creation_message] = create_eddy_parameter_files(acqp_file, index_file, current_dwi_file, options);
+                    if created
+                        fprintf('  ✓ %s\n', creation_message);
+                    else
+                        missing_params_warning = creation_message;
+                    end
+                else
+                    fprintf('Using existing eddy parameter files\n');
+                end
+
+                % Check if we can run advanced eddy
+                can_run_eddy = isfile(acqp_file) && isfile(index_file) && isempty(missing_params_warning);
+
+                if can_run_eddy
+                    eddy_corrected_file = preproc_eddy_correction(current_dwi_file, brain_mask_file, ...
+                        current_bvec_file, bval_file, acqp_file, index_file, file_prefix);
+
+                    if ~isempty(eddy_corrected_file) && exist(eddy_corrected_file, 'file')
+                        current_dwi_file = eddy_corrected_file;
+
+                        % Update b-vectors to eddy-corrected ones
+                        eddy_corrected_bvec = strrep(eddy_corrected_file, '.nii.gz', '.eddy_rotated_bvecs');
+                        if exist(eddy_corrected_bvec, 'file')
+                            current_bvec_file = eddy_corrected_bvec;
+                        end
+
+                        preprocessing_report.eddy_corrected_file = eddy_corrected_file;
+                        preprocessing_report.eddy_corrected_bvec = current_bvec_file;
+                        preprocessing_report.eddy_method_used = 'eddy';
+                        preprocessing_report.eddy_corrected = true;
+                        preprocessing_report.steps_completed{end+1} = 'eddy_correction';
+                        fprintf('✓ Advanced eddy correction successful\n');
+                    else
+                        error('Advanced eddy correction failed');
+                    end
+                else
+                    if isempty(missing_params_warning)
+                        missing_params_warning = 'Eddy correction skipped: parameter files not available';
+                    end
+                    fprintf('⚠ %s\n', missing_params_warning);
+                    preprocessing_report.warnings{end+1} = missing_params_warning;
                     preprocessing_report.eddy_corrected = false;
                 end
-            catch ME
-                preprocessing_report.warnings{end+1} = sprintf('Eddy correction error: %s', ME.message);
-                preprocessing_report.eddy_corrected = false;
-                fprintf('⚠ Eddy correction failed: %s\n', ME.message);
             end
-        else
-            if isempty(missing_params_warning)
-                missing_params_warning = 'Eddy correction skipped: parameter files not available';
-            end
-            fprintf('⚠ %s\n', missing_params_warning);
-            preprocessing_report.warnings{end+1} = missing_params_warning;
+
+        catch ME
+            warning('HINEC:EddyFailed', 'Eddy correction failed: %s', ME.message);
+            preprocessing_report.warnings{end+1} = sprintf('Eddy correction failed: %s', ME.message);
             preprocessing_report.eddy_corrected = false;
         end
         
         step_time = toc(step_start);
-        fprintf('Step 5 completed in %.1f seconds\n', step_time);
+        fprintf('Step 6 completed in %.1f seconds\n', step_time);
     else
-        fprintf('\n=== Step 5: Eddy Current Correction (SKIPPED) ===\n');
+        fprintf('\n=== Step 6: Eddy Current Correction (SKIPPED) ===\n');
         preprocessing_report.eddy_corrected = false;
     end
-    
-    %% Step 6: Copy processed data to final location
-    fprintf('\n=== Step 6: Copy Processed Data to Final Location ===\n');
+
+    %% Step 7: Enhanced Brain Mask and White Matter Segmentation
+    if options.create_wm_mask
+        fprintf('\n=== Step 7: Enhanced Brain Mask and White Matter Segmentation ===\n');
+        step_start = tic;
+
+        fprintf('Creating white matter mask for improved tractography...\n');
+        wm_mask_file = [file_prefix '_WM_mask.nii.gz'];
+
+        % Create a preliminary white matter mask using simple thresholding
+        % This will be refined after DTI calculation in main.m
+        temp_fa_file = [file_prefix '_temp_fa.nii.gz'];
+
+        % Run quick DTI to get preliminary FA
+        fprintf('Computing preliminary FA for white matter segmentation...\n');
+        try
+            % Basic DTI calculation for FA estimation
+            final_mask_file = [file_prefix '_M.nii.gz'];
+            copyfile(brain_mask_file, final_mask_file);
+
+            cmd = sprintf('%s/bin/dtifit -k %s -o %s_temp_dti -m %s -r %s -b %s', ...
+                fsl_path, current_dwi_file, file_prefix, final_mask_file, current_bvec_file, bval_file);
+            [status, result] = system(cmd);
+
+            if status == 0
+                temp_fa_file = [file_prefix '_temp_dti_FA.nii.gz'];
+                if exist(temp_fa_file, 'file')
+                    % Create white matter mask (FA > 0.2, eroded to avoid boundaries)
+                    cmd = sprintf('%s/bin/fslmaths %s -thr 0.2 -bin %s', fsl_path, temp_fa_file, wm_mask_file);
+                    system(cmd);
+
+                    % Erode to remove boundary voxels
+                    cmd = sprintf('%s/bin/fslmaths %s -ero -ero %s', fsl_path, wm_mask_file, wm_mask_file);
+                    system(cmd);
+
+                    preprocessing_report.wm_mask_file = wm_mask_file;
+                    preprocessing_report.steps_completed{end+1} = 'white_matter_segmentation';
+                    fprintf('✓ White matter mask created for enhanced tractography\n');
+
+                    % Clean up temporary DTI files
+                    temp_files = dir([file_prefix '_temp_dti*']);
+                    for i = 1:length(temp_files)
+                        delete(fullfile(temp_files(i).folder, temp_files(i).name));
+                    end
+                end
+            end
+        catch
+            fprintf('⚠ Could not create white matter mask, will use brain mask\n');
+            preprocessing_report.warnings{end+1} = 'White matter mask creation failed';
+        end
+
+        step_time = toc(step_start);
+        fprintf('Step 7 completed in %.1f seconds\n', step_time);
+    else
+        fprintf('\n=== Step 7: Enhanced Segmentation (SKIPPED) ===\n');
+        final_mask_file = [file_prefix '_M.nii.gz'];
+        copyfile(brain_mask_file, final_mask_file);
+    end
+
+    %% Step 8: Copy processed data to final location
+    fprintf('\n=== Step 8: Copy Processed Data to Final Location ===\n');
     step_start = tic;
     
     % Define final output bvec file path
@@ -283,24 +458,10 @@ try
     preprocessing_report.steps_completed{end+1} = 'copy_final_data';
     
     step_time = toc(step_start);
-    fprintf('Step 6 completed in %.1f seconds\n', step_time);
-    
-    %% Step 7: Copy brain mask to final location
-    fprintf('\n=== Step 7: Copy Brain Mask to Final Location ===\n');
-    step_start = tic;
-    
-    % Copy initial mask to final location (improvement will happen in main.m with FA data)
-    final_mask_file = [file_prefix '_M.nii.gz'];
-    copyfile(brain_mask_file, final_mask_file);
-    brain_mask_file = final_mask_file;
-    
-    preprocessing_report.steps_completed{end+1} = 'copy_brain_mask';
-    
-    step_time = toc(step_start);
-    fprintf('Step 7 completed in %.1f seconds\n', step_time);
-    
-    %% Step 8: Atlas processing
-    fprintf('\n=== Step 8: Atlas Processing ===\n');
+    fprintf('Step 8 completed in %.1f seconds\n', step_time);
+
+    %% Step 9: Atlas processing
+    fprintf('\n=== Step 9: Atlas Processing ===\n');
     step_start = tic;
     
     [parcellation_mask_output, atlas_labels_file] = preproc_atlas_resampling(...
@@ -311,10 +472,10 @@ try
     preprocessing_report.steps_completed{end+1} = 'atlas_processing';
     
     step_time = toc(step_start);
-    fprintf('Step 8 completed in %.1f seconds\n', step_time);
-    
-    %% Step 9: Finalization
-    fprintf('\n=== Step 9: Finalization ===\n');
+    fprintf('Step 9 completed in %.1f seconds\n', step_time);
+
+    %% Step 10: Finalization
+    fprintf('\n=== Step 10: Finalization ===\n');
     step_start = tic;
     
     % Copy files to final locations with standard names
@@ -335,13 +496,18 @@ end
     
     % Define files to keep for cleanup
     final_files = {
-    output_file;                               % Final processed DWI
-    final_bvec_file;                         % Final b-vectors
-    final_output_bval;                         % B-values
-    final_output_mask;                         % Final brain mask
-    parcellation_mask_output;                  % Parcellation
-    atlas_labels_file                         % Atlas labels
-};
+        output_file;                               % Final processed DWI
+        final_bvec_file;                         % Final b-vectors
+        final_output_bval;                         % B-values
+        final_output_mask;                         % Final brain mask
+        parcellation_mask_output;                  % Parcellation
+        atlas_labels_file                         % Atlas labels
+    };
+
+    % Add enhanced files if they exist
+    if isfield(preprocessing_report, 'wm_mask_file') && exist(preprocessing_report.wm_mask_file, 'file')
+        final_files{end+1} = preprocessing_report.wm_mask_file;
+    end
     
     cleanup_report = preproc_cleanup(output_dir, file_prefix, final_files);
     preprocessing_report.cleanup_report = cleanup_report;
@@ -354,24 +520,44 @@ preprocessing_report.final_bval_file = final_output_bval;
     preprocessing_report.final_mask_file = final_output_mask;
     
     step_time = toc(step_start);
-    fprintf('Step 9 completed in %.1f seconds\n', step_time);
-    
+    fprintf('Step 10 completed in %.1f seconds\n', step_time);
+
     % Finalize report
     preprocessing_report.end_time = datetime('now');
     preprocessing_report.total_duration = preprocessing_report.end_time - preprocessing_report.start_time;
     preprocessing_report.success = true;
-    
+
     % Store report for potential future use
     report_file = [file_prefix '_preprocessing_report.mat'];
     save(report_file, 'preprocessing_report');
-    
+
     fprintf('\n========================================\n');
     fprintf('🎉 ENHANCED PREPROCESSING COMPLETE 🎉\n');
     fprintf('========================================\n');
-    fprintf('✅ All requested steps completed successfully\n');
+    fprintf('✅ Enhanced preprocessing successful\n');
     fprintf('⏱ Total processing time: %s\n', char(preprocessing_report.total_duration));
     fprintf('📁 Output directory: %s\n', output_dir);
-    fprintf('🧠 Atlas used: %s\n', options.atlas_type);
+
+    % Display enhanced features applied
+    enhanced_features = {};
+    if options.run_fieldmap_correction && isfield(preprocessing_report, 'fieldmap_corrected_file')
+        enhanced_features{end+1} = 'Field map distortion correction';
+    end
+    if isfield(preprocessing_report, 'eddy_method_used') && strcmp(preprocessing_report.eddy_method_used, 'eddy_correct')
+        enhanced_features{end+1} = 'Alternative eddy current correction';
+    end
+    if isfield(preprocessing_report, 'wm_mask_file')
+        enhanced_features{end+1} = 'White matter mask for better tractography';
+    end
+
+    if ~isempty(enhanced_features)
+        fprintf('\n🚀 ENHANCED FEATURES APPLIED:\n');
+        for i = 1:length(enhanced_features)
+            fprintf('  ✓ %s\n', enhanced_features{i});
+        end
+    end
+
+    fprintf('\n🧠 Atlas used: %s\n', options.atlas_type);
     fprintf('📊 Report saved to: %s\n', report_file);
     
     % Display processing summary
