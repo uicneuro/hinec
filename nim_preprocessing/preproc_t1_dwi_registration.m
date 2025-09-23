@@ -20,8 +20,10 @@ if isempty(fsl_path)
 end
 
 % Define output file paths
-t1_to_dwi_mat = fullfile(output_dir, [file_prefix '_T1_to_dwi.mat']);
-t1_to_dwi_output = fullfile(output_dir, [file_prefix '_T1_to_dwi']);
+% Extract just the filename part from file_prefix to avoid duplicate directory paths
+[~, filename_only] = fileparts(file_prefix);
+t1_to_dwi_mat = fullfile(output_dir, [filename_only '_T1_to_dwi.mat']);
+t1_to_dwi_output = fullfile(output_dir, [filename_only '_T1_to_dwi']);
 
 % Use FSL epi_reg for boundary-based registration
 % epi_reg handles EPI distortions and provides robust T1-EPI registration
