@@ -496,14 +496,174 @@ save(output_file, 'tracks', 'options', 'track_stats', 'track_lengths', 'dims');
    - 3D scatter plot of seed locations
    - Demonstrates spatial sampling strategy
 
-### Advanced Visualization
-**Function**: `visualizeTractography.m`
+### Advanced Visualization: `visualizeTractography.m`
 
-Provides comprehensive post-processing visualization:
-- **Track Length Histograms**: Distribution analysis
-- **Seed Distribution Maps**: Spatial seed analysis  
-- **Statistical Summaries**: Quantitative quality metrics
-- **Multiple Viewing Angles**: Interactive 3D exploration
+The **`visualizeTractography.m`** function is a comprehensive, unified solution for tractography visualization that consolidates all visualization functionality into one powerful interface.
+
+#### Key Features
+- ✅ **4 Visualization Modes**: Whole brain, single region, grid layout, sequential
+- ✅ **Advanced Track Filtering**: Multiple filtering strategies with overlap control
+- ✅ **Multiple Color Schemes**: Direction-based, FA-based, uniform, and region-based coloring
+- ✅ **Automatic Image Export**: PNG, PDF, EPS, FIG formats with organized directory structure
+- ✅ **Performance Optimization**: Configurable track limits and smart rendering
+- ✅ **Legacy Compatibility**: Supports all parameters from previous functions
+
+#### Visualization Modes
+
+##### 1. Whole Brain Mode (`mode='whole'`)
+Comprehensive overview of all tractography tracks with detailed analytics.
+
+**Usage:**
+```matlab
+% Basic whole brain visualization
+visualizeTractography('tracks.mat', 'sample_parcellated.mat')
+
+% With custom settings
+visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
+    'color_mode', 'fa', 'max_tracks', 5000, 'export_dir', 'figures/')
+```
+
+**Output:**
+- 2x3 subplot layout with main 3D view
+- Track length histogram
+- Seed point distribution analysis
+- Performance statistics
+
+##### 2. Single Region Mode (`mode='region'` or `'region', ID`)
+Detailed analysis of tractography for a specific brain region.
+
+**Usage:**
+```matlab
+% Single region visualization
+visualizeTractography('tracks.mat', 'sample_parcellated.mat', 'region', 5)
+
+% With advanced filtering
+visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
+    'region', 5, 'filter_mode', 'start_in', 'min_overlap', 0.2)
+```
+
+**Features:**
+- Region-specific track filtering
+- Region overlay visualization
+- Multiple filtering strategies
+- Comprehensive track analysis
+
+##### 3. Grid Layout Mode (`mode='grid'`)
+Overview of all brain regions in an organized grid layout.
+
+**Usage:**
+```matlab
+% Grid layout for all regions
+visualizeTractography('tracks.mat', 'sample_parcellated.mat', 'mode', 'grid')
+
+% Custom grid configuration
+visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
+    'mode', 'grid', 'grid_cols', 6, 'max_tracks_per_region', 50)
+```
+
+##### 4. Sequential Mode (`mode='sequential'`)
+Step through regions one by one with detailed visualization.
+
+**Usage:**
+```matlab
+% Sequential viewing with auto-advance
+visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
+    'mode', 'sequential', 'auto_advance', true, 'pause_time', 3)
+```
+
+#### Configuration Options
+
+**Display Parameters:**
+- `color_mode`: 'direction' (default), 'fa', 'uniform', 'region'
+- `show_axis_labels`: Display X/Y/Z axis labels (default: true)
+- `show_grid`: Display grid lines (default: false)
+- `show_title`: Display figure title (default: true)
+- `show_info`: Display information text (default: true)
+
+**Track Filtering:**
+- `filter_mode`: 'all', 'passing_through', 'ending_in', 'start_in', 'contained'
+- `min_length`: Minimum track length in mm (default: 10)
+- `max_tracks`: Maximum tracks to display (default: 1000)
+- `min_overlap`: Minimum region overlap fraction (default: 0.1)
+
+**Export Settings:**
+- `export_dir`: Directory for saving images (default: 'tractography_figures/')
+- `export_format`: 'png' (default), 'pdf', 'eps', 'fig'
+- `export_dpi`: Resolution for raster formats (default: 150)
+
+### Slice-Based Visualization: `visualizeTractographySlices.m`
+
+An interactive 2D slice viewer for examining tractography results in orthogonal planes.
+
+#### Quick Start
+
+**MATLAB Command Line:**
+```matlab
+% Basic usage - display slice at position x=64, y=64, z=32
+visualizeTractographySlices('tracks.mat', 'sample_parcellated.mat', 64, 64, 32)
+
+% Save to PNG file
+visualizeTractographySlices('tracks.mat', 'sample_parcellated.mat', 64, 64, 32, ...
+    'save', 'my_slice.png')
+
+% With additional options
+visualizeTractographySlices('tracks.mat', 'nim.mat', 80, 90, 45, ...
+    'tolerance', 3, ...
+    'show_crosshairs', false, ...
+    'show_anatomy', true, ...
+    'color_mode', 'direction', ...
+    'alpha', 0.7)
+```
+
+**Python GUI (Optional):**
+```bash
+# Run the interactive Python GUI
+python tractography_slice_gui.py
+```
+
+#### Parameters
+
+**Required Arguments:**
+- `tracks_file`: Path to tracks .mat file
+- `nim_file`: Path to nim structure .mat file
+- `x`, `y`, `z`: Slice positions in voxel coordinates
+
+**Optional Parameters:**
+- `'save'`: Output PNG filename (if not specified, just displays)
+- `'tolerance'`: Slice thickness in voxels (default: 2)
+- `'show_crosshairs'`: Show slice intersections (default: true)
+- `'show_anatomy'`: Show FA background (default: true)
+- `'color_mode'`: 'direction' or 'uniform' (default: 'direction')
+- `'alpha'`: FA background transparency 0-1 (default: 0.6)
+
+#### Output Format
+The viewer shows three orthogonal slice views:
+1. **Axial (Z)**: Top-down view (X-Y plane)
+2. **Sagittal (X)**: Side view (Y-Z plane)
+3. **Coronal (Y)**: Front view (X-Z plane)
+4. **Info Panel**: Track statistics and settings
+
+### Track Data Structure
+
+Each track in the `tracks` cell array represents a complete fiber pathway:
+```matlab
+track = [x1, y1, z1;    % First point (start)
+         x2, y2, z2;    % Second point
+         ...             % Intermediate points along fiber
+         xN, yN, zN];   % Final point (end)
+```
+
+**Important Notes:**
+- **Not just endpoints**: Each track contains the complete 3D trajectory
+- **Variable length**: Tracks contain 10-1000+ points depending on fiber length
+- **Coordinate system**: Voxel space coordinates (X, Y, Z)
+
+### Performance Optimization
+
+- Fast command-line execution without UI overhead
+- Pre-computed track lookup tables for efficiency
+- Smart rendering with configurable track limits
+- Automatic downsampling for large datasets
 
 ## Integration with HINEC Pipeline
 

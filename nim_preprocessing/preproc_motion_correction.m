@@ -61,8 +61,8 @@ ref_vol = b0_indices(1) - 1; % FSL uses 0-based indexing
 % -rmsabs: save absolute RMS displacement
 
 cmd_mcflirt = sprintf(['%s/bin/mcflirt -in %s -out %s -refvol %d ' ...
-                      '-plots -mats -rmsrel -rmsabs'], ...
-                      fsl_path, dwi_file, motion_output_prefix, ref_vol);
+    '-plots -mats -rmsrel -rmsabs'], ...
+    fsl_path, dwi_file, motion_output_prefix, ref_vol);
 
 fprintf('Running motion correction...\n');
 fprintf('Command: %s\n', cmd_mcflirt);
@@ -139,7 +139,7 @@ if isfolder(mat_dir)
             mat_file = fullfile(mat_files(i).folder, mat_files(i).name);
             if isfile(mat_file)
                 % Load transformation matrix as ASCII
-transform_mat = load(mat_file, '-ascii');
+                transform_mat = load(mat_file, '-ascii');
                 if size(transform_mat, 1) == 4 && size(transform_mat, 2) == 4
                     % Extract rotation matrix (top-left 3x3)
                     rotation_mat = transform_mat(1:3, 1:3);
@@ -153,11 +153,7 @@ transform_mat = load(mat_file, '-ascii');
     end
     
     % Save corrected b-vectors
-    if size(corrected_bvecs, 1) == 3
-        corrected_bvecs = corrected_bvecs'; % Make sure it's 3xN for saving
-    else
-        corrected_bvecs = corrected_bvecs'; % Transpose to 3xN
-    end
+    corrected_bvecs = corrected_bvecs';
     save(corrected_bvec_file, 'corrected_bvecs', '-ascii');
     fprintf('✓ Corrected b-vectors saved to: %s\n', corrected_bvec_file);
 else
@@ -171,7 +167,7 @@ motion_outputs = {
     motion_rms_rel_file;             % Relative RMS displacement
     motion_rms_abs_file;             % Absolute RMS displacement
     corrected_bvec_file              % Corrected b-vectors
-};
+    };
 
 fprintf('Motion correction outputs:\n');
 for i = 1:length(motion_outputs)

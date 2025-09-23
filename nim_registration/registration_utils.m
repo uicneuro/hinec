@@ -91,7 +91,7 @@ if isfield(registration_data.registered_images, 'b0_in_t1')
             end
         end
     catch ME
-        warning('Failed to compute DTI->T1 quality: %s', ME.message);
+        warning(ME.identifier, 'Failed to compute DTI->T1 quality: %s', ME.message);
     end
 end
 
@@ -133,7 +133,7 @@ if isfield(registration_data.registered_images, 't1_in_mni') && options.register
             end
         end
     catch ME
-        warning('Failed to compute T1->MNI quality: %s', ME.message);
+        warning(ME.identifier, 'Failed to compute T1->MNI quality: %s', ME.message);
     end
 end
 
@@ -318,7 +318,7 @@ try
     fprintf('  ✓ Registration report: %s\n', report_file);
     
 catch ME
-    warning('Failed to generate registration report: %s', ME.message);
+    warning(ME.identifier, 'Failed to generate registration report: %s', ME.message);
     if exist('fid', 'var') && fid > 0
         fclose(fid);
     end

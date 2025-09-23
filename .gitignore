@@ -76,3 +76,13 @@ spm12/*
 sample.mat
 
 nifti/*
+ISMRM/*
+
+*_figures*/*
+
+download.sh
+
+# agent related
+.claude/*
+AGENTS.md
+CLAUDE.md
