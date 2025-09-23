@@ -13,6 +13,7 @@ function visualizeTractography(tracks_file, nim_file, varargin)
 %   visualizeTractography(tracks_file, nim_file, 'mode', 'grid')           % All regions grid
 %   visualizeTractography(tracks_file, nim_file, 'mode', 'sequential')     % Sequential regions
 %   visualizeTractography(..., 'export_dir', 'figures/')                  % With image export
+%   visualizeTractography('tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat')
 %
 % Arguments:
 %   tracks_file - Path to tracks .mat file (REQUIRED)
@@ -57,6 +58,7 @@ function visualizeTractography(tracks_file, nim_file, varargin)
 %   visualizeTractography('tracks.mat', 'data.mat', 'mode', 'sequential', 'export_dir', 'output/')
 
 %% INPUT VALIDATION AND PARSING
+% Validate required arguments
 if nargin < 2
     error('visualizeTractography requires 2 arguments: tracks_file, nim_file');
 end

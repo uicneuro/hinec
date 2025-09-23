@@ -183,7 +183,7 @@ for i = 1:length(tracks)
                 include_track = ismember(region_id, unique_regions) && length(unique_regions) > 1;
             end
     end
-    
+
     % Apply minimum overlap constraint with enhanced filtering
     if include_track && options.min_overlap > 0
         region_points = sum(track_labels == region_id);
