@@ -125,7 +125,6 @@ if options.run_fieldmap_correction
     fprintf('    Phase encoding: %s\n', options.phase_encoding_dir);
 end
 fprintf('  Eddy correction: %s (%s)\n', char(string(options.run_eddy)), options.eddy_method);
-fprintf('  Create WM mask: %s (DISABLED - preserves parcellation integrity)\n', char(string(options.create_wm_mask)));
 fprintf('  Mask improvement: %s\n', char(string(options.improve_mask)));
 fprintf('  Atlas type: %s\n', options.atlas_type);
 fprintf('-------------------------------------------\n');

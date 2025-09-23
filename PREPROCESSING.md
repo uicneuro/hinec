@@ -6,6 +6,8 @@ This document provides a comprehensive overview of the HINEC preprocessing pipel
 
 The HINEC preprocessing pipeline is a modular system that prepares raw diffusion-weighted MRI (dMRI) data for tensor calculation and tractography analysis. The pipeline automatically detects whether data requires preprocessing and applies appropriate corrections using FSL tools.
 
+**Pipeline Structure:** The current implementation consists of 9 sequential steps that handle data preprocessing from raw NIfTI files through final data organization and atlas processing. White matter masking has been removed to preserve parcellation region integrity.
+
 ## Architecture
 
 ### Preprocessing Detection Logic (main.m)
@@ -206,32 +208,20 @@ options.eddy_index_vector = [];  % Auto-generate if empty
 - Parameter files corrupt
 - Insufficient system resources for eddy
 
-### Phase 4: Segmentation and Finalization
+### Phase 4: Finalization
 
-#### Step 10: White Matter Segmentation (Optional)
-**Purpose:** Create white matter mask for enhanced tractography
+#### Step 7: Data Finalization
+**Purpose:** Copy processed data to final locations with proper file naming
 
 **Process:**
-1. Run preliminary DTI calculation with dtifit
-2. Create FA map
-3. Threshold FA > 0.2 for white matter
-4. Apply morphological erosion to avoid boundaries
+1. Copy brain mask to final location as `{name}_M.nii.gz`
+2. Copy processed DWI data to final output file
+3. Copy final b-vectors (motion/eddy corrected)
+4. Update preprocessing report with final file locations
 
-```bash
-dtifit -k {dwi} -o {temp_dti} -m {mask} -r {bvec} -b {bval}
-fslmaths {temp_dti_FA} -thr 0.2 -bin {wm_mask}
-fslmaths {wm_mask} -ero -ero {wm_mask}
-```
+**No Configuration Required** - Always executed
 
-**Configuration:**
-```matlab
-options.create_wm_mask = true;
-```
-
-**Fallback:** Use brain mask if WM segmentation fails
-**Error condition:** DTI calculation fails
-
-#### Step 11: Atlas Processing
+#### Step 8: Atlas Processing
 **Function:** `preproc_atlas_resampling.m`
 **Purpose:** Resample atlas to DWI space for parcellation
 
@@ -249,7 +239,7 @@ options.atlas_type = 'HarvardOxford';
 **Fallback:** Use HarvardOxford if specified atlas unavailable
 **Error condition:** No atlas files found
 
-#### Step 12: Finalization and Cleanup
+#### Step 9: Finalization and Cleanup
 **Function:** `preproc_cleanup.m`
 **Purpose:** Organize final outputs and remove temporary files
 
@@ -259,7 +249,6 @@ options.atlas_type = 'HarvardOxford';
 - `{name}.bval` - B-values (unchanged)
 - `{name}_M.nii.gz` - Brain mask
 - `parcellation_mask.nii.gz` - Atlas mask
-- `{name}_WM_mask.nii.gz` - White matter mask (if created)
 
 ## Configuration Options
 
@@ -276,7 +265,6 @@ default_options = struct(...
     'dwell_time', 0.00058, ...
     'eddy_method', 'auto', ...
     'run_eddy', true, ...
-    'create_wm_mask', true, ...
     'improve_mask', true, ...
     'atlas_type', 'HarvardOxford', ...
     'phase_encoding_direction', "", ...
@@ -357,7 +345,7 @@ preprocessing_report.steps_completed = {};  % Successful steps
 ## Performance Considerations
 
 ### Processing Time Estimates
-- Basic preprocessing (no eddy): 5-15 minutes
+- Basic preprocessing (no eddy): 3-10 minutes
 - With advanced eddy correction: 2-8 hours
 - With field map correction: Additional 30-60 minutes
 
