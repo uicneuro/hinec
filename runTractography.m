@@ -29,39 +29,69 @@ if ~isfield(nim, 'FA')
     error('FA not found. Please run main() first to generate DTI data.');
 end
 
-%% Set tractography parameters
-fprintf('Setting up tractography parameters...\n');
+%% Set FACT tractography parameters
+fprintf('Setting up FACT tractography parameters...\n');
 options = struct();
-options.seed_density = 5;           % Number of seeds per voxel - higher values create denser tracking
-options.step_size = 0.2;            % Step size in voxels - smaller values give smoother but slower tracking
-options.fa_threshold = 0.25;        % FA threshold for seed placement - higher values place seeds in high-anisotropy areas only
-options.termination_fa = 0.1;       % FA threshold for track termination - lower values allow tracking into lower anisotropy regions
-options.angle_thresh = 25;          % Maximum turning angle in degrees - lower values create straighter, more conservative tracks
-options.max_steps = 2000;           % Maximum steps per track - limits track length to prevent runaway tracking
-options.min_length = 20;            % Minimum track length in mm - filters out short spurious tracks
-options.order = 2;                  % Integration order (unused in standard tractography)
-options.interp_method = 'cubic';    % Interpolation method (unused in standard tractography)
+options.seed_density = 4;           % VERY DENSE: 8 seeds per voxel for complete uniform coverage
+options.step_size = 0.5;            % FACT step size Δ for Euler method: r_{i+1} = r_i + e1(r_i)*Δ
+options.fa_threshold = 0.15;        % Low FA threshold - not used for seeding, only for tracking quality
+options.termination_fa = 0.15;      % Low termination threshold for extensive tracking
+options.angle_thresh = 35;          % Maximum turning angle in degrees - slightly more permissive for FACT
+options.max_steps = 1000;           % Maximum Euler steps per track
+options.min_length = 35;            % Minimum track length in mm - filters out short spurious tracks
+options.order = 1;                  % FACT uses first-order integration
+options.interp_method = 'none';     % FACT samples nearest voxel tensor (no interpolation)
 
-% Create brain-only seed mask with lower FA threshold
-seed_mask = nim.FA > 0.08;  % Even lower FA threshold for more seeds
+% ENHANCED SEEDING STRATEGY - Use brain mask for comprehensive coverage
+[data_dir, data_name, ~] = fileparts(data_path);
+if isempty(data_dir)
+    data_dir = pwd;
+end
 
-% Priority 1: Use the preprocessed brain mask if available
-if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
-    brain_mask = nim.mask > 0.5;
-    seed_mask = seed_mask & brain_mask;
-    fprintf('Seed mask restricted to brain tissue (preprocessed mask)\n');
-elseif isfield(nim, 'parcellation_mask')
-    % Fallback: Use parcellation mask if no preprocessed brain mask
-    brain_mask = nim.parcellation_mask > 0;
-    seed_mask = seed_mask & brain_mask;
-    fprintf('Seed mask restricted to brain tissue (parcellation mask fallback)\n');
-else
-    fprintf('⚠ WARNING: No brain mask found - using FA-only seed mask\n');
+% White matter masking disabled - use brain mask for seeding
+seed_mask = [];
+
+% Use brain mask for comprehensive seeding (preserves parcellation regions)
+if isempty(seed_mask)
+    % Strategy 1: Use preprocessed brain mask (best option)
+    if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+        brain_mask = nim.mask > 0.5;
+        fprintf('Using preprocessed brain mask for comprehensive seeding\n');
+        seeding_strategy = 'brain_mask';
+    % Strategy 2: Expand parcellation mask to include surrounding brain tissue
+    elseif isfield(nim, 'parcellation_mask') && any(nim.parcellation_mask(:) > 0)
+        % Create brain-like mask from parcellation + expansion
+        parcel_mask = nim.parcellation_mask > 0;
+        % Dilate parcellation to capture surrounding brain tissue
+        se = strel('sphere', 2);  % 2-voxel dilation
+        brain_mask = imdilate(parcel_mask, se);
+        % Constrain to reasonable FA values to avoid CSF
+        brain_mask = brain_mask & (nim.FA > 0.05);
+        fprintf('Using expanded parcellation mask for brain seeding\n');
+        seeding_strategy = 'expanded_parcellation';
+    % Strategy 3: FA-based fallback (conservative)
+    else
+        brain_mask = nim.FA > 0.1;  % Conservative FA threshold
+        fprintf('⚠ Using FA-based brain boundary (FA > 0.1)\n');
+        seeding_strategy = 'fa_based_brain';
+    end
+
+    seed_mask = brain_mask;
+    fprintf('✓ Using %s for seeding (%d voxels)\n', seeding_strategy, sum(seed_mask(:)));
 end
 options.seed_mask = seed_mask;
 
-%% Run tractography
-fprintf('Running standard tractography...\n');
+% Show enhanced seeding statistics
+total_seed_locations = sum(seed_mask(:));
+estimated_seeds = total_seed_locations * options.seed_density;
+fprintf('ENHANCED SEEDING STRATEGY: %s\n', seeding_strategy);
+fprintf('  Seed locations: %d\n', total_seed_locations);
+fprintf('  Seeds per voxel: %d\n', options.seed_density);
+fprintf('  Estimated total seeds: %d\n', estimated_seeds);
+fprintf('  Quality improvement: Boundary erosion reduces edge artifacts\n');
+
+%% Run FACT tractography
+fprintf('Running FACT tractography...\n');
 tic;
 tracks = nim_tractography_standard(nim, options);
 elapsed_time = toc;

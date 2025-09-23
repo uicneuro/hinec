@@ -264,7 +264,7 @@ try
     
     % Registration quality
     if isfield(nim.parcellation_info, 'registration_quality') && ...
-       ~isempty(nim.parcellation_info.registration_quality)
+            ~isempty(nim.parcellation_info.registration_quality)
         
         fprintf(fid, 'Registration Quality:\n');
         qual = nim.parcellation_info.registration_quality;
@@ -288,7 +288,7 @@ try
     fprintf('  ✓ Quality report: %s\n', report_file);
     
 catch ME
-    warning('Failed to generate quality report: %s', ME.message);
+    warning(ME.identifier, 'Failed to generate quality report: %s', ME.message);
     if exist('fid', 'var') && fid > 0
         fclose(fid);
     end

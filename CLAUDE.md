@@ -24,6 +24,8 @@ HINEC (HIgh-order NEural Connectivity) is a MATLAB-based pipeline for processing
 - `nim_plotall(nim)` - Comprehensive visualization
 - `nim_plotparcelall(nim)` - Parcellation-specific plots
 - `nim_plotparcellation(nim)` - Parcellation mask visualization
+- `visualizeTractography(tracks_file, nim_file)` - Unified tractography viewer with multiple modes
+- `visualizeTractographySlices(tracks_file, nim_file)` - Interactive 2D slice viewer
 
 ## Architecture
 
@@ -73,9 +75,12 @@ HINEC (HIgh-order NEural Connectivity) is a MATLAB-based pipeline for processing
 - Pre-computed results: `sample_parcellated.mat`
 
 ### Tractography
-- Standard and high-order methods available
-- Configurable parameters: step size, FA threshold, angle threshold
-- Output includes track coordinates and statistics
+- **FACT Algorithm**: Fiber Assignment by Continuous Tracking with voxel boundary intersection
+- **High-order Methods**: Available in `nim_tractography_highorder.m`
+- **Seeding Strategies**: FA-based (current) and grid-based (recommended for uniform coverage)
+- **Output**: Tracks as cell arrays, each track is N×3 matrix of 3D coordinates
+- **Parameters**: FA thresholds, angle constraints, step size, seed density
+- **File Structure**: Saved as `.mat` files with tracks, options, and statistics
 
 ## Important Implementation Details
 
@@ -98,3 +103,46 @@ The `main.m` function automatically adds all necessary paths:
 - Automatic detection of raw vs. preprocessed data
 - FSL preprocessing called when raw data detected
 - Preprocessing includes motion correction, eddy current correction, brain extraction
+
+## Visualization Components
+
+### Main Visualization Functions
+- **`visualizeTractography.m`**: Unified visualization system with multiple modes:
+  - `'whole'` - Complete 3D brain view with track statistics
+  - `'region'` - Single region analysis with filtering options
+  - `'grid'` - All regions in grid layout
+  - `'sequential'` - Region-by-region sequential viewing
+  - Export capabilities in PNG, PDF, EPS, FIG formats
+
+- **`visualizeTractographySlices.m`**: Interactive 2D slice viewer:
+  - Three orthogonal views: Axial (top), Sagittal (side), Coronal (front)
+  - Interactive sliders for slice navigation
+  - Crosshair synchronization across views
+  - Adjustable slice thickness and track filtering
+  - Real-time updates with FA background overlay
+
+### Track Data Structure
+Each track in the `tracks` cell array represents a complete fiber pathway:
+```matlab
+track = [x1, y1, z1;    % First point (start)
+         x2, y2, z2;    % Second point
+         ...             % Intermediate points along fiber
+         xN, yN, zN];   % Final point (end)
+```
+- **Not just endpoints**: Each track contains the complete 3D trajectory
+- **Variable length**: Tracks contain 10-1000+ points depending on fiber length
+- **Coordinate system**: Voxel space coordinates (X, Y, Z)
+
+### Current Seeding Strategy (Needs Improvement)
+- FA-based seeding creates uneven track distribution
+- Only places seeds where FA exceeds threshold (typically 0.15-0.2)
+- Results in sparse coverage in low-anisotropy regions
+- **Recommendation**: Switch to uniform grid-based seeding for complete brain coverage
+
+## Development Recommendations
+
+### Tractography Improvements Needed
+1. **Grid-based seeding**: Replace FA-threshold seeding with uniform 3D grid
+2. **Dense coverage**: Use very dense seed spacing (0.5-1mm intervals)
+3. **Brain mask constraint**: Limit seeds to brain tissue only (not CSF/background)
+4. **Performance optimization**: Pre-compute seed grids and track intersections

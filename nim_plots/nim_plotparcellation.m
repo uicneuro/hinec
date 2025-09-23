@@ -3,6 +3,11 @@ function fig = nim_plotparcellation(nim, varargin)
 %
 % Arguments:
 %   nim - The nim structure containing parcellation data
+
+% Ensure utils directory is in path for zwuni function
+if ~exist('zwuni', 'file')
+    addpath('utils');
+end
 %   Optional name-value pairs:
 %     'ParcelIDs' - Array of parcel IDs to include (default: all parcels)
 %     'Keyword' - String to filter parcels by name (case-insensitive) (default: '')
@@ -242,9 +247,3 @@ rotate3d on; % Allow rotation
 hold off;
 end
 
-% Helper function (assuming this is defined elsewhere in your code)
-function [x, xp] = zwuni(N)
-% Computes uniformly distributed points in [-1,1]
-x = linspace(-1, 1, N+1);
-xp = x;
-end
