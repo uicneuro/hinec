@@ -49,57 +49,36 @@ if isempty(data_dir)
     data_dir = pwd;
 end
 
-% Look for enhanced preprocessing white matter mask
-wm_mask_file = fullfile(data_dir, [data_name '_WM_mask.nii.gz']);
-if exist(wm_mask_file, 'file')
-    fprintf('Found enhanced preprocessing white matter mask: %s\n', wm_mask_file);
-    try
-        % Load white matter mask from enhanced preprocessing
-        wm_mask = niftiread(wm_mask_file);
-        seed_mask = logical(wm_mask);
-        fprintf('✓ Using enhanced white matter mask for seeding (%d voxels)\n', sum(seed_mask(:)));
-        seeding_strategy = 'enhanced_white_matter';
-    catch ME
-        fprintf('⚠ Could not load WM mask (%s), falling back to FA-based seeding\n', ME.message);
-        seed_mask = [];
-    end
-else
-    seed_mask = [];
-end
+% White matter masking disabled - use brain mask for seeding
+seed_mask = [];
 
-% Fallback seeding strategies if enhanced WM mask not available
+% Use brain mask for comprehensive seeding (preserves parcellation regions)
 if isempty(seed_mask)
-    % Strategy 1: FA-based white matter seeding with boundary erosion
-    if isfield(nim, 'FA') && any(nim.FA(:) > 0.2)
-        fprintf('Creating FA-based white matter mask (FA > 0.2, eroded boundaries)\n');
-        wm_mask = nim.FA > 0.2;  % Higher threshold for white matter
-
-        % Erode to remove boundary voxels that cause artifacts
-        se = strel('sphere', 1);  % 1-voxel erosion
-        wm_mask = imerode(wm_mask, se);
-
-        seed_mask = wm_mask;
-        seeding_strategy = 'fa_based_white_matter';
-        fprintf('✓ Using FA-based white matter seeding (%d voxels)\n', sum(seed_mask(:)));
+    % Strategy 1: Use preprocessed brain mask (best option)
+    if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+        brain_mask = nim.mask > 0.5;
+        fprintf('Using preprocessed brain mask for comprehensive seeding\n');
+        seeding_strategy = 'brain_mask';
+    % Strategy 2: Expand parcellation mask to include surrounding brain tissue
+    elseif isfield(nim, 'parcellation_mask') && any(nim.parcellation_mask(:) > 0)
+        % Create brain-like mask from parcellation + expansion
+        parcel_mask = nim.parcellation_mask > 0;
+        % Dilate parcellation to capture surrounding brain tissue
+        se = strel('sphere', 2);  % 2-voxel dilation
+        brain_mask = imdilate(parcel_mask, se);
+        % Constrain to reasonable FA values to avoid CSF
+        brain_mask = brain_mask & (nim.FA > 0.05);
+        fprintf('Using expanded parcellation mask for brain seeding\n');
+        seeding_strategy = 'expanded_parcellation';
+    % Strategy 3: FA-based fallback (conservative)
     else
-        % Strategy 2: Standard brain mask with erosion
-        if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
-            brain_mask = nim.mask > 0.5;
-            fprintf('Using brain tissue mask with boundary erosion\n');
-        elseif isfield(nim, 'parcellation_mask')
-            brain_mask = nim.parcellation_mask > 0;
-            fprintf('Using parcellation mask with boundary erosion\n');
-        else
-            brain_mask = nim.FA > 0.05;
-            fprintf('⚠ WARNING: Using FA > 0.05 for brain boundary\n');
-        end
-
-        % Erode brain mask to avoid boundary artifacts
-        se = strel('sphere', 1);
-        seed_mask = imerode(brain_mask, se);
-        seeding_strategy = 'eroded_brain_mask';
-        fprintf('✓ Using eroded brain mask for seeding (%d voxels)\n', sum(seed_mask(:)));
+        brain_mask = nim.FA > 0.1;  % Conservative FA threshold
+        fprintf('⚠ Using FA-based brain boundary (FA > 0.1)\n');
+        seeding_strategy = 'fa_based_brain';
     end
+
+    seed_mask = brain_mask;
+    fprintf('✓ Using %s for seeding (%d voxels)\n', seeding_strategy, sum(seed_mask(:)));
 end
 options.seed_mask = seed_mask;
 

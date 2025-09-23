@@ -68,7 +68,6 @@ default_options = struct(...
     'dwell_time', 0.00058, ...
     'eddy_method', 'auto', ...
     'run_eddy', true, ...
-    'create_wm_mask', true, ...
     'improve_mask', true, ...
     'atlas_type', 'HarvardOxford', ...
     'phase_encoding_direction', "", ...
@@ -126,7 +125,7 @@ if options.run_fieldmap_correction
     fprintf('    Phase encoding: %s\n', options.phase_encoding_dir);
 end
 fprintf('  Eddy correction: %s (%s)\n', char(string(options.run_eddy)), options.eddy_method);
-fprintf('  Create WM mask: %s\n', char(string(options.create_wm_mask)));
+fprintf('  Create WM mask: %s (DISABLED - preserves parcellation integrity)\n', char(string(options.create_wm_mask)));
 fprintf('  Mask improvement: %s\n', char(string(options.improve_mask)));
 fprintf('  Atlas type: %s\n', options.atlas_type);
 fprintf('-------------------------------------------\n');
@@ -384,66 +383,12 @@ try
         preprocessing_report.eddy_corrected = false;
     end
 
-    %% Step 7: Enhanced Brain Mask and White Matter Segmentation
-    if options.create_wm_mask
-        fprintf('\n=== Step 7: Enhanced Brain Mask and White Matter Segmentation ===\n');
-        step_start = tic;
+    %% Step 7: Copy processed data to final location
+    fprintf('\n=== Step 7: Copy Processed Data to Final Location ===\n');
 
-        fprintf('Creating white matter mask for improved tractography...\n');
-        wm_mask_file = [file_prefix '_WM_mask.nii.gz'];
-
-        % Create a preliminary white matter mask using simple thresholding
-        % This will be refined after DTI calculation in main.m
-        temp_fa_file = [file_prefix '_temp_fa.nii.gz'];
-
-        % Run quick DTI to get preliminary FA
-        fprintf('Computing preliminary FA for white matter segmentation...\n');
-        try
-            % Basic DTI calculation for FA estimation
-            final_mask_file = [file_prefix '_M.nii.gz'];
-            copyfile(brain_mask_file, final_mask_file);
-
-            cmd = sprintf('%s/bin/dtifit -k %s -o %s_temp_dti -m %s -r %s -b %s', ...
-                fsl_path, current_dwi_file, file_prefix, final_mask_file, current_bvec_file, bval_file);
-            [status, result] = system(cmd);
-
-            if status == 0
-                temp_fa_file = [file_prefix '_temp_dti_FA.nii.gz'];
-                if exist(temp_fa_file, 'file')
-                    % Create white matter mask (FA > 0.2, eroded to avoid boundaries)
-                    cmd = sprintf('%s/bin/fslmaths %s -thr 0.2 -bin %s', fsl_path, temp_fa_file, wm_mask_file);
-                    system(cmd);
-
-                    % Erode to remove boundary voxels
-                    cmd = sprintf('%s/bin/fslmaths %s -ero -ero %s', fsl_path, wm_mask_file, wm_mask_file);
-                    system(cmd);
-
-                    preprocessing_report.wm_mask_file = wm_mask_file;
-                    preprocessing_report.steps_completed{end+1} = 'white_matter_segmentation';
-                    fprintf('✓ White matter mask created for enhanced tractography\n');
-
-                    % Clean up temporary DTI files
-                    temp_files = dir([file_prefix '_temp_dti*']);
-                    for i = 1:length(temp_files)
-                        delete(fullfile(temp_files(i).folder, temp_files(i).name));
-                    end
-                end
-            end
-        catch
-            fprintf('⚠ Could not create white matter mask, will use brain mask\n');
-            preprocessing_report.warnings{end+1} = 'White matter mask creation failed';
-        end
-
-        step_time = toc(step_start);
-        fprintf('Step 7 completed in %.1f seconds\n', step_time);
-    else
-        fprintf('\n=== Step 7: Enhanced Segmentation (SKIPPED) ===\n');
-        final_mask_file = [file_prefix '_M.nii.gz'];
-        copyfile(brain_mask_file, final_mask_file);
-    end
-
-    %% Step 8: Copy processed data to final location
-    fprintf('\n=== Step 8: Copy Processed Data to Final Location ===\n');
+    % Copy brain mask to final location
+    final_mask_file = [file_prefix '_M.nii.gz'];
+    copyfile(brain_mask_file, final_mask_file);
     step_start = tic;
     
     % Define final output bvec file path
@@ -458,10 +403,10 @@ try
     preprocessing_report.steps_completed{end+1} = 'copy_final_data';
     
     step_time = toc(step_start);
-    fprintf('Step 8 completed in %.1f seconds\n', step_time);
+    fprintf('Step 7 completed in %.1f seconds\n', step_time);
 
-    %% Step 9: Atlas processing
-    fprintf('\n=== Step 9: Atlas Processing ===\n');
+    %% Step 8: Atlas processing
+    fprintf('\n=== Step 8: Atlas Processing ===\n');
     step_start = tic;
 
     % Use current_dwi_file (with all corrections) as reference for atlas resampling
@@ -473,10 +418,10 @@ try
     preprocessing_report.steps_completed{end+1} = 'atlas_processing';
     
     step_time = toc(step_start);
-    fprintf('Step 9 completed in %.1f seconds\n', step_time);
+    fprintf('Step 8 completed in %.1f seconds\n', step_time);
 
-    %% Step 10: Finalization
-    fprintf('\n=== Step 10: Finalization ===\n');
+    %% Step 9: Finalization
+    fprintf('\n=== Step 9: Finalization ===\n');
     step_start = tic;
     
     % Copy files to final locations with standard names
@@ -521,7 +466,7 @@ preprocessing_report.final_bval_file = final_output_bval;
     preprocessing_report.final_mask_file = final_output_mask;
     
     step_time = toc(step_start);
-    fprintf('Step 10 completed in %.1f seconds\n', step_time);
+    fprintf('Step 9 completed in %.1f seconds\n', step_time);
 
     % Finalize report
     preprocessing_report.end_time = datetime('now');
