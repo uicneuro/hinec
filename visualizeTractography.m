@@ -912,11 +912,25 @@ function track_labels = get_track_parcellation_labels(track, parcellation_mask)
 % Get parcellation labels for each point along the track
 track_labels = zeros(size(track, 1), 1);
 
-for i = 1:size(track, 1)
-    pos = round(track(i, :));
+mask_dims = size(parcellation_mask);
 
-    % Check bounds
-    if all(pos >= 1) && all(pos <= size(parcellation_mask))
+for i = 1:size(track, 1)
+    % Convert from continuous coordinates to discrete voxel indices
+    pos_continuous = track(i, :);
+
+    % Ensure we have exactly 3 coordinates
+    if length(pos_continuous) ~= 3
+        continue;
+    end
+
+    % Round to nearest voxel and clamp to valid range
+    pos = round(pos_continuous);
+    pos = max(1, min(pos, mask_dims));  % Clamp to valid indices
+
+    % Additional bounds check (should be redundant now)
+    if pos(1) >= 1 && pos(1) <= mask_dims(1) && ...
+       pos(2) >= 1 && pos(2) <= mask_dims(2) && ...
+       pos(3) >= 1 && pos(3) <= mask_dims(3)
         track_labels(i) = parcellation_mask(pos(1), pos(2), pos(3));
     end
 end

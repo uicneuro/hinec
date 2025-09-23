@@ -463,9 +463,10 @@ try
     %% Step 9: Atlas processing
     fprintf('\n=== Step 9: Atlas Processing ===\n');
     step_start = tic;
-    
+
+    % Use current_dwi_file (with all corrections) as reference for atlas resampling
     [parcellation_mask_output, atlas_labels_file] = preproc_atlas_resampling(...
-        output_file, output_dir, file_prefix, options.atlas_type);
+        current_dwi_file, output_dir, file_prefix, options.atlas_type);
     
     preprocessing_report.parcellation_mask = parcellation_mask_output;
     preprocessing_report.atlas_labels_file = atlas_labels_file;
