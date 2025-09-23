@@ -127,6 +127,13 @@ end
 fprintf('  Eddy correction: %s (%s)\n', char(string(options.run_eddy)), options.eddy_method);
 fprintf('  Mask improvement: %s\n', char(string(options.improve_mask)));
 fprintf('  Atlas type: %s\n', options.atlas_type);
+if isfield(options, 'use_t1_registration') && options.use_t1_registration
+    fprintf('  T1 integration: enabled (%s)\n', options.t1_file);
+    fprintf('    - Brain extraction: T1-based for improved accuracy\n');
+    fprintf('    - Atlas registration: T1-guided (MNI→T1→DWI)\n');
+else
+    fprintf('  T1 integration: disabled (DWI-only processing)\n');
+end
 fprintf('-------------------------------------------\n');
 
 % Initialize preprocessing report
@@ -186,14 +193,49 @@ try
     step_time = toc(step_start);
     fprintf('Step 1 completed in %.1f seconds\n', step_time);
     
-    %% Step 2: Initial brain extraction
-    fprintf('\n=== Step 2: Initial Brain Extraction ===\n');
+    %% Step 2: Brain extraction (T1-based if available)
+    fprintf('\n=== Step 2: Brain Extraction ===\n');
     step_start = tic;
-    
-    initial_brain_mask_file = [file_prefix '_M_initial.nii.gz'];
-    brain_mask_file = preproc_brain_extraction(b0_file, output_dir, initial_brain_mask_file);
+
+    if isfield(options, 'use_t1_registration') && options.use_t1_registration && isfield(options, 't1_available') && options.t1_available
+        fprintf('Using T1-based brain extraction for improved accuracy...\n');
+
+        % Perform T1 brain extraction first
+        [t1_brain_file, t1_brain_mask_file] = preproc_t1_brain_extraction(options.t1_file, output_dir);
+
+        % Create T1-DWI registration for mask transfer
+        fprintf('Registering T1 brain mask to DWI space...\n');
+        t1_to_dwi_mat = preproc_t1_dwi_registration(b0_file, options.t1_file, t1_brain_file, output_dir, file_prefix);
+
+        % Transform T1 brain mask to DWI space
+        brain_mask_file = [file_prefix '_M_initial.nii.gz'];
+        fsl_path = getenv('FSLDIR');
+        cmd_transform = sprintf('%s/bin/flirt -in %s -ref %s -applyxfm -init %s -interp nearestneighbour -out %s', ...
+            fsl_path, t1_brain_mask_file, b0_file, t1_to_dwi_mat, brain_mask_file);
+
+        fprintf('Running: %s\n', cmd_transform);
+        [status, cmdout] = system(cmd_transform);
+
+        if status ~= 0
+            fprintf('T1 brain mask transformation failed, falling back to DWI-based extraction: %s\n', cmdout);
+            brain_mask_file = preproc_brain_extraction(b0_file, output_dir, brain_mask_file);
+        else
+            fprintf('✓ T1-derived brain mask successfully transferred to DWI space\n');
+        end
+
+        preprocessing_report.t1_brain_extraction = true;
+        preprocessing_report.t1_brain_file = t1_brain_file;
+        preprocessing_report.t1_brain_mask_file = t1_brain_mask_file;
+        preprocessing_report.early_t1_to_dwi_mat = t1_to_dwi_mat;
+    else
+        fprintf('T1 not available, using DWI-based brain extraction...\n');
+        initial_brain_mask_file = [file_prefix '_M_initial.nii.gz'];
+        brain_mask_file = preproc_brain_extraction(b0_file, output_dir, initial_brain_mask_file);
+        preprocessing_report.t1_brain_extraction = false;
+    end
+
     preprocessing_report.initial_brain_mask_file = brain_mask_file;
-    preprocessing_report.steps_completed{end+1} = 'initial_brain_extraction';
+    preprocessing_report.steps_completed{end+1} = 'brain_extraction';
     
     step_time = toc(step_start);
     fprintf('Step 2 completed in %.1f seconds\n', step_time);
@@ -404,8 +446,59 @@ try
     step_time = toc(step_start);
     fprintf('Step 7 completed in %.1f seconds\n', step_time);
 
-    %% Step 8: Atlas processing
-    fprintf('\n=== Step 8: Atlas Processing ===\n');
+    %% Step 8: T1 Preprocessing and Registration (if available)
+    if isfield(options, 'use_t1_registration') && options.use_t1_registration && isfield(options, 't1_available') && options.t1_available
+        fprintf('\n=== Step 8: T1 Preprocessing and Registration ===\n');
+        step_start = tic;
+
+        fprintf('T1 structural data available, completing T1-based registration...\n');
+
+        % Check if T1 brain extraction was already done in Step 2
+        if isfield(preprocessing_report, 't1_brain_extraction') && preprocessing_report.t1_brain_extraction
+            fprintf('Reusing T1 brain extraction from Step 2...\n');
+            t1_brain_file = preprocessing_report.t1_brain_file;
+            t1_brain_mask_file = preprocessing_report.t1_brain_mask_file;
+        else
+            fprintf('Performing T1 brain extraction...\n');
+            [t1_brain_file, t1_brain_mask_file] = preproc_t1_brain_extraction(options.t1_file, output_dir);
+        end
+
+        % Create DWI reference
+        fprintf('Creating DWI reference volume...\n');
+        dwi_ref_file = preproc_create_dwi_reference(current_dwi_file, final_mask_file, output_dir, file_prefix);
+
+        % Check if early T1-DWI registration was done in Step 2, if so refine it with final DWI
+        if isfield(preprocessing_report, 'early_t1_to_dwi_mat') && isfile(preprocessing_report.early_t1_to_dwi_mat)
+            fprintf('Refining T1-DWI registration with final processed DWI...\n');
+            t1_to_dwi_mat = preproc_t1_dwi_registration(dwi_ref_file, options.t1_file, t1_brain_file, output_dir, file_prefix);
+        else
+            fprintf('Performing T1-DWI registration...\n');
+            t1_to_dwi_mat = preproc_t1_dwi_registration(dwi_ref_file, options.t1_file, t1_brain_file, output_dir, file_prefix);
+        end
+
+        % T1-MNI registration
+        fprintf('Performing T1-MNI registration...\n');
+        mni_to_t1_warp = preproc_t1_mni_registration(options.t1_file, t1_brain_file, output_dir, file_prefix);
+
+        % Update preprocessing report
+        preprocessing_report.t1_brain_file = t1_brain_file;
+        preprocessing_report.t1_brain_mask_file = t1_brain_mask_file;
+        preprocessing_report.dwi_ref_file = dwi_ref_file;
+        preprocessing_report.t1_to_dwi_mat = t1_to_dwi_mat;
+        preprocessing_report.mni_to_t1_warp = mni_to_t1_warp;
+        preprocessing_report.t1_registration_completed = true;
+        preprocessing_report.steps_completed{end+1} = 't1_preprocessing';
+
+        step_time = toc(step_start);
+        fprintf('Step 8 completed in %.1f seconds\n', step_time);
+    else
+        fprintf('\n=== Step 8: T1 Preprocessing (SKIPPED) ===\n');
+        fprintf('T1 data not available or T1 registration disabled\n');
+        preprocessing_report.t1_registration_completed = false;
+    end
+
+    %% Step 9: Atlas processing
+    fprintf('\n=== Step 9: Atlas Processing ===\n');
     step_start = tic;
 
     % Use current_dwi_file (with all corrections) as reference for atlas resampling
@@ -415,12 +508,12 @@ try
     preprocessing_report.parcellation_mask = parcellation_mask_output;
     preprocessing_report.atlas_labels_file = atlas_labels_file;
     preprocessing_report.steps_completed{end+1} = 'atlas_processing';
-    
-    step_time = toc(step_start);
-    fprintf('Step 8 completed in %.1f seconds\n', step_time);
 
-    %% Step 9: Finalization
-    fprintf('\n=== Step 9: Finalization ===\n');
+    step_time = toc(step_start);
+    fprintf('Step 9 completed in %.1f seconds\n', step_time);
+
+    %% Step 10: Finalization
+    fprintf('\n=== Step 10: Finalization ===\n');
     step_start = tic;
     
     % Copy files to final locations with standard names
@@ -461,9 +554,9 @@ preprocessing_report.final_dwi_file = output_file;
 preprocessing_report.final_bvec_file = final_bvec_file;
 preprocessing_report.final_bval_file = final_output_bval;
     preprocessing_report.final_mask_file = final_output_mask;
-    
+
     step_time = toc(step_start);
-    fprintf('Step 9 completed in %.1f seconds\n', step_time);
+    fprintf('Step 10 completed in %.1f seconds\n', step_time);
 
     % Finalize report
     preprocessing_report.end_time = datetime('now');

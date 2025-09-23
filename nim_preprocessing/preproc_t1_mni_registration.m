@@ -99,7 +99,7 @@ try
     end
 
 catch ME
-    warning('Could not validate T1-MNI transformation: %s', ME.message);
+    warning(ME.identifier, 'Could not validate T1-MNI transformation: %s', ME.message);
 end
 
 fprintf('✓ T1-MNI registration completed\n');

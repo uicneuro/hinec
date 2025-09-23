@@ -64,22 +64,22 @@ try
     % Check that the reference has reasonable intensity values
     cmd_stats = sprintf('%s/bin/fslstats %s -M -S', fsl_path, dwi_ref_file);
     [status, stats_output] = system(cmd_stats);
-
+    
     if status == 0
         stats = str2num(stats_output);
         if length(stats) >= 2
             mean_intensity = stats(1);
             std_intensity = stats(2);
-
+            
             fprintf('DWI reference statistics: mean=%.1f, std=%.1f\n', mean_intensity, std_intensity);
-
+            
             if mean_intensity < 10 || std_intensity < 1
                 warning('DWI reference may have low intensity values');
             end
         end
     end
 catch ME
-    warning('Could not validate DWI reference statistics: %s', ME.message);
+    warning(ME.identifier, 'Could not validate DWI reference statistics: %s', ME.message);
 end
 
 fprintf('✓ DWI reference volume created: %s\n', dwi_ref_file);

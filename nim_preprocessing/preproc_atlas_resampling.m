@@ -49,27 +49,27 @@ try
     if ~exist('nim_load_atlas_labels', 'file')
         addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'nim_utils'));
     end
-
+    
     % Load the atlas labels
     atlas_labels = nim_load_atlas_labels(atlas_type);
     fprintf('Loaded %d parcellation labels\n', atlas_labels.map.Count);
-
+    
     % Add atlas type information to the structure
     atlas_labels.atlas_type = atlas_type;
-
+    
     % For JHU atlases, also add which specific variant was used
     if strcmpi(atlas_type, 'JHU') || strcmpi(atlas_type, 'JHU-tract')
         [~, atlas_name, ~] = fileparts(atlas_path);
         atlas_labels.atlas_variant = atlas_name;
     end
-
+    
     % Save the atlas labels
     save(atlas_labels_file, 'atlas_labels');
-
+    
     % Get file size for reporting
     file_info = dir(atlas_labels_file);
     fprintf('✓ Atlas labels saved: %s (%.1f MB)\n', atlas_labels_file, file_info.bytes/1024/1024);
-
+    
 catch ex
     warning(ex.identifier, 'Error loading atlas labels: %s', ex.message);
     atlas_labels_file = ''; % Return empty if failed
@@ -192,49 +192,49 @@ try
     % Check label value range
     cmd_range = sprintf('%s/bin/fslstats %s -R', fsl_path, atlas_file);
     [status, range_output] = system(cmd_range);
-
+    
     if status == 0
         range_values = str2num(range_output);
         if length(range_values) >= 2
             min_val = range_values(1);
             max_val = range_values(2);
-
+            
             fprintf('Atlas label range: %.0f to %.0f\n', min_val, max_val);
-
+            
             % Check if values are integers (as expected for labels)
             if abs(min_val - round(min_val)) > 0.01 || abs(max_val - round(max_val)) > 0.01
                 warning('Atlas contains non-integer values - may indicate interpolation issues');
             end
-
+            
             % Check if range is reasonable for anatomical atlas
             if max_val > 200
                 warning('Atlas has unusually high label values (max: %.0f)', max_val);
             end
-
+            
             if min_val < 0
                 warning('Atlas contains negative values');
             end
         end
     end
-
+    
     % Check voxel count
     cmd_voxels = sprintf('%s/bin/fslstats %s -V', fsl_path, atlas_file);
     [status, voxel_output] = system(cmd_voxels);
-
+    
     if status == 0
         voxel_info = str2num(voxel_output);
         if length(voxel_info) >= 1
             nonzero_voxels = voxel_info(1);
             fprintf('Atlas coverage: %d non-zero voxels\n', nonzero_voxels);
-
+            
             if nonzero_voxels < 1000
                 warning('Atlas has very few non-zero voxels (%d) - registration may have failed', nonzero_voxels);
             end
         end
     end
-
+    
 catch ME
-    warning('Atlas validation failed: %s', ME.message);
+    warning(ME.identifier, 'Atlas validation failed: %s', ME.message);
 end
 
 fprintf('✓ Atlas validation completed\n');
@@ -247,15 +247,15 @@ switch lower(atlas_type)
     case 'jhu'
         % JHU White-Matter labels atlas
         atlas_path = fullfile(fsl_path, 'data/atlases/JHU/JHU-ICBM-labels-1mm.nii.gz');
-
+        
     case 'jhu-tract'
         % JHU White-Matter Tract atlas (maxprob)
         atlas_path = fullfile(fsl_path, 'data/atlases/JHU/JHU-ICBM-tracts-maxprob-thr0-1mm.nii.gz');
-
+        
     case 'harvardoxford'
         % Harvard-Oxford cortical atlas (default)
         atlas_path = fullfile(fsl_path, 'data/atlases/HarvardOxford/HarvardOxford-cort-maxprob-thr0-1mm.nii.gz');
-
+        
     otherwise
         % Default to Harvard-Oxford if unknown type
         warning('Unknown atlas type "%s", defaulting to HarvardOxford', atlas_type);

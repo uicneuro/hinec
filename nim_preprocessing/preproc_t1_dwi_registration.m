@@ -51,19 +51,19 @@ try
     if size(transform_data, 1) ~= 4 || size(transform_data, 2) ~= 4
         warning('T1-DWI transformation matrix has unexpected dimensions');
     end
-
+    
     % Check for reasonable translation values (should be < 50mm typically)
     translation_x = abs(transform_data(1, 4));
     translation_y = abs(transform_data(2, 4));
     translation_z = abs(transform_data(3, 4));
-
+    
     if translation_x > 100 || translation_y > 100 || translation_z > 100
         warning('T1-DWI registration may have failed: large translations detected (%.1f, %.1f, %.1f)', ...
             translation_x, translation_y, translation_z);
     end
-
+    
 catch ME
-    warning('Could not validate T1-DWI transformation matrix: %s', ME.message);
+    warning(ME.identifier, 'Could not validate T1-DWI transformation matrix: %s', ME.message);
 end
 
 fprintf('✓ T1-DWI registration completed\n');
