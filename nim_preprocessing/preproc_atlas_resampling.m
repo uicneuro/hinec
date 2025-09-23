@@ -91,9 +91,12 @@ fprintf('Performing T1-based atlas registration (MNI→T1→DWI)...\n');
 
 fsl_path = getenv('FSLDIR');
 
+% Extract just the filename part from file_prefix to avoid duplicate directory paths
+[~, filename_only] = fileparts(file_prefix);
+
 % Step 1: Create T1 brain extraction if not already done
-t1_brain_file = fullfile(output_dir, [file_prefix '_T1_brain.nii.gz']);
-t1_brain_mask_file = fullfile(output_dir, [file_prefix '_T1_brain_mask.nii.gz']);
+t1_brain_file = fullfile(output_dir, [filename_only '_T1_brain.nii.gz']);
+t1_brain_mask_file = fullfile(output_dir, [filename_only '_T1_brain_mask.nii.gz']);
 
 if ~isfile(t1_brain_file) || ~isfile(t1_brain_mask_file)
     fprintf('Performing T1 brain extraction...\n');
@@ -101,23 +104,23 @@ if ~isfile(t1_brain_file) || ~isfile(t1_brain_mask_file)
 end
 
 % Step 2: Create DWI reference if not already done
-dwi_ref_final = fullfile(output_dir, [file_prefix '_dwi_ref.nii.gz']);
+dwi_ref_final = fullfile(output_dir, [filename_only '_dwi_ref.nii.gz']);
 if ~isfile(dwi_ref_final)
     fprintf('Creating DWI reference volume...\n');
-    brain_mask_file = fullfile(output_dir, [file_prefix '_M.nii.gz']);
+    brain_mask_file = fullfile(output_dir, [filename_only '_M.nii.gz']);
     dwi_ref_final = preproc_create_dwi_reference(dwi_ref_file, brain_mask_file, output_dir, file_prefix);
 end
 dwi_ref_file = dwi_ref_final;
 
 % Step 3: T1-DWI registration if not already done
-t1_to_dwi_mat = fullfile(output_dir, [file_prefix '_T1_to_dwi.mat']);
+t1_to_dwi_mat = fullfile(output_dir, [filename_only '_T1_to_dwi.mat']);
 if ~isfile(t1_to_dwi_mat)
     fprintf('Performing T1-DWI registration...\n');
     t1_to_dwi_mat = preproc_t1_dwi_registration(dwi_ref_file, options.t1_file, t1_brain_file, output_dir, file_prefix);
 end
 
 % Step 4: T1-MNI registration if not already done
-mni_to_t1_warp = fullfile(output_dir, [file_prefix '_MNI_to_T1_warp.nii.gz']);
+mni_to_t1_warp = fullfile(output_dir, [filename_only '_MNI_to_T1_warp.nii.gz']);
 if ~isfile(mni_to_t1_warp)
     fprintf('Performing T1-MNI registration...\n');
     mni_to_t1_warp = preproc_t1_mni_registration(options.t1_file, t1_brain_file, output_dir, file_prefix);

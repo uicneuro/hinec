@@ -25,10 +25,12 @@ if ~isfile(mni_template)
 end
 
 % Define output file paths
-t1_to_mni_lin_mat = fullfile(output_dir, [file_prefix '_T1_to_MNI_lin.mat']);
-t1_to_mni_lin_img = fullfile(output_dir, [file_prefix '_T1_to_MNI_lin.nii.gz']);
-t1_to_mni_warp = fullfile(output_dir, [file_prefix '_T1_to_MNI_warp']);
-mni_to_t1_warp = fullfile(output_dir, [file_prefix '_MNI_to_T1_warp.nii.gz']);
+% Extract just the filename part from file_prefix to avoid duplicate directory paths
+[~, filename_only] = fileparts(file_prefix);
+t1_to_mni_lin_mat = fullfile(output_dir, [filename_only '_T1_to_MNI_lin.mat']);
+t1_to_mni_lin_img = fullfile(output_dir, [filename_only '_T1_to_MNI_lin.nii.gz']);
+t1_to_mni_warp = fullfile(output_dir, [filename_only '_T1_to_MNI_warp']);
+mni_to_t1_warp = fullfile(output_dir, [filename_only '_MNI_to_T1_warp.nii.gz']);
 
 %% Step 1: Linear pre-alignment using FLIRT
 fprintf('Step 1: Linear T1 to MNI registration...\n');

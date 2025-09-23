@@ -19,8 +19,10 @@ if isempty(fsl_path)
 end
 
 % Define output file paths
-b0_temp_file = fullfile(output_dir, [file_prefix '_b0_temp.nii.gz']);
-dwi_ref_file = fullfile(output_dir, [file_prefix '_dwi_ref.nii.gz']);
+% Extract just the filename part from file_prefix to avoid duplicate directory paths
+[~, filename_only] = fileparts(file_prefix);
+b0_temp_file = fullfile(output_dir, [filename_only '_b0_temp.nii.gz']);
+dwi_ref_file = fullfile(output_dir, [filename_only '_dwi_ref.nii.gz']);
 
 %% Step 1: Extract B0 volume from processed DWI
 fprintf('Extracting B0 volume from processed DWI...\n');
