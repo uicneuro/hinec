@@ -120,7 +120,7 @@ else
             preproc_options.run_motion_correction = true;
             preproc_options.run_eddy = true;
             preproc_options.improve_mask = true;
-            preproc_options.atlas_type = 'JHU-labels';
+            preproc_options.atlas_type = 'jhu';
         end
         
         % Add T1 registration options
