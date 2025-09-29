@@ -98,7 +98,7 @@ else
     % Check if the raw data exists
     if isfile(raw_file)
         fprintf("Found raw data: %s\n", raw_file);
-
+        
         % Check for T1 structural data
         if isfile(t1_file)
             fprintf("Found T1 structural data: %s\n", t1_file);
@@ -107,9 +107,9 @@ else
             fprintf("T1 structural data not found: %s\n", t1_file);
             t1_available = false;
         end
-
+        
         fprintf("Starting preprocessing...\n");
-
+        
         % Set up preprocessing options
         if isfield(options, 'preprocessing_options')
             preproc_options = options.preprocessing_options;
@@ -120,9 +120,9 @@ else
             preproc_options.run_motion_correction = true;
             preproc_options.run_eddy = true;
             preproc_options.improve_mask = true;
-            preproc_options.atlas_type = 'JHU-tract';
+            preproc_options.atlas_type = 'JHU-labels';
         end
-
+        
         % Add T1 registration options
         preproc_options.t1_available = t1_available;
         preproc_options.t1_file = t1_file;
