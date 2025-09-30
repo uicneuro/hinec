@@ -356,9 +356,25 @@ try
     optimizedSliceRenderer(ax, orient_char, slice_idx, slices, nim, tracks, ...
                          slice_lookup, options, dims);
 
-    % Configure for high-quality export
+    % Configure for high-quality export with fixed dimensions
     set(ax, 'Position', [0, 0, 1, 1]); % Full figure
-    axis(ax, 'off'); % Remove axes
+    axis(ax, 'tight'); % Fit to data first
+    axis(ax, 'equal'); % Equal aspect ratio
+
+    % Force fixed axis limits based on brain dimensions
+    switch orientation
+        case 'axial'
+            xlim(ax, [0.5, dims(1)+0.5]);
+            ylim(ax, [0.5, dims(2)+0.5]);
+        case 'sagittal'
+            xlim(ax, [0.5, dims(2)+0.5]);
+            ylim(ax, [0.5, dims(3)+0.5]);
+        case 'coronal'
+            xlim(ax, [0.5, dims(1)+0.5]);
+            ylim(ax, [0.5, dims(3)+0.5]);
+    end
+
+    axis(ax, 'off'); % Remove axes labels
     set(fig, 'InvertHardcopy', 'off');
 
     % Save image using exportgraphics (more reliable than print)
@@ -380,9 +396,16 @@ try
         validateImageQuality(filepath);
     end
 
-finally
+catch ME
     close(fig);
+    fprintf('✗ CRITICAL ERROR in generateSingleSlice(%s, %d): %s\n', orientation, slice_idx, ME.message);
+    if ~isempty(ME.stack)
+        fprintf('   Stack: %s (line %d)\n', ME.stack(1).name, ME.stack(1).line);
+    end
+    rethrow(ME);
 end
+
+close(fig);
 end
 
 
