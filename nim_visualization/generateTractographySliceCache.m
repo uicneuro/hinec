@@ -312,8 +312,11 @@ for slice_idx = 1:num_slices
         updateProgress(progress, options);
 
     catch ME
-        fprintf('Error generating %s slice %d: %s\n', orientation, slice_idx, ME.message);
+        fprintf('✗ Error generating %s slice %d: %s\n', orientation, slice_idx, ME.message);
+        fprintf('   Stack: %s (line %d)\n', ME.stack(1).name, ME.stack(1).line);
         success = false;
+        % Don't hide errors - rethrow for debugging
+        rethrow(ME);
     end
 end
 end
@@ -358,13 +361,18 @@ try
     axis(ax, 'off'); % Remove axes
     set(fig, 'InvertHardcopy', 'off');
 
-    % Save image
-    switch options.image_format
-        case 'png'
-            print(fig, filepath, '-dpng', sprintf('-r%d', 150));
-        case 'jpg'
-            print(fig, filepath, '-djpeg', sprintf('-r%d', 150), ...
-                  sprintf('-q%d', options.compression_level));
+    % Save image using exportgraphics (more reliable than print)
+    try
+        exportgraphics(ax, filepath, 'Resolution', 150);
+    catch
+        % Fallback to print if exportgraphics fails
+        switch options.image_format
+            case 'png'
+                print(fig, filepath, '-dpng', sprintf('-r%d', 150));
+            case 'jpg'
+                print(fig, filepath, '-djpeg', sprintf('-r%d', 150), ...
+                      sprintf('-q%d', options.compression_level));
+        end
     end
 
     % Quality validation
