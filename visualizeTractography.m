@@ -10,6 +10,7 @@ function visualizeTractography(tracks_file, nim_file, varargin)
 % Usage:
 %   visualizeTractography(tracks_file, nim_file)                           % Whole brain
 %   visualizeTractography(tracks_file, nim_file, 'region', 5)              % Single region
+%   visualizeTractography(tracks_file, nim_file, 'region', [5, 10, 15])    % Multiple regions
 %   visualizeTractography(tracks_file, nim_file, 'mode', 'grid')           % All regions grid
 %   visualizeTractography(tracks_file, nim_file, 'mode', 'sequential')     % Sequential regions
 %   visualizeTractography(..., 'export_dir', 'figures/')                  % With image export
@@ -21,13 +22,14 @@ function visualizeTractography(tracks_file, nim_file, varargin)
 %
 % Parameters:
 %   'mode' - 'whole', 'region', 'grid', 'sequential' (default: 'whole')
-%   'region' - Region ID for single region mode (alternative to mode='region')
+%   'region' - Region ID or array of IDs for single/multi-region mode
 %   'export_dir' - Directory for image export (auto-creates subdirectories)
 %   'export_format' - 'png', 'pdf', 'eps', 'fig' (default: 'png')
 %   'export_dpi' - Export resolution (default: 300)
 %
 % Track Filtering:
 %   'filter_mode' - 'pass_through', 'start_in', 'end_in', 'connect_to' (default: 'pass_through')
+%   'region_filter' - Alternative to filter_mode for consistency with slice viewer
 %   'min_overlap' - Minimum region overlap ratio 0-1 (default: 0.05)
 %   'min_region_points' - Minimum in-region track points for pass-through (default: 3)
 %   'max_tracks' - Max tracks to display (default: 2000 whole, inf others)
@@ -78,7 +80,7 @@ addRequired(p, 'nim_file');
 
 % Mode selection - support both 'mode' and direct 'region' for compatibility
 addParameter(p, 'mode', 'whole', @(x) ismember(x, {'whole', 'region', 'grid', 'sequential'}));
-addParameter(p, 'region', [], @(x) isempty(x) || (isnumeric(x) && x > 0));
+addParameter(p, 'region', [], @(x) isempty(x) || (isnumeric(x) && all(x > 0)));
 
 % Export parameters
 addParameter(p, 'export_dir', '', @(x) ischar(x) || isstring(x));
@@ -87,6 +89,7 @@ addParameter(p, 'export_dpi', 300, @(x) isnumeric(x) && x > 0);
 
 % Track filtering parameters
 addParameter(p, 'filter_mode', 'pass_through', @(x) ismember(x, {'pass_through', 'start_in', 'end_in', 'connect_to'}));
+addParameter(p, 'region_filter', 'pass_through', @(x) ismember(x, {'pass_through', 'start_in', 'end_in'})); % For consistency with slice viewer
 addParameter(p, 'min_overlap', 0.05, @(x) isnumeric(x) && x >= 0 && x <= 1);
 addParameter(p, 'min_region_points', 3, @(x) isnumeric(x) && x >= 0);
 addParameter(p, 'max_tracks', [], @(x) isempty(x) || (isnumeric(x) && x > 0));
@@ -121,12 +124,31 @@ if ~isempty(options.show_background)
     options.show_anatomy = options.show_background;
 end
 
+% Handle region_filter parameter consistency (prefer region_filter if explicitly set)
+if ~strcmp(options.region_filter, 'pass_through') || strcmp(options.filter_mode, 'pass_through')
+    % If region_filter was explicitly changed from default, use it
+    % Otherwise, keep filter_mode for backward compatibility
+    if ~strcmp(options.region_filter, 'pass_through')
+        options.filter_mode = options.region_filter;
+    end
+end
+
 % Auto-detect mode from 'region' parameter
 if ~isempty(options.region)
     options.mode = 'region';
     options.region_id = options.region;
+    % Handle multiple regions
+    if length(options.region) > 1
+        options.region_ids = options.region;
+        options.multi_region = true;
+    else
+        options.region_ids = options.region;
+        options.multi_region = false;
+    end
 else
     options.region_id = [];
+    options.region_ids = [];
+    options.multi_region = false;
 end
 
 % Auto-enable silent export when export directory is specified
@@ -138,7 +160,7 @@ end
 
 % Validate mode-specific requirements
 if strcmp(options.mode, 'region') && isempty(options.region_id)
-    error('region_id is required when mode is "region". Use: visualizeTractography(..., "region", 5)');
+    error('region_id is required when mode is "region". Use: visualizeTractography(..., "region", 5) or visualizeTractography(..., "region", [5, 12, 23])');
 end
 
 % Normalize thresholds
@@ -358,20 +380,57 @@ end
 %% ============================================================================
 
 function [fig_handle, export_filename] = visualize_single_region(tracks, nim, options)
-% Complete single region visualization with detailed analysis
+% Complete single or multi-region visualization with detailed analysis
 
-region_id = options.region_id;
-fprintf('=== Visualizing Region %d Tractography ===\n', region_id);
+if options.multi_region
+    fprintf('=== Visualizing Multi-Region Tractography ===\n');
+    fprintf('Regions: %s\n', mat2str(options.region_ids));
+else
+    region_id = options.region_ids(1);
+    fprintf('=== Visualizing Region %d Tractography ===\n', region_id);
+end
 
 %% Display region information
-display_region_info(nim, region_id);
+if options.multi_region
+    for i = 1:length(options.region_ids)
+        fprintf('Region %d info:\n', options.region_ids(i));
+        display_region_info(nim, options.region_ids(i));
+    end
+else
+    display_region_info(nim, options.region_ids(1));
+end
 
-%% Filter tracks for the region
-fprintf('Filtering tracks for region %d (%s mode)...\n', region_id, options.filter_mode);
-filtered_tracks = filter_tracks_by_region(tracks, nim.parcellation_mask, region_id, options);
+%% Filter tracks for the region(s)
+if options.multi_region
+    fprintf('Filtering tracks for multiple regions (%s mode)...\n', options.filter_mode);
+    filtered_tracks = {};
+    total_tracks = 0;
+
+    for i = 1:length(options.region_ids)
+        region_id = options.region_ids(i);
+        region_tracks = filter_tracks_by_region(tracks, nim.parcellation_mask, region_id, options);
+        if ~isempty(region_tracks)
+            filtered_tracks = [filtered_tracks; region_tracks];
+            total_tracks = total_tracks + length(region_tracks);
+            fprintf('Region %d: %d tracks\n', region_id, length(region_tracks));
+        else
+            fprintf('Region %d: No tracks found\n', region_id);
+        end
+    end
+    filtered_tracks = filtered_tracks(:);
+else
+    region_id = options.region_ids(1);
+    fprintf('Filtering tracks for region %d (%s mode)...\n', region_id, options.filter_mode);
+    filtered_tracks = filter_tracks_by_region(tracks, nim.parcellation_mask, region_id, options);
+    total_tracks = length(filtered_tracks);
+end
 
 if isempty(filtered_tracks)
-    warning('No tracks found for region %d with current filter settings', region_id);
+    if options.multi_region
+        warning('No tracks found for any of the specified regions with current filter settings');
+    else
+        warning('No tracks found for region %d with current filter settings', options.region_ids(1));
+    end
     if strcmp(options.filter_mode, 'pass_through')
         fprintf('  Hint: lower "min_overlap" (currently %.2f) or "min_region_points" (currently %d) to capture thin tracts.\n', ...
                 options.min_overlap, options.min_region_points);
@@ -381,7 +440,11 @@ if isempty(filtered_tracks)
     return;
 end
 
-fprintf('Found %d tracks related to region %d\n', length(filtered_tracks), region_id);
+if options.multi_region
+    fprintf('Found %d total tracks across %d regions\n', total_tracks, length(options.region_ids));
+else
+    fprintf('Found %d tracks related to region %d\n', total_tracks, options.region_ids(1));
+end
 
 %% Limit tracks if specified
 if ~isinf(options.max_tracks) && length(filtered_tracks) > options.max_tracks
@@ -390,11 +453,21 @@ if ~isinf(options.max_tracks) && length(filtered_tracks) > options.max_tracks
     filtered_tracks = filtered_tracks(track_indices);
 end
 
-%% Get region name and create figure
-region_name = get_region_name(nim, region_id);
-figure_title = sprintf('Region %d Tractography', region_id);
-if ~isempty(region_name) && ~strcmp(region_name, sprintf('Region %d', region_id))
-    figure_title = sprintf('Region %d: %s', region_id, region_name);
+%% Get region name(s) and create figure
+if options.multi_region
+    region_names = arrayfun(@(x) get_region_name(nim, x), options.region_ids, 'UniformOutput', false);
+    if length(options.region_ids) <= 3
+        figure_title = sprintf('Regions %s Tractography', mat2str(options.region_ids));
+    else
+        figure_title = sprintf('Multi-Region Tractography (%d regions)', length(options.region_ids));
+    end
+else
+    region_id = options.region_ids(1);
+    region_name = get_region_name(nim, region_id);
+    figure_title = sprintf('Region %d Tractography', region_id);
+    if ~isempty(region_name) && ~strcmp(region_name, sprintf('Region %d', region_id))
+        figure_title = sprintf('Region %d: %s', region_id, region_name);
+    end
 end
 
 if options.display_figures
@@ -406,7 +479,16 @@ hold on;
 
 %% Show region overlay if requested
 if options.show_region
-    plot_region_overlay(nim.parcellation_mask, region_id, options.region_alpha);
+    if options.multi_region
+        % Plot overlays for all regions with different alpha levels
+        base_alpha = options.region_alpha;
+        for i = 1:length(options.region_ids)
+            current_alpha = base_alpha * (0.5 + 0.5 * i / length(options.region_ids));
+            plot_region_overlay(nim.parcellation_mask, options.region_ids(i), current_alpha);
+        end
+    else
+        plot_region_overlay(nim.parcellation_mask, options.region_ids(1), options.region_alpha);
+    end
 end
 
 %% Show anatomical background
@@ -427,12 +509,25 @@ camlight; lighting gouraud;
 
 %% Add legend and statistics
 add_color_legend(options.color_mode);
-display_track_statistics(filtered_tracks, region_id, region_name, options);
+if options.multi_region
+    display_multi_region_statistics(filtered_tracks, options.region_ids, region_names, options);
+else
+    display_track_statistics(filtered_tracks, options.region_ids(1), region_name, options);
+end
 
 hold off;
 
-export_filename = sprintf('tractography_region-%02d', region_id);
-fprintf('Region %d visualization complete!\n', region_id);
+if options.multi_region
+    if length(options.region_ids) <= 3
+        export_filename = sprintf('tractography_regions-%s', strrep(mat2str(options.region_ids), ' ', '-'));
+    else
+        export_filename = sprintf('tractography_multi-region-%d-regions', length(options.region_ids));
+    end
+    fprintf('Multi-region visualization complete for %d regions!\n', length(options.region_ids));
+else
+    export_filename = sprintf('tractography_region-%02d', options.region_ids(1));
+    fprintf('Region %d visualization complete!\n', options.region_ids(1));
+end
 end
 
 
@@ -1252,6 +1347,41 @@ end
 if options.show_all_tracks
     fprintf('\nIMPORTANT: ALL available tracks are displayed (no limits applied)\n');
 end
+fprintf('=====================================\n');
+end
+
+
+function display_multi_region_statistics(tracks, region_ids, region_names, options)
+% Display statistics for multi-region visualization
+fprintf('\n=== MULTI-REGION TRACK STATISTICS ===\n');
+fprintf('Regions: %s\n', mat2str(region_ids));
+
+% Display region names if available
+if ~isempty(region_names)
+    fprintf('Region names:\n');
+    for i = 1:length(region_ids)
+        fprintf('  Region %d: %s\n', region_ids(i), region_names{i});
+    end
+end
+
+fprintf('Filter mode: %s\n', options.filter_mode);
+fprintf('Minimum overlap: %.1f%%\n', options.min_overlap * 100);
+if strcmp(options.filter_mode, 'pass_through')
+    fprintf('Min in-region points: %d\n', options.min_region_points);
+end
+fprintf('Total tracks across all regions: %d\n', length(tracks));
+
+if ~isempty(tracks)
+    track_lengths = cellfun(@(x) size(x, 1), tracks);
+    fprintf('Track length (points): Mean=%.1f, Min=%d, Max=%d\n', ...
+            mean(track_lengths), min(track_lengths), max(track_lengths));
+
+    % Estimate physical lengths (assuming 1mm spacing)
+    fprintf('Estimated track length (mm): Mean=%.1f, Min=%.1f, Max=%.1f\n', ...
+            mean(track_lengths), min(track_lengths), max(track_lengths));
+end
+
+fprintf('Note: Tracks may connect multiple regions or pass through them\n');
 fprintf('=====================================\n');
 end
 
