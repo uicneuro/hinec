@@ -21,6 +21,9 @@ function visualizeTractographySlices(tracks_file, nim_file, x, y, z, varargin)
 %   'show_anatomy'    - Show FA background (default: true)
 %   'color_mode'      - 'direction' or 'uniform' (default: 'direction')
 %   'alpha'           - FA background transparency (default: 0.6)
+%   'regions'         - Region ID(s) to filter tracks (single number or array)
+%   'region_filter'   - Filter mode: 'pass_through', 'start_in', 'end_in' (default: 'pass_through')
+%   'min_overlap'     - Minimum overlap with region (0-1, default: 0.1)
 
 %% Parse input arguments
 p = inputParser;
@@ -35,6 +38,9 @@ addParameter(p, 'show_crosshairs', true, @islogical);
 addParameter(p, 'color_mode', 'direction', @(x) ismember(x, {'direction', 'uniform'}));
 addParameter(p, 'show_anatomy', true, @islogical);
 addParameter(p, 'alpha', 0.6, @(x) isnumeric(x) && x >= 0 && x <= 1);
+addParameter(p, 'regions', [], @(x) isempty(x) || isnumeric(x));
+addParameter(p, 'region_filter', 'pass_through', @(x) ismember(x, {'pass_through', 'start_in', 'end_in'}));
+addParameter(p, 'min_overlap', 0.1, @(x) isnumeric(x) && x >= 0 && x <= 1);
 
 parse(p, tracks_file, nim_file, x, y, z, varargin{:});
 opts = p.Results;
@@ -75,6 +81,24 @@ end
 dims = size(nim.FA);
 fprintf('Loaded %d tracks | Volume dimensions: %d x %d x %d\n', ...
         length(tracks), dims(1), dims(2), dims(3));
+
+%% Filter tracks by region if specified
+if ~isempty(opts.regions)
+    if ~isfield(nim, 'parcellation_mask')
+        error('Parcellation mask required for region filtering. Run parcellation first.');
+    end
+
+    fprintf('Filtering tracks for region(s): %s\n', mat2str(opts.regions));
+    original_count = length(tracks);
+
+    % Filter tracks based on parcellation regions
+    filtered_tracks = filterTracksByRegion(tracks, nim.parcellation_mask, opts.regions, ...
+                                         opts.region_filter, opts.min_overlap);
+    tracks = filtered_tracks;
+
+    fprintf('Region filtering: %d → %d tracks (%.1f%% retained)\n', ...
+            original_count, length(tracks), 100*length(tracks)/original_count);
+end
 
 % Validate slice coordinates
 x = max(1, min(dims(1), round(x)));
@@ -343,6 +367,94 @@ for idx = 1:length(tracks)
     end
     for zi = transpose(z_idx)
         lookup.z{zi}(end+1) = idx; %#ok<AGROW>
+    end
+end
+end
+
+function filtered_tracks = filterTracksByRegion(tracks, parcellation_mask, region_ids, filter_mode, min_overlap)
+% Filter tracks based on their relationship to specified brain regions
+%
+% Arguments:
+%   tracks - Cell array of tracks
+%   parcellation_mask - 3D parcellation mask
+%   region_ids - Array of region IDs to include
+%   filter_mode - 'pass_through', 'start_in', 'end_in'
+%   min_overlap - Minimum overlap fraction with region (0-1)
+
+if isempty(tracks)
+    filtered_tracks = {};
+    return;
+end
+
+% Ensure region_ids is a row vector
+region_ids = region_ids(:)';
+
+filtered_tracks = cell(length(tracks), 1);
+track_count = 0;
+
+for i = 1:length(tracks)
+    track = tracks{i};
+    if size(track, 1) < 2
+        continue; % Skip tracks that are too short
+    end
+
+    % Get parcellation labels along the track
+    track_labels = getTrackParcellationLabels(track, parcellation_mask);
+    if isempty(track_labels)
+        continue;
+    end
+
+    include_track = false;
+
+    switch filter_mode
+        case 'pass_through'
+            % Track passes through any of the specified regions
+            include_track = any(ismember(track_labels, region_ids));
+
+        case 'start_in'
+            % Track starts in one of the specified regions
+            valid_labels = track_labels(track_labels > 0);
+            if ~isempty(valid_labels)
+                include_track = ismember(valid_labels(1), region_ids);
+            end
+
+        case 'end_in'
+            % Track ends in one of the specified regions
+            valid_labels = track_labels(track_labels > 0);
+            if ~isempty(valid_labels)
+                include_track = ismember(valid_labels(end), region_ids);
+            end
+    end
+
+    % Apply minimum overlap constraint
+    if include_track && min_overlap > 0
+        region_points = sum(ismember(track_labels, region_ids));
+        total_points = length(track_labels);
+        overlap_ratio = region_points / total_points;
+        include_track = overlap_ratio >= min_overlap;
+    end
+
+    if include_track
+        track_count = track_count + 1;
+        filtered_tracks{track_count} = track;
+    end
+end
+
+% Trim to actual size
+filtered_tracks = filtered_tracks(1:track_count);
+end
+
+function track_labels = getTrackParcellationLabels(track, parcellation_mask)
+% Get parcellation labels for each point along a track
+dims = size(parcellation_mask);
+track_labels = zeros(size(track, 1), 1);
+
+for i = 1:size(track, 1)
+    pos = round(track(i, :));
+
+    % Check bounds
+    if all(pos >= 1) && all(pos <= dims)
+        track_labels(i) = parcellation_mask(pos(1), pos(2), pos(3));
     end
 end
 end
