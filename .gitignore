@@ -86,3 +86,5 @@ download.sh
 .claude/*
 AGENTS.md
 CLAUDE.md
+
+*.log

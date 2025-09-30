@@ -24,6 +24,23 @@ hold(ax, 'on');
 % Timing for performance analysis
 render_start = tic;
 
+% Set default options if missing
+if ~isfield(opts, 'show_anatomy')
+    opts.show_anatomy = true;
+end
+if ~isfield(opts, 'show_crosshairs')
+    opts.show_crosshairs = false;
+end
+if ~isfield(opts, 'alpha')
+    opts.alpha = 0.6;
+end
+if ~isfield(opts, 'tolerance')
+    opts.tolerance = 2;
+end
+if ~isfield(opts, 'color_mode')
+    opts.color_mode = 'direction';
+end
+
 show_anatomy = opts.show_anatomy && isfield(nim, 'FA');
 
 switch orientation
@@ -251,4 +268,64 @@ end
 
 % Ensure color is valid RGB
 color = max(0, min(1, color));
+end
+
+
+function tracks_in_slice = getTracksInSlice(tracks, slice_lookup, dimension, position, tolerance)
+% GETTRACKSSINSLICE: Get tracks that intersect a specific slice
+%
+% Uses pre-computed lookup table for fast track retrieval
+%
+% Arguments:
+%   tracks - Cell array of track coordinates
+%   slice_lookup - Pre-computed track-slice lookup structure
+%   dimension - 'x', 'y', or 'z' for slice orientation
+%   position - Slice position (1-based index)
+%   tolerance - Slice thickness in voxels
+
+tracks_in_slice = {};
+if isempty(tracks)
+    return;
+end
+
+switch dimension
+    case 'x'
+        lookup_cells = slice_lookup.x;
+        axis_dim = slice_lookup.dims(1);
+    case 'y'
+        lookup_cells = slice_lookup.y;
+        axis_dim = slice_lookup.dims(2);
+    case 'z'
+        lookup_cells = slice_lookup.z;
+        axis_dim = slice_lookup.dims(3);
+    otherwise
+        lookup_cells = {};
+        axis_dim = 0;
+end
+
+if axis_dim == 0 || isempty(lookup_cells)
+    return;
+end
+
+position = max(1, min(axis_dim, round(position)));
+tolerance = max(0, round(tolerance));
+pos_min = max(1, position - tolerance);
+pos_max = min(axis_dim, position + tolerance);
+
+idx_cells = lookup_cells(pos_min:pos_max);
+
+% Remove empty cells
+idx_cells = idx_cells(~cellfun(@isempty, idx_cells));
+if isempty(idx_cells)
+    return;
+end
+
+% Vertically concatenate all track IDs
+track_ids = vertcat(idx_cells{:});
+track_ids = unique(track_ids);
+if isempty(track_ids)
+    return;
+end
+
+tracks_in_slice = tracks(track_ids);
 end
