@@ -146,13 +146,13 @@ class CacheManager:
             if not self._validate_cache_structure():
                 return False
 
-            # Load global configuration
-            global_config_file = self.cache_root / 'global_config.json'
-            if global_config_file.exists():
-                with open(global_config_file, 'r') as f:
-                    self.global_config = json.load(f)
+            # Load metadata
+            metadata_file = self.cache_root / 'metadata.json'
+            with open(metadata_file, 'r') as f:
+                self.metadata = json.load(f)
 
             logger.info(f"Cache directory loaded: {cache_root}")
+            logger.info(f"Metadata: {self.metadata.get('version', 'unknown')} - {self.metadata.get('created', 'unknown')}")
             return True
 
         except Exception as e:
@@ -164,110 +164,29 @@ class CacheManager:
         if not self.cache_root.exists():
             return False
 
-        datasets_dir = self.cache_root / 'datasets'
-        if not datasets_dir.exists():
+        # Check for metadata file
+        metadata_file = self.cache_root / 'metadata.json'
+        if not metadata_file.exists():
             return False
+
+        # Check for orientation directories
+        orientations = ['axial', 'sagittal', 'coronal']
+        for orient in orientations:
+            orient_dir = self.cache_root / orient
+            if not orient_dir.exists():
+                return False
 
         return True
 
-    def get_available_datasets(self) -> List[Dict[str, Any]]:
-        """Get list of available datasets with metadata."""
-        datasets = []
-        datasets_dir = self.cache_root / 'datasets'
-
-        if not datasets_dir.exists():
-            return datasets
-
-        for dataset_dir in datasets_dir.iterdir():
-            if dataset_dir.is_dir():
-                metadata_file = dataset_dir / 'metadata.json'
-                if metadata_file.exists():
-                    try:
-                        with open(metadata_file, 'r') as f:
-                            metadata = json.load(f)
-
-                        datasets.append({
-                            'hash': dataset_dir.name,
-                            'metadata': metadata,
-                            'path': dataset_dir
-                        })
-                    except Exception as e:
-                        logger.warning(f"Failed to load metadata for {dataset_dir.name}: {e}")
-
-        return datasets
-
-    def get_parameter_sets(self, dataset_hash: str) -> List[Dict[str, Any]]:
-        """Get available parameter sets for a dataset."""
-        param_sets = []
-        param_dir = self.cache_root / 'datasets' / dataset_hash / 'parameters'
-
-        if not param_dir.exists():
-            return param_sets
-
-        for param_dir_path in param_dir.iterdir():
-            if param_dir_path.is_dir():
-                config_file = param_dir_path / 'config.json'
-                if config_file.exists():
-                    try:
-                        with open(config_file, 'r') as f:
-                            config = json.load(f)
-
-                        param_sets.append({
-                            'hash': param_dir_path.name,
-                            'config': config,
-                            'path': param_dir_path
-                        })
-                    except Exception as e:
-                        logger.warning(f"Failed to load config for {param_dir_path.name}: {e}")
-
-        return param_sets
-
-    def load_dataset(self, dataset_hash: str, param_hash: str) -> bool:
-        """Load specific dataset and parameter combination."""
+    def load_images(self) -> bool:
+        """Load and analyze images from cache."""
         try:
-            cache_dir = self.cache_root / 'datasets' / dataset_hash / 'parameters' / param_hash
-
-            if not cache_dir.exists():
-                logger.error(f"Cache directory not found: {cache_dir}")
-                return False
-
-            # Validate required subdirectories
-            orientations = ['axial', 'sagittal', 'coronal']
-            for orientation in orientations:
-                orient_dir = cache_dir / orientation
-                if not orient_dir.exists():
-                    logger.error(f"Missing orientation directory: {orient_dir}")
-                    return False
-
-            self.current_dataset = dataset_hash
-            self.current_params = param_hash
-            self.current_cache_dir = cache_dir
-
-            # Load metadata and configuration
-            self._load_metadata(dataset_hash)
-            self._load_config(cache_dir)
             self._analyze_cache_contents()
-
-            logger.info(f"Dataset loaded: {dataset_hash} with parameters {param_hash}")
+            logger.info(f"Images loaded successfully")
             return True
-
         except Exception as e:
-            logger.error(f"Failed to load dataset: {e}")
+            logger.error(f"Failed to load images: {e}")
             return False
-
-    def _load_metadata(self, dataset_hash: str):
-        """Load dataset metadata."""
-        metadata_file = self.cache_root / 'datasets' / dataset_hash / 'metadata.json'
-        if metadata_file.exists():
-            with open(metadata_file, 'r') as f:
-                self.metadata = json.load(f)
-
-    def _load_config(self, cache_dir: Path):
-        """Load parameter configuration."""
-        config_file = cache_dir / 'config.json'
-        if config_file.exists():
-            with open(config_file, 'r') as f:
-                self.config = json.load(f)
 
     def _analyze_cache_contents(self):
         """Analyze cache contents for slice counts and dimensions."""
@@ -275,7 +194,7 @@ class CacheManager:
         orientations = ['axial', 'sagittal', 'coronal']
 
         for orientation in orientations:
-            orient_dir = self.current_cache_dir / orientation
+            orient_dir = self.cache_root / orientation
             if orient_dir.exists():
                 # Count images
                 image_files = list(orient_dir.glob('*.png')) + list(orient_dir.glob('*.jpg'))
@@ -297,9 +216,9 @@ class CacheManager:
                 return self.image_cache[cache_key]
 
             # Load from disk
-            image_format = self.config.get('parameters', {}).get('image_format', 'png')
+            image_format = self.metadata.get('parameters', {}).get('image_format', 'png')
             filename = f"{orientation}_{slice_idx:03d}.{image_format}"
-            filepath = self.current_cache_dir / orientation / filename
+            filepath = self.cache_root / orientation / filename
 
             if not filepath.exists():
                 logger.warning(f"Image not found: {filepath}")
@@ -509,23 +428,6 @@ class FastTractographyViewer:
 
         ttk.Button(dataset_frame, text="Browse...", command=self.browse_cache_directory).pack(side='right')
 
-        # Dataset and parameter selection
-        selection_frame = ttk.Frame(control_frame)
-        selection_frame.pack(fill='x', padx=5, pady=5)
-
-        ttk.Label(selection_frame, text="Dataset:").grid(row=0, column=0, sticky='w')
-        self.dataset_combo = ttk.Combobox(selection_frame, state='readonly')
-        self.dataset_combo.grid(row=0, column=1, sticky='ew', padx=5)
-        self.dataset_combo.bind('<<ComboboxSelected>>', self.on_dataset_change)
-
-        ttk.Label(selection_frame, text="Parameters:").grid(row=0, column=2, sticky='w')
-        self.params_combo = ttk.Combobox(selection_frame, state='readonly')
-        self.params_combo.grid(row=0, column=3, sticky='ew', padx=5)
-        self.params_combo.bind('<<ComboboxSelected>>', self.on_params_change)
-
-        selection_frame.columnconfigure(1, weight=1)
-        selection_frame.columnconfigure(3, weight=1)
-
         # Options
         options_frame = ttk.Frame(control_frame)
         options_frame.pack(fill='x', padx=5, pady=5)
@@ -613,76 +515,23 @@ class FastTractographyViewer:
             with self.performance_monitor.time_operation('cache_loads'):
                 if self.cache_manager.load_cache_directory(cache_dir):
                     self.cache_dir_var.set(cache_dir)
-                    self.update_dataset_list()
-                    self.status_var.set(f"Cache loaded: {cache_dir}")
+
+                    # Load images
+                    if self.cache_manager.load_images():
+                        # Update all slice viewers
+                        for viewer in self.slice_viewers.values():
+                            viewer.update_slice_range()
+                            viewer.update_display()
+
+                        # Preload images if enabled
+                        if self.auto_preload.get():
+                            self.preload_adjacent_images()
+
+                        self.status_var.set(f"Cache loaded: {cache_dir}")
+                    else:
+                        messagebox.showerror("Error", "Failed to load images")
                 else:
                     messagebox.showerror("Error", "Failed to load cache directory")
-
-    def update_dataset_list(self):
-        """Update dataset dropdown with available datasets."""
-        datasets = self.cache_manager.get_available_datasets()
-
-        # Update dataset combo
-        dataset_values = []
-        for dataset in datasets:
-            metadata = dataset['metadata']
-            display_name = f"{dataset['hash'][:8]} - {metadata.get('created', 'Unknown')}"
-            dataset_values.append(display_name)
-
-        self.dataset_combo['values'] = dataset_values
-        if dataset_values:
-            self.dataset_combo.set(dataset_values[0])
-            self.on_dataset_change()
-
-    def on_dataset_change(self, event=None):
-        """Handle dataset selection change."""
-        selection = self.dataset_combo.get()
-        if not selection:
-            return
-
-        # Extract dataset hash
-        dataset_hash = selection.split(' - ')[0]
-
-        # Update parameters list
-        param_sets = self.cache_manager.get_parameter_sets(dataset_hash)
-        param_values = []
-        for param_set in param_sets:
-            config = param_set['config']
-            display_name = f"{param_set['hash'][:8]} - {config.get('created', 'Unknown')}"
-            param_values.append(display_name)
-
-        self.params_combo['values'] = param_values
-        if param_values:
-            self.params_combo.set(param_values[0])
-            self.on_params_change()
-
-    def on_params_change(self, event=None):
-        """Handle parameter selection change."""
-        dataset_selection = self.dataset_combo.get()
-        params_selection = self.params_combo.get()
-
-        if not dataset_selection or not params_selection:
-            return
-
-        # Extract hashes
-        dataset_hash = dataset_selection.split(' - ')[0]
-        param_hash = params_selection.split(' - ')[0]
-
-        # Load dataset
-        with self.performance_monitor.time_operation('cache_loads'):
-            if self.cache_manager.load_dataset(dataset_hash, param_hash):
-                # Update all slice viewers
-                for viewer in self.slice_viewers.values():
-                    viewer.update_slice_range()
-                    viewer.update_display()
-
-                # Preload images if enabled
-                if self.auto_preload.get():
-                    self.preload_adjacent_images()
-
-                self.status_var.set(f"Dataset loaded: {dataset_hash[:8]} / {param_hash[:8]}")
-            else:
-                messagebox.showerror("Error", "Failed to load dataset")
 
     def preload_adjacent_images(self):
         """Preload adjacent images for smooth navigation."""
@@ -693,8 +542,8 @@ class FastTractographyViewer:
 
     def export_views(self):
         """Export current views to files."""
-        if not self.cache_manager.current_dataset:
-            messagebox.showwarning("Warning", "No dataset loaded")
+        if not self.cache_manager.cache_root:
+            messagebox.showwarning("Warning", "No cache loaded")
             return
 
         output_dir = filedialog.askdirectory(title="Select Output Directory")
