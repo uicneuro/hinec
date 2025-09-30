@@ -72,35 +72,14 @@ catch ME
           'Failed to initialize cache manager: %s', ME.message);
 end
 
-%% Generate dataset and parameter hashes
-dataset_hash = cache_manager.generateDatasetHash(tracks_file, nim_file);
-param_hash = cache_manager.generateParameterHash(options);
+%% Initialize cache with metadata
+cache_manager.initializeCache(tracks_file, nim_file, options);
 
-fprintf('Dataset hash: %s\n', dataset_hash);
-fprintf('Parameter hash: %s\n', param_hash);
+%% Create orientation subdirectories
+cache_manager.createOrientationDirs();
 
-%% Check if cache already exists
-if cache_manager.validateCacheIntegrity(dataset_hash, param_hash)
-    fprintf('Valid cache already exists for this dataset and parameters\n');
-    if ~options.force_regenerate
-        fprintf('Use options.force_regenerate = true to regenerate\n');
-        success = true;
-        return;
-    else
-        fprintf('Forcing regeneration...\n');
-    end
-end
-
-%% Create cache directory structure
-success = cache_manager.createCacheStructure(dataset_hash, param_hash, ...
-                                           tracks_file, nim_file, options);
-if ~success
-    error('generateTractographySliceCache:CacheStructureError', ...
-          'Failed to create cache directory structure');
-end
-
-cache_directory = cache_manager.getCacheDirectory(dataset_hash, param_hash);
-fprintf('Cache directory: %s\n', cache_directory);
+% Get the output directory
+cache_directory = cache_dir;
 
 %% Load data
 fprintf('\nLoading data...\n');
@@ -239,8 +218,7 @@ if success
     fprintf('  Image count: %d\n', cache_stats.image_count);
     fprintf('  Average image size: %.1f KB\n', cache_stats.avg_image_size_kb);
 
-    % Update metadata with generation results
-    updateCacheMetadata(cache_manager, dataset_hash, param_hash, cache_stats, generation_time);
+    % Metadata already saved during initialization
 
 else
     fprintf('\n=== GENERATION FAILED ===\n');
@@ -480,30 +458,3 @@ end
 end
 
 
-function updateCacheMetadata(cache_manager, dataset_hash, param_hash, cache_stats, generation_time)
-% Update cache metadata with generation results
-
-try
-    % Get existing metadata
-    metadata = cache_manager.getCacheMetadata(dataset_hash);
-
-    % Add generation information
-    metadata.generation = struct();
-    metadata.generation.completed = datestr(now, 'yyyy-mm-ddTHH:MM:SS');
-    metadata.generation.duration_seconds = generation_time;
-    metadata.generation.cache_stats = cache_stats;
-
-    % Save updated metadata
-    cache_dir = cache_manager.getCacheDirectory(dataset_hash, param_hash);
-    metadata_file = fullfile(fileparts(fileparts(cache_dir)), 'metadata.json');
-
-    fid = fopen(metadata_file, 'w');
-    if fid ~= -1
-        fprintf(fid, '%s', jsonencode(metadata, 'PrettyPrint', true));
-        fclose(fid);
-    end
-
-catch ME
-    fprintf('Warning: Could not update cache metadata: %s\n', ME.message);
-end
-end

@@ -138,30 +138,24 @@ catch ME
     rethrow(ME);
 end
 
-%% Get cache directory structure
-cache_manager = TractographyCacheManager(output_dir);
-dataset_hash = cache_manager.generateDatasetHash(tracks_file, nim_file);
-param_hash = cache_manager.generateParameterHash(options);
-
-cache_dir = fullfile(output_dir, 'datasets', dataset_hash, 'parameters', param_hash);
-
 %% Validate output
 fprintf('\n╔════════════════════════════════════════════════════════════╗\n');
 fprintf('║              VALIDATING OUTPUT                             ║\n');
 fprintf('╚════════════════════════════════════════════════════════════╝\n\n');
 
-validation = validateGeneratedCache(cache_dir, options);
+cache_manager = TractographyCacheManager(output_dir);
+is_valid = cache_manager.validateCache();
 
-if validation.valid
+if is_valid
+    stats = cache_manager.getCacheStats();
     fprintf('✓ Validation PASSED\n');
-    fprintf('  Total images: %d\n', validation.total_images);
-    fprintf('  Axial:        %d slices\n', validation.counts.axial);
-    fprintf('  Sagittal:     %d slices\n', validation.counts.sagittal);
-    fprintf('  Coronal:      %d slices\n', validation.counts.coronal);
-    fprintf('  Total size:   %.2f MB\n', validation.total_size_mb);
+    fprintf('  Total images: %d\n', stats.total_images);
+    fprintf('  Axial:        %d slices\n', stats.axial.count);
+    fprintf('  Sagittal:     %d slices\n', stats.sagittal.count);
+    fprintf('  Coronal:      %d slices\n', stats.coronal.count);
+    fprintf('  Total size:   %.2f MB\n', stats.total_size_mb);
 else
-    warning('generateSlices:ValidationFailed', ...
-            'Output validation failed: %s', validation.error);
+    warning('generateSlices:ValidationFailed', 'Output validation failed');
 end
 
 %% Display transfer instructions
@@ -242,69 +236,6 @@ if isempty(options.parallel_workers)
     catch
         options.parallel_workers = 1;
     end
-end
-
-end
-
-
-function validation = validateGeneratedCache(cache_dir, options)
-% Validate generated cache structure and contents
-
-validation = struct();
-validation.valid = false;
-validation.total_images = 0;
-validation.counts = struct('axial', 0, 'sagittal', 0, 'coronal', 0);
-validation.total_size_mb = 0;
-validation.error = '';
-
-try
-    % Check if cache directory exists
-    if ~exist(cache_dir, 'dir')
-        validation.error = 'Cache directory not found';
-        return;
-    end
-
-    % Check for required subdirectories
-    orientations = {'axial', 'sagittal', 'coronal'};
-    for i = 1:length(orientations)
-        orient = orientations{i};
-        orient_dir = fullfile(cache_dir, orient);
-
-        if ~exist(orient_dir, 'dir')
-            validation.error = sprintf('Missing %s directory', orient);
-            return;
-        end
-
-        % Count images in this orientation
-        image_ext = ['*.' options.image_format];
-        image_files = dir(fullfile(orient_dir, image_ext));
-        count = length(image_files);
-
-        validation.counts.(orient) = count;
-        validation.total_images = validation.total_images + count;
-
-        % Sum file sizes
-        for j = 1:length(image_files)
-            validation.total_size_mb = validation.total_size_mb + image_files(j).bytes / (1024*1024);
-        end
-
-        if count == 0
-            validation.error = sprintf('No images found in %s directory', orient);
-            return;
-        end
-    end
-
-    % Check for metadata files
-    if ~exist(fullfile(cache_dir, 'config.json'), 'file')
-        validation.error = 'Missing config.json';
-        return;
-    end
-
-    % All checks passed
-    validation.valid = true;
-
-catch ME
-    validation.error = ME.message;
 end
 
 end
