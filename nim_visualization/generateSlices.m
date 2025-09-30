@@ -205,6 +205,8 @@ default_opts.image_resolution = [1024, 1024];
 default_opts.image_format = 'png';
 default_opts.compression_level = [];  % Auto-set based on format
 default_opts.parallel_workers = [];   % Auto-detect
+default_opts.force_regenerate = true;  % Always regenerate by default
+default_opts.quality_validation = false;  % Skip validation for speed
 
 % Merge with provided options
 field_names = fieldnames(default_opts);
