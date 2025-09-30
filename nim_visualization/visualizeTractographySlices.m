@@ -112,9 +112,31 @@ slices.axial = z;     % Z coordinate
 
 fprintf('Rendering slices at X=%d, Y=%d, Z=%d\n', x, y, z);
 
+%% Performance Profiling Setup
+profiling_enabled = true; % Set to false to disable profiling
+if profiling_enabled
+    profile_times = struct();
+    total_start_time = tic;
+    fprintf('=== PERFORMANCE PROFILING ENABLED ===\n');
+end
+
 %% Precompute track slice lookup for efficiency
 fprintf('Computing track intersections...\n');
-slice_lookup = buildTrackSliceLookup(tracks, dims);
+if profiling_enabled, lookup_start = tic; end
+
+% Use optimized lookup function for better performance
+try
+    slice_lookup = buildOptimizedTrackSliceLookup(tracks, dims);
+    fprintf('Using optimized track-slice lookup\n');
+catch ME
+    fprintf('Warning: Optimized lookup failed (%s), falling back to standard method\n', ME.message);
+    slice_lookup = buildTrackSliceLookup(tracks, dims);
+end
+
+if profiling_enabled
+    profile_times.track_lookup = toc(lookup_start);
+    fprintf('Track lookup time: %.3f seconds\n', profile_times.track_lookup);
+end
 
 %% Create figure
 should_save = ~isempty(opts.save);
@@ -132,14 +154,49 @@ render_fig = figure('Name', sprintf('Tractography Slices [X=%d Y=%d Z=%d]', x, y
 t = tiledlayout(render_fig, 2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
 
 % Render all three slice views
+if profiling_enabled, render_start = tic; end
+
 ax_axial = nexttile(t, 1);
-drawSlice(ax_axial, 'z', slices.axial, slices, nim, tracks, slice_lookup, opts, dims);
+if profiling_enabled, axial_start = tic; end
+% Use optimized renderer for better performance
+try
+    optimizedSliceRenderer(ax_axial, 'z', slices.axial, slices, nim, tracks, slice_lookup, opts, dims);
+catch ME
+    fprintf('Warning: Optimized renderer failed (%s), using fallback\n', ME.message);
+    drawSlice(ax_axial, 'z', slices.axial, slices, nim, tracks, slice_lookup, opts, dims);
+end
+if profiling_enabled
+    profile_times.axial_render = toc(axial_start);
+    fprintf('Axial slice render time: %.3f seconds\n', profile_times.axial_render);
+end
 
 ax_sagittal = nexttile(t, 2);
-drawSlice(ax_sagittal, 'x', slices.sagittal, slices, nim, tracks, slice_lookup, opts, dims);
+if profiling_enabled, sagittal_start = tic; end
+try
+    optimizedSliceRenderer(ax_sagittal, 'x', slices.sagittal, slices, nim, tracks, slice_lookup, opts, dims);
+catch ME
+    fprintf('Warning: Optimized renderer failed (%s), using fallback\n', ME.message);
+    drawSlice(ax_sagittal, 'x', slices.sagittal, slices, nim, tracks, slice_lookup, opts, dims);
+end
+if profiling_enabled
+    profile_times.sagittal_render = toc(sagittal_start);
+    fprintf('Sagittal slice render time: %.3f seconds\n', profile_times.sagittal_render);
+end
 
 ax_coronal = nexttile(t, 3);
-drawSlice(ax_coronal, 'y', slices.coronal, slices, nim, tracks, slice_lookup, opts, dims);
+if profiling_enabled, coronal_start = tic; end
+try
+    optimizedSliceRenderer(ax_coronal, 'y', slices.coronal, slices, nim, tracks, slice_lookup, opts, dims);
+catch ME
+    fprintf('Warning: Optimized renderer failed (%s), using fallback\n', ME.message);
+    drawSlice(ax_coronal, 'y', slices.coronal, slices, nim, tracks, slice_lookup, opts, dims);
+end
+if profiling_enabled
+    profile_times.coronal_render = toc(coronal_start);
+    fprintf('Coronal slice render time: %.3f seconds\n', profile_times.coronal_render);
+    profile_times.total_render = toc(render_start);
+    fprintf('Total rendering time: %.3f seconds\n', profile_times.total_render);
+end
 
 ax_info = nexttile(t, 4);
 drawInfoPanel(ax_info, tracks, slices, opts, nim);
@@ -153,6 +210,24 @@ if should_save
 else
     fprintf('Displaying slice view...\n');
     drawnow;
+end
+
+%% Performance Summary
+if profiling_enabled
+    profile_times.total_execution = toc(total_start_time);
+    fprintf('\n=== PERFORMANCE SUMMARY ===\n');
+    fprintf('Track lookup: %.3f seconds (%.1f%%)\n', profile_times.track_lookup, ...
+            100 * profile_times.track_lookup / profile_times.total_execution);
+    fprintf('Total rendering: %.3f seconds (%.1f%%)\n', profile_times.total_render, ...
+            100 * profile_times.total_render / profile_times.total_execution);
+    fprintf('  - Axial: %.3f seconds\n', profile_times.axial_render);
+    fprintf('  - Sagittal: %.3f seconds\n', profile_times.sagittal_render);
+    fprintf('  - Coronal: %.3f seconds\n', profile_times.coronal_render);
+    fprintf('Total execution: %.3f seconds\n', profile_times.total_execution);
+    fprintf('========================\n');
+
+    % Save profiling data for analysis
+    assignin('base', 'slice_profiling_data', profile_times);
 end
 
 fprintf('=== Complete ===\n');
