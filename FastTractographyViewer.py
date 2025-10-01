@@ -137,9 +137,32 @@ class CacheManager:
         self.image_cache = {}  # In-memory cache for frequently accessed images
         self.cache_stats = {}
 
+    def clear_cache(self):
+        """Completely flush all cached data from previous directory."""
+        logger.info("Clearing all cached data...")
+
+        # Clear in-memory image cache
+        self.image_cache.clear()
+
+        # Reset cache statistics
+        self.cache_stats.clear()
+
+        # Reset metadata
+        self.metadata = {}
+
+        # Reset current dataset/params
+        self.current_dataset = None
+        self.current_params = None
+
+        # Note: cache_root is reset in load_cache_directory()
+        logger.info("Cache cleared successfully")
+
     def load_cache_directory(self, cache_root: str) -> bool:
         """Load and validate cache directory structure."""
         try:
+            # Clear all cached data from previous directory
+            self.clear_cache()
+
             self.cache_root = Path(cache_root)
 
             # Validate cache structure
