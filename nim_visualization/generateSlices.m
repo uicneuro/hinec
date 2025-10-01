@@ -31,6 +31,8 @@ function cache_dir = generateSlices(tracks_file, nim_file, output_dir, options)
 %   .image_format      - 'png' or 'jpg' (default: 'png')
 %   .compression_level - PNG: 0-9, JPG: 0-100 (default: 6 or 90)
 %   .parallel_workers  - Number of workers (default: auto)
+%   .regions           - Region IDs to include (default: [] = all regions)
+%                        Examples: [1, 2, 3] or [5:10] or []
 %
 % Returns:
 %   cache_dir - Full path to generated cache directory
@@ -207,6 +209,7 @@ default_opts.compression_level = [];  % Auto-set based on format
 default_opts.parallel_workers = [];   % Auto-detect
 default_opts.force_regenerate = true;  % Always regenerate by default
 default_opts.quality_validation = false;  % Skip validation for speed
+default_opts.regions = [];  % Empty = all regions
 
 % Merge with provided options
 field_names = fieldnames(default_opts);
