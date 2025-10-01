@@ -326,9 +326,34 @@ function generateSingleSlice(filepath, orientation, slice_idx, nim, tracks, ...
                            slice_lookup, options, dims, coord_indices, slice_dim)
 % Generate a single slice image and save to file
 
-% Create invisible figure for rendering
+% Calculate figure size based on slice dimensions to maintain aspect ratio
+% All orientations use consistent pixels-per-voxel ratio
+switch orientation
+    case 'axial'
+        slice_width = dims(1);   % X = 90
+        slice_height = dims(2);  % Y = 108
+    case 'sagittal'
+        slice_width = dims(2);   % Y = 108
+        slice_height = dims(3);  % Z = 90
+    case 'coronal'
+        slice_width = dims(1);   % X = 90
+        slice_height = dims(3);  % Z = 90
+end
+
+% Use largest dimension to set pixels-per-voxel ratio
+max_dim = max(dims);
+px_per_voxel = options.image_resolution(1) / max_dim;
+
+% Calculate figure dimensions with consistent scaling
+fig_width = round(slice_width * px_per_voxel);
+fig_height = round(slice_height * px_per_voxel);
+
+% Create invisible figure for rendering with fixed paper size
 fig = figure('Visible', 'off', 'Color', 'white', ...
-            'Position', [1, 1, options.image_resolution]);
+            'Position', [1, 1, fig_width, fig_height], ...
+            'PaperPositionMode', 'manual', ...
+            'PaperUnits', 'points', ...
+            'PaperPosition', [0, 0, fig_width, fig_height]);
 
 try
     ax = axes(fig);
@@ -358,8 +383,6 @@ try
 
     % Configure for high-quality export with fixed dimensions
     set(ax, 'Position', [0, 0, 1, 1]); % Full figure
-    axis(ax, 'tight'); % Fit to data first
-    axis(ax, 'equal'); % Equal aspect ratio
 
     % Force fixed axis limits based on brain dimensions
     switch orientation
@@ -374,21 +397,18 @@ try
             ylim(ax, [0.5, dims(3)+0.5]);
     end
 
-    axis(ax, 'off'); % Remove axes labels
+    % Remove axes decorations but keep axes for proper bounds
+    set(ax, 'XTick', [], 'YTick', [], 'XColor', 'none', 'YColor', 'none');
+    box(ax, 'off');
     set(fig, 'InvertHardcopy', 'off');
 
-    % Save image using exportgraphics (more reliable than print)
-    try
-        exportgraphics(ax, filepath, 'Resolution', 150);
-    catch
-        % Fallback to print if exportgraphics fails
-        switch options.image_format
-            case 'png'
-                print(fig, filepath, '-dpng', sprintf('-r%d', 150));
-            case 'jpg'
-                print(fig, filepath, '-djpeg', sprintf('-r%d', 150), ...
-                      sprintf('-q%d', options.compression_level));
-        end
+    % Save image - use print instead of exportgraphics to avoid auto-cropping
+    switch options.image_format
+        case 'png'
+            print(fig, filepath, '-dpng', sprintf('-r%d', 150));
+        case 'jpg'
+            print(fig, filepath, '-djpeg', sprintf('-r%d', 150), ...
+                  sprintf('-q%d', options.compression_level));
     end
 
     % Quality validation
