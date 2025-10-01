@@ -24,8 +24,13 @@ HINEC (HIgh-order NEural Connectivity) is a MATLAB-based pipeline for processing
 - `nim_plotall(nim)` - Comprehensive visualization
 - `nim_plotparcelall(nim)` - Parcellation-specific plots
 - `nim_plotparcellation(nim)` - Parcellation mask visualization
+
+### Tractography Visualization (nim_visualization/)
 - `visualizeTractography(tracks_file, nim_file)` - Unified tractography viewer with multiple modes
 - `visualizeTractographySlices(tracks_file, nim_file)` - Interactive 2D slice viewer
+- `generateSlices(tracks_file, nim_file, output_dir)` - Server-side slice generation for distributed viewing
+- `launchFastViewer(tracks_file, nim_file)` - MATLAB bridge to Python fast viewer
+- `FastTractographyViewer.py` - Python GUI for instant slice navigation (no MATLAB required)
 
 ## Architecture
 
@@ -34,6 +39,7 @@ HINEC (HIgh-order NEural Connectivity) is a MATLAB-based pipeline for processing
 - **nim_parcellation/**: Brain region segmentation
 - **nim_preprocessing/**: Raw data preprocessing (FSL integration)
 - **nim_tractography/**: Fiber tractography algorithms
+- **nim_visualization/**: Tractography visualization and fast slice viewer
 - **nim_plots/**: Visualization functions
 - **nim_utils/**: Utility functions for data I/O and manipulation
 
@@ -104,9 +110,9 @@ The `main.m` function automatically adds all necessary paths:
 - FSL preprocessing called when raw data detected
 - Preprocessing includes motion correction, eddy current correction, brain extraction
 
-## Visualization Components
+## Visualization Components (nim_visualization/)
 
-### Main Visualization Functions
+### Traditional Visualization (MATLAB)
 - **`visualizeTractography.m`**: Unified visualization system with multiple modes:
   - `'whole'` - Complete 3D brain view with track statistics
   - `'region'` - Single region analysis with filtering options
@@ -120,6 +126,37 @@ The `main.m` function automatically adds all necessary paths:
   - Crosshair synchronization across views
   - Adjustable slice thickness and track filtering
   - Real-time updates with FA background overlay
+  - **Performance**: 5-30 second delays per slice update (real-time computation)
+
+### Fast Slice Viewer (Distributed Workflow)
+For high-performance viewing with instant navigation, use the distributed workflow:
+
+**Server (MATLAB)**: Pre-generate all slice images
+```matlab
+addpath('nim_visualization');
+generateSlices('tracks.mat', 'nim.mat', '/export/slices');
+```
+
+**Transfer**: Copy cache directory to local computer
+```bash
+rsync -avz server:/export/slices/ ~/local/slices/
+```
+
+**Local (Python only - no MATLAB)**: View with instant navigation
+```bash
+./viewSlices.sh ~/local/slices/
+```
+
+**Performance**: Sub-100ms slice transitions (pre-computed images)
+
+**Key Files**:
+- `generateSlices.m` - Server-side batch image generation
+- `generateTractographySliceCache.m` - Optimized rendering pipeline
+- `TractographyCacheManager.m` - Cache directory management
+- `FastTractographyViewer.py` - Python GUI for instant viewing
+- `viewSlices.sh` - Local viewer launcher
+
+See `DISTRIBUTED_WORKFLOW.md` for complete setup instructions.
 
 ### Track Data Structure
 Each track in the `tracks` cell array represents a complete fiber pathway:
