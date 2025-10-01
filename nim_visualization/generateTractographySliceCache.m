@@ -113,7 +113,19 @@ fprintf('Data loaded in %.2f seconds\n', load_time);
 % Get volume dimensions
 dims = size(nim.FA);
 fprintf('Volume dimensions: %dx%dx%d\n', dims(1), dims(2), dims(3));
-fprintf('Track count: %d\n', length(tracks));
+fprintf('Track count (before filtering): %d\n', length(tracks));
+
+%% Filter tracks by region if specified
+if ~isempty(options.regions)
+    fprintf('\nFiltering tracks by regions: %s\n', mat2str(options.regions));
+    original_count = length(tracks);
+    tracks = filterTracksByRegion(tracks, nim, options.regions);
+    filtered_count = length(tracks);
+    fprintf('  Tracks after filtering: %d (%.1f%% kept)\n', ...
+            filtered_count, 100 * filtered_count / original_count);
+end
+
+fprintf('Track count (final): %d\n', length(tracks));
 
 %% Build optimized track lookup
 fprintf('\nBuilding track-slice lookup...\n');
@@ -506,6 +518,51 @@ if stats.image_count > 0
 else
     stats.avg_image_size_kb = 0;
 end
+end
+
+
+function filtered_tracks = filterTracksByRegion(tracks, nim, region_ids)
+% FILTERTRACKSBYREGION: Filter tracks that pass through specified brain regions
+%
+% Arguments:
+%   tracks - Cell array of tracks (Nx3 coordinates)
+%   nim - NIM structure with parcellation_mask field
+%   region_ids - Array of region IDs to include (e.g., [1, 2, 3])
+%
+% Returns:
+%   filtered_tracks - Cell array containing only tracks passing through specified regions
+
+if ~isfield(nim, 'parcellation_mask')
+    error('NIM structure does not contain parcellation_mask field');
+end
+
+parcellation = nim.parcellation_mask;
+dims = size(parcellation);
+
+filtered_tracks = {};
+for i = 1:length(tracks)
+    track = tracks{i};
+    if isempty(track)
+        continue;
+    end
+
+    % Get voxel coordinates for all points in track
+    x_coords = max(1, min(dims(1), round(track(:,1))));
+    y_coords = max(1, min(dims(2), round(track(:,2))));
+    z_coords = max(1, min(dims(3), round(track(:,3))));
+
+    % Get region labels for all points
+    indices = sub2ind(dims, x_coords, y_coords, z_coords);
+    track_regions = parcellation(indices);
+
+    % Keep track if it passes through any of the specified regions
+    if any(ismember(track_regions, region_ids))
+        filtered_tracks{end+1} = track;
+    end
+end
+
+% Convert to column cell array
+filtered_tracks = filtered_tracks(:);
 end
 
 
