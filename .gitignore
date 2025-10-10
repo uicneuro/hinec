@@ -88,3 +88,7 @@ AGENTS.md
 CLAUDE.md
 
 *.log
+
+*_data*
+
+ironTract*
