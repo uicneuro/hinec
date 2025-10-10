@@ -1,16 +1,39 @@
-function runTractography(data_path)
+function runTractography(data_path, varargin)
 % runTractography: Simple entry point for DTI tractography
 %
-% Usage: runTractography('sample_parcellated.mat')
+% Usage:
+%   runTractography('sample_parcellated.mat')
+%   runTractography('data.mat', 'IronTract', 'injection.nii.gz', 'submissions/')
+%
+% Arguments:
+%   data_path - Path to .mat file with nim structure
+%   'IronTract' - Optional flag to enable IronTract Challenge submission
+%   injection_file - Path to injection site mask (required if IronTract enabled)
+%   output_dir - Output directory for submissions (required if IronTract enabled)
 
 if nargin < 1
     data_path = 'sample_parcellated.mat';
+end
+
+% Parse optional IronTract arguments
+enable_irontract = false;
+injection_file = '';
+irontract_output_dir = '';
+
+if nargin >= 2 && strcmpi(varargin{1}, 'IronTract')
+    enable_irontract = true;
+    if nargin < 4
+        error('IronTract mode requires: runTractography(data_path, ''IronTract'', injection_file, output_dir)');
+    end
+    injection_file = varargin{2};
+    irontract_output_dir = varargin{3};
 end
 
 % Add necessary paths
 addpath('nim_tractography');
 addpath('nim_utils');
 addpath('nim_plots');
+addpath('nim_challenges');
 
 fprintf('=== HINEC Tractography Pipeline ===\n');
 
@@ -148,6 +171,24 @@ end
 
 save(fullfile(output_dir, 'tracks_standard.mat'), 'tracks', 'options', 'elapsed_time');
 fprintf('\nResults saved to %s/\n', output_dir);
+
+%% IronTract Challenge Submission (if enabled)
+if enable_irontract
+    fprintf('\n=== IronTract Challenge Submission ===\n');
+    fprintf('Generating submission files...\n');
+
+    % Set up IronTract options
+    irontract_opts = struct();
+    irontract_opts.angle_thresholds = [30, 45, 60, 75, 90];
+    irontract_opts.tracks_file = fullfile(output_dir, 'tracks_standard.mat');
+    irontract_opts.base_options = options;
+
+    % Generate submission files
+    nim_irontract_submit(data_path, injection_file, irontract_output_dir, irontract_opts);
+
+    fprintf('IronTract submissions ready in %s/\n', irontract_output_dir);
+end
+
 fprintf('=== Tractography Complete ===\n');
 end
 
