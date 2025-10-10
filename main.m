@@ -84,62 +84,16 @@ else
     fprintf('Registration disabled - using original pipeline\n');
 end
 
-% Define the file extensions and suffixes
-img_file = [char(imgpath) '.nii.gz'];
-raw_file = [char(imgpath) '_raw.nii.gz'];
-t1_file = [char(imgpath) '_T1.nii.gz'];
+%% Data Type Detection and Preprocessing
+[img_file, raw_file, t1_file, mask_file] = setup_file_paths(imgpath);
+[is_raw_data, is_preprocessed_data] = detect_data_type(img_file, raw_file);
 
-% Check if the processed NIfTI file exists
-if isfile(img_file)
-    fprintf("Found processed NIfTI image: %s\n", img_file);
+if is_preprocessed_data
+    handle_preprocessed_data(img_file, mask_file, imgpath);
+elseif is_raw_data
+    handle_raw_data(img_file, raw_file, t1_file, imgpath, options);
 else
-    fprintf("Processed NIfTI image not found: %s\n", img_file);
-    
-    % Check if the raw data exists
-    if isfile(raw_file)
-        fprintf("Found raw data: %s\n", raw_file);
-        
-        % Check for T1 structural data
-        if isfile(t1_file)
-            fprintf("Found T1 structural data: %s\n", t1_file);
-            t1_available = true;
-        else
-            fprintf("T1 structural data not found: %s\n", t1_file);
-            t1_available = false;
-        end
-        
-        fprintf("Starting preprocessing...\n");
-        
-        % Set up preprocessing options
-        if isfield(options, 'preprocessing_options')
-            preproc_options = options.preprocessing_options;
-        else
-            preproc_options = struct();
-            preproc_options.run_denoising = true;
-            preproc_options.denoise_method = 'dwidenoise';
-            preproc_options.run_motion_correction = true;
-            preproc_options.run_eddy = true;
-            preproc_options.improve_mask = true;
-            preproc_options.atlas_type = 'jhu';
-        end
-        
-        % Add T1 registration options
-        preproc_options.t1_available = t1_available;
-        preproc_options.t1_file = t1_file;
-        preproc_options.use_t1_registration = t1_available;
-        
-        % Preprocess the raw data
-        nim_preprocessing(imgpath, preproc_options);
-        
-        % Check if the preprocessing was successful
-        if isfile(img_file)
-            fprintf("Preprocessing completed. Processed file: %s\n", img_file);
-        else
-            error('Preprocessing failed. Processed NIfTI image not found: %s\n', img_file);
-        end
-    else
-        error('Raw data not found: %s\n', raw_file);
-    end
+    error('No valid data found. Expected either:\n  - Preprocessed: %s\n  - Raw: %s', img_file, raw_file);
 end
 
 start_time = datetime('now', 'Format', 'yyyy-MM-dd hh:mm:ss');
@@ -186,12 +140,24 @@ end
 [output_dir, ~, ~] = fileparts(imgpath);
 parcellation_mask_file = fullfile(output_dir, 'parcellation_mask.nii.gz');
 
+%% Parcellation: Load or generate as needed
 if options.enable_registration
     fprintf('\n=== Running Enhanced Parcellation with Registration ===\n');
     nim = nim_parcellation_registered(nim, registration_data, parcellation_mask_file);
 else
-    fprintf('\n=== Running Standard Parcellation ===\n');
-    nim = nim_parcellation(nim, parcellation_mask_file);
+    fprintf('\n=== Parcellation ===\n');
+
+    % Setup options for generation if needed
+    parc_opts = struct();
+    parc_opts.dwi_file = img_file;
+    if isfield(options, 'atlas_type')
+        parc_opts.atlas_type = options.atlas_type;
+    else
+        parc_opts.atlas_type = 'jhu';
+    end
+
+    % nim_parcellation will generate if file doesn't exist
+    nim = nim_parcellation(nim, parcellation_mask_file, parc_opts);
 end
 
 % Store parcellation mask file path for reference
@@ -235,29 +201,123 @@ nim_save(nim, nimpath);
 end_time = datetime('now', 'Format', 'yyyy-MM-dd hh:mm:ss');
 fprintf("HINEC END: %s\n", string(end_time));
 
-if options.enable_registration
-    fprintf('\n=== Registration-Enhanced Pipeline Complete ===\n');
-    fprintf('Enhanced features available:\n');
-    fprintf('  • Proper DTI ↔ T1 ↔ MNI registration\n');
-    fprintf('  • Accurate atlas-based parcellation\n');
-    fprintf('  • Cross-modal ROI transformations\n');
-    fprintf('  • Improved tractography seed masks\n');
-    
-    if isfield(registration_data, 'quality_metrics')
-        fprintf('\nRegistration Quality Summary:\n');
-        if isfield(registration_data.quality_metrics, 'dti_t1_nmi')
-            fprintf('  DTI→T1 NMI: %.4f\n', registration_data.quality_metrics.dti_t1_nmi);
-        end
-        if isfield(registration_data.quality_metrics, 't1_mni_nmi')
-            fprintf('  T1→MNI NMI: %.4f\n', registration_data.quality_metrics.t1_mni_nmi);
-        end
-    end
-    
-    fprintf('\nRegistration report: %s_registration_report.html\n', strrep(char(imgpath), '_raw', ''));
-else
-    fprintf('\n=== Standard Pipeline Complete ===\n');
-    fprintf('To enable registration features, provide T1 file:\n');
-    fprintf('  main_with_registration(''%s'', ''%s'', ''path/to/T1.nii.gz'')\n', imgpath, nimpath);
+print_pipeline_summary(options, registration_data, imgpath, nimpath);
 end
 
+%% Helper Functions
+
+function [img_file, raw_file, t1_file, mask_file] = setup_file_paths(imgpath)
+% Setup standard file paths based on input prefix
+    img_file = [char(imgpath) '.nii.gz'];
+    raw_file = [char(imgpath) '_raw.nii.gz'];
+    t1_file = [char(imgpath) '_T1.nii.gz'];
+    mask_file = [char(imgpath) '_M.nii.gz'];
+end
+
+function [is_raw, is_preprocessed] = detect_data_type(img_file, raw_file)
+% Detect whether data is raw or preprocessed
+    is_raw = isfile(raw_file);
+    is_preprocessed = isfile(img_file) && ~is_raw;
+end
+
+function handle_preprocessed_data(img_file, mask_file, imgpath)
+% Handle preprocessed data: generate auxiliary files only
+    fprintf("=== PREPROCESSED DATA DETECTED ===\n");
+    fprintf("Found: %s\n", img_file);
+    fprintf("Strategy: Generate auxiliary files (no NIfTI modification)\n\n");
+
+    % Generate brain mask if needed
+    if ~isfile(mask_file)
+        fprintf("--- Generating Brain Mask ---\n");
+        [output_dir, ~, ~] = fileparts(imgpath);
+        if isempty(output_dir)
+            output_dir = pwd;
+        end
+        preproc_brain_extraction(img_file, output_dir, mask_file);
+    else
+        fprintf("✓ Brain mask exists: %s\n", mask_file);
+    end
+
+    fprintf("\n✓ Preprocessed data ready for DTI analysis\n");
+end
+
+function handle_raw_data(img_file, raw_file, t1_file, imgpath, options)
+% Handle raw data: run full preprocessing pipeline
+    fprintf("=== RAW DATA DETECTED ===\n");
+    fprintf("Found: %s\n", raw_file);
+    fprintf("Strategy: Full preprocessing pipeline\n\n");
+
+    if isfile(img_file)
+        fprintf("✓ Preprocessed file already exists: %s\n", img_file);
+        return;
+    end
+
+    % Check for T1 data
+    t1_available = isfile(t1_file);
+    if t1_available
+        fprintf("✓ T1 structural data: %s\n", t1_file);
+    else
+        fprintf("ℹ No T1 structural data\n");
+    end
+
+    % Setup preprocessing options
+    preproc_options = setup_preprocessing_options(options, t1_available, t1_file);
+
+    % Run preprocessing
+    fprintf("\n--- Starting Preprocessing ---\n");
+    nim_preprocessing(imgpath, preproc_options);
+
+    % Verify success
+    if ~isfile(img_file)
+        error('Preprocessing failed. Output not found: %s', img_file);
+    end
+    fprintf("✓ Preprocessing complete: %s\n", img_file);
+end
+
+function preproc_options = setup_preprocessing_options(options, t1_available, t1_file)
+% Setup preprocessing options with T1 integration if available
+    if isfield(options, 'preprocessing_options')
+        preproc_options = options.preprocessing_options;
+    else
+        preproc_options = struct();
+        preproc_options.run_denoising = true;
+        preproc_options.denoise_method = 'dwidenoise';
+        preproc_options.run_motion_correction = true;
+        preproc_options.run_eddy = true;
+        preproc_options.improve_mask = true;
+        preproc_options.atlas_type = 'jhu';
+    end
+
+    % Add T1 integration
+    preproc_options.t1_available = t1_available;
+    preproc_options.t1_file = t1_file;
+    preproc_options.use_t1_registration = t1_available;
+end
+
+function print_pipeline_summary(options, registration_data, imgpath, nimpath)
+% Print pipeline completion summary
+    if options.enable_registration
+        fprintf('\n=== Registration-Enhanced Pipeline Complete ===\n');
+        fprintf('Enhanced features:\n');
+        fprintf('  • DTI ↔ T1 ↔ MNI registration\n');
+        fprintf('  • Atlas-based parcellation\n');
+        fprintf('  • Cross-modal ROI transformations\n');
+        fprintf('  • Improved tractography seeds\n');
+
+        if isfield(registration_data, 'quality_metrics')
+            fprintf('\nQuality metrics:\n');
+            if isfield(registration_data.quality_metrics, 'dti_t1_nmi')
+                fprintf('  DTI→T1 NMI: %.4f\n', registration_data.quality_metrics.dti_t1_nmi);
+            end
+            if isfield(registration_data.quality_metrics, 't1_mni_nmi')
+                fprintf('  T1→MNI NMI: %.4f\n', registration_data.quality_metrics.t1_mni_nmi);
+            end
+        end
+
+        fprintf('\nReport: %s_registration_report.html\n', strrep(char(imgpath), '_raw', ''));
+    else
+        fprintf('\n=== Standard Pipeline Complete ===\n');
+        fprintf('To enable registration, provide T1:\n');
+        fprintf('  main(''%s'', ''%s'', ''path/to/T1.nii.gz'')\n', imgpath, nimpath);
+    end
 end
