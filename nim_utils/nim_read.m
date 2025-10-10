@@ -86,6 +86,9 @@ if opts.Bval == "on"
   nim.img_b0 = mean(nim.img(:, :, :, nim.bval < opts.B0Threshold), 4);
   nim.img_bi = double(nim.img(:, :, :, nim.bval >= opts.B0Threshold));
   nim.thrsh_b0 = opts.B0Threshold;
+
+  % NOTE: nim.bval is kept unfiltered (contains all volumes including b0)
+  % Downstream code filters when needed using: nim.bval(nim.bval >= nim.thrsh_b0)
 else
   nim.bval = zeros(1, 0);
   nim.size_b0 = 0;
@@ -131,13 +134,9 @@ if opts.Bvec == "on"
       error('Unable to determine .bvec file format. Expected either:\n  - 3 lines (X, Y, Z components)\n  - N lines with 3 values each (x y z per line)');
   end
 
-  % IMPORTANT: Filter bvec to match img_bi (non-b0 volumes only)
-  % This ensures bvec dimensions match bval filtering in downstream code
-  if opts.Bval == "on"
-      nim.bvec = bvec_all(nim.bval >= opts.B0Threshold, :);
-  else
-      nim.bvec = bvec_all;
-  end
+  % NOTE: nim.bvec is kept unfiltered (contains all volumes including b0)
+  % Downstream code filters when needed using: nim.bvec(nim.bval >= nim.thrsh_b0, :)
+  nim.bvec = bvec_all;
 else
   nim.bvec = zeros(1, 0);
 end
