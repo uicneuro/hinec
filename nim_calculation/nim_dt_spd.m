@@ -14,9 +14,8 @@ function nim_out = nim_dt_spd(nim, opts)
   dt_start = datetime('now');
 
   % Known values (all voxels)
-  % Note: nim.bvec is already filtered to non-b0 volumes in nim_read.m
   b  = nim.bval(nim.bval >= nim.thrsh_b0);
-  g  = nim.bvec;  % Already filtered in nim_read.m
+  g  = nim.bvec(nim.bval >= nim.thrsh_b0, :);
   
   size4 = [nim.hdr.ImageSize(1:3) nim.size_bi];
   Y = zeros(size4);
