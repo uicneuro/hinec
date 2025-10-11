@@ -32,8 +32,21 @@ end
 fprintf('Loading brain mask and FA data...\n');
 
 % Load original mask for analysis (FA data already provided)
-V_mask = spm_vol(brain_mask_file);
+% Handle compressed NIfTI files
+temp_mask_file = brain_mask_file;
+cleanup_temp_mask = false;
+if endsWith(brain_mask_file, '.nii.gz')
+    temp_mask_file = gunzip(brain_mask_file, tempdir);
+    temp_mask_file = temp_mask_file{1};
+    cleanup_temp_mask = true;
+end
+
+V_mask = spm_vol(temp_mask_file);
 mask_data = spm_read_vols(V_mask);
+
+if cleanup_temp_mask && isfile(temp_mask_file)
+    delete(temp_mask_file);
+end
 
 % Analyze original mask quality
 mask_volume = sum(mask_data(:) > 0.5);
@@ -91,8 +104,20 @@ if mask_percentage > 50 || mean_fa_outside > 0.1
                 new_mask = [temp_bet_prefix '_mask.nii.gz'];
                 if isfile(new_mask)
                     % Test the new mask
-                    V_new = spm_vol(new_mask);
+                    temp_new_mask = new_mask;
+                    cleanup_temp_new = false;
+                    if endsWith(new_mask, '.nii.gz')
+                        temp_new_mask = gunzip(new_mask, tempdir);
+                        temp_new_mask = temp_new_mask{1};
+                        cleanup_temp_new = true;
+                    end
+
+                    V_new = spm_vol(temp_new_mask);
                     new_mask_data = spm_read_vols(V_new);
+
+                    if cleanup_temp_new && isfile(temp_new_mask)
+                        delete(temp_new_mask);
+                    end
                     new_mask_volume = sum(new_mask_data(:) > 0.5);
                     new_mask_percentage = 100 * new_mask_volume / total_volume;
                     
@@ -158,8 +183,20 @@ cmd_morph = sprintf(['%s/bin/fslmaths %s -fillh -s 0.5 -thr 0.5 -bin %s'], ...
 
 if status == 0 && isfile(temp_filled)
     % Verify the morphologically processed mask
-    V_filled = spm_vol(temp_filled);
+    temp_filled_uncompressed = temp_filled;
+    cleanup_temp_filled = false;
+    if endsWith(temp_filled, '.nii.gz')
+        temp_filled_uncompressed = gunzip(temp_filled, tempdir);
+        temp_filled_uncompressed = temp_filled_uncompressed{1};
+        cleanup_temp_filled = true;
+    end
+
+    V_filled = spm_vol(temp_filled_uncompressed);
     filled_data = spm_read_vols(V_filled);
+
+    if cleanup_temp_filled && isfile(temp_filled_uncompressed)
+        delete(temp_filled_uncompressed);
+    end
     
     filled_volume = sum(filled_data(:) > 0.5);
     filled_percentage = 100 * filled_volume / total_volume;
@@ -182,10 +219,22 @@ end
 if isfile(improved_mask_file)
     file_info = dir(improved_mask_file);
     fprintf('✓ Improved brain mask saved: %s (%.1f MB)\n', improved_mask_file, file_info.bytes/1024/1024);
-    
+
     % Final quality check
-    V_final = spm_vol(improved_mask_file);
+    temp_final_mask = improved_mask_file;
+    cleanup_temp_final = false;
+    if endsWith(improved_mask_file, '.nii.gz')
+        temp_final_mask = gunzip(improved_mask_file, tempdir);
+        temp_final_mask = temp_final_mask{1};
+        cleanup_temp_final = true;
+    end
+
+    V_final = spm_vol(temp_final_mask);
     final_mask_data = spm_read_vols(V_final);
+
+    if cleanup_temp_final && isfile(temp_final_mask)
+        delete(temp_final_mask);
+    end
     final_volume = sum(final_mask_data(:) > 0.5);
     final_percentage = 100 * final_volume / total_volume;
     
