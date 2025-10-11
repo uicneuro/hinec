@@ -158,7 +158,8 @@ if enable_irontract
     % Set up IronTract options
     irontract_opts = struct();
     irontract_opts.angle_thresholds = [30, 45, 60, 75, 90];
-    irontract_opts.tracks_file = fullfile(output_dir, 'tracks_standard.mat');
+    % DON'T pass tracks_file - force regeneration with injection site seeds
+    irontract_opts.tracks_file = '';  % Empty = regenerate with injection-site seeding
     irontract_opts.base_options = options;
 
     % Generate submission files

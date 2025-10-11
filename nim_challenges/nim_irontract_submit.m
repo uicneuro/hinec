@@ -99,6 +99,34 @@ for i = 1:num_params
     tract_opts = options.base_options;
     tract_opts.angle_thresh = angle;
 
+    % CRITICAL FOR IRONTRACT: Create seed mask that includes injection site
+    % Combine brain mask with injection site to ensure coverage
+    if ~isfield(tract_opts, 'seed_mask') || isempty(tract_opts.seed_mask)
+        fprintf('Creating seed mask that includes injection site...\n');
+
+        % Start with brain mask if available
+        seed_mask = false(dims);
+        if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+            seed_mask = nim.mask > 0.5;
+            fprintf('  Using brain mask: %d voxels\n', sum(seed_mask(:)));
+        elseif isfield(nim, 'parcellation_mask')
+            seed_mask = nim.parcellation_mask > 0;
+            fprintf('  Using parcellation mask: %d voxels\n', sum(seed_mask(:)));
+        else
+            % Fallback to FA-based seeding
+            seed_mask = nim.FA > 0.1;
+            fprintf('  Using FA threshold: %d voxels\n', sum(seed_mask(:)));
+        end
+
+        % ADD injection site to seed mask (critical for IronTract)
+        injection_voxels_before = sum(injection_mask(:) > 0);
+        seed_mask = seed_mask | (injection_mask > 0);
+        fprintf('  Added injection site: %d voxels\n', injection_voxels_before);
+        fprintf('  Total seed mask: %d voxels\n', sum(seed_mask(:)));
+
+        tract_opts.seed_mask = seed_mask;
+    end
+
     % Run tractography or load pre-computed tracks
     if ~isempty(options.tracks_file)
         fprintf('Loading pre-computed tracks from %s...\n', options.tracks_file);
@@ -124,10 +152,20 @@ for i = 1:num_params
     fprintf('Binary mask contains %d voxels (%.2f%% of volume)\n', ...
         num_voxels, 100*num_voxels/prod(dims));
 
-    % Save with matching header
+    % Save with matching header - FIX DATA TYPE MISMATCH
     output_file = fullfile(output_dir, sprintf('submission_%03d.nii.gz', i));
     fprintf('Saving to %s...\n', output_file);
-    niftiwrite(uint8(voxel_mask), output_file, injection_info, 'Compressed', true);
+
+    % Convert voxel_mask to match injection_info datatype
+    if strcmp(injection_info.Datatype, 'single')
+        voxel_mask_typed = single(voxel_mask);
+    elseif strcmp(injection_info.Datatype, 'double')
+        voxel_mask_typed = double(voxel_mask);
+    else
+        voxel_mask_typed = uint8(voxel_mask);
+    end
+
+    niftiwrite(voxel_mask_typed, output_file, injection_info, 'Compressed', true);
 end
 
 fprintf('\n=== Submission Generation Complete ===\n');
