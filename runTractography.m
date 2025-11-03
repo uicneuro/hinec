@@ -73,53 +73,80 @@ options.min_length = 35;            % Minimum track length in mm - filters out s
 options.order = 1;                  % FACT uses first-order integration
 options.interp_method = 'none';     % FACT samples nearest voxel tensor (no interpolation)
 
-% ENHANCED SEEDING STRATEGY - Use brain mask for comprehensive coverage
-[data_dir, data_name, ~] = fileparts(data_path);
-if isempty(data_dir)
-    data_dir = pwd;
-end
+%% CENTRALIZED SEEDING STRATEGY
+% All seeding decisions happen here - nim_tractography_standard.m only executes
+fprintf('\n=== Configuring Seeding Strategy ===\n');
 
-% White matter masking disabled - use brain mask for seeding
+% Strategy priority (best to worst):
+% 1. Preprocessed brain mask (nim.mask) - most accurate
+% 2. Expanded parcellation mask - good for labeled regions
+% 3. FA-threshold fallback - basic but works everywhere
+
 seed_mask = [];
+seeding_strategy = '';
 
-% Use brain mask for comprehensive seeding (preserves parcellation regions)
-if isempty(seed_mask)
-    % Strategy 1: Use preprocessed brain mask (best option)
-    if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
-        brain_mask = nim.mask > 0.5;
-        fprintf('Using preprocessed brain mask for comprehensive seeding\n');
-        seeding_strategy = 'brain_mask';
-    % Strategy 2: Expand parcellation mask to include surrounding brain tissue
-    elseif isfield(nim, 'parcellation_mask') && any(nim.parcellation_mask(:) > 0)
-        % Create brain-like mask from parcellation + expansion
-        parcel_mask = nim.parcellation_mask > 0;
-        % Dilate parcellation to capture surrounding brain tissue
-        se = strel('sphere', 2);  % 2-voxel dilation
-        brain_mask = imdilate(parcel_mask, se);
-        % Constrain to reasonable FA values to avoid CSF
-        brain_mask = brain_mask & (nim.FA > 0.05);
-        fprintf('Using expanded parcellation mask for brain seeding\n');
-        seeding_strategy = 'expanded_parcellation';
-    % Strategy 3: FA-based fallback (conservative)
-    else
-        brain_mask = nim.FA > 0.1;  % Conservative FA threshold
-        fprintf('⚠ Using FA-based brain boundary (FA > 0.1)\n');
-        seeding_strategy = 'fa_based_brain';
-    end
+% Strategy 1: Preprocessed brain mask (BEST)
+if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+    brain_mask = nim.mask > 0.5;
+    fprintf('Strategy: Preprocessed brain mask\n');
+    seeding_strategy = 'brain_mask';
+
+    % Optional: Refine with minimal FA to avoid ventricles/CSF
+    brain_mask = brain_mask & (nim.FA > 0.05);
+    fprintf('  Refined with FA > 0.05 to exclude CSF\n');
 
     seed_mask = brain_mask;
-    fprintf('✓ Using %s for seeding (%d voxels)\n', seeding_strategy, sum(seed_mask(:)));
+
+% Strategy 2: Expanded parcellation mask
+elseif isfield(nim, 'parcellation_mask') && any(nim.parcellation_mask(:) > 0)
+    fprintf('Strategy: Expanded parcellation mask\n');
+    parcel_mask = nim.parcellation_mask > 0;
+
+    % Aggressive expansion to capture surrounding white matter
+    se = strel('sphere', 3);  % 3-voxel dilation for better coverage
+    brain_mask = imdilate(parcel_mask, se);
+
+    % Constrain to reasonable FA to avoid CSF (very low threshold)
+    brain_mask = brain_mask & (nim.FA > 0.05);
+    fprintf('  Dilated parcellation by 3 voxels\n');
+    fprintf('  Constrained with FA > 0.05\n');
+
+    seeding_strategy = 'expanded_parcellation';
+    seed_mask = brain_mask;
+
+% Strategy 3: FA-based fallback (CONSERVATIVE)
+else
+    fprintf('⚠ Strategy: FA-threshold fallback (no brain mask available)\n');
+    % Use low FA threshold for better coverage
+    brain_mask = nim.FA > 0.10;  % Lower threshold = more coverage
+    fprintf('  Using FA > 0.10 for brain boundary\n');
+    fprintf('  WARNING: This misses low-anisotropy regions (fornix, cingulum)\n');
+
+    seeding_strategy = 'fa_threshold';
+    seed_mask = brain_mask;
 end
+
+% Quality check
+seed_voxel_count = sum(seed_mask(:));
+if seed_voxel_count == 0
+    error('Seed mask is empty! Cannot proceed with tractography.');
+end
+
+fprintf('\n✓ Seeding strategy: %s\n', seeding_strategy);
+fprintf('✓ Seed voxels: %d (%.1f%% of volume)\n', ...
+    seed_voxel_count, 100 * seed_voxel_count / numel(nim.FA));
 options.seed_mask = seed_mask;
 
-% Show enhanced seeding statistics
+% Show detailed seeding statistics
 total_seed_locations = sum(seed_mask(:));
 estimated_seeds = total_seed_locations * options.seed_density;
-fprintf('ENHANCED SEEDING STRATEGY: %s\n', seeding_strategy);
-fprintf('  Seed locations: %d\n', total_seed_locations);
-fprintf('  Seeds per voxel: %d\n', options.seed_density);
-fprintf('  Estimated total seeds: %d\n', estimated_seeds);
-fprintf('  Quality improvement: Boundary erosion reduces edge artifacts\n');
+fprintf('\n=== Seeding Statistics ===\n');
+fprintf('Seed voxels: %d (%.1f%% of volume)\n', ...
+    total_seed_locations, 100 * total_seed_locations / numel(nim.FA));
+fprintf('Seeds per voxel: %d (density parameter)\n', options.seed_density);
+fprintf('Estimated total seeds: %d\n', estimated_seeds);
+fprintf('Expected tracks: ~%d (bidirectional from each seed)\n', estimated_seeds * 2);
+fprintf('==========================\n');
 
 %% Run FACT tractography
 fprintf('Running FACT tractography...\n');
@@ -161,6 +188,11 @@ if enable_irontract
     % DON'T pass tracks_file - force regeneration with injection site seeds
     irontract_opts.tracks_file = '';  % Empty = regenerate with injection-site seeding
     irontract_opts.base_options = options;
+
+    % NOTE: IronTract has special seeding requirements
+    % nim_irontract_submit.m will MODIFY the seed_mask to include injection site
+    % This is handled internally by adding: seed_mask | injection_mask
+    % See nim_challenges/nim_irontract_submit.m lines 102-128 for details
 
     % Generate submission files
     nim_irontract_submit(data_path, injection_file, irontract_output_dir, irontract_opts);

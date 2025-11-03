@@ -14,19 +14,13 @@ runTractography('sample_parcellated.mat');
 
 ## Basic Usage
 
-### Step 1: List Available Regions
-```matlab
-% Use your nim file from main()
-listBrainRegions('sample_parcellated.mat');
-```
-
-### Step 2: Find Your Tracks File
+### Step 1: Find Your Tracks File
 After running `runTractography()`, your tracks will be in `tractography_results/`. 
 
 Use `ls tractography_results/` to find your specific tracks file name, e.g.:
 - `tracks_2024-01-01_12-00-00.mat`
 
-### Step 3: Visualize a Specific Region
+### Step 2: Visualize a Specific Region
 ```matlab
 % Basic usage - ALL arguments required
 visualizeTractographyRegion(5, 'tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat');
@@ -99,21 +93,6 @@ visualizeTractographyRegion(region_id, tracks_file, nim_file, filter_mode, Name,
 - `max_tracks`: Maximum tracks to display (default: unlimited)
 - `region_alpha`: Region overlay transparency (0-1)
 
-### listBrainRegions()
-Lists all available brain regions with statistics.
-
-**Syntax:**
-```matlab
-listBrainRegions(nim_file)
-region_info = listBrainRegions(nim_file)
-```
-
-**Arguments:**
-- `nim_file`: Path to .mat file containing nim structure with parcellation_mask - **REQUIRED**
-
-**Returns:**
-- `region_info`: Struct array with region ID, name, voxel count, percentage
-
 ### visualizeTractography()
 Original visualization function (also requires all arguments).
 
@@ -180,7 +159,7 @@ ls *.mat
 - Example: `visualizeTractographyRegion(5, 'tractography_results/tracks_*.mat', 'sample_parcellated.mat')`
 
 **"Region X does not exist"**
-- Run `listBrainRegions('sample_parcellated.mat')` to see available regions
+- Check the parcellation mask in your nim file to see available regions
 - Check that parcellation was successful
 
 **"Tracks file not found"**
@@ -204,24 +183,21 @@ ls *.mat
 ## Example Workflow
 
 ```matlab
-% 1. List available regions
-listBrainRegions('sample_parcellated.mat');
-
-% 2. Find your tracks file
+% 1. Find your tracks file
 ls tractography_results/
 
-% 3. Pick an interesting region (e.g., region 15) and your actual tracks file
+% 2. Pick an interesting region (e.g., region 15) and your actual tracks file
 region_id = 15;
 tracks_file = 'tractography_results/tracks_2024-01-01_12-00-00.mat';  % Use your actual file
 nim_file = 'sample_parcellated.mat';
 
-% 4. Explore different aspects of this region
+% 3. Explore different aspects of this region
 visualizeTractographyRegion(region_id, tracks_file, nim_file, 'pass_through');  % All related tracks
 visualizeTractographyRegion(region_id, tracks_file, nim_file, 'start_in');      % Outgoing tracks  
 visualizeTractographyRegion(region_id, tracks_file, nim_file, 'end_in');        % Incoming tracks
 visualizeTractographyRegion(region_id, tracks_file, nim_file, 'connect_to');    % Inter-region connections
 
-% 5. Study with different color modes
+% 4. Study with different color modes
 visualizeTractographyRegion(region_id, tracks_file, nim_file, 'pass_through', ...
     'color_mode', 'fa');
 visualizeTractographyRegion(region_id, tracks_file, nim_file, 'pass_through', ...
