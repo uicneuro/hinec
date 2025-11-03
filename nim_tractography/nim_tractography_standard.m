@@ -149,56 +149,14 @@ if options.enable_diagnostics
     fprintf('FACT verification took: %.2f seconds\n', timing.precompute_time);
 end
 
-% Create seed mask if not provided
+% Verify seed mask was provided by caller
 if isempty(options.seed_mask)
-    switch options.seed_strategy
-        case "fa_threshold"
-            fprintf('Seed strategy `fa_threshold`: using FA > %.2f to define seeds\n', options.fa_threshold);
-            options.seed_mask = nim.FA > options.fa_threshold;
-        otherwise
-            brain_mask = [];
-            if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
-                brain_mask = nim.mask > 0.5;
-                fprintf('Using preprocessed brain mask from nim.mask\n');
-            elseif isfield(nim, 'parcellation_mask')
-                brain_mask = nim.parcellation_mask > 0;
-                fprintf('Using parcellation mask as brain mask (fallback)\n');
-            end
-
-            if ~isempty(brain_mask)
-                % Optionally discard inferior slices that often contain susceptibility artifacts
-                if options.inferior_slice_fraction > 0
-                    z_exclude = max(1, round(dims(3) * options.inferior_slice_fraction));
-                    brain_mask(:, :, 1:z_exclude) = 0;
-                    fprintf('Excluded bottom %d slices (%.1f%% of volume)\n', z_exclude, options.inferior_slice_fraction * 100);
-                else
-                    z_exclude = 0;
-                    fprintf('Inferior slice exclusion disabled\n');
-                end
-
-                if any(brain_mask(:))
-                    options.seed_mask = brain_mask;
-                    fprintf('Using brain mask for seed placement\n');
-                    if options.use_fa_seed_filter
-                        options.seed_mask = options.seed_mask & (nim.FA > options.fa_threshold);
-                        fprintf('Applied FA threshold %.2f to refine seed mask\n', options.fa_threshold);
-                    else
-                        fprintf('Skipping FA-based filtering for seeding (uniform grid)\n');
-                    end
-                else
-                    fprintf('⚠ WARNING: Brain mask empty after exclusions - reverting to FA threshold seeding\n');
-                    options.seed_mask = nim.FA > options.fa_threshold;
-                    options.seed_strategy = "fa_threshold";
-                end
-            else
-                fprintf('⚠ WARNING: No brain mask found - falling back to FA threshold seeding\n');
-                options.seed_mask = nim.FA > options.fa_threshold;
-                options.seed_strategy = "fa_threshold";
-            end
-    end
-else
-    options.seed_mask = options.seed_mask > 0;
+    error(['No seed mask provided. Seeding strategy must be configured in runTractography.m\n' ...
+           'Example: options.seed_mask = brain_mask > 0.5;']);
 end
+
+% Ensure seed mask is logical
+options.seed_mask = logical(options.seed_mask > 0);
 
 options.seed_mask = logical(options.seed_mask);
 fprintf('Pre-computing dilated brain mask for boundary checking...\n');
