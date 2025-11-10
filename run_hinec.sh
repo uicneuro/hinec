@@ -83,45 +83,43 @@ printf 'Output: %s\n' "$output_mat"
 printf 'Log: %s\n' "$log_file"
 printf '========================================\n\n'
 
-# Phase 1: Preprocessing
-printf 'Phase 1: Preprocessing and DTI calculation...\n'
-matlab_command="addpath(genpath('.'));"
-matlab_command+=" main('$(escape_matlab_string "$data_prefix")', '$(escape_matlab_string "$output_mat")');"
+# Build combined MATLAB command for both phases
+printf 'Starting background execution...\n'
 
-nohup matlab -batch "$matlab_command" > "$log_file" 2>&1
+# Combine both phases into single MATLAB command
+matlab_command="addpath(genpath('.')); "
+matlab_command+="fprintf('\\n========================================\\n'); "
+matlab_command+="fprintf('PHASE 1: Preprocessing and DTI calculation\\n'); "
+matlab_command+="fprintf('========================================\\n'); "
+matlab_command+="main('$(escape_matlab_string "$data_prefix")', '$(escape_matlab_string "$output_mat")'); "
+matlab_command+="fprintf('\\n✅ Phase 1 complete: %s created\\n\\n', '$(escape_matlab_string "$output_mat")'); "
+matlab_command+="fprintf('========================================\\n'); "
+matlab_command+="fprintf('PHASE 2: HINEC High-order Tractography\\n'); "
+matlab_command+="fprintf('========================================\\n'); "
+matlab_command+="runTractography('$(escape_matlab_string "$output_mat")', 'hinec'); "
+matlab_command+="fprintf('\\n========================================\\n'); "
+matlab_command+="fprintf('HINEC PIPELINE COMPLETE\\n'); "
+matlab_command+="fprintf('========================================\\n'); "
+matlab_command+="fprintf('Processed data: %s\\n', '$(escape_matlab_string "$output_mat")'); "
+matlab_command+="fprintf('Tractography: tractography_results/tracks_hinec.mat\\n'); "
+matlab_command+="fprintf('========================================\\n');"
 
-# Check if preprocessing succeeded
-if [[ ! -f "$output_mat" ]]; then
-    printf '\n❌ ERROR: Preprocessing failed. Output file not created: %s\n' "$output_mat" >&2
-    printf 'Check log for details: %s\n' "$log_file" >&2
-    exit 1
-fi
+# Run in background with nohup
+nohup matlab -batch "$matlab_command" > "$log_file" 2>&1 &
+pid=$!
 
-printf '✅ Phase 1 complete: %s created\n\n' "$output_mat"
-
-# Phase 2: HINEC Tractography
-printf 'Phase 2: HINEC high-order tractography...\n'
-matlab_command="addpath(genpath('.'));"
-matlab_command+=" runTractography('$(escape_matlab_string "$output_mat")', 'hinec');"
-
-nohup matlab -batch "$matlab_command" >> "$log_file" 2>&1
-
-# Check if tractography succeeded
-tracks_file="tractography_results/tracks_hinec.mat"
-if [[ ! -f "$tracks_file" ]]; then
-    printf '\n❌ ERROR: Tractography failed. Tracks file not created: %s\n' "$tracks_file" >&2
-    printf 'Check log for details: %s\n' "$log_file" >&2
-    exit 1
-fi
-
-printf '✅ Phase 2 complete: %s created\n\n' "$tracks_file"
-
-# Final summary
 printf '\n========================================\n'
-printf 'HINEC PIPELINE COMPLETE\n'
+printf 'HINEC PIPELINE LAUNCHED IN BACKGROUND\n'
 printf '========================================\n'
-printf 'Processed data: %s\n' "$output_mat"
-printf 'Tractography: %s\n' "$tracks_file"
-printf 'Full log: %s\n' "$log_file"
+printf 'Process ID (PID): %d\n' "$pid"
+printf 'Log file: %s\n' "$log_file"
+printf 'Output .mat: %s\n' "$output_mat"
+printf 'Tractography: tractography_results/tracks_hinec.mat\n'
 printf '========================================\n'
-printf '\nTo view log: tail -f %s\n' "$log_file"
+printf '\nMonitor progress:\n'
+printf '  tail -f %s\n' "$log_file"
+printf '\nCheck if running:\n'
+printf '  ps -p %d\n' "$pid"
+printf '\nKill if needed:\n'
+printf '  kill %d\n' "$pid"
+printf '========================================\n'
