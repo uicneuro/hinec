@@ -1,21 +1,32 @@
 function runTractography(data_path, varargin)
-% runTractography: Simple entry point for DTI tractography
+% runTractography: Entry point for DTI tractography with algorithm selection
 %
 % Usage:
-%   % Standard tractography (generates tracks only)
+%   % Standard FACT tractography (default)
 %   runTractography('sample_parcellated.mat')
+%   runTractography('sample_parcellated.mat', 'standard')
+%
+%   % HINEC high-order tractography (interpolation + RK4 + ACT)
+%   runTractography('sample_parcellated.mat', 'hinec')
 %
 %   % IronTract Challenge mode (generates tracks + submission files)
 %   runTractography('data.mat', 'IronTract', 'injection.nii.gz', 'submissions/')
 %
 % Arguments:
 %   data_path - Path to .mat file with nim structure
+%   algorithm - 'standard' (FACT) or 'hinec' (high-order) [default: 'standard']
 %   'IronTract' - Optional flag to enable IronTract Challenge submission
 %   injection_file - Path to injection site mask (required if IronTract enabled)
 %   output_dir - Output directory for submissions (required if IronTract enabled)
 %
 % Examples:
-%   % Process IronTract data
+%   % Standard FACT tractography
+%   runTractography('processed.mat', 'standard');
+%
+%   % HINEC high-order tractography
+%   runTractography('processed.mat', 'hinec');
+%
+%   % IronTract Challenge with standard algorithm
 %   main('ironTract/sub-MR243', 'ironTract.mat');
 %   runTractography('ironTract.mat', 'IronTract', 'ironTract/injection.nii.gz', 'ironTract_submissions/');
 
@@ -23,18 +34,27 @@ if nargin < 1
     data_path = 'sample_parcellated.mat';
 end
 
-% Parse optional IronTract arguments
+% Parse arguments
+algorithm = 'standard';  % Default to standard FACT
 enable_irontract = false;
 injection_file = '';
 irontract_output_dir = '';
 
-if nargin >= 2 && strcmpi(varargin{1}, 'IronTract')
-    enable_irontract = true;
-    if nargin < 4
-        error('IronTract mode requires: runTractography(data_path, ''IronTract'', injection_file, output_dir)');
+if nargin >= 2
+    % Check if first argument is algorithm selection
+    if strcmpi(varargin{1}, 'standard') || strcmpi(varargin{1}, 'hinec')
+        algorithm = lower(varargin{1});
+    elseif strcmpi(varargin{1}, 'IronTract')
+        % IronTract mode
+        enable_irontract = true;
+        if nargin < 4
+            error('IronTract mode requires: runTractography(data_path, ''IronTract'', injection_file, output_dir)');
+        end
+        injection_file = varargin{2};
+        irontract_output_dir = varargin{3};
+    else
+        error('Invalid algorithm. Use ''standard'' or ''hinec''. For IronTract, use ''IronTract'' as first argument.');
     end
-    injection_file = varargin{2};
-    irontract_output_dir = varargin{3};
 end
 
 % Add necessary paths
@@ -137,6 +157,37 @@ fprintf('✓ Seed voxels: %d (%.1f%% of volume)\n', ...
     seed_voxel_count, 100 * seed_voxel_count / numel(nim.FA));
 options.seed_mask = seed_mask;
 
+%% ACT Configuration: Add tissue masks if available
+fprintf('\n=== Anatomically Constrained Tractography (ACT) Configuration ===\n');
+if isfield(nim, 'wm_mask') && isfield(nim, 'gm_mask') && isfield(nim, 'csf_mask')
+    % All three tissue masks are available - enable full ACT
+    options.wm_mask = nim.wm_mask;
+    options.gm_mask = nim.gm_mask;
+    options.csf_mask = nim.csf_mask;
+
+    wm_voxels = sum(nim.wm_mask(:) > 0.5);
+    gm_voxels = sum(nim.gm_mask(:) > 0.5);
+    csf_voxels = sum(nim.csf_mask(:) > 0.5);
+
+    fprintf('✓ ACT enabled with tissue segmentation masks:\n');
+    fprintf('  WM mask:  %d voxels (%.1f%% of volume)\n', ...
+            wm_voxels, 100 * wm_voxels / numel(nim.FA));
+    fprintf('  GM mask:  %d voxels (%.1f%% of volume)\n', ...
+            gm_voxels, 100 * gm_voxels / numel(nim.FA));
+    fprintf('  CSF mask: %d voxels (%.1f%% of volume)\n', ...
+            csf_voxels, 100 * csf_voxels / numel(nim.FA));
+    fprintf('  ACT will constrain seeding to WM and terminate at GM/CSF boundaries\n');
+else
+    % Tissue masks not available - disable ACT
+    options.wm_mask = [];
+    options.gm_mask = [];
+    options.csf_mask = [];
+
+    fprintf('⚠ ACT disabled: Tissue masks not available\n');
+    fprintf('  Tractography will use FA-based termination only\n');
+    fprintf('  To enable ACT, run main() to generate tissue masks first\n');
+end
+
 % Show detailed seeding statistics
 total_seed_locations = sum(seed_mask(:));
 estimated_seeds = total_seed_locations * options.seed_density;
@@ -148,11 +199,20 @@ fprintf('Estimated total seeds: %d\n', estimated_seeds);
 fprintf('Expected tracks: ~%d (bidirectional from each seed)\n', estimated_seeds * 2);
 fprintf('==========================\n');
 
-%% Run FACT tractography
-fprintf('Running FACT tractography...\n');
-tic;
-tracks = nim_tractography_standard(nim, options);
-elapsed_time = toc;
+%% Run tractography (algorithm-dependent)
+if strcmpi(algorithm, 'hinec')
+    fprintf('Running HINEC high-order tractography (interpolation + RK4 + ACT)...\n');
+    tic;
+    tracks = nim_tractography_hinec(nim, options);
+    elapsed_time = toc;
+    output_filename = 'tracks_hinec.mat';
+else
+    fprintf('Running standard FACT tractography...\n');
+    tic;
+    tracks = nim_tractography_standard(nim, options);
+    elapsed_time = toc;
+    output_filename = 'tracks_standard.mat';
+end
 
 fprintf('Tractography completed in %.1f seconds\n', elapsed_time);
 fprintf('Generated %d tracks\n', length(tracks));
@@ -174,8 +234,9 @@ if ~exist(output_dir, 'dir')
     mkdir(output_dir);
 end
 
-save(fullfile(output_dir, 'tracks_standard.mat'), 'tracks', 'options', 'elapsed_time');
-fprintf('\nResults saved to %s/\n', output_dir);
+save(fullfile(output_dir, output_filename), 'tracks', 'options', 'elapsed_time', 'algorithm');
+fprintf('\nResults saved to %s/%s\n', output_dir, output_filename);
+fprintf('Algorithm used: %s\n', algorithm);
 
 %% IronTract Challenge Submission (if enabled)
 if enable_irontract

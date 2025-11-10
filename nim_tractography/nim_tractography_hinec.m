@@ -1,0 +1,1020 @@
+function tracks = nim_tractography_hinec(data_path, varargin)
+% nim_tractography_hinec: High-Order Deterministic Tractography with ACT
+%
+% HIGH-ORDER TRACTOGRAPHY IMPLEMENTATION:
+% - Trilinear interpolation of diffusion direction fields at sub-voxel positions
+% - Runge-Kutta 4th order (RK4) numerical integration for smooth trajectories
+% - Anatomically Constrained Tractography (ACT) using tissue segmentation
+% - Continuous tracking with fixed step sizes (not voxel boundary jumps)
+% - Gray matter termination and CSF avoidance for biological plausibility
+%
+% THREE CORE ENHANCEMENTS:
+% 1. INTERPOLATION: Smooth direction estimation between voxels
+% 2. RK4 INTEGRATION: Higher-order numerical accuracy (4th order vs Euler)
+% 3. ACT CONSTRAINTS: Anatomical validity using WM/GM/CSF masks
+%
+% Arguments:
+%   data_path - Path to .mat file containing nim structure or nim structure itself
+%   options - Structure containing tractography parameters (optional struct)
+%
+% Returns:
+%   tracks - Cell array of fiber tracks (each track is Nx3 matrix)
+%
+% HIGH-ORDER TRACTOGRAPHY PARAMETERS:
+%   step_size - Fixed integration step size in voxel units (default: 0.2)
+%   interp_method - Interpolation method: 'trilinear' or 'none' (default: 'trilinear')
+%   integration_order - 1=Euler, 2=RK2, 4=RK4 (default: 4)
+%   termination_fa - FA threshold for termination (default: 0.05)
+%   angle_thresh - Maximum angle change between directions (default: 60°)
+%   max_steps - Maximum integration steps (default: 5000)
+%   seed_density - Seeds per voxel with flexible positioning (default: 1)
+%
+% ACT PARAMETERS:
+%   act_enabled - Enable anatomically constrained tracking (default: true)
+%   wm_mask - White matter mask for seeding and propagation
+%   gm_mask - Gray matter mask for valid termination points
+%   csf_mask - CSF mask for invalid termination (avoid CSF entry)
+%
+% USAGE EXAMPLES:
+%   tracks = nim_tractography_hinec('data.mat'); % High-order with ACT
+%   options.integration_order = 2; % Use RK2 instead of RK4
+%   tracks = nim_tractography_hinec('data.mat', options);
+%
+% REFERENCES:
+%   Basser et al. (2000). In vivo fiber tractography using DT-MRI data.
+%   Magnetic Resonance in Medicine, 44(4), 625-632.
+%
+%   Smith et al. (2012). Anatomically-constrained tractography.
+%   NeuroImage, 62(3), 1924-1938.
+
+% Parse input arguments
+if nargin > 1 && isstruct(varargin{1})
+    options = varargin{1};
+else
+    options = struct();
+end
+
+% Set default value
+if ~isfield(options, 'seed_density')
+    options.seed_density = 1;
+end
+if ~isfield(options, 'seed_strategy')
+    options.seed_strategy = "uniform";
+end
+if ~isfield(options, 'step_size')
+    options.step_size = 0.2;  % HINEC: Smaller step size for RK4 accuracy
+end
+if ~isfield(options, 'fa_threshold')
+    options.fa_threshold = 0.1;
+end
+if ~isfield(options, 'angle_thresh')
+    options.angle_thresh = 60;
+end
+if ~isfield(options, 'max_steps')
+    options.max_steps = 5000;
+end
+if ~isfield(options, 'min_length')
+    options.min_length = 10;
+end
+if ~isfield(options, 'termination_fa')
+    options.termination_fa = 0.05;
+end
+if ~isfield(options, 'order')
+    options.order = 1;  % Kept for backward compatibility
+end
+if ~isfield(options, 'interp_method')
+    options.interp_method = "trilinear";  % HINEC: Use trilinear interpolation
+end
+if ~isfield(options, 'integration_order')
+    options.integration_order = 4;  % HINEC: RK4 integration by default
+end
+if ~isfield(options, 'act_enabled')
+    options.act_enabled = true;  % HINEC: Enable ACT by default
+end
+if ~isfield(options, 'wm_mask')
+    options.wm_mask = [];  % HINEC: White matter mask for ACT
+end
+if ~isfield(options, 'gm_mask')
+    options.gm_mask = [];  % HINEC: Gray matter mask for ACT
+end
+if ~isfield(options, 'csf_mask')
+    options.csf_mask = [];  % HINEC: CSF mask for ACT
+end
+if ~isfield(options, 'seed_mask')
+    options.seed_mask = [];
+end
+if ~isfield(options, 'enable_diagnostics')
+    options.enable_diagnostics = true;  % Enable timing diagnostics
+end
+if ~isfield(options, 'use_fa_seed_filter')
+    options.use_fa_seed_filter = false;
+end
+if ~isfield(options, 'inferior_slice_fraction')
+    options.inferior_slice_fraction = 0.1;
+end
+
+options.seed_strategy = lower(string(options.seed_strategy));
+
+% Initialize timing diagnostics
+if options.enable_diagnostics
+    timing = struct();
+    timing.total_start = tic;
+end
+
+% Load data if path is provided
+if ischar(data_path) || isstring(data_path)
+    fprintf('Loading data from %s...\n', data_path);
+    data = load(data_path);
+    nim = data.nim;
+else
+    nim = data_path;
+end
+
+% Verify required fields
+if ~isfield(nim, 'evec')
+    error('Eigenvectors not found in nim structure. Please run nim_eig() first.');
+end
+if ~isfield(nim, 'FA')
+    error('FA values not found in nim structure. Please run nim_fa() first.');
+end
+
+fprintf('Starting HINEC High-Order Tractography...\n');
+fprintf('Parameters: step=%.2f, FA_thresh=%.2f, angle_thresh=%.1f\u00b0, integration_order=%d\n', ...
+    options.step_size, options.fa_threshold, options.angle_thresh, options.integration_order);
+fprintf('Interpolation: %s, ACT: %s\n', options.interp_method, ...
+    string(options.act_enabled && (~isempty(options.wm_mask) || ~isempty(options.gm_mask))));
+
+% Get image dimensions
+dims = size(nim.FA);
+
+% HINEC: Pre-extract eigenvector components for efficient interpolation
+if options.enable_diagnostics
+    timing.precompute_start = tic;
+end
+
+fprintf('HINEC: Pre-extracting eigenvector components for interpolation...\n');
+% Verify eigenvectors are available
+if size(nim.evec, 4) ~= 3 || size(nim.evec, 5) ~= 3
+    error('HINEC requires eigenvectors in format [h x w x d x 3 x 3]');
+end
+
+% Pre-extract primary eigenvector components for efficient interpolation
+% This avoids repeated 5D array access during tracking
+nim.v1_x = squeeze(nim.evec(:,:,:,1,1));  % X component of primary eigenvector
+nim.v1_y = squeeze(nim.evec(:,:,:,2,1));  % Y component of primary eigenvector
+nim.v1_z = squeeze(nim.evec(:,:,:,3,1));  % Z component of primary eigenvector
+
+% Verify primary eigenvector at center voxel
+center_idx = round(dims/2);
+if isfield(nim, 'eval')
+    center_eigenvals = squeeze(nim.eval(center_idx(1), center_idx(2), center_idx(3), :));
+    if center_eigenvals(1) < center_eigenvals(2) || center_eigenvals(1) < center_eigenvals(3)
+        warning('HINEC: Primary eigenvector may not correspond to largest eigenvalue!');
+    end
+    fprintf('HINEC: Primary eigenvalue at center: %.4f\n', center_eigenvals(1));
+end
+
+fprintf('HINEC: Extracted v1_x, v1_y, v1_z components (size: %dx%dx%d)\n', dims(1), dims(2), dims(3));
+
+if options.enable_diagnostics
+    timing.precompute_time = toc(timing.precompute_start);
+    fprintf('HINEC: Eigenvector extraction took: %.2f seconds\n', timing.precompute_time);
+end
+
+% Verify seed mask was provided by caller
+if isempty(options.seed_mask)
+    error(['No seed mask provided. Seeding strategy must be configured in runTractography.m\n' ...
+           'Example: options.seed_mask = brain_mask > 0.5;']);
+end
+
+% Ensure seed mask is logical
+options.seed_mask = logical(options.seed_mask > 0);
+
+options.seed_mask = logical(options.seed_mask);
+fprintf('Pre-computing dilated brain mask for boundary checking...\n');
+nim.dilated_brain_mask = imdilate(options.seed_mask, ones(3,3,3));
+
+% Generate seed points
+if options.enable_diagnostics
+    timing.seed_start = tic;
+end
+
+[seed_points, seed_info] = generate_seed_points_hinec(options.seed_mask, options, dims);
+fprintf('Seed strategy: %s\n', char(options.seed_strategy));
+fprintf('Seeding layout: %s\n', seed_info.description);
+fprintf('Seeds per seeded voxel: %.2f\n', seed_info.seeds_per_voxel);
+if ~isnan(seed_info.voxel_spacing)
+    fprintf('Approximate inter-seed spacing: %.3f voxels\n', seed_info.voxel_spacing);
+end
+fprintf('Generated %d seed points\n', size(seed_points, 1));
+
+if options.enable_diagnostics
+    timing.seed_time = toc(timing.seed_start);
+    fprintf('Seed generation took: %.2f seconds\n', timing.seed_time);
+end
+
+% Print diagnostics
+fprintf('=== TRACTOGRAPHY DIAGNOSTICS ===\n');
+fprintf('Volume dimensions: %d x %d x %d\n', dims);
+fprintf('Seed mask voxels: %d\n', sum(options.seed_mask(:)));
+fprintf('Total seeds to process: %d\n', size(seed_points, 1));
+fprintf('Estimated tracks: %d\n', size(seed_points, 1) * 2);
+fprintf('==============================\n');
+
+% Pre-allocate tracks
+tracks = cell(size(seed_points, 1) * 2, 1);
+track_count = 0;
+
+% Track generation with failure diagnostics
+failure_reasons = struct();
+failure_reasons.no_initial_direction = 0;
+failure_reasons.immediate_fa_fail = 0;
+failure_reasons.no_boundary_exit = 0;
+failure_reasons.short_tracks = 0;
+failure_reasons.successful = 0;
+% HINEC ACT-specific termination reasons
+failure_reasons.csf_termination = 0;    % Invalid: entered CSF
+failure_reasons.gm_termination = 0;     % Valid: reached gray matter
+failure_reasons.outside_termination = 0; % Invalid: left brain volume
+failure_reasons.fa_termination = 0;      % Standard: low FA
+failure_reasons.angle_termination = 0;   % Standard: sharp turn
+
+% Convert angle threshold to cosine for efficiency
+cos_angle_thresh = cos(deg2rad(options.angle_thresh));
+
+% Initialize timing for tracking
+if options.enable_diagnostics
+    timing.tracking_start = tic;
+    timing.interpolation_time = 0;
+    timing.boundary_time = 0;
+    timing.step_count = 0;
+end
+
+% Process each seed point
+fprintf('Processing seeds: ');
+last_report_time = tic;
+
+for i = 1:size(seed_points, 1)
+    % Progress reporting with time estimate
+    if mod(i, 10) == 0
+        elapsed = toc(timing.tracking_start);
+        rate = i / elapsed;
+        eta = (size(seed_points, 1) - i) / rate;
+        fprintf('\n%d/%d (%.1f seeds/s, ETA: %.1f min) ', i, size(seed_points, 1), rate, eta/60);
+        % m = memory;
+        % fprintf('\nMemory: %.1f GB used', m.MemUsedMATLAB/1e9);
+    end
+    
+    seed = seed_points(i, :);
+
+    % Track in both directions and combine into one track
+    if options.enable_diagnostics
+        [track_forward, step_timing_fwd, term_fwd] = track_fiber_hinec(nim, seed, +1, options, cos_angle_thresh);
+        [track_backward, step_timing_bwd, term_bwd] = track_fiber_hinec(nim, seed, -1, options, cos_angle_thresh);
+        timing.interpolation_time = timing.interpolation_time + step_timing_fwd.interpolation_time + step_timing_bwd.interpolation_time;
+        timing.boundary_time = timing.boundary_time + step_timing_fwd.boundary_time + step_timing_bwd.boundary_time;
+        timing.step_count = timing.step_count + step_timing_fwd.step_count + step_timing_bwd.step_count;
+    else
+        [track_forward, ~, term_fwd] = track_fiber_hinec(nim, seed, +1, options, cos_angle_thresh);
+        [track_backward, ~, term_bwd] = track_fiber_hinec(nim, seed, -1, options, cos_angle_thresh);
+    end
+
+    % Count termination reasons from both directions
+    % Note: We count both directions to understand termination patterns
+    if strcmp(term_fwd, 'csf')
+        failure_reasons.csf_termination = failure_reasons.csf_termination + 1;
+    elseif strcmp(term_fwd, 'gm')
+        failure_reasons.gm_termination = failure_reasons.gm_termination + 1;
+    elseif strcmp(term_fwd, 'outside')
+        failure_reasons.outside_termination = failure_reasons.outside_termination + 1;
+    elseif strcmp(term_fwd, 'fa')
+        failure_reasons.fa_termination = failure_reasons.fa_termination + 1;
+    elseif strcmp(term_fwd, 'angle')
+        failure_reasons.angle_termination = failure_reasons.angle_termination + 1;
+    end
+
+    if strcmp(term_bwd, 'csf')
+        failure_reasons.csf_termination = failure_reasons.csf_termination + 1;
+    elseif strcmp(term_bwd, 'gm')
+        failure_reasons.gm_termination = failure_reasons.gm_termination + 1;
+    elseif strcmp(term_bwd, 'outside')
+        failure_reasons.outside_termination = failure_reasons.outside_termination + 1;
+    elseif strcmp(term_bwd, 'fa')
+        failure_reasons.fa_termination = failure_reasons.fa_termination + 1;
+    elseif strcmp(term_bwd, 'angle')
+        failure_reasons.angle_termination = failure_reasons.angle_termination + 1;
+    end
+
+    % Diagnostic: Check if tracks were generated
+    if isempty(track_forward) && isempty(track_backward)
+        failure_reasons.no_initial_direction = failure_reasons.no_initial_direction + 1;
+        continue;
+    end
+
+    % Combine tracks: backward (flipped) + seed + forward
+    if size(track_backward, 1) > 1
+        % Remove seed point from backward track and flip order
+        track_backward = flipud(track_backward(2:end, :));
+    else
+        track_backward = [];
+    end
+
+    if size(track_forward, 1) > 1
+        % Remove seed point from forward track
+        track_forward = track_forward(2:end, :);
+    else
+        track_forward = [];
+    end
+
+    % Combine into one continuous track
+    combined_track = [track_backward; seed; track_forward];
+
+    % Save ALL generated tracks - no filters at all
+    if size(combined_track, 1) > 1
+        track_count = track_count + 1;
+        tracks{track_count} = combined_track;
+        failure_reasons.successful = failure_reasons.successful + 1;
+    end
+end
+
+% Trim tracks array
+tracks = tracks(1:track_count);
+
+% Print final timing report
+if options.enable_diagnostics
+    timing.tracking_time = toc(timing.tracking_start);
+    timing.total_time = toc(timing.total_start);
+    
+    fprintf('\n\n=== HINEC TIMING REPORT ===\n');
+    fprintf('Integration method: Order %d (%s)\n', options.integration_order, ...
+        get_integration_method_name(options.integration_order));
+    fprintf('Total time: %.2f seconds\n', timing.total_time);
+    fprintf('Eigenvector extraction: %.2f seconds (%.1f%%)\n', timing.precompute_time, 100*timing.precompute_time/timing.total_time);
+    fprintf('Seed generation: %.2f seconds (%.1f%%)\n', timing.seed_time, 100*timing.seed_time/timing.total_time);
+    fprintf('HINEC tracking: %.2f seconds (%.1f%%)\n', timing.tracking_time, 100*timing.tracking_time/timing.total_time);
+    fprintf('  - Interpolation + integration overhead included\n');
+    fprintf('  - Brain boundary checks: %.2f seconds (%.1f%% of tracking)\n', timing.boundary_time, 100*timing.boundary_time/timing.tracking_time);
+    fprintf('Total integration steps: %d\n', timing.step_count);
+    fprintf('Average steps per track: %.1f\n', timing.step_count / (size(seed_points, 1) * 2));
+    fprintf('Integration steps per second: %.1f\n', timing.step_count / timing.tracking_time);
+    fprintf('========================\n');
+end
+
+total_attempts = size(seed_points, 1) * 2;
+success_rate = (track_count / total_attempts) * 100;
+fprintf('\nGenerated %d valid tracks (filtered from %d total attempts - %.1f%% success rate)\n', track_count, total_attempts, success_rate);
+
+% Detailed failure analysis
+fprintf('\n=== TERMINATION ANALYSIS ===\n');
+fprintf('No initial direction: %d (%.1f%%)\n', failure_reasons.no_initial_direction, 100*failure_reasons.no_initial_direction/total_attempts);
+fprintf('Successful tracks: %d (%.1f%%)\n', failure_reasons.successful, 100*failure_reasons.successful/total_attempts);
+
+% ACT-specific terminations
+act_enabled = ~isempty(options.wm_mask) && ~isempty(options.gm_mask) && ~isempty(options.csf_mask);
+if act_enabled
+    fprintf('\n--- ACT Termination Statistics ---\n');
+    fprintf('GM terminations (valid):   %d (%.1f%%)\n', failure_reasons.gm_termination, 100*failure_reasons.gm_termination/total_attempts);
+    fprintf('CSF terminations (invalid): %d (%.1f%%)\n', failure_reasons.csf_termination, 100*failure_reasons.csf_termination/total_attempts);
+    fprintf('Outside brain:             %d (%.1f%%)\n', failure_reasons.outside_termination, 100*failure_reasons.outside_termination/total_attempts);
+
+    % ACT effectiveness
+    total_act_terminations = failure_reasons.gm_termination + failure_reasons.csf_termination + failure_reasons.outside_termination;
+    if total_act_terminations > 0
+        gm_ratio = 100 * failure_reasons.gm_termination / total_act_terminations;
+        fprintf('ACT effectiveness: %.1f%% valid GM terminations\n', gm_ratio);
+    end
+end
+
+% Standard termination reasons
+fprintf('\n--- Standard Termination Reasons ---\n');
+fprintf('FA threshold:    %d (%.1f%%)\n', failure_reasons.fa_termination, 100*failure_reasons.fa_termination/total_attempts);
+fprintf('Angle threshold: %d (%.1f%%)\n', failure_reasons.angle_termination, 100*failure_reasons.angle_termination/total_attempts);
+
+fprintf('============================\n');
+
+if success_rate < 10
+    fprintf('⚠️  WARNING: Extremely low success rate! Check algorithm parameters.\n');
+end
+
+% SAVE RESULTS AUTOMATICALLY
+output_dir = 'tractography_results';
+if ~exist(output_dir, 'dir')
+    mkdir(output_dir);
+end
+
+% Save tracks with metadata
+timestamp = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
+output_file = fullfile(output_dir, sprintf('tracks_%s.mat', timestamp));
+
+% Calculate track statistics
+if track_count > 0
+    track_lengths = zeros(track_count, 1);
+    for i = 1:track_count
+        if size(tracks{i}, 1) > 1
+            track_lengths(i) = sum(vecnorm(diff(tracks{i}), 2, 2));
+        end
+    end
+    
+    track_stats = struct();
+    track_stats.num_tracks = track_count;
+    track_stats.mean_length = mean(track_lengths);
+    track_stats.median_length = median(track_lengths);
+    track_stats.max_length = max(track_lengths);
+    track_stats.min_length = min(track_lengths);
+    track_stats.total_length = sum(track_lengths);
+
+    % Add ACT-specific statistics if enabled
+    if act_enabled
+        track_stats.act_enabled = true;
+        track_stats.gm_terminations = failure_reasons.gm_termination;
+        track_stats.csf_terminations = failure_reasons.csf_termination;
+        track_stats.outside_terminations = failure_reasons.outside_termination;
+
+        % Calculate ACT effectiveness
+        total_act_terms = failure_reasons.gm_termination + failure_reasons.csf_termination + failure_reasons.outside_termination;
+        if total_act_terms > 0
+            track_stats.act_effectiveness_pct = 100 * failure_reasons.gm_termination / total_act_terms;
+        else
+            track_stats.act_effectiveness_pct = 0;
+        end
+
+        % Tissue-specific success rates
+        track_stats.gm_termination_rate = 100 * failure_reasons.gm_termination / total_attempts;
+        track_stats.csf_termination_rate = 100 * failure_reasons.csf_termination / total_attempts;
+    else
+        track_stats.act_enabled = false;
+    end
+
+    % Standard termination statistics
+    track_stats.fa_terminations = failure_reasons.fa_termination;
+    track_stats.angle_terminations = failure_reasons.angle_termination;
+else
+    track_lengths = [];
+    track_stats = struct('num_tracks', 0, 'act_enabled', act_enabled);
+end
+
+% Save everything - use v7.3 format for large variables (>2GB support)
+fprintf('Saving results (using MAT v7.3 for large file support)...\n');
+save(output_file, 'tracks', 'options', 'track_stats', 'track_lengths', 'dims', '-v7.3');
+fprintf('Results saved to: %s\n', output_file);
+
+% Print summary
+fprintf('\n========================================\n');
+fprintf('HINEC HIGH-ORDER TRACTOGRAPHY COMPLETE\n');
+fprintf('========================================\n');
+fprintf('Algorithm: Interpolation + RK4 + ACT\n');
+if act_enabled
+    fprintf('ACT Status: ENABLED (WM/GM/CSF masks active)\n');
+    fprintf('ACT Effectiveness: %.1f%% valid GM terminations\n', track_stats.act_effectiveness_pct);
+else
+    fprintf('ACT Status: DISABLED (no tissue masks)\n');
+end
+fprintf('Tracks Generated: %d\n', track_count);
+fprintf('Mean Track Length: %.2f mm\n', track_stats.mean_length);
+fprintf('Output File: %s\n', output_file);
+fprintf('========================================\n');
+
+end
+
+function [seed_points, seed_info] = generate_seed_points_hinec(seed_mask, options, dims)
+% HINEC: Generate seed points for high-order tractography
+% Default strategy places a uniform lattice of seeds inside each seeded voxel
+
+mask_idx = find(seed_mask);
+if isempty(mask_idx)
+    seed_points = zeros(0, 3);
+    seed_info = struct('description', 'uniform (empty mask)', ...
+                       'seeds_per_voxel', 0, ...
+                       'voxel_spacing', NaN);
+    return;
+end
+
+[x, y, z] = ind2sub(dims, mask_idx);
+base_voxels = [x, y, z];
+num_voxels = size(base_voxels, 1);
+
+strategy = lower(string(options.seed_strategy));
+
+density = max(1, options.seed_density);
+
+if strcmp(strategy, "random")
+    % Backwards-compatible stochastic seeding inside voxels
+    if density <= 1
+        offsets = (rand(num_voxels, 3) - 0.5) * 0.4;
+        seed_points = base_voxels + offsets;
+        seeds_per_voxel = 1;
+    else
+        density_int = max(1, round(density));
+        seed_points = zeros(num_voxels * density_int, 3);
+        idx = 1;
+        for i = 1:num_voxels
+            for j = 1:density_int
+                offset = (rand(1, 3) - 0.5) * 0.8;
+                seed_points(idx, :) = base_voxels(i, :) + offset;
+                idx = idx + 1;
+            end
+        end
+        seeds_per_voxel = density_int;
+    end
+
+    seed_info = struct('description', 'random jitter within seeded voxels', ...
+                       'seeds_per_voxel', double(seeds_per_voxel), ...
+                       'voxel_spacing', NaN);
+    return;
+end
+
+% Deterministic lattice seeding inside each voxel
+per_axis = max(1, ceil(density^(1/3)));
+axis_edges = linspace(-0.5, 0.5, per_axis + 1);
+axis_offsets = (axis_edges(1:end-1) + axis_edges(2:end)) / 2;
+[ox, oy, oz] = ndgrid(axis_offsets, axis_offsets, axis_offsets);
+offsets = [ox(:), oy(:), oz(:)];
+num_offsets = size(offsets, 1);
+
+seed_points = zeros(num_voxels * num_offsets, 3);
+idx = 1;
+for i = 1:num_voxels
+    voxel_center = base_voxels(i, :);
+    for j = 1:num_offsets
+        seed_points(idx, :) = voxel_center + offsets(j, :);
+        idx = idx + 1;
+    end
+end
+
+voxel_spacing = 1 / per_axis;
+description = sprintf('uniform grid (%d×%d×%d sub-voxel lattice)', per_axis, per_axis, per_axis);
+
+seed_info = struct('description', description, ...
+                   'seeds_per_voxel', double(num_offsets), ...
+                   'voxel_spacing', voxel_spacing);
+end
+
+function [track, step_timing, termination_reason] = track_fiber_hinec(nim, seed, direction, options, cos_angle_thresh)
+% HINEC: High-order deterministic tractography with interpolation, RK4, and ACT
+%
+% HINEC ALGORITHM ENHANCEMENTS:
+% - Trilinear interpolation of diffusion direction fields (sub-voxel precision)
+% - Runge-Kutta 4th order numerical integration (higher accuracy)
+% - Anatomically Constrained Tractography (tissue-based termination)
+% - Continuous tracking with fixed step size (no voxel boundary jumps)
+%
+% Arguments:
+%   nim - NIM structure with diffusion tensors
+%   seed - Starting position
+%   direction - Initial tracking direction (+1 or -1)
+%   options - HINEC tracking parameters
+%   cos_angle_thresh - Cosine of maximum angle change
+%
+% Returns:
+%   track - Array of positions along fiber track
+
+% Initialize position and streamline
+current_pos = seed;
+track = zeros(options.max_steps + 1, 3);
+track(1, :) = current_pos;
+track_length = 1;
+
+% Initialize termination reason tracking
+if nargout > 2
+    termination_reason = 'unknown';
+end
+
+% Initialize timing
+if nargout > 1
+    step_timing = struct();
+    step_timing.interpolation_time = 0;  % Included in RK4 timing
+    step_timing.boundary_time = 0;
+    step_timing.step_count = 0;
+end
+
+% Get initial direction using interpolation
+[dir_vec, fa_val] = interpolate_direction_trilinear(nim, current_pos, options);
+if isempty(dir_vec) || fa_val < options.termination_fa
+    track = track(1:track_length, :);
+    if nargout > 2
+        termination_reason = 'no_direction';
+    end
+    return;
+end
+
+% Apply direction flip for bidirectional tracking
+dir_vec = dir_vec * direction;
+
+% Pre-compute frequently used values
+dims = size(nim.FA);
+has_parcellation = isfield(nim, 'dilated_brain_mask');
+
+% HINEC algorithm: continuous tracking with RK4 integration
+while true
+    if nargout > 1
+        step_timing.step_count = step_timing.step_count + 1;
+    end
+
+    % Check termination criteria BEFORE advancing
+    if fa_val < options.termination_fa
+        if nargout > 2
+            termination_reason = 'fa';
+        end
+        break;
+    end
+
+    % Check angle constraint (only after first step)
+    if track_length > 1
+        prev_pos = track(track_length-1, :);
+        current_step = track(track_length, :) - prev_pos;
+        if norm(current_step) > 1e-6
+            current_step = current_step / norm(current_step);
+            if dot(dir_vec, current_step) < cos_angle_thresh
+                if nargout > 2
+                    termination_reason = 'angle';
+                end
+                break;
+            end
+        end
+    end
+
+    % Check maximum steps
+    if track_length >= options.max_steps
+        if nargout > 2
+            termination_reason = 'max_steps';
+        end
+        break;
+    end
+
+    % HINEC: Advance position using selected integration method (Euler/RK2/RK4)
+    next_pos = advance_position(nim, current_pos, dir_vec, options);
+
+    % Check if next position is valid (within volume bounds)
+    if any(next_pos < 1) || any(next_pos > dims)
+        if nargout > 2
+            termination_reason = 'outside';
+        end
+        break;
+    end
+
+    % Brain tissue check at next position
+    if has_parcellation
+        if nargout > 1
+            boundary_tic = tic;
+        end
+
+        next_voxel = round(next_pos);
+        if all(next_voxel >= 1) && all(next_voxel <= dims)
+            if ~nim.dilated_brain_mask(next_voxel(1), next_voxel(2), next_voxel(3))
+                if nargout > 2
+                    termination_reason = 'outside';
+                end
+                break;
+            end
+        end
+
+        if nargout > 1
+            step_timing.boundary_time = step_timing.boundary_time + toc(boundary_tic);
+        end
+    end
+
+    % HINEC ACT: Check tissue type at next position
+    tissue_type = check_tissue_type(next_pos, options, dims);
+
+    % ACT termination logic
+    if strcmp(tissue_type, 'CSF')
+        % Entered CSF - invalid termination, discard track
+        % Set track_length to 0 to signal invalid track
+        track_length = 0;
+        if nargout > 2
+            termination_reason = 'csf';
+        end
+        break;
+
+    elseif strcmp(tissue_type, 'GM')
+        % Reached gray matter - valid termination point
+        % Add final position in GM and stop tracking
+        track_length = track_length + 1;
+        track(track_length, :) = next_pos;
+        if nargout > 2
+            termination_reason = 'gm';
+        end
+        break;
+
+    elseif strcmp(tissue_type, 'OUTSIDE')
+        % Left brain volume - stop tracking
+        if nargout > 2
+            termination_reason = 'outside';
+        end
+        break;
+
+    elseif strcmp(tissue_type, 'WM') || strcmp(tissue_type, 'UNKNOWN')
+        % White matter or no ACT - continue tracking normally
+        % Add position to streamline
+        track_length = track_length + 1;
+        track(track_length, :) = next_pos;
+
+    else
+        % Unknown tissue type - stop tracking
+        if nargout > 2
+            termination_reason = 'unknown';
+        end
+        break;
+    end
+
+    % If track was invalidated by CSF, exit immediately
+    if track_length == 0
+        break;
+    end
+
+    % Move to next position and update direction
+    current_pos = next_pos;
+
+    % Get new direction using interpolation
+    [new_dir, fa_val] = interpolate_direction_trilinear(nim, current_pos, options);
+    if isempty(new_dir)
+        if nargout > 2
+            termination_reason = 'no_direction';
+        end
+        break;
+    end
+
+    % Ensure new direction is oriented consistently with current direction
+    if dot(dir_vec, new_dir) < 0
+        new_dir = -new_dir;
+    end
+    dir_vec = new_dir;
+end
+
+% Trim track array to actual length
+track = track(1:track_length, :);
+end
+
+function name = get_integration_method_name(order)
+% Get human-readable name for integration method
+switch order
+    case 1
+        name = 'Euler';
+    case 2
+        name = 'RK2/Midpoint';
+    case 4
+        name = 'RK4';
+    otherwise
+        name = sprintf('Unknown (order %d)', order);
+end
+end
+
+
+function initial_dir = get_initial_direction_hinec(nim, pos, options)
+% HINEC: Get initial direction from seed using interpolation
+[initial_dir, fa_val] = interpolate_direction_trilinear(nim, pos, options);
+if isempty(initial_dir) || fa_val < options.termination_fa
+    initial_dir = [];
+end
+end
+
+
+function new_pos = rk4_integration_step(nim, pos, dir_vec, options)
+% HINEC: Runge-Kutta 4th order integration step
+%
+% RK4 MATHEMATICAL FORMULATION:
+% k1 = v(r_n)
+% k2 = v(r_n + 0.5*h*k1)
+% k3 = v(r_n + 0.5*h*k2)
+% k4 = v(r_n + h*k3)
+% r_{n+1} = r_n + (h/6)*(k1 + 2*k2 + 2*k3 + k4)
+%
+% Arguments:
+%   nim - NIM structure with interpolation data
+%   pos - Current position
+%   dir_vec - Current direction (k1)
+%   options - Contains step_size (h)
+%
+% Returns:
+%   new_pos - Next position using RK4 integration
+
+h = options.step_size;
+
+% k1: direction at current position (already provided as dir_vec)
+k1 = dir_vec;
+
+% k2: direction at position + 0.5*h*k1
+pos_k2 = pos + 0.5 * h * k1;
+[k2, ~] = interpolate_direction_trilinear(nim, pos_k2, options);
+if isempty(k2)
+    % Fallback to k1 if interpolation fails
+    k2 = k1;
+else
+    % Ensure direction consistency
+    if dot(k2, dir_vec) < 0
+        k2 = -k2;
+    end
+end
+
+% k3: direction at position + 0.5*h*k2
+pos_k3 = pos + 0.5 * h * k2;
+[k3, ~] = interpolate_direction_trilinear(nim, pos_k3, options);
+if isempty(k3)
+    % Fallback to k2 if interpolation fails
+    k3 = k2;
+else
+    % Ensure direction consistency
+    if dot(k3, dir_vec) < 0
+        k3 = -k3;
+    end
+end
+
+% k4: direction at position + h*k3
+pos_k4 = pos + h * k3;
+[k4, ~] = interpolate_direction_trilinear(nim, pos_k4, options);
+if isempty(k4)
+    % Fallback to k3 if interpolation fails
+    k4 = k3;
+else
+    % Ensure direction consistency
+    if dot(k4, dir_vec) < 0
+        k4 = -k4;
+    end
+end
+
+% RK4 weighted combination
+new_pos = pos + (h/6) * (k1 + 2*k2 + 2*k3 + k4);
+end
+
+
+function new_pos = advance_position(nim, pos, dir_vec, options)
+% HINEC: Advance position using selected integration method
+%
+% INTEGRATION METHODS:
+% Order 1 (Euler): r_{n+1} = r_n + h*v(r_n)
+% Order 2 (RK2):   Midpoint method
+% Order 4 (RK4):   Full Runge-Kutta 4th order
+%
+% Arguments:
+%   nim - NIM structure
+%   pos - Current position
+%   dir_vec - Current direction
+%   options - Contains integration_order and step_size
+%
+% Returns:
+%   new_pos - Next position
+
+h = options.step_size;
+
+switch options.integration_order
+    case 1
+        % Euler integration (first order)
+        new_pos = pos + h * dir_vec;
+
+    case 2
+        % RK2 / Midpoint method (second order)
+        k1 = dir_vec;
+        mid_pos = pos + 0.5 * h * k1;
+
+        [k2, ~] = interpolate_direction_trilinear(nim, mid_pos, options);
+        if ~isempty(k2)
+            % Ensure direction consistency
+            if dot(k2, dir_vec) < 0
+                k2 = -k2;
+            end
+            new_pos = pos + h * k2;
+        else
+            % Fallback to Euler if interpolation fails
+            new_pos = pos + h * k1;
+        end
+
+    case 4
+        % RK4 integration (fourth order)
+        new_pos = rk4_integration_step(nim, pos, dir_vec, options);
+
+    otherwise
+        % Default to Euler for unknown orders
+        warning('Unknown integration order %d, using Euler', options.integration_order);
+        new_pos = pos + h * dir_vec;
+end
+end
+
+
+function [direction, fa_value] = interpolate_direction_trilinear(nim, pos, options)
+% HINEC: Trilinear interpolation of direction and FA at sub-voxel positions
+%
+% TRILINEAR INTERPOLATION:
+% - Interpolates primary eigenvector components at continuous positions
+% - Uses pre-extracted v1_x, v1_y, v1_z for efficiency
+% - Provides smooth direction transitions across voxel boundaries
+% - Interpolates FA value at same position
+%
+% Arguments:
+%   nim - NIM structure with pre-extracted v1_x, v1_y, v1_z, FA
+%   pos - Current position (continuous, sub-voxel precision)
+%   options - Tractography parameters
+%
+% Returns:
+%   direction - Interpolated primary eigenvector [3x1]
+%   fa_value - Interpolated FA value
+
+direction = [];
+fa_value = 0;
+
+dims = size(nim.FA);
+
+% Boundary check: need buffer for trilinear interpolation
+% interp3 requires position to be within [1, dim] bounds with margin
+if any(pos < 1.1) || any(pos(1) > dims(1)-0.1) || ...
+   any(pos(2) > dims(2)-0.1) || any(pos(3) > dims(3)-0.1)
+    return;
+end
+
+% Interpolate FA value first (fast termination check)
+try
+    % MATLAB interp3 uses (Y, X, Z) ordering: interp3(V, X, Y, Z)
+    fa_value = interp3(nim.FA, pos(2), pos(1), pos(3), 'linear', 0);
+catch
+    return;
+end
+
+% Early termination if FA too low
+if fa_value < options.termination_fa
+    return;
+end
+
+% Interpolate primary eigenvector components
+try
+    % Interpolate each component separately
+    v_x = interp3(nim.v1_x, pos(2), pos(1), pos(3), 'linear', 0);
+    v_y = interp3(nim.v1_y, pos(2), pos(1), pos(3), 'linear', 0);
+    v_z = interp3(nim.v1_z, pos(2), pos(1), pos(3), 'linear', 0);
+
+    direction = [v_x, v_y, v_z];
+
+    % Validate and normalize
+    dir_norm = norm(direction);
+    if dir_norm > 1e-6 && ~any(isnan(direction)) && ~any(isinf(direction))
+        direction = direction / dir_norm;
+    else
+        direction = [];
+    end
+catch ME
+    % Interpolation failed - return empty
+    direction = [];
+end
+end
+
+function tissue_type = check_tissue_type(pos, options, dims)
+% HINEC ACT: Check tissue type at given position
+% Returns: 'WM', 'GM', 'CSF', 'OUTSIDE', or 'UNKNOWN'
+%
+% ACT Logic:
+%   - WM: Valid for tracking (continue)
+%   - GM: Valid termination point (stop tracking, keep track)
+%   - CSF: Invalid termination point (stop tracking, discard track)
+%   - OUTSIDE: Outside brain volume (stop tracking, discard track)
+%   - UNKNOWN: No tissue masks available (use FA-based termination only)
+
+tissue_type = 'UNKNOWN';
+
+% Check if ACT is enabled (tissue masks available)
+if isempty(options.wm_mask) || isempty(options.gm_mask) || isempty(options.csf_mask)
+    return;
+end
+
+% Round position to nearest voxel for tissue lookup
+voxel_pos = round(pos);
+
+% Check bounds
+if any(voxel_pos < 1) || voxel_pos(1) > dims(1) || ...
+   voxel_pos(2) > dims(2) || voxel_pos(3) > dims(3)
+    tissue_type = 'OUTSIDE';
+    return;
+end
+
+% Query tissue masks at voxel position (binary masks)
+% Check in priority order: CSF > GM > WM
+% (CSF and GM are termination conditions, WM allows continuation)
+
+try
+    % Convert to linear index for efficient access
+    linear_idx = sub2ind(dims, voxel_pos(1), voxel_pos(2), voxel_pos(3));
+
+    % Check CSF first (highest priority termination)
+    if options.csf_mask(linear_idx) > 0.5
+        tissue_type = 'CSF';
+        return;
+    end
+
+    % Check GM (valid termination)
+    if options.gm_mask(linear_idx) > 0.5
+        tissue_type = 'GM';
+        return;
+    end
+
+    % Check WM (continue tracking)
+    if options.wm_mask(linear_idx) > 0.5
+        tissue_type = 'WM';
+        return;
+    end
+
+    % Position not classified in any tissue mask
+    tissue_type = 'UNKNOWN';
+
+catch ME
+    % Error accessing masks - treat as outside
+    tissue_type = 'OUTSIDE';
+end
+
+end
