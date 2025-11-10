@@ -172,20 +172,20 @@ brain_mask_file = [char(imgpath) '_M.nii.gz'];
 if isfile(brain_mask_file)
     % Improve the brain mask using FA data directly from nim structure
     improved_mask_file = preproc_mask_improvement(brain_mask_file, nim.FA, char(imgpath));
-    
+
     % Update the mask in the nim structure if improvement was successful
     if isfile(improved_mask_file)
         % Load the improved mask
         V_improved = spm_vol(improved_mask_file);
         improved_mask_data = spm_read_vols(V_improved);
-        
+
         % Update the brain mask in nim structure if it exists
         if isfield(nim, 'mask')
             nim.mask = improved_mask_data;
         end
-        
+
         fprintf("✓ Brain mask improved and updated\n");
-        
+
         % Replace the original mask file with the improved one
         copyfile(improved_mask_file, brain_mask_file);
     else
@@ -193,6 +193,50 @@ if isfile(brain_mask_file)
     end
 else
     fprintf("⚠ No brain mask found to improve\n");
+end
+
+%% Step 5b: Tissue segmentation for Anatomically Constrained Tractography (ACT)
+fprintf("\nGenerating tissue masks for ACT (WM, GM, CSF)...\n");
+if isfile(brain_mask_file)
+    try
+        % Generate tissue-specific masks using FA-based segmentation
+        [wm_mask_file, gm_mask_file, csf_mask_file] = ...
+            preproc_tissue_segmentation(nim.FA, brain_mask_file, char(imgpath));
+
+        % Load tissue masks into nim structure for tractography
+        if isfile(wm_mask_file)
+            V_wm = spm_vol(wm_mask_file);
+            nim.wm_mask = spm_read_vols(V_wm);
+            fprintf("  ✓ WM mask loaded: %s\n", wm_mask_file);
+        end
+
+        if isfile(gm_mask_file)
+            V_gm = spm_vol(gm_mask_file);
+            nim.gm_mask = spm_read_vols(V_gm);
+            fprintf("  ✓ GM mask loaded: %s\n", gm_mask_file);
+        end
+
+        if isfile(csf_mask_file)
+            V_csf = spm_vol(csf_mask_file);
+            nim.csf_mask = spm_read_vols(V_csf);
+            fprintf("  ✓ CSF mask loaded: %s\n", csf_mask_file);
+        end
+
+        % Store file paths for reference
+        nim.wm_mask_file = wm_mask_file;
+        nim.gm_mask_file = gm_mask_file;
+        nim.csf_mask_file = csf_mask_file;
+
+        fprintf("✅ Tissue segmentation complete and loaded into nim structure\n");
+        fprintf("   Ready for high-order tractography with ACT\n");
+
+    catch ME
+        fprintf("⚠ WARNING: Tissue segmentation failed: %s\n", ME.message);
+        fprintf("   Tractography will proceed without ACT constraints\n");
+    end
+else
+    fprintf("⚠ No brain mask found for tissue segmentation\n");
+    fprintf("   Tractography will proceed without ACT constraints\n");
 end
 
 %% Step 6: Save enhanced nim structure
