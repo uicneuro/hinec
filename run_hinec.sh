@@ -114,7 +114,8 @@ printf '========================================\n'
 printf 'Process ID (PID): %d\n' "$pid"
 printf 'Log file: %s\n' "$log_file"
 printf 'Output .mat: %s\n' "$output_mat"
-printf 'Tractography: tractography_results/tracks_hinec.mat\n'
+printf 'Tractography: tractography_results/tracks_hinec_YYYY-MM-DD_HH_MM_SS.mat\n'
+printf '              (timestamped filename will be generated)\n'
 printf '========================================\n'
 printf '\nMonitor progress:\n'
 printf '  tail -f %s\n' "$log_file"
@@ -122,4 +123,6 @@ printf '\nCheck if running:\n'
 printf '  ps -p %d\n' "$pid"
 printf '\nKill if needed:\n'
 printf '  kill %d\n' "$pid"
+printf '\nView results when complete:\n'
+printf '  ls -lt tractography_results/\n'
 printf '========================================\n'

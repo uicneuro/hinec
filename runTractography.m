@@ -200,18 +200,21 @@ fprintf('Expected tracks: ~%d (bidirectional from each seed)\n', estimated_seeds
 fprintf('==========================\n');
 
 %% Run tractography (algorithm-dependent)
+% Generate timestamp for output filename
+timestamp = datestr(now, 'yyyy-mm-dd_HH_MM_SS');
+
 if strcmpi(algorithm, 'hinec')
     fprintf('Running HINEC high-order tractography (interpolation + RK4 + ACT)...\n');
     tic;
     tracks = nim_tractography_hinec(nim, options);
     elapsed_time = toc;
-    output_filename = 'tracks_hinec.mat';
+    output_filename = sprintf('tracks_hinec_%s.mat', timestamp);
 else
     fprintf('Running standard FACT tractography...\n');
     tic;
     tracks = nim_tractography_standard(nim, options);
     elapsed_time = toc;
-    output_filename = 'tracks_standard.mat';
+    output_filename = sprintf('tracks_standard_%s.mat', timestamp);
 end
 
 fprintf('Tractography completed in %.1f seconds\n', elapsed_time);
