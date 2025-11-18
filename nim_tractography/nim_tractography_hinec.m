@@ -8,10 +8,20 @@ function tracks = nim_tractography_hinec(data_path, varargin)
 % - Continuous tracking with fixed step sizes (not voxel boundary jumps)
 % - Gray matter termination and CSF avoidance for biological plausibility
 %
-% THREE CORE ENHANCEMENTS:
+% FOUR CORE ENHANCEMENTS:
 % 1. INTERPOLATION: Smooth direction estimation between voxels
-% 2. RK4 INTEGRATION: Higher-order numerical accuracy (4th order vs Euler)
-% 3. ACT CONSTRAINTS: Anatomical validity using WM/GM/CSF masks
+% 2. HIGH-ORDER INTEGRATION: RK2/RK4/RKF45 numerical methods
+% 3. ADAPTIVE STEPPING: RKF45 with automatic error control (optional)
+% 4. ACT CONSTRAINTS: Anatomical validity using WM/GM/CSF masks
+%
+% RKF45 ADAPTIVE INTEGRATION (integration_order=5, adaptive_step=true):
+% - Dormand-Prince embedded RK pair (5th/4th order)
+% - 7-stage integration with shared k_i evaluations
+% - Automatic step size control based on local error estimate
+% - Error tolerance: rkf_tolerance (default 0.01 voxels)
+% - Step bounds: [step_min, step_max] (default [0.01, 1.0] voxels)
+% - Safety factor: rkf_safety (default 0.9)
+% - Provides superior accuracy with minimal user intervention
 %
 % Arguments:
 %   data_path - Path to .mat file containing nim structure or nim structure itself
@@ -23,7 +33,12 @@ function tracks = nim_tractography_hinec(data_path, varargin)
 % HIGH-ORDER TRACTOGRAPHY PARAMETERS:
 %   step_size - Fixed integration step size in voxel units (default: 0.2)
 %   interp_method - Interpolation method: 'trilinear' or 'none' (default: 'trilinear')
-%   integration_order - 1=Euler, 2=RK2, 4=RK4 (default: 4)
+%   integration_order - 1=Euler, 2=RK2, 4=RK4, 5=RKF45 (default: 4)
+%   adaptive_step - Enable RKF adaptive step sizing (default: false)
+%   rkf_tolerance - Error tolerance for RKF in voxel units (default: 0.01)
+%   rkf_safety - Safety factor for step adjustment (default: 0.9)
+%   step_min - Minimum step size for RKF (default: 0.01 voxels)
+%   step_max - Maximum step size for RKF (default: 1.0 voxels)
 %   termination_fa - FA threshold for termination (default: 0.05)
 %   angle_thresh - Maximum angle change between directions (default: 60°)
 %   max_steps - Maximum integration steps (default: 5000)
@@ -40,12 +55,21 @@ function tracks = nim_tractography_hinec(data_path, varargin)
 %   options.integration_order = 2; % Use RK2 instead of RK4
 %   tracks = nim_tractography_hinec('data.mat', options);
 %
+%   % RKF adaptive step size (recommended for high accuracy)
+%   options.integration_order = 5;
+%   options.adaptive_step = true;
+%   options.rkf_tolerance = 0.01;  % 0.01 voxel error tolerance
+%   tracks = nim_tractography_hinec('data.mat', options);
+%
 % REFERENCES:
 %   Basser et al. (2000). In vivo fiber tractography using DT-MRI data.
 %   Magnetic Resonance in Medicine, 44(4), 625-632.
 %
 %   Smith et al. (2012). Anatomically-constrained tractography.
 %   NeuroImage, 62(3), 1924-1938.
+%
+%   Dormand & Prince (1980). A family of embedded Runge-Kutta formulae.
+%   Journal of Computational and Applied Mathematics, 6(1), 19-26.
 
 % Parse input arguments
 if nargin > 1 && isstruct(varargin{1})
@@ -87,6 +111,21 @@ if ~isfield(options, 'interp_method')
 end
 if ~isfield(options, 'integration_order')
     options.integration_order = 4;  % HINEC: RK4 integration by default
+end
+if ~isfield(options, 'adaptive_step')
+    options.adaptive_step = false;  % RKF: Disable adaptive stepping by default
+end
+if ~isfield(options, 'rkf_tolerance')
+    options.rkf_tolerance = 0.01;  % RKF: Error tolerance in voxel units
+end
+if ~isfield(options, 'rkf_safety')
+    options.rkf_safety = 0.9;  % RKF: Safety factor for step adjustment
+end
+if ~isfield(options, 'step_min')
+    options.step_min = 0.01;  % RKF: Minimum step size (voxels)
+end
+if ~isfield(options, 'step_max')
+    options.step_max = 1.0;  % RKF: Maximum step size (voxels)
 end
 if ~isfield(options, 'act_enabled')
     options.act_enabled = true;  % HINEC: Enable ACT by default
@@ -141,6 +180,11 @@ end
 fprintf('Starting HINEC High-Order Tractography...\n');
 fprintf('Parameters: step=%.2f, FA_thresh=%.2f, angle_thresh=%.1f\u00b0, integration_order=%d\n', ...
     options.step_size, options.fa_threshold, options.angle_thresh, options.integration_order);
+fprintf('Integration: %s', get_integration_method_name(options.integration_order));
+if options.integration_order == 5 && options.adaptive_step
+    fprintf(' (adaptive, tol=%.4f)', options.rkf_tolerance);
+end
+fprintf('\n');
 fprintf('Interpolation: %s, ACT: %s\n', options.interp_method, ...
     string(options.act_enabled && (~isempty(options.wm_mask) || ~isempty(options.gm_mask))));
 
@@ -248,6 +292,8 @@ if options.enable_diagnostics
     timing.interpolation_time = 0;
     timing.boundary_time = 0;
     timing.step_count = 0;
+    timing.rkf_rejections = 0;  % Count RKF step rejections
+    timing.rkf_retries = 0;     % Count RKF retry attempts
 end
 
 % Process each seed point
@@ -348,12 +394,19 @@ if options.enable_diagnostics
     fprintf('\n\n=== HINEC TIMING REPORT ===\n');
     fprintf('Integration method: Order %d (%s)\n', options.integration_order, ...
         get_integration_method_name(options.integration_order));
+    if options.integration_order == 5 && options.adaptive_step
+        fprintf('Adaptive stepping: ENABLED (tolerance=%.4f voxels)\n', options.rkf_tolerance);
+    end
     fprintf('Total time: %.2f seconds\n', timing.total_time);
     fprintf('Eigenvector extraction: %.2f seconds (%.1f%%)\n', timing.precompute_time, 100*timing.precompute_time/timing.total_time);
     fprintf('Seed generation: %.2f seconds (%.1f%%)\n', timing.seed_time, 100*timing.seed_time/timing.total_time);
     fprintf('HINEC tracking: %.2f seconds (%.1f%%)\n', timing.tracking_time, 100*timing.tracking_time/timing.total_time);
     fprintf('  - Interpolation + integration overhead included\n');
     fprintf('  - Brain boundary checks: %.2f seconds (%.1f%% of tracking)\n', timing.boundary_time, 100*timing.boundary_time/timing.tracking_time);
+    if options.integration_order == 5 && options.adaptive_step && timing.rkf_rejections > 0
+        fprintf('  - RKF step rejections: %d (%.1f%% of steps)\n', timing.rkf_rejections, 100*timing.rkf_rejections/timing.step_count);
+        fprintf('  - RKF retry attempts: %d\n', timing.rkf_retries);
+    end
     fprintf('Total integration steps: %d\n', timing.step_count);
     fprintf('Average steps per track: %.1f\n', timing.step_count / (size(seed_points, 1) * 2));
     fprintf('Integration steps per second: %.1f\n', timing.step_count / timing.tracking_time);
@@ -641,8 +694,38 @@ while true
         break;
     end
 
-    % HINEC: Advance position using selected integration method (Euler/RK2/RK4)
-    next_pos = advance_position(nim, current_pos, dir_vec, options);
+    % HINEC: Advance position using selected integration method (Euler/RK2/RK4/RKF45)
+    % For RKF adaptive stepping, may need to retry with smaller step
+    max_retries = 5;
+    retry_count = 0;
+    step_accepted = false;
+
+    while ~step_accepted && retry_count < max_retries
+        [next_pos, step_accepted, new_step_size] = advance_position(nim, current_pos, dir_vec, options);
+
+        if ~step_accepted
+            % Step rejected - reduce step size and retry
+            retry_count = retry_count + 1;
+            options.step_size = new_step_size;
+
+            % Track RKF statistics (only for RKF adaptive mode)
+            if options.enable_diagnostics && options.integration_order == 5 && options.adaptive_step
+                step_timing.rkf_rejections = step_timing.rkf_rejections + 1;
+                step_timing.rkf_retries = step_timing.rkf_retries + 1;
+            end
+        else
+            % Step accepted - update step size for next iteration
+            options.step_size = new_step_size;
+        end
+    end
+
+    % If step still not accepted after max retries, terminate tracking
+    if ~step_accepted
+        if nargout > 2
+            termination_reason = 'rkf_failure';
+        end
+        break;
+    end
 
     % Check if next position is valid (within volume bounds)
     if any(next_pos < 1) || any(next_pos > dims)
@@ -754,6 +837,8 @@ switch order
         name = 'RK2/Midpoint';
     case 4
         name = 'RK4';
+    case 5
+        name = 'RKF45 (Dormand-Prince)';
     otherwise
         name = sprintf('Unknown (order %d)', order);
 end
@@ -766,6 +851,103 @@ function initial_dir = get_initial_direction_hinec(nim, pos, options)
 if isempty(initial_dir) || fa_val < options.termination_fa
     initial_dir = [];
 end
+end
+
+
+function [new_pos, error_est, success] = rkf45_integration_step(nim, pos, dir_vec, options)
+% HINEC: Runge-Kutta-Fehlberg 4(5) adaptive integration step
+%
+% RKF45 (Dormand-Prince) EMBEDDED RK PAIR:
+% - 7 stages with shared k_i evaluations
+% - 5th-order solution (primary, used for advancement)
+% - 4th-order solution (embedded, used for error estimation)
+% - Adaptive step size based on local error estimate
+%
+% DORMAND-PRINCE RK5(4)7M COEFFICIENTS:
+% Butcher tableau with c_i, a_ij, b_hat_i (5th order), b_i (4th order)
+%
+% Arguments:
+%   nim - NIM structure with interpolation data
+%   pos - Current position
+%   dir_vec - Current direction (k1)
+%   options - Contains step_size (h), rkf_tolerance, rkf_safety
+%
+% Returns:
+%   new_pos - Next position using 5th-order RKF solution
+%   error_est - Local error estimate (norm of difference)
+%   success - Boolean indicating if error is within tolerance
+
+% Dormand-Prince RK5(4)7M coefficients
+% c_i coefficients (node positions)
+c = [0; 1/5; 3/10; 4/5; 8/9; 1; 1];
+
+% a_ij coefficients (Butcher tableau rows)
+a = zeros(7, 7);
+a(2, 1) = 1/5;
+a(3, 1:2) = [3/40, 9/40];
+a(4, 1:3) = [44/45, -56/15, 32/9];
+a(5, 1:4) = [19372/6561, -25360/2187, 64448/6561, -212/729];
+a(6, 1:5) = [9017/3168, -355/33, 46732/5247, 49/176, -5103/18656];
+a(7, 1:6) = [35/384, 0, 500/1113, 125/192, -2187/6784, 11/84];
+
+% b_hat_i weights (5th-order solution - PRIMARY)
+b_hat = [35/384; 0; 500/1113; 125/192; -2187/6784; 11/84; 0];
+
+% b_i weights (4th-order solution - for error estimation)
+b = [5179/57600; 0; 7571/16695; 393/640; -92097/339200; 187/2100; 1/40];
+
+h = options.step_size;
+
+% Stage 1: k1 = f(x_n, y_n) - already provided as dir_vec
+k1 = dir_vec;
+
+% Stage 2: k2 = f(x_n + c_2*h, y_n + h*(a_21*k1))
+pos_k2 = pos + h * (a(2,1) * k1);
+[k2, ~] = interpolate_direction_trilinear(nim, pos_k2, options);
+if isempty(k2), k2 = k1; else, if dot(k2, k1) < 0, k2 = -k2; end; end
+
+% Stage 3: k3 = f(x_n + c_3*h, y_n + h*(a_31*k1 + a_32*k2))
+pos_k3 = pos + h * (a(3,1)*k1 + a(3,2)*k2);
+[k3, ~] = interpolate_direction_trilinear(nim, pos_k3, options);
+if isempty(k3), k3 = k2; else, if dot(k3, k1) < 0, k3 = -k3; end; end
+
+% Stage 4: k4
+pos_k4 = pos + h * (a(4,1)*k1 + a(4,2)*k2 + a(4,3)*k3);
+[k4, ~] = interpolate_direction_trilinear(nim, pos_k4, options);
+if isempty(k4), k4 = k3; else, if dot(k4, k1) < 0, k4 = -k4; end; end
+
+% Stage 5: k5
+pos_k5 = pos + h * (a(5,1)*k1 + a(5,2)*k2 + a(5,3)*k3 + a(5,4)*k4);
+[k5, ~] = interpolate_direction_trilinear(nim, pos_k5, options);
+if isempty(k5), k5 = k4; else, if dot(k5, k1) < 0, k5 = -k5; end; end
+
+% Stage 6: k6
+pos_k6 = pos + h * (a(6,1)*k1 + a(6,2)*k2 + a(6,3)*k3 + a(6,4)*k4 + a(6,5)*k5);
+[k6, ~] = interpolate_direction_trilinear(nim, pos_k6, options);
+if isempty(k6), k6 = k5; else, if dot(k6, k1) < 0, k6 = -k6; end; end
+
+% Stage 7: k7
+pos_k7 = pos + h * (a(7,1)*k1 + a(7,2)*k2 + a(7,3)*k3 + a(7,4)*k4 + a(7,5)*k5 + a(7,6)*k6);
+[k7, ~] = interpolate_direction_trilinear(nim, pos_k7, options);
+if isempty(k7), k7 = k6; else, if dot(k7, k1) < 0, k7 = -k7; end; end
+
+% Compute 5th-order solution (PRIMARY - used for advancement)
+y_hat = pos + h * (b_hat(1)*k1 + b_hat(2)*k2 + b_hat(3)*k3 + b_hat(4)*k4 + ...
+                   b_hat(5)*k5 + b_hat(6)*k6 + b_hat(7)*k7);
+
+% Compute 4th-order solution (for error estimation)
+y_tilde = pos + h * (b(1)*k1 + b(2)*k2 + b(3)*k3 + b(4)*k4 + ...
+                     b(5)*k5 + b(6)*k6 + b(7)*k7);
+
+% Error estimate: difference between 5th and 4th order solutions
+error_vec = y_hat - y_tilde;
+error_est = norm(error_vec);
+
+% Check if error is within tolerance
+success = error_est <= options.rkf_tolerance;
+
+% Return 5th-order solution (higher accuracy)
+new_pos = y_hat;
 end
 
 
@@ -837,24 +1019,29 @@ new_pos = pos + (h/6) * (k1 + 2*k2 + 2*k3 + k4);
 end
 
 
-function new_pos = advance_position(nim, pos, dir_vec, options)
+function [new_pos, step_accepted, new_step_size] = advance_position(nim, pos, dir_vec, options)
 % HINEC: Advance position using selected integration method
 %
 % INTEGRATION METHODS:
 % Order 1 (Euler): r_{n+1} = r_n + h*v(r_n)
 % Order 2 (RK2):   Midpoint method
 % Order 4 (RK4):   Full Runge-Kutta 4th order
+% Order 5 (RKF45): Adaptive Runge-Kutta-Fehlberg with error control
 %
 % Arguments:
 %   nim - NIM structure
 %   pos - Current position
 %   dir_vec - Current direction
-%   options - Contains integration_order and step_size
+%   options - Contains integration_order, step_size, adaptive_step
 %
 % Returns:
 %   new_pos - Next position
+%   step_accepted - Boolean (true for fixed methods, adaptive for RKF)
+%   new_step_size - Updated step size (adaptive for RKF, unchanged otherwise)
 
 h = options.step_size;
+step_accepted = true;  % Default: always accept for non-adaptive methods
+new_step_size = h;     % Default: no change
 
 switch options.integration_order
     case 1
@@ -881,6 +1068,42 @@ switch options.integration_order
     case 4
         % RK4 integration (fourth order)
         new_pos = rk4_integration_step(nim, pos, dir_vec, options);
+
+    case 5
+        % RKF45 integration (fifth order with adaptive step size)
+        if options.adaptive_step
+            % Adaptive RKF with step size control
+            [new_pos, error_est, success] = rkf45_integration_step(nim, pos, dir_vec, options);
+
+            % Compute new step size based on error estimate
+            if error_est > 1e-10  % Avoid division by zero
+                % h_new = safety * h * (tol / err)^(1/5)
+                % Exponent 1/5 because local error scales as h^5 for 4th-order method
+                scale_factor = (options.rkf_tolerance / error_est)^(1/5);
+                new_step_size = options.rkf_safety * h * scale_factor;
+            else
+                % Error is negligible - allow step increase
+                new_step_size = options.rkf_safety * h * 2.0;
+            end
+
+            % Apply step size bounds
+            new_step_size = max(options.step_min, min(options.step_max, new_step_size));
+
+            % Limit growth rate (max 2x increase per step for stability)
+            new_step_size = min(new_step_size, 2.0 * h);
+
+            % Accept or reject step based on error tolerance
+            step_accepted = success;
+
+            if ~step_accepted
+                % Step rejected - use smaller step for retry
+                % Return original position (caller will retry)
+                new_pos = pos;
+            end
+        else
+            % Fixed step RKF (no adaptivity)
+            [new_pos, ~, ~] = rkf45_integration_step(nim, pos, dir_vec, options);
+        end
 
     otherwise
         % Default to Euler for unknown orders

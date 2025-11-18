@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
-# run_hinec.sh - Unified HINEC preprocessing and tractography pipeline
+# run_hinec.sh - Unified HINEC preprocessing and tractography pipeline with YAML config
 #
 # Runs complete HINEC workflow:
 #   1. Preprocessing (main.m): Raw data → DTI → FA → tissue segmentation
 #   2. Tractography (nim_tractography_hinec): High-order fiber tracking
 #
 # Usage:
-#   ./run_hinec.sh <data_prefix> <output_mat>
+#   ./run_hinec.sh <data_prefix> <output_mat> [config_file]
 #
 # Arguments:
 #   data_prefix - Path prefix for input NIfTI files (e.g., 'sample' for 'sample_raw.nii.gz')
 #   output_mat  - Path to output .mat file (e.g., 'processed.mat')
+#   config_file - Optional YAML configuration file (default: config/hinec_default.yml)
 #
-# Example:
+# Examples:
+#   # Use default configuration
 #   ./run_hinec.sh nifti_sample/sample sample_hinec.mat
+#
+#   # Use custom configuration
+#   ./run_hinec.sh nifti_sample/sample sample_hinec.mat config/high_precision.yml
 #
 # Input files expected:
 #   <data_prefix>_raw.nii.gz  - Raw diffusion data
@@ -23,19 +28,23 @@
 #
 # Output files:
 #   <output_mat>              - Processed nim structure
-#   tractography_results/tracks_hinec.mat - HINEC tractography results
+#   tractography_results/tracks_hinec_*.mat - HINEC tractography results
 
 set -euo pipefail
 
-# Check arguments
-if [[ $# -ne 2 ]]; then
-    echo "Usage: $0 <data_prefix> <output_mat>" >&2
-    echo "Example: $0 nifti_sample/sample sample_hinec.mat" >&2
+# Parse arguments
+if [[ $# -lt 2 ]]; then
+    echo "Usage: $0 <data_prefix> <output_mat> [config_file]" >&2
+    echo "" >&2
+    echo "Examples:" >&2
+    echo "  $0 nifti_sample/sample sample_hinec.mat" >&2
+    echo "  $0 nifti_sample/sample sample_hinec.mat config/high_precision.yml" >&2
     exit 1
 fi
 
 data_prefix=$1
 output_mat=$2
+config_file="${3:-config/hinec_default.yml}"  # Default config if not specified
 
 # Validate input files
 raw_file="${data_prefix}_raw.nii.gz"
@@ -53,6 +62,14 @@ fi
 bvec_file="${data_prefix}.bvec"
 if [[ ! -f "$bvec_file" ]]; then
     echo "Error: b-vectors file not found: $bvec_file" >&2
+    exit 1
+fi
+
+# Validate config file
+if [[ ! -f "$config_file" ]]; then
+    echo "Error: Configuration file not found: $config_file" >&2
+    echo "Available configs:" >&2
+    ls -1 config/*.yml 2>/dev/null || echo "  No config files found in config/" >&2
     exit 1
 fi
 
@@ -76,10 +93,11 @@ escape_matlab_string() {
 
 # Build MATLAB command
 printf '\n========================================\n'
-printf 'HINEC UNIFIED PIPELINE\n'
+printf 'HINEC UNIFIED PIPELINE (YAML CONFIG)\n'
 printf '========================================\n'
 printf 'Input: %s\n' "$raw_file"
 printf 'Output: %s\n' "$output_mat"
+printf 'Config: %s\n' "$config_file"
 printf 'Log: %s\n' "$log_file"
 printf '========================================\n\n'
 
@@ -89,19 +107,32 @@ printf 'Starting background execution...\n'
 # Combine both phases into single MATLAB command
 matlab_command="addpath(genpath('.')); "
 matlab_command+="fprintf('\\n========================================\\n'); "
+matlab_command+="fprintf('LOADING CONFIGURATION\\n'); "
+matlab_command+="fprintf('========================================\\n'); "
+matlab_command+="config = load_config_yaml('$(escape_matlab_string "$config_file")'); "
+matlab_command+="fprintf('\\n========================================\\n'); "
+matlab_command+="fprintf('CREATING RUN DIRECTORY\\n'); "
+matlab_command+="fprintf('========================================\\n'); "
+matlab_command+="run_info = create_run_directory('$(escape_matlab_string "$config_file")'); "
+matlab_command+="fprintf('\\n========================================\\n'); "
 matlab_command+="fprintf('PHASE 1: Preprocessing and DTI calculation\\n'); "
 matlab_command+="fprintf('========================================\\n'); "
-matlab_command+="main('$(escape_matlab_string "$data_prefix")', '$(escape_matlab_string "$output_mat")'); "
-matlab_command+="fprintf('\\n✅ Phase 1 complete: %s created\\n\\n', '$(escape_matlab_string "$output_mat")'); "
+matlab_command+="main('$(escape_matlab_string "$data_prefix")', '$(escape_matlab_string "$output_mat")', config, run_info); "
+matlab_command+="fprintf('\\n✅ Phase 1 complete\\n\\n'); "
 matlab_command+="fprintf('========================================\\n'); "
 matlab_command+="fprintf('PHASE 2: HINEC High-order Tractography\\n'); "
 matlab_command+="fprintf('========================================\\n'); "
-matlab_command+="runTractography('$(escape_matlab_string "$output_mat")', 'hinec'); "
+matlab_command+="[~, output_mat_name, output_mat_ext] = fileparts('$(escape_matlab_string "$output_mat")'); "
+matlab_command+="output_mat_path = fullfile(run_info.output_dir, [output_mat_name output_mat_ext]); "
+matlab_command+="runTractography(output_mat_path, config, run_info); "
 matlab_command+="fprintf('\\n========================================\\n'); "
 matlab_command+="fprintf('HINEC PIPELINE COMPLETE\\n'); "
 matlab_command+="fprintf('========================================\\n'); "
-matlab_command+="fprintf('Processed data: %s\\n', '$(escape_matlab_string "$output_mat")'); "
-matlab_command+="fprintf('Tractography: tractography_results/tracks_hinec.mat\\n'); "
+matlab_command+="fprintf('Run directory: %s\\n', run_info.run_dir); "
+matlab_command+="fprintf('  Output: %s\\n', run_info.output_dir); "
+matlab_command+="fprintf('  Tractography: %s\\n', run_info.tractography_dir); "
+matlab_command+="fprintf('  Logs: %s\\n', run_info.logs_dir); "
+matlab_command+="fprintf('Configuration: %s\\n', '$(escape_matlab_string "$config_file")'); "
 matlab_command+="fprintf('========================================\\n');"
 
 # Run in background with nohup
@@ -112,10 +143,16 @@ printf '\n========================================\n'
 printf 'HINEC PIPELINE LAUNCHED IN BACKGROUND\n'
 printf '========================================\n'
 printf 'Process ID (PID): %d\n' "$pid"
-printf 'Log file: %s\n' "$log_file"
-printf 'Output .mat: %s\n' "$output_mat"
-printf 'Tractography: tractography_results/tracks_hinec_YYYY-MM-DD_HH_MM_SS.mat\n'
-printf '              (timestamped filename will be generated)\n'
+printf 'Startup log: %s\n' "$log_file"
+printf 'Config file: %s\n' "$config_file"
+printf '\nOrganized run directory will be created:\n'
+printf '  hinec_runs/run_YYYYMMDD_HHMMSS_<config>/\n'
+printf '    ├── config.yml          (copy of config used)\n'
+printf '    ├── run_info.txt        (run metadata)\n'
+printf '    ├── logs/               (pipeline logs)\n'
+printf '    ├── intermediate/       (preprocessing artifacts)\n'
+printf '    ├── output/             (processed .mat file)\n'
+printf '    └── tractography/       (tracks + diagnostics)\n'
 printf '========================================\n'
 printf '\nMonitor progress:\n'
 printf '  tail -f %s\n' "$log_file"
@@ -124,5 +161,8 @@ printf '  ps -p %d\n' "$pid"
 printf '\nKill if needed:\n'
 printf '  kill %d\n' "$pid"
 printf '\nView results when complete:\n'
-printf '  ls -lt tractography_results/\n'
+printf '  ls -lt hinec_runs/latest/\n'
+printf '  ls -lt hinec_runs/\n'
+printf '\nEdit configuration:\n'
+printf '  nano %s\n' "$config_file"
 printf '========================================\n'

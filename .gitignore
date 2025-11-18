@@ -92,3 +92,6 @@ CLAUDE.md
 *_data*
 
 validation_results*
+
+# HINEC run directories (organized output)
+hinec_runs/
