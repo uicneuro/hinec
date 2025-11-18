@@ -1,0 +1,40 @@
+# HINEC High Precision Configuration
+# For publication-quality results with maximum accuracy
+# Expected runtime: 2-3x slower than default
+
+preprocessing:
+  run_denoising: true
+  denoise_method: 'dwidenoise'
+  run_motion_correction: true
+  run_eddy: true
+  improve_mask: true
+  atlas_type: 'jhu'
+
+tractography:
+  algorithm: 'hinec'
+
+  # RKF45 adaptive integration for maximum accuracy
+  integration_order: 5
+  adaptive_step: true
+  rkf_tolerance: 0.005    # Tighter tolerance (higher accuracy)
+  rkf_safety: 0.85        # More conservative safety factor
+  step_min: 0.005         # Smaller minimum step
+  step_max: 0.5           # Smaller maximum step
+
+  # Interpolation
+  interp_method: 'trilinear'
+  step_size: 0.1          # Initial step size (smaller = safer start)
+
+  # Dense seeding for complete coverage
+  seed_density: 6
+  seed_strategy: 'uniform'
+
+  # Conservative termination criteria
+  termination_fa: 0.1     # Lower threshold for longer tracks
+  angle_thresh: 30        # Stricter curvature constraint
+  max_steps: 5000         # More steps allowed
+  min_length: 20          # Shorter minimum length
+
+  # ACT
+  act_enabled: true
+  enable_diagnostics: true
