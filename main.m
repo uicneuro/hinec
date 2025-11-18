@@ -86,7 +86,7 @@ use_run_dir = ~isempty(fieldnames(run_info));
 
 % Set registration defaults
 if ~isfield(options, 'enable_registration')
-    options.enable_registration = ~isempty(t1_file) && isfile(t1_file);
+    options.enable_registration = ~isempty(t1_file) && any(isfile(t1_file));
 end
 
 if ~isfield(options, 'registration_method')
@@ -155,7 +155,7 @@ if options.enable_registration
     [output_dir, ~, ~] = fileparts(imgpath);
     registration_file = fullfile(output_dir, [strrep(char(imgpath), '_raw', '') '_registration.mat']);
     
-    if ~options.force_recompute_registration && isfile(registration_file)
+    if ~options.force_recompute_registration && any(isfile(registration_file))
         fprintf('Loading existing registration data...\n');
         reg_data = load(registration_file);
         registration_data = reg_data.registration_data;
@@ -337,8 +337,9 @@ end
 
 function [is_raw, is_preprocessed] = detect_data_type(img_file, raw_file)
 % Detect whether data is raw or preprocessed
-    is_raw = logical(isfile(raw_file));
-    is_preprocessed = logical(isfile(img_file)) && ~is_raw;
+    % Ensure scalar logical values
+    is_raw = any(isfile(raw_file));
+    is_preprocessed = any(isfile(img_file)) && ~is_raw;
 end
 
 function handle_preprocessed_data(img_file, mask_file, imgpath, run_info)
