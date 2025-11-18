@@ -1,0 +1,96 @@
+# HINEC Pipeline Configuration
+# Default parameter settings for preprocessing and tractography
+# Copy this file and modify for custom experiments
+
+# ==============================================================================
+# PREPROCESSING CONFIGURATION
+# ==============================================================================
+preprocessing:
+  # Denoising
+  run_denoising: true
+  denoise_method: 'dwidenoise'  # Options: 'dwidenoise' (MRtrix), 'susan' (FSL), 'nlmeans', 'gaussian'
+
+  # Motion and eddy current correction
+  run_motion_correction: true
+  run_eddy: true
+
+  # Brain extraction
+  improve_mask: true
+
+  # Atlas and parcellation
+  atlas_type: 'jhu'  # Options: 'jhu', 'aal', 'desikan'
+
+  # T1 registration (optional)
+  t1_available: false
+  use_t1_registration: false
+  register_to_mni: false
+
+# ==============================================================================
+# TRACTOGRAPHY CONFIGURATION
+# ==============================================================================
+tractography:
+  # Algorithm selection
+  algorithm: 'hinec'  # Options: 'standard' (FACT), 'hinec' (high-order)
+
+  # Integration method
+  integration_order: 4  # 1=Euler, 2=RK2, 4=RK4, 5=RKF45
+  interp_method: 'trilinear'  # Options: 'trilinear', 'none'
+
+  # Step size control
+  step_size: 0.2  # Fixed step size in voxel units
+
+  # RKF45 adaptive stepping (only when integration_order=5)
+  adaptive_step: false
+  rkf_tolerance: 0.01    # Error tolerance in voxels
+  rkf_safety: 0.9        # Safety factor for step adjustment
+  step_min: 0.01         # Minimum step size (voxels)
+  step_max: 1.0          # Maximum step size (voxels)
+
+  # Seeding parameters
+  seed_density: 4        # Seeds per voxel (1-8 recommended)
+  seed_strategy: 'uniform'  # Options: 'uniform'
+
+  # Termination criteria
+  termination_fa: 0.15   # FA threshold for track termination
+  angle_thresh: 45       # Maximum curvature angle (degrees)
+  max_steps: 1000        # Maximum integration steps per track
+  min_length: 35         # Minimum track length (mm)
+
+  # Anatomically Constrained Tractography (ACT)
+  act_enabled: true      # Enable ACT if tissue masks available
+
+  # Advanced options
+  enable_diagnostics: true
+
+# ==============================================================================
+# PRESET CONFIGURATIONS
+# ==============================================================================
+# Uncomment a preset section to override individual parameters
+# You can also create custom presets by copying and modifying these
+
+# FAST EXPLORATION (quick results, lower quality)
+# tractography:
+#   integration_order: 2
+#   step_size: 0.3
+#   seed_density: 2
+#   termination_fa: 0.2
+#   angle_thresh: 45
+
+# HIGH PRECISION (publication quality, slower)
+# tractography:
+#   integration_order: 5
+#   adaptive_step: true
+#   rkf_tolerance: 0.005
+#   step_size: 0.1
+#   seed_density: 6
+#   termination_fa: 0.1
+#   angle_thresh: 30
+
+# IRONTRACT CHALLENGE
+# tractography:
+#   algorithm: 'hinec'
+#   integration_order: 4
+#   step_size: 0.2
+#   seed_density: 4
+#   termination_fa: 0.1
+#   angle_thresh: 35

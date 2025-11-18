@@ -28,22 +28,61 @@ end
 % Parse variable arguments
 t1_file = '';
 options = struct();
+config = struct();
+run_info = struct();
 
 if nargin >= 3
-    if ischar(varargin{1}) || isstring(varargin{1})
-        % Third argument is T1 file
-        t1_file = char(varargin{1});
+    arg1 = varargin{1};
+
+    % Check if argument is a YAML config structure
+    if isstruct(arg1) && isfield(arg1, 'preprocessing')
+        % YAML config structure
+        config = arg1;
+        fprintf('Using YAML configuration for preprocessing\n');
+
+        % Extract preprocessing options from config
+        if isfield(config, 'preprocessing')
+            options.preprocessing_options = config.preprocessing;
+        end
+
+        % Check for T1 in preprocessing config
+        if isfield(config.preprocessing, 't1_available') && config.preprocessing.t1_available
+            % Look for T1 file based on imgpath
+            t1_file = [char(imgpath) '_T1.nii.gz'];
+            if ~isfile(t1_file)
+                warning('T1 configured but file not found: %s', t1_file);
+                t1_file = '';
+            end
+        end
+
+        % Check for run_info in second varargin
+        if nargin >= 4 && isstruct(varargin{2}) && isfield(varargin{2}, 'run_dir')
+            run_info = varargin{2};
+            fprintf('Using run directory: %s\n', run_info.run_dir);
+        end
+    elseif ischar(arg1) || isstring(arg1)
+        % Third argument is T1 file (legacy)
+        t1_file = char(arg1);
         if nargin >= 4 && isstruct(varargin{2})
             options = varargin{2};
         end
-    elseif isstruct(varargin{1})
-        % Third argument is options
-        options = varargin{1};
-        if isfield(options, 't1_file')
-            t1_file = options.t1_file;
+    elseif isstruct(arg1)
+        % Check if this is run_info structure
+        if isfield(arg1, 'run_dir')
+            run_info = arg1;
+            fprintf('Using run directory: %s\n', run_info.run_dir);
+        else
+            % Third argument is options (legacy)
+            options = arg1;
+            if isfield(options, 't1_file')
+                t1_file = options.t1_file;
+            end
         end
     end
 end
+
+% Check if using run directory organization
+use_run_dir = ~isempty(fieldnames(run_info));
 
 % Set registration defaults
 if ~isfield(options, 'enable_registration')
@@ -85,13 +124,13 @@ else
 end
 
 %% Data Type Detection and Preprocessing
-[img_file, raw_file, t1_file, mask_file] = setup_file_paths(imgpath);
+[img_file, raw_file, t1_file, mask_file] = setup_file_paths(imgpath, run_info);
 [is_raw_data, is_preprocessed_data] = detect_data_type(img_file, raw_file);
 
 if is_preprocessed_data
-    handle_preprocessed_data(img_file, mask_file, imgpath);
+    handle_preprocessed_data(img_file, mask_file, imgpath, run_info);
 elseif is_raw_data
-    handle_raw_data(img_file, raw_file, t1_file, imgpath, options);
+    handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info);
 else
     error('No valid data found. Expected either:\n  - Preprocessed: %s\n  - Raw: %s', img_file, raw_file);
 end
@@ -137,8 +176,12 @@ if options.enable_registration
 end
 
 %% Step 4: Enhanced Parcellation (with proper registration)
-[output_dir, ~, ~] = fileparts(imgpath);
-parcellation_mask_file = fullfile(output_dir, 'parcellation_mask.nii.gz');
+if use_run_dir
+    parcellation_mask_file = fullfile(run_info.intermediate_dir, 'parcellation_mask.nii.gz');
+else
+    [output_dir, ~, ~] = fileparts(imgpath);
+    parcellation_mask_file = fullfile(output_dir, 'parcellation_mask.nii.gz');
+end
 
 %% Parcellation: Load or generate as needed
 if options.enable_registration
@@ -168,10 +211,20 @@ nim = nim_load_labels(nim);
 
 %% Step 5: Brain mask improvement using FA data (final step)
 fprintf("Improving brain mask using FA data...\n");
-brain_mask_file = [char(imgpath) '_M.nii.gz'];
+
+% Use run directory if specified, otherwise use imgpath location
+if use_run_dir
+    [~, base_name, ~] = fileparts(imgpath);
+    brain_mask_file = fullfile(run_info.intermediate_dir, [base_name '_M.nii.gz']);
+    output_prefix = fullfile(run_info.intermediate_dir, base_name);
+else
+    brain_mask_file = [char(imgpath) '_M.nii.gz'];
+    output_prefix = char(imgpath);
+end
+
 if isfile(brain_mask_file)
     % Improve the brain mask using FA data directly from nim structure
-    improved_mask_file = preproc_mask_improvement(brain_mask_file, nim.FA, char(imgpath));
+    improved_mask_file = preproc_mask_improvement(brain_mask_file, nim.FA, output_prefix);
 
     % Update the mask in the nim structure if improvement was successful
     if isfile(improved_mask_file)
@@ -201,7 +254,7 @@ if isfile(brain_mask_file)
     try
         % Generate tissue-specific masks using FA-based segmentation
         [wm_mask_file, gm_mask_file, csf_mask_file] = ...
-            preproc_tissue_segmentation(nim.FA, brain_mask_file, char(imgpath));
+            preproc_tissue_segmentation(nim.FA, brain_mask_file, output_prefix);
 
         % Load tissue masks into nim structure for tractography
         if isfile(wm_mask_file)
@@ -240,22 +293,46 @@ else
 end
 
 %% Step 6: Save enhanced nim structure
-nim_save(nim, nimpath);
+% Redirect output to run directory if specified
+if use_run_dir
+    [~, output_name, output_ext] = fileparts(nimpath);
+    final_nimpath = fullfile(run_info.output_dir, [output_name output_ext]);
+    nim_save(nim, final_nimpath);
+    fprintf('✓ Saved to run directory: %s\n', final_nimpath);
+
+    % Also save run_info to nim structure for reference
+    nim.run_info = run_info;
+else
+    nim_save(nim, nimpath);
+end
 
 end_time = datetime('now', 'Format', 'yyyy-MM-dd hh:mm:ss');
 fprintf("HINEC END: %s\n", string(end_time));
 
-print_pipeline_summary(options, registration_data, imgpath, nimpath);
+print_pipeline_summary(options, registration_data, imgpath, nimpath, run_info);
 end
 
 %% Helper Functions
 
-function [img_file, raw_file, t1_file, mask_file] = setup_file_paths(imgpath)
+function [img_file, raw_file, t1_file, mask_file] = setup_file_paths(imgpath, run_info)
 % Setup standard file paths based on input prefix
-    img_file = [char(imgpath) '.nii.gz'];
+% If run_info provided, use intermediate directory for generated files
+
+    % Input files are always in original location
     raw_file = [char(imgpath) '_raw.nii.gz'];
     t1_file = [char(imgpath) '_T1.nii.gz'];
-    mask_file = [char(imgpath) '_M.nii.gz'];
+
+    % Output files go to run directory if specified
+    if ~isempty(fieldnames(run_info))
+        % Use run directory for intermediate files
+        [~, base_name, ~] = fileparts(imgpath);
+        img_file = fullfile(run_info.intermediate_dir, [base_name '.nii.gz']);
+        mask_file = fullfile(run_info.intermediate_dir, [base_name '_M.nii.gz']);
+    else
+        % Legacy: keep in same directory as input
+        img_file = [char(imgpath) '.nii.gz'];
+        mask_file = [char(imgpath) '_M.nii.gz'];
+    end
 end
 
 function [is_raw, is_preprocessed] = detect_data_type(img_file, raw_file)
@@ -264,7 +341,7 @@ function [is_raw, is_preprocessed] = detect_data_type(img_file, raw_file)
     is_preprocessed = isfile(img_file) && ~is_raw;
 end
 
-function handle_preprocessed_data(img_file, mask_file, imgpath)
+function handle_preprocessed_data(img_file, mask_file, imgpath, run_info)
 % Handle preprocessed data: generate auxiliary files only
     fprintf("=== PREPROCESSED DATA DETECTED ===\n");
     fprintf("Found: %s\n", img_file);
@@ -273,9 +350,13 @@ function handle_preprocessed_data(img_file, mask_file, imgpath)
     % Generate brain mask if needed
     if ~isfile(mask_file)
         fprintf("--- Generating Brain Mask ---\n");
-        [output_dir, ~, ~] = fileparts(imgpath);
-        if isempty(output_dir)
-            output_dir = pwd;
+        if ~isempty(fieldnames(run_info))
+            output_dir = run_info.intermediate_dir;
+        else
+            [output_dir, ~, ~] = fileparts(imgpath);
+            if isempty(output_dir)
+                output_dir = pwd;
+            end
         end
         preproc_brain_extraction(img_file, output_dir, mask_file);
     else
@@ -285,7 +366,7 @@ function handle_preprocessed_data(img_file, mask_file, imgpath)
     fprintf("\n✓ Preprocessed data ready for DTI analysis\n");
 end
 
-function handle_raw_data(img_file, raw_file, t1_file, imgpath, options)
+function handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info)
 % Handle raw data: run full preprocessing pipeline
     fprintf("=== RAW DATA DETECTED ===\n");
     fprintf("Found: %s\n", raw_file);
@@ -306,6 +387,11 @@ function handle_raw_data(img_file, raw_file, t1_file, imgpath, options)
 
     % Setup preprocessing options
     preproc_options = setup_preprocessing_options(options, t1_available, t1_file);
+
+    % Add run directory to preprocessing options if provided
+    if ~isempty(fieldnames(run_info))
+        preproc_options.output_dir = run_info.intermediate_dir;
+    end
 
     % Run preprocessing
     fprintf("\n--- Starting Preprocessing ---\n");
@@ -338,7 +424,7 @@ function preproc_options = setup_preprocessing_options(options, t1_available, t1
     preproc_options.use_t1_registration = t1_available;
 end
 
-function print_pipeline_summary(options, registration_data, imgpath, nimpath)
+function print_pipeline_summary(options, registration_data, imgpath, nimpath, run_info)
 % Print pipeline completion summary
     if options.enable_registration
         fprintf('\n=== Registration-Enhanced Pipeline Complete ===\n');
@@ -363,5 +449,16 @@ function print_pipeline_summary(options, registration_data, imgpath, nimpath)
         fprintf('\n=== Standard Pipeline Complete ===\n');
         fprintf('To enable registration, provide T1:\n');
         fprintf('  main(''%s'', ''%s'', ''path/to/T1.nii.gz'')\n', imgpath, nimpath);
+    end
+
+    % Print run directory info if used
+    if ~isempty(fieldnames(run_info))
+        fprintf('\n=== Run Directory Organization ===\n');
+        fprintf('Run ID: %s\n', run_info.run_id);
+        fprintf('Location: %s\n', run_info.run_dir);
+        fprintf('  Logs: %s\n', run_info.logs_dir);
+        fprintf('  Intermediate: %s\n', run_info.intermediate_dir);
+        fprintf('  Output: %s\n', run_info.output_dir);
+        fprintf('  Tractography: %s\n', run_info.tractography_dir);
     end
 end

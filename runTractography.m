@@ -39,12 +39,37 @@ algorithm = 'standard';  % Default to standard FACT
 enable_irontract = false;
 injection_file = '';
 irontract_output_dir = '';
+config = struct();
+use_config = false;
+run_info = struct();
 
 if nargin >= 2
-    % Check if first argument is algorithm selection
-    if strcmpi(varargin{1}, 'standard') || strcmpi(varargin{1}, 'hinec')
-        algorithm = lower(varargin{1});
-    elseif strcmpi(varargin{1}, 'IronTract')
+    arg1 = varargin{1};
+
+    % Check if first argument is YAML config structure
+    if isstruct(arg1) && isfield(arg1, 'tractography')
+        config = arg1;
+        use_config = true;
+        fprintf('Using YAML configuration for tractography\n');
+
+        % Extract algorithm from config
+        if isfield(config.tractography, 'algorithm')
+            algorithm = lower(config.tractography.algorithm);
+        end
+
+        % Check for run_info in second varargin
+        if nargin >= 3 && isstruct(varargin{2}) && isfield(varargin{2}, 'run_dir')
+            run_info = varargin{2};
+            fprintf('Using run directory: %s\n', run_info.run_dir);
+        end
+    elseif isstruct(arg1) && isfield(arg1, 'run_dir')
+        % First argument is run_info structure
+        run_info = arg1;
+        fprintf('Using run directory: %s\n', run_info.run_dir);
+    elseif strcmpi(arg1, 'standard') || strcmpi(arg1, 'hinec')
+        % Legacy: algorithm selection string
+        algorithm = lower(arg1);
+    elseif strcmpi(arg1, 'IronTract')
         % IronTract mode
         enable_irontract = true;
         if nargin < 4
@@ -53,9 +78,12 @@ if nargin >= 2
         injection_file = varargin{2};
         irontract_output_dir = varargin{3};
     else
-        error('Invalid algorithm. Use ''standard'' or ''hinec''. For IronTract, use ''IronTract'' as first argument.');
+        error('Invalid argument. Use YAML config, ''standard'', ''hinec'', or ''IronTract''.');
     end
 end
+
+% Check if using run directory organization
+use_run_dir = ~isempty(fieldnames(run_info));
 
 % Add necessary paths
 addpath('nim_tractography');
@@ -80,18 +108,37 @@ if ~isfield(nim, 'FA')
     error('FA not found. Please run main() first to generate DTI data.');
 end
 
-%% Set FACT tractography parameters
-fprintf('Setting up FACT tractography parameters...\n');
-options = struct();
-options.seed_density = 4;           % VERY DENSE: 8 seeds per voxel for complete uniform coverage
-options.step_size = 0.5;            % FACT step size Δ for Euler method: r_{i+1} = r_i + e1(r_i)*Δ
-options.fa_threshold = 0.15;        % Low FA threshold - not used for seeding, only for tracking quality
-options.termination_fa = 0.15;      % Low termination threshold for extensive tracking
-options.angle_thresh = 35;          % Maximum turning angle in degrees - slightly more permissive for FACT
-options.max_steps = 1000;           % Maximum Euler steps per track
-options.min_length = 35;            % Minimum track length in mm - filters out short spurious tracks
-options.order = 1;                  % FACT uses first-order integration
-options.interp_method = 'none';     % FACT samples nearest voxel tensor (no interpolation)
+%% Set tractography parameters
+if use_config
+    fprintf('Loading tractography parameters from YAML config...\n');
+    % Use parameters from YAML config
+    options = config.tractography;
+
+    % Display key parameters
+    fprintf('  Algorithm: %s\n', algorithm);
+    fprintf('  Integration order: %d\n', options.integration_order);
+    fprintf('  Step size: %.2f voxels\n', options.step_size);
+    fprintf('  Seed density: %d seeds/voxel\n', options.seed_density);
+    fprintf('  Termination FA: %.2f\n', options.termination_fa);
+    fprintf('  Angle threshold: %.1f°\n', options.angle_thresh);
+
+    if options.integration_order == 5 && options.adaptive_step
+        fprintf('  RKF45 adaptive: enabled (tol=%.4f)\n', options.rkf_tolerance);
+    end
+else
+    fprintf('Setting up default tractography parameters...\n');
+    % Use hardcoded defaults (legacy behavior)
+    options = struct();
+    options.seed_density = 4;
+    options.step_size = 0.5;
+    options.fa_threshold = 0.15;
+    options.termination_fa = 0.15;
+    options.angle_thresh = 35;
+    options.max_steps = 1000;
+    options.min_length = 35;
+    options.order = 1;
+    options.interp_method = 'none';
+end
 
 %% CENTRALIZED SEEDING STRATEGY
 % All seeding decisions happen here - nim_tractography_standard.m only executes
@@ -232,14 +279,43 @@ fprintf('  Max length: %d points\n', max(track_lengths));
 fprintf('  Min length: %d points\n', min(track_lengths));
 
 %% Save results
-output_dir = 'tractography_results';
-if ~exist(output_dir, 'dir')
-    mkdir(output_dir);
+% Use run directory if specified, otherwise use default tractography_results
+if use_run_dir
+    output_dir = run_info.tractography_dir;
+    fprintf('\nUsing run directory for tractography output\n');
+else
+    output_dir = 'tractography_results';
+    if ~exist(output_dir, 'dir')
+        mkdir(output_dir);
+    end
 end
 
 save(fullfile(output_dir, output_filename), 'tracks', 'options', 'elapsed_time', 'algorithm');
 fprintf('\nResults saved to %s/%s\n', output_dir, output_filename);
 fprintf('Algorithm used: %s\n', algorithm);
+
+% Save diagnostic information if using run directory
+if use_run_dir
+    diagnostics_file = fullfile(run_info.diagnostics_dir, 'track_statistics.txt');
+    fid = fopen(diagnostics_file, 'w');
+    fprintf(fid, 'HINEC Tractography Statistics\n');
+    fprintf(fid, '==============================\n\n');
+    fprintf(fid, 'Run ID: %s\n', run_info.run_id);
+    fprintf(fid, 'Timestamp: %s\n', timestamp);
+    fprintf(fid, 'Algorithm: %s\n\n', algorithm);
+    fprintf(fid, 'Track Statistics:\n');
+    fprintf(fid, '  Total tracks: %d\n', length(tracks));
+    fprintf(fid, '  Mean length: %.1f points\n', mean(track_lengths));
+    fprintf(fid, '  Max length: %d points\n', max(track_lengths));
+    fprintf(fid, '  Min length: %d points\n', min(track_lengths));
+    fprintf(fid, '  Computation time: %.1f seconds\n', elapsed_time);
+    fprintf(fid, '\nSeeding Statistics:\n');
+    fprintf(fid, '  Seed voxels: %d\n', total_seed_locations);
+    fprintf(fid, '  Seeds per voxel: %d\n', options.seed_density);
+    fprintf(fid, '  Estimated total seeds: %d\n', estimated_seeds);
+    fclose(fid);
+    fprintf('Diagnostics saved to %s\n', diagnostics_file);
+end
 
 %% IronTract Challenge Submission (if enabled)
 if enable_irontract

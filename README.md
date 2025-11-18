@@ -1,11 +1,84 @@
 # HINEC: HIgh-order NEural Connectivity
 
-Human brain white matter tractography pipeline
+Human brain white matter tractography pipeline with **YAML-based parameter configuration**.
 
-## Instructions
+## Quick Start
 
-1.  Launch MATLAB and use `cd` in MATLAB to navigate to the HINEC directory.
-2.  Invoke the `main` function.
+### Using Shell Script (Recommended)
+
+```bash
+# Default configuration - creates organized run directory automatically
+./run_hinec.sh nifti_sample/sample sample.mat
+
+# High precision (publication quality)
+./run_hinec.sh nifti_sample/sample sample.mat config/high_precision.yml
+
+# Fast exploration (parameter testing)
+./run_hinec.sh nifti_sample/sample sample.mat config/fast_exploration.yml
+```
+
+**NEW**: All runs are now automatically organized in `hinec_runs/run_YYYYMMDD_HHMMSS_<config>/` directories! No more scattered files cluttering your workspace.
+
+### Using MATLAB
+
+```matlab
+% Load configuration
+config = load_config_yaml('config/hinec_default.yml');
+
+% Create organized run directory
+run_info = create_run_directory('config/hinec_default.yml');
+
+% Run pipeline with organized output
+main('nifti_sample/sample', 'sample.mat', config, run_info);
+output_mat = fullfile(run_info.output_dir, 'sample.mat');
+runTractography(output_mat, config, run_info);
+```
+
+## NEW Features
+
+### 🗂️ Organized Run Directories
+
+Every pipeline run creates a timestamped directory with all outputs:
+
+```
+hinec_runs/run_20250118_143045_high_precision/
+├── config.yml          # Copy of config used
+├── run_info.txt        # Run metadata
+├── logs/               # Pipeline logs
+├── intermediate/       # Preprocessing artifacts
+├── output/             # Final .mat file
+└── tractography/       # Tracks + diagnostics
+```
+
+**Benefits**:
+- ✅ Clean workspace - no scattered files
+- ✅ Full reproducibility - config and metadata saved
+- ✅ Easy comparison between runs
+- ✅ Simple cleanup - delete entire run directory
+
+**Documentation**: See [docs/RUN_DIRECTORY_SYSTEM.md](docs/RUN_DIRECTORY_SYSTEM.md)
+
+### ⚙️ YAML Configuration System
+
+**Easy parameter management** - no more editing source code!
+
+**Benefits**:
+- Human-readable configuration files
+- Version control your experiment parameters
+- Switch between presets instantly
+- Automatic parameter validation
+
+**Available Presets**:
+- `hinec_default.yml` - Balanced performance (recommended)
+- `high_precision.yml` - Publication quality (RKF45 adaptive)
+- `fast_exploration.yml` - Quick parameter testing (3-5x faster)
+- `irontract.yml` - IronTract challenge optimized
+
+**Documentation**: See [docs/YAML_CONFIG.md](docs/YAML_CONFIG.md)
+
+---
+
+## Legacy Instructions
 
 ### Usage
 
