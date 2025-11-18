@@ -337,8 +337,8 @@ end
 
 function [is_raw, is_preprocessed] = detect_data_type(img_file, raw_file)
 % Detect whether data is raw or preprocessed
-    is_raw = isfile(raw_file);
-    is_preprocessed = isfile(img_file) && ~is_raw;
+    is_raw = logical(isfile(raw_file));
+    is_preprocessed = logical(isfile(img_file)) && ~is_raw;
 end
 
 function handle_preprocessed_data(img_file, mask_file, imgpath, run_info)
