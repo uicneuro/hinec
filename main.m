@@ -132,7 +132,7 @@ if is_preprocessed_data
 elseif is_raw_data
     handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info);
 else
-    error('No valid data found. Expected either:\n  - Preprocessed: %s\n  - Raw: %s', img_file, raw_file);
+    error('No valid data found. Expected either:\n  - Preprocessed: %s\n  - Raw: %s', char(img_file), char(raw_file));
 end
 
 start_time = datetime('now', 'Format', 'yyyy-MM-dd hh:mm:ss');
@@ -400,7 +400,7 @@ function handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info
 
     % Verify success
     if ~isfile(img_file)
-        error('Preprocessing failed. Output not found: %s', img_file);
+        error('Preprocessing failed. Output not found: %s', char(img_file));
     end
     fprintf("✓ Preprocessing complete: %s\n", img_file);
 end
