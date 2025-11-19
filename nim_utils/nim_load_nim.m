@@ -7,16 +7,19 @@ function nim = nim_load_nim(file_prefix)
 % Returns:
 %   nim - Structure containing all necessary data for analysis and visualization
 
+% Convert to char array for consistent handling
+file_prefix = char(file_prefix);
+
 % Define the suffixes for different files
 suffix_processed = '.nii.gz';
 suffix_brain_mask = '_M.nii.gz';
 suffix_atlas_labels = '_atlas_labels.mat';
 
-% Construct file paths
-nii_file = file_prefix + suffix_processed;
-mask_file = file_prefix + suffix_brain_mask;
+% Construct file paths (using char array concatenation)
+nii_file = [file_prefix suffix_processed];
+mask_file = [file_prefix suffix_brain_mask];
 parcellation_mask_file = fullfile(fileparts(file_prefix), 'parcellation_mask.nii.gz');
-atlas_labels_file = file_prefix + suffix_atlas_labels;
+atlas_labels_file = [file_prefix suffix_atlas_labels];
 
 % Load the main data
 if ~exist(nii_file, 'file')

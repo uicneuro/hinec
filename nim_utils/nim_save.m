@@ -4,8 +4,12 @@ function nim_save(nim, nimpath)
         nim
 
         % Path to save processed .mat file. Must end in `.mat`
-        nimpath string
+        nimpath
     end
+
+    % Convert to char array for save() function compatibility
+    nimpath = char(nimpath);
+
     disp("Saving '" + nimpath + "'...");
 
     % Estimate size and use v7.3 format for large files (>2GB)

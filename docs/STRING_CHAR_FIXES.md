@@ -244,15 +244,87 @@ end
 
 ---
 
+---
+
+## Additional Fixes (Session 2)
+
+### 5. `/Users/12salty/Documents/research-chun/hinec/nim_utils/nim_save.m`
+
+**Location**: Lines 7, 11
+
+**Function Fixed**: `nim_save(nim, nimpath)`
+
+**Fix Applied**:
+```matlab
+function nim_save(nim, nimpath)
+    arguments
+        % nim struct
+        nim
+
+        % Path to save processed .mat file. Must end in `.mat`
+        nimpath  % Removed "string" type declaration
+    end
+
+    % Convert to char array for save() function compatibility
+    nimpath = char(nimpath);
+```
+
+**Why This Works**:
+- MATLAB's `save()` function requires char array, not string type
+- Removing the `string` type declaration from arguments allows any type
+- Converting to char at entry ensures compatibility
+
+**Error Fixed**:
+```
+Error using save
+Argument must be a text scalar.
+```
+
+---
+
+### 6. `/Users/12salty/Documents/research-chun/hinec/nim_utils/nim_load_nim.m`
+
+**Location**: Lines 11, 19-22
+
+**Function Fixed**: `nim_load_nim(file_prefix)`
+
+**Fix Applied**:
+```matlab
+% Convert to char array for consistent handling
+file_prefix = char(file_prefix);
+
+% Define the suffixes for different files
+suffix_processed = '.nii.gz';
+suffix_brain_mask = '_M.nii.gz';
+suffix_atlas_labels = '_atlas_labels.mat';
+
+% Construct file paths (using char array concatenation)
+nii_file = [file_prefix suffix_processed];
+mask_file = [file_prefix suffix_brain_mask];
+parcellation_mask_file = fullfile(fileparts(file_prefix), 'parcellation_mask.nii.gz');
+atlas_labels_file = [file_prefix suffix_atlas_labels];
+```
+
+**Why This Works**:
+- Original code used `+` operator which creates string types
+- Changed to `[]` concatenation which preserves char array type
+- `fileparts()` at line 21 now receives proper char array
+- All `exist()` and file operations work correctly
+
+---
+
 ## Summary
 
-**Files Modified**: 3 files
-- `main.m` (3 functions)
-- `nim_utils/create_run_directory.m` (1 function)
-- `nim_preprocessing/preproc_brain_extraction.m` (1 function)
+**Files Modified**: 5 files
+- `main.m` (3 functions) ✅
+- `nim_utils/create_run_directory.m` (1 function) ✅
+- `nim_preprocessing/preproc_brain_extraction.m` (1 function) ✅
+- `nim_utils/nim_save.m` (1 function) ✅ **NEW**
+- `nim_utils/nim_load_nim.m` (1 function) ✅ **NEW**
 
 **Files Already Correct**: 3 files
 - `nim_preprocessing/nim_preprocessing.m` ✅
+- `nim_utils/nim_read.m` ✅
 - `runTractography.m` ✅
 - Other preprocessing/registration functions ✅
 
