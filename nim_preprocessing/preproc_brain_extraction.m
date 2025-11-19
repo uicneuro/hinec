@@ -20,6 +20,11 @@ function brain_mask_file = preproc_brain_extraction(dwi_or_b0_file, output_dir, 
 %   % From preprocessed DWI (will extract b0)
 %   mask = preproc_brain_extraction('sub-MR256.nii.gz', './', 'sub-MR256_M.nii.gz');
 
+% Convert inputs to char arrays for consistent handling
+dwi_or_b0_file = char(dwi_or_b0_file);
+output_dir = char(output_dir);
+brain_mask_file = char(brain_mask_file);
+
 fprintf('Creating brain mask using BET...\n');
 
 %% Validate environment
