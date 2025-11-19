@@ -25,6 +25,10 @@ arguments (Repeating)
     varargin
 end
 
+% Convert inputs to char arrays for consistent handling
+imgpath = char(imgpath);
+nimpath = char(nimpath);
+
 % Parse variable arguments
 t1_file = '';
 options = struct();
@@ -295,8 +299,14 @@ end
 %% Step 6: Save enhanced nim structure
 % Redirect output to run directory if specified
 if use_run_dir
+    % Extract just the filename (no directory) from nimpath
     [~, output_name, output_ext] = fileparts(nimpath);
+    fprintf('DEBUG: nimpath = %s\n', nimpath);
+    fprintf('DEBUG: output_name = %s\n', output_name);
+    fprintf('DEBUG: output_ext = %s\n', output_ext);
+    fprintf('DEBUG: run_info.output_dir = %s\n', run_info.output_dir);
     final_nimpath = fullfile(run_info.output_dir, [output_name output_ext]);
+    fprintf('DEBUG: final_nimpath = %s\n', final_nimpath);
     nim_save(nim, final_nimpath);
     fprintf('✓ Saved to run directory: %s\n', final_nimpath);
 
