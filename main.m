@@ -326,8 +326,8 @@ function [img_file, raw_file, t1_file, mask_file] = setup_file_paths(imgpath, ru
     if ~isempty(fieldnames(run_info))
         % Use run directory for intermediate files
         [~, base_name, ~] = fileparts(imgpath);
-        img_file = fullfile(run_info.intermediate_dir, [base_name '.nii.gz']);
-        mask_file = fullfile(run_info.intermediate_dir, [base_name '_M.nii.gz']);
+        img_file = char(fullfile(run_info.intermediate_dir, [base_name '.nii.gz']));
+        mask_file = char(fullfile(run_info.intermediate_dir, [base_name '_M.nii.gz']));
     else
         % Legacy: keep in same directory as input
         img_file = [char(imgpath) '.nii.gz'];
@@ -371,13 +371,13 @@ function handle_preprocessed_data(img_file, mask_file, imgpath, run_info)
 
         % Copy main preprocessed file
         if isfile(original_img_file)
-            copyfile(original_img_file, char(img_file));
+            copyfile(original_img_file, img_file);
             fprintf("  Copied: %s -> %s\n", original_img_file, img_file);
         end
 
         % Copy brain mask
         if isfile(original_mask_file)
-            copyfile(original_mask_file, char(mask_file));
+            copyfile(original_mask_file, mask_file);
             fprintf("  Copied: %s -> %s\n", original_mask_file, mask_file);
         end
 
@@ -423,15 +423,15 @@ function handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info
         fprintf("\n--- Copying preprocessed files to run directory ---\n");
 
         % Copy main preprocessed file
-        copyfile(original_img_file, char(img_file));
+        copyfile(original_img_file, img_file);
         fprintf("  Copied: %s -> %s\n", original_img_file, img_file);
 
         % Copy brain mask if exists
         original_mask = [char(imgpath) '_M.nii.gz'];
         if isfile(original_mask)
             [~, base_name, ~] = fileparts(imgpath);
-            dest_mask = fullfile(run_info.intermediate_dir, [base_name '_M.nii.gz']);
-            copyfile(original_mask, char(dest_mask));
+            dest_mask = char(fullfile(run_info.intermediate_dir, [base_name '_M.nii.gz']));
+            copyfile(original_mask, dest_mask);
             fprintf("  Copied: %s -> %s\n", original_mask, dest_mask);
         end
 
