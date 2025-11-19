@@ -28,6 +28,9 @@ function run_info = create_run_directory(config_file, varargin)
 %   run_info = create_run_directory('config/irontract.yml', 'run_name', 'my_experiment');
 %   run_info = create_run_directory('config/fast_exploration.yml', 'base_dir', 'experiments');
 
+    % Convert config_file to char array for consistent handling
+    config_file = char(config_file);
+
     % Parse optional arguments
     p = inputParser;
     addParameter(p, 'base_dir', 'hinec_runs', @ischar);
@@ -35,9 +38,9 @@ function run_info = create_run_directory(config_file, varargin)
     addParameter(p, 'description', '', @ischar);
     parse(p, varargin{:});
 
-    base_dir = p.Results.base_dir;
-    custom_run_name = p.Results.run_name;
-    description = p.Results.description;
+    base_dir = char(p.Results.base_dir);
+    custom_run_name = char(p.Results.run_name);
+    description = char(p.Results.description);
 
     % Create base directory if it doesn't exist
     if ~exist(base_dir, 'dir')

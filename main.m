@@ -347,9 +347,12 @@ end
 
 function handle_preprocessed_data(img_file, mask_file, imgpath, run_info)
 % Handle preprocessed data: generate auxiliary files only
+    % Convert imgpath to char array for consistent handling
+    imgpath = char(imgpath);
+
     % Original file location (where the actual preprocessed file is)
-    original_img_file = [char(imgpath) '.nii.gz'];
-    original_mask_file = [char(imgpath) '_M.nii.gz'];
+    original_img_file = [imgpath '.nii.gz'];
+    original_mask_file = [imgpath '_M.nii.gz'];
 
     fprintf("=== PREPROCESSED DATA DETECTED ===\n");
     fprintf("Found: %s\n", original_img_file);
@@ -392,6 +395,9 @@ end
 
 function handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info)
 % Handle raw data: run full preprocessing pipeline
+    % Convert imgpath to char array for consistent handling
+    imgpath = char(imgpath);
+
     fprintf("=== RAW DATA DETECTED ===\n");
     fprintf("Found: %s\n", raw_file);
     fprintf("Strategy: Full preprocessing pipeline\n\n");
@@ -412,11 +418,11 @@ function handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info
     nim_preprocessing(imgpath, preproc_options);
 
     % Original preprocessed file location
-    original_img_file = [char(imgpath) '.nii.gz'];
+    original_img_file = [imgpath '.nii.gz'];
 
     % Verify preprocessing succeeded
     if ~isfile(original_img_file)
-        error('Preprocessing failed. Output not found: %s', char(original_img_file));
+        error('Preprocessing failed. Output not found: %s', original_img_file);
     end
     fprintf("✓ Preprocessing complete: %s\n", original_img_file);
 
@@ -430,7 +436,7 @@ function handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info
         fprintf("  Copied: %s -> %s\n", original_img_file, img_file);
 
         % Copy brain mask if exists
-        original_mask = [char(imgpath) '_M.nii.gz'];
+        original_mask = [imgpath '_M.nii.gz'];
         if isfile(original_mask)
             [~, base_name, ~] = fileparts(imgpath);
             dest_mask = char(fullfile(run_info.intermediate_dir, [base_name '_M.nii.gz']));
