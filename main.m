@@ -344,24 +344,44 @@ end
 
 function handle_preprocessed_data(img_file, mask_file, imgpath, run_info)
 % Handle preprocessed data: generate auxiliary files only
+    % Original file location (where the actual preprocessed file is)
+    original_img_file = [char(imgpath) '.nii.gz'];
+    original_mask_file = [char(imgpath) '_M.nii.gz'];
+
     fprintf("=== PREPROCESSED DATA DETECTED ===\n");
-    fprintf("Found: %s\n", img_file);
+    fprintf("Found: %s\n", original_img_file);
     fprintf("Strategy: Generate auxiliary files (no NIfTI modification)\n\n");
 
-    % Generate brain mask if needed
-    if ~isfile(mask_file)
+    % Generate brain mask if needed (in original location)
+    if ~isfile(original_mask_file)
         fprintf("--- Generating Brain Mask ---\n");
-        if ~isempty(fieldnames(run_info))
-            output_dir = run_info.intermediate_dir;
-        else
-            [output_dir, ~, ~] = fileparts(imgpath);
-            if isempty(output_dir)
-                output_dir = pwd;
-            end
+        [output_dir, ~, ~] = fileparts(imgpath);
+        if isempty(output_dir)
+            output_dir = pwd;
         end
-        preproc_brain_extraction(img_file, output_dir, mask_file);
+        preproc_brain_extraction(original_img_file, output_dir, original_mask_file);
     else
-        fprintf("✓ Brain mask exists: %s\n", mask_file);
+        fprintf("✓ Brain mask exists: %s\n", original_mask_file);
+    end
+
+    % If using run directory, copy files to run directory
+    use_run_dir = ~isempty(fieldnames(run_info));
+    if use_run_dir
+        fprintf("\n--- Copying preprocessed files to run directory ---\n");
+
+        % Copy main preprocessed file
+        if isfile(original_img_file)
+            copyfile(original_img_file, char(img_file));
+            fprintf("  Copied: %s -> %s\n", original_img_file, img_file);
+        end
+
+        % Copy brain mask
+        if isfile(original_mask_file)
+            copyfile(original_mask_file, char(mask_file));
+            fprintf("  Copied: %s -> %s\n", original_mask_file, mask_file);
+        end
+
+        fprintf("✓ Files copied to run directory\n");
     end
 
     fprintf("\n✓ Preprocessed data ready for DTI analysis\n");
@@ -372,11 +392,6 @@ function handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info
     fprintf("=== RAW DATA DETECTED ===\n");
     fprintf("Found: %s\n", raw_file);
     fprintf("Strategy: Full preprocessing pipeline\n\n");
-
-    if isfile(img_file)
-        fprintf("✓ Preprocessed file already exists: %s\n", img_file);
-        return;
-    end
 
     % Check for T1 data
     t1_available = isfile(t1_file);
@@ -389,20 +404,39 @@ function handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info
     % Setup preprocessing options
     preproc_options = setup_preprocessing_options(options, t1_available, t1_file);
 
-    % Add run directory to preprocessing options if provided
-    if ~isempty(fieldnames(run_info))
-        preproc_options.output_dir = run_info.intermediate_dir;
-    end
-
-    % Run preprocessing
+    % Run preprocessing to original location (preprocessing doesn't support output_dir redirection)
     fprintf("\n--- Starting Preprocessing ---\n");
     nim_preprocessing(imgpath, preproc_options);
 
-    % Verify success
-    if ~isfile(img_file)
-        error('Preprocessing failed. Output not found: %s', char(img_file));
+    % Original preprocessed file location
+    original_img_file = [char(imgpath) '.nii.gz'];
+
+    % Verify preprocessing succeeded
+    if ~isfile(original_img_file)
+        error('Preprocessing failed. Output not found: %s', char(original_img_file));
     end
-    fprintf("✓ Preprocessing complete: %s\n", img_file);
+    fprintf("✓ Preprocessing complete: %s\n", original_img_file);
+
+    % If using run directory, copy preprocessed files to run directory
+    use_run_dir = ~isempty(fieldnames(run_info));
+    if use_run_dir
+        fprintf("\n--- Copying preprocessed files to run directory ---\n");
+
+        % Copy main preprocessed file
+        copyfile(original_img_file, char(img_file));
+        fprintf("  Copied: %s -> %s\n", original_img_file, img_file);
+
+        % Copy brain mask if exists
+        original_mask = [char(imgpath) '_M.nii.gz'];
+        if isfile(original_mask)
+            [~, base_name, ~] = fileparts(imgpath);
+            dest_mask = fullfile(run_info.intermediate_dir, [base_name '_M.nii.gz']);
+            copyfile(original_mask, char(dest_mask));
+            fprintf("  Copied: %s -> %s\n", original_mask, dest_mask);
+        end
+
+        fprintf("✓ Files copied to run directory\n");
+    end
 end
 
 function preproc_options = setup_preprocessing_options(options, t1_available, t1_file)
