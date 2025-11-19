@@ -318,9 +318,12 @@ function [img_file, raw_file, t1_file, mask_file] = setup_file_paths(imgpath, ru
 % Setup standard file paths based on input prefix
 % If run_info provided, use intermediate directory for generated files
 
+    % Convert imgpath to char array first to ensure compatibility
+    imgpath = char(imgpath);
+
     % Input files are always in original location
-    raw_file = [char(imgpath) '_raw.nii.gz'];
-    t1_file = [char(imgpath) '_T1.nii.gz'];
+    raw_file = [imgpath '_raw.nii.gz'];
+    t1_file = [imgpath '_T1.nii.gz'];
 
     % Output files go to run directory if specified
     if ~isempty(fieldnames(run_info))
@@ -330,8 +333,8 @@ function [img_file, raw_file, t1_file, mask_file] = setup_file_paths(imgpath, ru
         mask_file = char(fullfile(run_info.intermediate_dir, [base_name '_M.nii.gz']));
     else
         % Legacy: keep in same directory as input
-        img_file = [char(imgpath) '.nii.gz'];
-        mask_file = [char(imgpath) '_M.nii.gz'];
+        img_file = [imgpath '.nii.gz'];
+        mask_file = [imgpath '_M.nii.gz'];
     end
 end
 
