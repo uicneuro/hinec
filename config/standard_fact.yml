@@ -1,0 +1,65 @@
+# HINEC Pipeline Configuration - Standard FACT
+# Standard FACT (Fiber Assignment by Continuous Tracking) algorithm
+# - No interpolation (discrete voxel tracking)
+# - Euler integration (order 1)
+# - Faster than HINEC but lower quality
+
+# ==============================================================================
+# PREPROCESSING CONFIGURATION
+# ==============================================================================
+preprocessing:
+  # Denoising
+  run_denoising: true
+  denoise_method: "dwidenoise" # Options: 'dwidenoise' (MRtrix), 'susan' (FSL), 'nlmeans', 'gaussian'
+
+  # Motion and eddy current correction
+  run_motion_correction: true
+  run_eddy: true
+
+  # Brain extraction
+  improve_mask: true
+
+  # Atlas and parcellation
+  atlas_type: "jhu" # Options: 'jhu', 'aal', 'desikan'
+
+  # T1 registration (optional)
+  t1_available: false
+  use_t1_registration: false
+  register_to_mni: false
+
+# ==============================================================================
+# TRACTOGRAPHY CONFIGURATION - STANDARD FACT
+# ==============================================================================
+tractography:
+  # Algorithm selection
+  algorithm: "standard" # FACT algorithm - no interpolation
+
+  # Integration method
+  integration_order: 1 # Euler (standard FACT)
+  interp_method: "none" # FACT uses no interpolation
+
+  # Step size control
+  step_size: 0.5 # Standard FACT step size (voxel units)
+
+  # RKF45 adaptive stepping (not used with FACT)
+  adaptive_step: false
+  rkf_tolerance: 0.01
+  rkf_safety: 0.9
+  step_min: 0.01
+  step_max: 1.0
+
+  # Seeding parameters
+  seed_density: 4 # Seeds per voxel
+  seed_strategy: "uniform"
+
+  # Termination criteria
+  termination_fa: 0.15 # FA threshold for track termination
+  angle_thresh: 45 # Maximum curvature angle (degrees)
+  max_steps: 1000 # Maximum integration steps per track
+  min_length: 35 # Minimum track length (mm)
+
+  # Anatomically Constrained Tractography (ACT)
+  act_enabled: true # Enable ACT if tissue masks available
+
+  # Advanced options
+  enable_diagnostics: true

@@ -1143,10 +1143,19 @@ if any(pos < 1.1) || any(pos(1) > dims(1)-0.1) || ...
     return;
 end
 
+% Determine interpolation method
+if strcmp(options.interp_method, 'cubic')
+    interp_type = 'cubic';
+elseif strcmp(options.interp_method, 'trilinear')
+    interp_type = 'linear';
+else
+    interp_type = 'linear';  % Default fallback
+end
+
 % Interpolate FA value first (fast termination check)
 try
     % MATLAB interp3 uses (Y, X, Z) ordering: interp3(V, X, Y, Z)
-    fa_value = interp3(nim.FA, pos(2), pos(1), pos(3), 'linear', 0);
+    fa_value = interp3(nim.FA, pos(2), pos(1), pos(3), interp_type, 0);
 catch
     return;
 end
@@ -1159,9 +1168,9 @@ end
 % Interpolate primary eigenvector components
 try
     % Interpolate each component separately
-    v_x = interp3(nim.v1_x, pos(2), pos(1), pos(3), 'linear', 0);
-    v_y = interp3(nim.v1_y, pos(2), pos(1), pos(3), 'linear', 0);
-    v_z = interp3(nim.v1_z, pos(2), pos(1), pos(3), 'linear', 0);
+    v_x = interp3(nim.v1_x, pos(2), pos(1), pos(3), interp_type, 0);
+    v_y = interp3(nim.v1_y, pos(2), pos(1), pos(3), interp_type, 0);
+    v_z = interp3(nim.v1_z, pos(2), pos(1), pos(3), interp_type, 0);
 
     direction = [v_x, v_y, v_z];
 
