@@ -8,7 +8,7 @@
 preprocessing:
   # Denoising
   run_denoising: true
-  denoise_method: 'dwidenoise'  # Options: 'dwidenoise' (MRtrix), 'susan' (FSL), 'nlmeans', 'gaussian'
+  denoise_method: "dwidenoise" # Options: 'dwidenoise' (MRtrix), 'susan' (FSL), 'nlmeans', 'gaussian'
 
   # Motion and eddy current correction
   run_motion_correction: true
@@ -18,7 +18,7 @@ preprocessing:
   improve_mask: true
 
   # Atlas and parcellation
-  atlas_type: 'jhu'  # Options: 'jhu', 'aal', 'desikan'
+  atlas_type: "jhu" # Options: 'jhu', 'aal', 'desikan'
 
   # T1 registration (optional)
   t1_available: false
@@ -30,38 +30,37 @@ preprocessing:
 # ==============================================================================
 tractography:
   # Algorithm selection
-  algorithm: 'hinec'  # Options: 'standard' (FACT), 'hinec' (high-order)
+  algorithm: "hinec" # Options: 'standard' (FACT), 'hinec' (high-order)
 
   # Integration method
-  integration_order: 4  # 1=Euler, 2=RK2, 4=RK4, 5=RKF45
-  interp_method: 'trilinear'  # Options: 'trilinear', 'none'
+  integration_order: 4 # 1=Euler, 2=RK2, 4=RK4, 5=RKF45
+  interp_method: "cubic" # Options: 'trilinear', 'cubic', 'none'
 
   # Step size control
-  step_size: 0.2  # Fixed step size in voxel units
+  step_size: 0.2 # Fixed step size in voxel units
 
   # RKF45 adaptive stepping (only when integration_order=5)
   adaptive_step: false
-  rkf_tolerance: 0.01    # Error tolerance in voxels
-  rkf_safety: 0.9        # Safety factor for step adjustment
-  step_min: 0.01         # Minimum step size (voxels)
-  step_max: 1.0          # Maximum step size (voxels)
+  rkf_tolerance: 0.01 # Error tolerance in voxels
+  rkf_safety: 0.9 # Safety factor for step adjustment
+  step_min: 0.01 # Minimum step size (voxels)
+  step_max: 1.0 # Maximum step size (voxels)
 
   # Seeding parameters
-  seed_density: 4        # Seeds per voxel (1-8 recommended)
-  seed_strategy: 'uniform'  # Options: 'uniform'
+  seed_density: 4 # Seeds per voxel (1-8 recommended)
+  seed_strategy: "uniform" # Options: 'uniform'
 
   # Termination criteria
-  termination_fa: 0.15   # FA threshold for track termination
-  angle_thresh: 45       # Maximum curvature angle (degrees)
-  max_steps: 1000        # Maximum integration steps per track
-  min_length: 35         # Minimum track length (mm)
+  termination_fa: 0.15 # FA threshold for track termination
+  angle_thresh: 45 # Maximum curvature angle (degrees)
+  max_steps: 1000 # Maximum integration steps per track
+  min_length: 35 # Minimum track length (mm)
 
   # Anatomically Constrained Tractography (ACT)
-  act_enabled: true      # Enable ACT if tissue masks available
+  act_enabled: true # Enable ACT if tissue masks available
 
   # Advanced options
   enable_diagnostics: true
-
 # ==============================================================================
 # PRESET CONFIGURATIONS
 # ==============================================================================
