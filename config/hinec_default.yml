@@ -51,10 +51,10 @@ tractography:
   seed_strategy: "uniform" # Options: 'uniform'
 
   # Termination criteria
-  termination_fa: 0.15 # FA threshold for track termination
-  angle_thresh: 45 # Maximum curvature angle (degrees)
-  max_steps: 1000 # Maximum integration steps per track
-  min_length: 35 # Minimum track length (mm)
+  termination_fa: 0.2 # FA threshold for track termination
+  angle_thresh: 35 # Maximum curvature angle (degrees)
+  max_steps: 800 # Maximum integration steps per track
+  min_length: 45 # Minimum track length (mm)
 
   # Anatomically Constrained Tractography (ACT)
   act_enabled: true # Enable ACT if tissue masks available
