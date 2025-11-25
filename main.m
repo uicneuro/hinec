@@ -88,70 +88,98 @@ end
 % Check if using run directory organization
 use_run_dir = ~isempty(fieldnames(run_info));
 
-%% Check if preprocessed .mat output already exists - skip preprocessing if so
-% Check both original location and common locations for existing .mat file
-existing_mat_file = '';
-
-% First check original nimpath location
+%% Check if COMPLETE output .mat already exists - skip everything if so
+% First check if final .mat output already exists
 if isfile(nimpath)
-    existing_mat_file = nimpath;
-end
-
-% Also check common previous run locations if using run directory
-if isempty(existing_mat_file) && use_run_dir
-    % Check hinec_runs/latest/output/ for recent runs
-    [~, output_name, output_ext] = fileparts(nimpath);
-    latest_output = fullfile('hinec_runs', 'latest', 'output', [output_name output_ext]);
-    if isfile(latest_output)
-        existing_mat_file = latest_output;
-    end
-end
-
-% If existing .mat found, copy to run directory and skip preprocessing
-if ~isempty(existing_mat_file)
     fprintf('\n========================================\n');
-    fprintf('SKIPPING PREPROCESSING - OUTPUT EXISTS\n');
+    fprintf('SKIPPING ALL PROCESSING - OUTPUT EXISTS\n');
     fprintf('========================================\n');
-    fprintf('Found existing output: %s\n', existing_mat_file);
+    fprintf('Found existing .mat output: %s\n', nimpath);
 
     if use_run_dir
         % Copy existing .mat to new run directory
         [~, output_name, output_ext] = fileparts(nimpath);
         dest_mat_file = fullfile(run_info.output_dir, [output_name output_ext]);
-        copyfile(existing_mat_file, dest_mat_file);
+        copyfile(nimpath, dest_mat_file);
         fprintf('Copied to run directory: %s\n', dest_mat_file);
-
-        % Also copy intermediate files if they exist alongside the .mat
-        [existing_dir, ~, ~] = fileparts(existing_mat_file);
-
-        % Try to find and copy associated intermediate files
-        % Check parent's intermediate folder or same folder
-        possible_intermediate_dirs = {
-            fullfile(fileparts(existing_dir), 'intermediate'),  % ../intermediate/
-            existing_dir  % same folder
-        };
-
-        for i = 1:length(possible_intermediate_dirs)
-            int_dir = possible_intermediate_dirs{i};
-            if exist(int_dir, 'dir')
-                % Copy .nii.gz files to intermediate
-                nii_files = dir(fullfile(int_dir, '*.nii.gz'));
-                for j = 1:length(nii_files)
-                    src = fullfile(int_dir, nii_files(j).name);
-                    dst = fullfile(run_info.intermediate_dir, nii_files(j).name);
-                    if ~isfile(dst)
-                        copyfile(src, dst);
-                        fprintf('  Copied: %s\n', nii_files(j).name);
-                    end
-                end
-                break;  % Found intermediate files, stop looking
-            end
-        end
     end
 
-    fprintf('To force reprocessing, delete: %s\n', existing_mat_file);
+    fprintf('\nTo force reprocessing, delete: %s\n', nimpath);
     fprintf('========================================\n\n');
     return;
+end
+
+%% Check if preprocessing already done - look for preprocessed files in INPUT directory
+% The preprocessed output is <imgpath>.nii.gz (without _raw suffix)
+imgpath_char = char(imgpath);
+preprocessed_dwi = [imgpath_char '.nii.gz'];
+preprocessed_mask = [imgpath_char '_M.nii.gz'];
+
+if isfile(preprocessed_dwi)
+    fprintf('\n========================================\n');
+    fprintf('SKIPPING PREPROCESSING - DATA EXISTS\n');
+    fprintf('========================================\n');
+    fprintf('Found preprocessed DWI: %s\n', preprocessed_dwi);
+
+    if isfile(preprocessed_mask)
+        fprintf('Found brain mask: %s\n', preprocessed_mask);
+    end
+
+    % Copy to run directory if using one
+    if use_run_dir
+        fprintf('\n--- Copying preprocessed files to run directory ---\n');
+
+        % Get base name for destination files
+        [~, base_name, ~] = fileparts(imgpath_char);
+
+        % Copy main preprocessed DWI
+        dest_dwi = fullfile(run_info.intermediate_dir, [base_name '.nii.gz']);
+        copyfile(preprocessed_dwi, dest_dwi);
+        fprintf('  Copied: %s -> %s\n', preprocessed_dwi, dest_dwi);
+
+        % Copy brain mask if exists
+        if isfile(preprocessed_mask)
+            dest_mask = fullfile(run_info.intermediate_dir, [base_name '_M.nii.gz']);
+            copyfile(preprocessed_mask, dest_mask);
+            fprintf('  Copied: %s -> %s\n', preprocessed_mask, dest_mask);
+        end
+
+        % Copy other important files from the input directory
+        [input_dir, ~, ~] = fileparts(imgpath_char);
+        if isempty(input_dir)
+            input_dir = '.';
+        end
+
+        % List of important intermediate files to copy
+        important_patterns = {
+            [base_name '_wm_mask.nii.gz'],
+            [base_name '_gm_mask.nii.gz'],
+            [base_name '_csf_mask.nii.gz'],
+            'parcellation_mask.nii.gz',
+            [base_name '_atlas_labels.mat']
+        };
+
+        for i = 1:length(important_patterns)
+            src_file = fullfile(input_dir, important_patterns{i});
+            if isfile(src_file)
+                [~, fname, fext] = fileparts(important_patterns{i});
+                dst_file = fullfile(run_info.intermediate_dir, [fname fext]);
+                copyfile(src_file, dst_file);
+                fprintf('  Copied: %s\n', important_patterns{i});
+            end
+        end
+
+        fprintf('✓ Files copied to run directory\n');
+    end
+
+    fprintf('\nTo force reprocessing, delete: %s\n', preprocessed_dwi);
+    fprintf('========================================\n\n');
+
+    % DON'T return here - we still need to run DTI calculation and save .mat
+    % But skip the preprocessing steps by setting a flag
+    skip_preprocessing = true;
+else
+    skip_preprocessing = false;
 end
 
 % Set registration defaults
@@ -195,14 +223,21 @@ end
 
 %% Data Type Detection and Preprocessing
 [img_file, raw_file, t1_file, mask_file] = setup_file_paths(imgpath, run_info);
-[is_raw_data, is_preprocessed_data] = detect_data_type(img_file, raw_file);
 
-if is_preprocessed_data
-    handle_preprocessed_data(img_file, mask_file, imgpath, run_info);
-elseif is_raw_data
-    handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info);
+% Only run preprocessing if not already done
+if ~skip_preprocessing
+    [is_raw_data, is_preprocessed_data] = detect_data_type(img_file, raw_file);
+
+    if is_preprocessed_data
+        handle_preprocessed_data(img_file, mask_file, imgpath, run_info);
+    elseif is_raw_data
+        handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info);
+    else
+        error('No valid data found. Expected either:\n  - Preprocessed: %s\n  - Raw: %s', char(img_file), char(raw_file));
+    end
 else
-    error('No valid data found. Expected either:\n  - Preprocessed: %s\n  - Raw: %s', char(img_file), char(raw_file));
+    fprintf('=== USING EXISTING PREPROCESSED DATA ===\n');
+    fprintf('Skipping preprocessing steps, proceeding to DTI calculation...\n\n');
 end
 
 start_time = datetime('now', 'Format', 'yyyy-MM-dd hh:mm:ss');
