@@ -26,7 +26,7 @@ tractography:
   step_size: 0.2 # Fixed step size in voxel units
 
   # RKF45 adaptive stepping (only when integration_order=5)
-  adaptive_step: false
+  adaptive_step: true
   rkf_tolerance: 0.01 # Error tolerance in voxels
   rkf_safety: 0.9 # Safety factor for step adjustment
   step_min: 0.01 # Minimum step size (voxels)
