@@ -422,20 +422,20 @@ seed_info = struct('description', description, ...
 end
 
 function [track, step_timing] = track_fiber_fact(nim, seed, direction, options, cos_angle_thresh)
-% FACT: Track fiber using voxel boundary intersection (CORRECT ALGORITHM)
+% FACT: Track fiber using Euler integration with fixed step size
 %
-% RESEARCH-BASED FACT ALGORITHM:
+% EULER STEPPING ALGORITHM:
 % - Start from seed position
-% - Get principal eigenvector from current voxel
-% - Find intersection with voxel boundary along direction
-% - Jump to boundary, enter new voxel, get new direction
+% - Get principal eigenvector from nearest voxel (no interpolation)
+% - Advance by fixed step_size along direction
+% - Update direction from new voxel
 % - Repeat until termination criteria
 %
 % Arguments:
 %   nim - NIM structure with diffusion tensors
 %   seed - Starting position
 %   direction - Initial tracking direction (+1 or -1)
-%   options - FACT tracking parameters
+%   options - FACT tracking parameters (uses step_size)
 %   cos_angle_thresh - Cosine of maximum angle change
 %
 % Returns:
@@ -446,6 +446,9 @@ current_pos = seed;
 track = zeros(options.max_steps + 1, 3);
 track(1, :) = current_pos;
 track_length = 1;
+
+% Get step size from options
+step_size = options.step_size;
 
 % Initialize timing
 if nargout > 1
@@ -469,7 +472,7 @@ dir_vec = dir_vec * direction;
 dims = size(nim.FA);
 has_parcellation = isfield(nim, 'dilated_brain_mask');
 
-% FACT algorithm: while loop matching research pseudocode
+% FACT algorithm with Euler stepping
 while true
     if nargout > 1
         step_timing.step_count = step_timing.step_count + 1;
@@ -497,23 +500,23 @@ while true
         break;
     end
 
-    % Compute intersection with voxel boundary along direction
-    exit_point = find_voxel_boundary_exit(current_pos, dir_vec, dims);
+    % EULER STEPPING: Advance position by fixed step_size along direction
+    next_pos = current_pos + step_size * dir_vec;
 
-    % Check if exit point is valid
-    if isempty(exit_point) || any(exit_point < 1) || any(exit_point > dims)
+    % Check if next position is valid (within volume bounds)
+    if any(next_pos < 1) || any(next_pos > dims)
         break;
     end
 
-    % Brain tissue check at exit point
+    % Brain tissue check at next position
     if has_parcellation
         if nargout > 1
             boundary_tic = tic;
         end
 
-        exit_voxel = round(exit_point);
-        if all(exit_voxel >= 1) && all(exit_voxel <= dims)
-            if ~nim.dilated_brain_mask(exit_voxel(1), exit_voxel(2), exit_voxel(3))
+        next_voxel = round(next_pos);
+        if all(next_voxel >= 1) && all(next_voxel <= dims)
+            if ~nim.dilated_brain_mask(next_voxel(1), next_voxel(2), next_voxel(3))
                 break;
             end
         end
@@ -523,14 +526,14 @@ while true
         end
     end
 
-    % Add exit point to streamline
+    % Add next position to streamline
     track_length = track_length + 1;
-    track(track_length, :) = exit_point;
+    track(track_length, :) = next_pos;
 
-    % Move to next voxel and update direction
-    current_pos = exit_point;
+    % Move to next position and update direction
+    current_pos = next_pos;
 
-    % Get new direction from new voxel
+    % Get new direction from nearest voxel (no interpolation)
     [new_dir, fa_val] = get_voxel_direction_fact(nim, current_pos, options);
     if isempty(new_dir)
         break;
