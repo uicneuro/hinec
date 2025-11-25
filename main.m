@@ -88,6 +88,72 @@ end
 % Check if using run directory organization
 use_run_dir = ~isempty(fieldnames(run_info));
 
+%% Check if preprocessed .mat output already exists - skip preprocessing if so
+% Check both original location and common locations for existing .mat file
+existing_mat_file = '';
+
+% First check original nimpath location
+if isfile(nimpath)
+    existing_mat_file = nimpath;
+end
+
+% Also check common previous run locations if using run directory
+if isempty(existing_mat_file) && use_run_dir
+    % Check hinec_runs/latest/output/ for recent runs
+    [~, output_name, output_ext] = fileparts(nimpath);
+    latest_output = fullfile('hinec_runs', 'latest', 'output', [output_name output_ext]);
+    if isfile(latest_output)
+        existing_mat_file = latest_output;
+    end
+end
+
+% If existing .mat found, copy to run directory and skip preprocessing
+if ~isempty(existing_mat_file)
+    fprintf('\n========================================\n');
+    fprintf('SKIPPING PREPROCESSING - OUTPUT EXISTS\n');
+    fprintf('========================================\n');
+    fprintf('Found existing output: %s\n', existing_mat_file);
+
+    if use_run_dir
+        % Copy existing .mat to new run directory
+        [~, output_name, output_ext] = fileparts(nimpath);
+        dest_mat_file = fullfile(run_info.output_dir, [output_name output_ext]);
+        copyfile(existing_mat_file, dest_mat_file);
+        fprintf('Copied to run directory: %s\n', dest_mat_file);
+
+        % Also copy intermediate files if they exist alongside the .mat
+        [existing_dir, ~, ~] = fileparts(existing_mat_file);
+
+        % Try to find and copy associated intermediate files
+        % Check parent's intermediate folder or same folder
+        possible_intermediate_dirs = {
+            fullfile(fileparts(existing_dir), 'intermediate'),  % ../intermediate/
+            existing_dir  % same folder
+        };
+
+        for i = 1:length(possible_intermediate_dirs)
+            int_dir = possible_intermediate_dirs{i};
+            if exist(int_dir, 'dir')
+                % Copy .nii.gz files to intermediate
+                nii_files = dir(fullfile(int_dir, '*.nii.gz'));
+                for j = 1:length(nii_files)
+                    src = fullfile(int_dir, nii_files(j).name);
+                    dst = fullfile(run_info.intermediate_dir, nii_files(j).name);
+                    if ~isfile(dst)
+                        copyfile(src, dst);
+                        fprintf('  Copied: %s\n', nii_files(j).name);
+                    end
+                end
+                break;  % Found intermediate files, stop looking
+            end
+        end
+    end
+
+    fprintf('To force reprocessing, delete: %s\n', existing_mat_file);
+    fprintf('========================================\n\n');
+    return;
+end
+
 % Set registration defaults
 if ~isfield(options, 'enable_registration')
     options.enable_registration = ~isempty(t1_file) && any(isfile(t1_file));
