@@ -220,9 +220,32 @@ end
 
 fprintf('HINEC: Extracted v1_x, v1_y, v1_z components (size: %dx%dx%d)\n', dims(1), dims(2), dims(3));
 
+% HINEC OPTIMIZATION: Pre-create griddedInterpolant objects for fast repeated interpolation
+% griddedInterpolant is 2-5x faster than interp3 for repeated queries on the same grid
+fprintf('HINEC: Creating griddedInterpolant objects for fast interpolation...\n');
+
+% Determine interpolation method
+if strcmp(options.interp_method, 'cubic')
+    interp_method = 'cubic';
+else
+    interp_method = 'linear';  % Default for 'trilinear' or any other
+end
+fprintf('HINEC: Interpolation method: %s\n', interp_method);
+
+% Create grid vectors for griddedInterpolant
+grid_vectors = {1:dims(1), 1:dims(2), 1:dims(3)};
+
+% Pre-create interpolant objects (much faster than repeated interp3 calls)
+nim.FA_interp = griddedInterpolant(grid_vectors, nim.FA, interp_method, 'none');
+nim.v1_x_interp = griddedInterpolant(grid_vectors, nim.v1_x, interp_method, 'none');
+nim.v1_y_interp = griddedInterpolant(grid_vectors, nim.v1_y, interp_method, 'none');
+nim.v1_z_interp = griddedInterpolant(grid_vectors, nim.v1_z, interp_method, 'none');
+
+fprintf('HINEC: griddedInterpolant objects created successfully\n');
+
 if options.enable_diagnostics
     timing.precompute_time = toc(timing.precompute_start);
-    fprintf('HINEC: Eigenvector extraction took: %.2f seconds\n', timing.precompute_time);
+    fprintf('HINEC: Eigenvector extraction + interpolant setup took: %.2f seconds\n', timing.precompute_time);
 end
 
 % Verify seed mask was provided by caller
@@ -269,122 +292,189 @@ fprintf('==============================\n');
 tracks = cell(size(seed_points, 1) * 2, 1);
 track_count = 0;
 
-% Track generation with failure diagnostics
-failure_reasons = struct();
-failure_reasons.no_initial_direction = 0;
-failure_reasons.immediate_fa_fail = 0;
-failure_reasons.no_boundary_exit = 0;
-failure_reasons.short_tracks = 0;
-failure_reasons.successful = 0;
-% HINEC ACT-specific termination reasons
-failure_reasons.csf_termination = 0;    % Invalid: entered CSF
-failure_reasons.gm_termination = 0;     % Valid: reached gray matter
-failure_reasons.outside_termination = 0; % Invalid: left brain volume
-failure_reasons.fa_termination = 0;      % Standard: low FA
-failure_reasons.angle_termination = 0;   % Standard: sharp turn
-
 % Convert angle threshold to cosine for efficiency
 cos_angle_thresh = cos(deg2rad(options.angle_thresh));
 
 % Initialize timing for tracking
 if options.enable_diagnostics
     timing.tracking_start = tic;
-    timing.interpolation_time = 0;
-    timing.boundary_time = 0;
-    timing.step_count = 0;
-    timing.rkf_rejections = 0;  % Count RKF step rejections
-    timing.rkf_retries = 0;     % Count RKF retry attempts
 end
 
-% Process each seed point
-fprintf('Processing seeds: ');
-last_report_time = tic;
+% PARFOR PARALLELIZATION: Process seeds in parallel for massive speedup
+% Each seed is independent - embarrassingly parallel problem
+num_seeds = size(seed_points, 1);
+fprintf('Processing %d seeds using parallel workers...\n', num_seeds);
 
-for i = 1:size(seed_points, 1)
-    % Progress reporting with time estimate
-    if mod(i, 10) == 0
-        elapsed = toc(timing.tracking_start);
-        rate = i / elapsed;
-        eta = (size(seed_points, 1) - i) / rate;
-        fprintf('\n%d/%d (%.1f seeds/s, ETA: %.1f min) ', i, size(seed_points, 1), rate, eta/60);
-        % m = memory;
-        % fprintf('\nMemory: %.1f GB used', m.MemUsedMATLAB/1e9);
+% Pre-allocate sliced output arrays for parfor compatibility
+% parfor requires sliced variables (one element per iteration)
+all_tracks = cell(num_seeds, 1);           % Store combined tracks
+term_fwd_all = cell(num_seeds, 1);         % Forward termination reasons
+term_bwd_all = cell(num_seeds, 1);         % Backward termination reasons
+track_valid = false(num_seeds, 1);         % Track validity flags
+step_counts = zeros(num_seeds, 1);         % Step counts per seed
+boundary_times = zeros(num_seeds, 1);      % Boundary check times per seed
+
+% Check if Parallel Computing Toolbox is available
+use_parfor = ~isempty(ver('parallel'));
+if use_parfor
+    % Ensure parallel pool is started
+    pool = gcp('nocreate');
+    if isempty(pool)
+        fprintf('Starting parallel pool...\n');
+        pool = parpool('local');
     end
-    
-    seed = seed_points(i, :);
+    fprintf('Using %d parallel workers\n', pool.NumWorkers);
+else
+    fprintf('WARNING: Parallel Computing Toolbox not available. Using serial processing.\n');
+end
 
-    % Track in both directions and combine into one track
-    if options.enable_diagnostics
+% Progress tracking for parfor (using DataQueue)
+if use_parfor
+    progress_queue = parallel.pool.DataQueue;
+    progress_count = 0;
+    afterEach(progress_queue, @(~) fprintf('.'));
+end
+
+% Main parallel loop
+tracking_start = tic;
+
+if use_parfor
+    parfor i = 1:num_seeds
+        seed = seed_points(i, :);
+
+        % Track in both directions
         [track_forward, step_timing_fwd, term_fwd] = track_fiber_hinec(nim, seed, +1, options, cos_angle_thresh);
         [track_backward, step_timing_bwd, term_bwd] = track_fiber_hinec(nim, seed, -1, options, cos_angle_thresh);
-        timing.interpolation_time = timing.interpolation_time + step_timing_fwd.interpolation_time + step_timing_bwd.interpolation_time;
-        timing.boundary_time = timing.boundary_time + step_timing_fwd.boundary_time + step_timing_bwd.boundary_time;
-        timing.step_count = timing.step_count + step_timing_fwd.step_count + step_timing_bwd.step_count;
-    else
-        [track_forward, ~, term_fwd] = track_fiber_hinec(nim, seed, +1, options, cos_angle_thresh);
-        [track_backward, ~, term_bwd] = track_fiber_hinec(nim, seed, -1, options, cos_angle_thresh);
+
+        % Store termination reasons
+        term_fwd_all{i} = term_fwd;
+        term_bwd_all{i} = term_bwd;
+
+        % Store timing info
+        step_counts(i) = step_timing_fwd.step_count + step_timing_bwd.step_count;
+        boundary_times(i) = step_timing_fwd.boundary_time + step_timing_bwd.boundary_time;
+
+        % Check if tracks were generated
+        if isempty(track_forward) && isempty(track_backward)
+            track_valid(i) = false;
+            all_tracks{i} = [];
+        else
+            % Combine tracks: backward (flipped) + seed + forward
+            if size(track_backward, 1) > 1
+                track_backward = flipud(track_backward(2:end, :));
+            else
+                track_backward = [];
+            end
+
+            if size(track_forward, 1) > 1
+                track_forward = track_forward(2:end, :);
+            else
+                track_forward = [];
+            end
+
+            % Combine into one continuous track
+            combined_track = [track_backward; seed; track_forward];
+
+            if size(combined_track, 1) > 1
+                all_tracks{i} = combined_track;
+                track_valid(i) = true;
+            else
+                all_tracks{i} = [];
+                track_valid(i) = false;
+            end
+        end
+
+        % Send progress update (every 100 seeds)
+        if mod(i, 100) == 0
+            send(progress_queue, i);
+        end
     end
+else
+    % Serial fallback (no Parallel Computing Toolbox)
+    for i = 1:num_seeds
+        if mod(i, 100) == 0
+            elapsed = toc(tracking_start);
+            rate = i / elapsed;
+            eta = (num_seeds - i) / rate;
+            fprintf('\n%d/%d (%.1f seeds/s, ETA: %.1f min) ', i, num_seeds, rate, eta/60);
+        end
 
-    % Count termination reasons from both directions
-    % Note: We count both directions to understand termination patterns
-    if strcmp(term_fwd, 'csf')
-        failure_reasons.csf_termination = failure_reasons.csf_termination + 1;
-    elseif strcmp(term_fwd, 'gm')
-        failure_reasons.gm_termination = failure_reasons.gm_termination + 1;
-    elseif strcmp(term_fwd, 'outside')
-        failure_reasons.outside_termination = failure_reasons.outside_termination + 1;
-    elseif strcmp(term_fwd, 'fa')
-        failure_reasons.fa_termination = failure_reasons.fa_termination + 1;
-    elseif strcmp(term_fwd, 'angle')
-        failure_reasons.angle_termination = failure_reasons.angle_termination + 1;
-    end
+        seed = seed_points(i, :);
 
-    if strcmp(term_bwd, 'csf')
-        failure_reasons.csf_termination = failure_reasons.csf_termination + 1;
-    elseif strcmp(term_bwd, 'gm')
-        failure_reasons.gm_termination = failure_reasons.gm_termination + 1;
-    elseif strcmp(term_bwd, 'outside')
-        failure_reasons.outside_termination = failure_reasons.outside_termination + 1;
-    elseif strcmp(term_bwd, 'fa')
-        failure_reasons.fa_termination = failure_reasons.fa_termination + 1;
-    elseif strcmp(term_bwd, 'angle')
-        failure_reasons.angle_termination = failure_reasons.angle_termination + 1;
-    end
+        % Track in both directions
+        [track_forward, step_timing_fwd, term_fwd] = track_fiber_hinec(nim, seed, +1, options, cos_angle_thresh);
+        [track_backward, step_timing_bwd, term_bwd] = track_fiber_hinec(nim, seed, -1, options, cos_angle_thresh);
 
-    % Diagnostic: Check if tracks were generated
-    if isempty(track_forward) && isempty(track_backward)
-        failure_reasons.no_initial_direction = failure_reasons.no_initial_direction + 1;
-        continue;
-    end
+        % Store termination reasons
+        term_fwd_all{i} = term_fwd;
+        term_bwd_all{i} = term_bwd;
 
-    % Combine tracks: backward (flipped) + seed + forward
-    if size(track_backward, 1) > 1
-        % Remove seed point from backward track and flip order
-        track_backward = flipud(track_backward(2:end, :));
-    else
-        track_backward = [];
-    end
+        % Store timing info
+        step_counts(i) = step_timing_fwd.step_count + step_timing_bwd.step_count;
+        boundary_times(i) = step_timing_fwd.boundary_time + step_timing_bwd.boundary_time;
 
-    if size(track_forward, 1) > 1
-        % Remove seed point from forward track
-        track_forward = track_forward(2:end, :);
-    else
-        track_forward = [];
-    end
+        % Check if tracks were generated
+        if isempty(track_forward) && isempty(track_backward)
+            track_valid(i) = false;
+            all_tracks{i} = [];
+        else
+            % Combine tracks: backward (flipped) + seed + forward
+            if size(track_backward, 1) > 1
+                track_backward = flipud(track_backward(2:end, :));
+            else
+                track_backward = [];
+            end
 
-    % Combine into one continuous track
-    combined_track = [track_backward; seed; track_forward];
+            if size(track_forward, 1) > 1
+                track_forward = track_forward(2:end, :);
+            else
+                track_forward = [];
+            end
 
-    % Save ALL generated tracks - no filters at all
-    if size(combined_track, 1) > 1
-        track_count = track_count + 1;
-        tracks{track_count} = combined_track;
-        failure_reasons.successful = failure_reasons.successful + 1;
+            % Combine into one continuous track
+            combined_track = [track_backward; seed; track_forward];
+
+            if size(combined_track, 1) > 1
+                all_tracks{i} = combined_track;
+                track_valid(i) = true;
+            else
+                all_tracks{i} = [];
+                track_valid(i) = false;
+            end
+        end
     end
 end
 
-% Trim tracks array
-tracks = tracks(1:track_count);
+fprintf('\nParallel tracking completed.\n');
+
+% Aggregate results from parallel workers
+% Extract valid tracks
+tracks = all_tracks(track_valid);
+track_count = sum(track_valid);
+
+% Count termination reasons (aggregate from all workers)
+failure_reasons = struct();
+failure_reasons.no_initial_direction = sum(cellfun(@isempty, term_fwd_all) & cellfun(@isempty, term_bwd_all));
+failure_reasons.immediate_fa_fail = 0;
+failure_reasons.no_boundary_exit = 0;
+failure_reasons.short_tracks = 0;
+failure_reasons.successful = track_count;
+
+% HINEC ACT-specific termination reasons
+failure_reasons.csf_termination = sum(strcmp(term_fwd_all, 'csf')) + sum(strcmp(term_bwd_all, 'csf'));
+failure_reasons.gm_termination = sum(strcmp(term_fwd_all, 'gm')) + sum(strcmp(term_bwd_all, 'gm'));
+failure_reasons.outside_termination = sum(strcmp(term_fwd_all, 'outside')) + sum(strcmp(term_bwd_all, 'outside'));
+failure_reasons.fa_termination = sum(strcmp(term_fwd_all, 'fa')) + sum(strcmp(term_bwd_all, 'fa'));
+failure_reasons.angle_termination = sum(strcmp(term_fwd_all, 'angle')) + sum(strcmp(term_bwd_all, 'angle'));
+
+% Aggregate timing statistics
+if options.enable_diagnostics
+    timing.step_count = sum(step_counts);
+    timing.boundary_time = sum(boundary_times);
+    timing.interpolation_time = 0;  % Not tracked per-worker for simplicity
+    timing.rkf_rejections = 0;      % Not tracked in parallel mode
+    timing.rkf_retries = 0;         % Not tracked in parallel mode
+end
 
 % Print final timing report
 if options.enable_diagnostics
@@ -1114,16 +1204,17 @@ end
 
 
 function [direction, fa_value] = interpolate_direction_trilinear(nim, pos, options)
-% HINEC: Trilinear interpolation of direction and FA at sub-voxel positions
+% HINEC: Fast interpolation of direction and FA using pre-created griddedInterpolant
 %
-% TRILINEAR INTERPOLATION:
+% OPTIMIZED INTERPOLATION:
+% - Uses pre-created griddedInterpolant objects (2-5x faster than interp3)
+% - Supports both 'linear' (trilinear) and 'cubic' interpolation
 % - Interpolates primary eigenvector components at continuous positions
-% - Uses pre-extracted v1_x, v1_y, v1_z for efficiency
 % - Provides smooth direction transitions across voxel boundaries
-% - Interpolates FA value at same position
 %
 % Arguments:
-%   nim - NIM structure with pre-extracted v1_x, v1_y, v1_z, FA
+%   nim - NIM structure with pre-created interpolant objects:
+%         nim.FA_interp, nim.v1_x_interp, nim.v1_y_interp, nim.v1_z_interp
 %   pos - Current position (continuous, sub-voxel precision)
 %   options - Tractography parameters
 %
@@ -1136,52 +1227,55 @@ fa_value = 0;
 
 dims = size(nim.FA);
 
-% Boundary check: need buffer for trilinear interpolation
-% interp3 requires position to be within [1, dim] bounds with margin
-if any(pos < 1.1) || any(pos(1) > dims(1)-0.1) || ...
-   any(pos(2) > dims(2)-0.1) || any(pos(3) > dims(3)-0.1)
+% Boundary check: need buffer for interpolation
+% griddedInterpolant with 'none' extrapolation returns NaN outside bounds
+% Use slightly tighter bounds for cubic interpolation
+if strcmp(options.interp_method, 'cubic')
+    margin = 1.5;  % Cubic needs more margin
+else
+    margin = 1.1;  % Linear needs less margin
+end
+
+if any(pos < margin) || pos(1) > dims(1)-margin+1 || ...
+   pos(2) > dims(2)-margin+1 || pos(3) > dims(3)-margin+1
     return;
 end
 
-% Determine interpolation method
-if strcmp(options.interp_method, 'cubic')
-    interp_type = 'cubic';
-elseif strcmp(options.interp_method, 'trilinear')
-    interp_type = 'linear';
-else
-    interp_type = 'linear';  % Default fallback
-end
-
-% Interpolate FA value first (fast termination check)
+% Interpolate FA value first using pre-created interpolant (fast termination check)
+% griddedInterpolant uses (X, Y, Z) ordering directly - no coordinate swap needed
 try
-    % MATLAB interp3 uses (Y, X, Z) ordering: interp3(V, X, Y, Z)
-    fa_value = interp3(nim.FA, pos(2), pos(1), pos(3), interp_type, 0);
+    fa_value = nim.FA_interp(pos(1), pos(2), pos(3));
 catch
     return;
 end
 
-% Early termination if FA too low
-if fa_value < options.termination_fa
+% Check for NaN (outside bounds) or too low FA
+if isnan(fa_value) || fa_value < options.termination_fa
+    fa_value = 0;
     return;
 end
 
-% Interpolate primary eigenvector components
+% Interpolate primary eigenvector components using pre-created interpolants
 try
-    % Interpolate each component separately
-    v_x = interp3(nim.v1_x, pos(2), pos(1), pos(3), interp_type, 0);
-    v_y = interp3(nim.v1_y, pos(2), pos(1), pos(3), interp_type, 0);
-    v_z = interp3(nim.v1_z, pos(2), pos(1), pos(3), interp_type, 0);
+    v_x = nim.v1_x_interp(pos(1), pos(2), pos(3));
+    v_y = nim.v1_y_interp(pos(1), pos(2), pos(3));
+    v_z = nim.v1_z_interp(pos(1), pos(2), pos(3));
+
+    % Check for NaN values (outside interpolation domain)
+    if isnan(v_x) || isnan(v_y) || isnan(v_z)
+        return;
+    end
 
     direction = [v_x, v_y, v_z];
 
     % Validate and normalize
     dir_norm = norm(direction);
-    if dir_norm > 1e-6 && ~any(isnan(direction)) && ~any(isinf(direction))
+    if dir_norm > 1e-6 && ~any(isinf(direction))
         direction = direction / dir_norm;
     else
         direction = [];
     end
-catch ME
+catch
     % Interpolation failed - return empty
     direction = [];
 end
