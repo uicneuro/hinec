@@ -8,13 +8,13 @@ Human brain white matter tractography pipeline with **YAML-based parameter confi
 
 ```bash
 # Default configuration - creates organized run directory automatically
-./run_hinec.sh nifti_sample/sample sample.mat
+./bin/run_hinec.sh data/parcellation_sample/sample sample.mat
 
 # High precision (publication quality)
-./run_hinec.sh nifti_sample/sample sample.mat config/high_precision.yml
+./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/high_precision.yml
 
 # Fast exploration (parameter testing)
-./run_hinec.sh nifti_sample/sample sample.mat config/fast_exploration.yml
+./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/fast_exploration.yml
 ```
 
 **NEW**: All runs are now automatically organized in `hinec_runs/run_YYYYMMDD_HHMMSS_<config>/` directories! No more scattered files cluttering your workspace.
@@ -29,7 +29,7 @@ config = load_config_yaml('config/hinec_default.yml');
 run_info = create_run_directory('config/hinec_default.yml');
 
 % Run pipeline with organized output
-main('nifti_sample/sample', 'sample.mat', config, run_info);
+main('data/parcellation_sample/sample', 'sample.mat', config, run_info);
 output_mat = fullfile(run_info.output_dir, 'sample.mat');
 runTractography(output_mat, config, run_info);
 ```
@@ -136,6 +136,6 @@ Addons:
 External Softwares:
 
 -   `Statistical Parametric Mapping`
-    -   Must add folder SPM12 in the root directory
+    -   Must add folder SPM12 in the `lib` directory
 -   `FSL`
     -   Must be initialized before use

@@ -86,10 +86,10 @@ end
 use_run_dir = ~isempty(fieldnames(run_info));
 
 % Add necessary paths
-addpath('nim_tractography');
-addpath('nim_utils');
-addpath('nim_plots');
-addpath('nim_challenges');
+addpath('src/nim_tractography');
+addpath('src/nim_utils');
+addpath('src/nim_plots');
+addpath('src/nim_challenges');
 
 fprintf('=== HINEC Tractography Pipeline ===\n');
 

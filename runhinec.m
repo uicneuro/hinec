@@ -1,6 +1,6 @@
-% main nifti_sample/parcellation_sample/sample sample_parcellated.mat
+% main data/parcellation_sample/sample sample_parcellated.mat
 load sample_parcellated.mat
-% main nifti_sample/original_sample/sample sample.mat
+% main data/original_sample/sample sample.mat
 % load sample.mat
 
 % plot all
