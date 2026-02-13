@@ -8,7 +8,7 @@ First, make sure you have processed data with tractography and parcellation:
 
 ```matlab
 % Run the full pipeline if you haven't already
-main('nifti_sample/sample', 'sample_parcellated.mat');
+main('data/parcellation_sample/sample', 'sample_parcellated.mat');
 runTractography('sample_parcellated.mat');
 ```
 

@@ -14,10 +14,10 @@ The HINEC pipeline now supports **YAML-based parameter configuration**, making i
 
 ```bash
 # Use default configuration
-./run_hinec.sh nifti_sample/sample sample.mat
+./run_hinec.sh data/parcellation_sample/sample sample.mat
 
 # Use custom configuration
-./run_hinec.sh nifti_sample/sample sample.mat config/high_precision.yml
+./run_hinec.sh data/parcellation_sample/sample sample.mat config/high_precision.yml
 ```
 
 ### Available Presets
