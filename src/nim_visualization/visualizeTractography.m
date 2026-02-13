@@ -1,4 +1,4 @@
-function visualizeTractography(tracks_file, nim_file, varargin)
+function visualizeTractography(varargin)
 % VISUALIZETRACTOGRAPHY: Complete tractography visualization with multiple modes and export
 %
 % This single function replaces ALL previous visualization files:
@@ -8,6 +8,11 @@ function visualizeTractography(tracks_file, nim_file, varargin)
 % - nim_plot_tractography_region.m (core plotting)
 %
 % Usage:
+%   % NEW: Auto-detect files from run directory
+%   visualizeTractography('hinec_runs/run_20251125_112405_hinec_default')  % Auto-detect files
+%   visualizeTractography('./hinec_runs/run_*')                            % Wildcard support
+%
+%   % Traditional usage with explicit file paths
 %   visualizeTractography(tracks_file, nim_file)                           % Whole brain
 %   visualizeTractography(tracks_file, nim_file, 'region', 5)              % Single region
 %   visualizeTractography(tracks_file, nim_file, 'region', [5, 10, 15])    % Multiple regions
@@ -17,8 +22,11 @@ function visualizeTractography(tracks_file, nim_file, varargin)
 %   visualizeTractography('tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat')
 %
 % Arguments:
-%   tracks_file - Path to tracks .mat file (REQUIRED)
-%   nim_file - Path to nim .mat file (REQUIRED)
+%   EITHER:
+%     run_dir - Path to run directory (e.g., 'hinec_runs/run_20251125_*') - auto-detects files
+%   OR:
+%     tracks_file - Path to tracks .mat file (REQUIRED)
+%     nim_file - Path to nim .mat file (REQUIRED)
 %
 % Parameters:
 %   'mode' - 'whole', 'region', 'grid', 'sequential' (default: 'whole')
@@ -32,7 +40,7 @@ function visualizeTractography(tracks_file, nim_file, varargin)
 %   'region_filter' - Alternative to filter_mode for consistency with slice viewer
 %   'min_overlap' - Minimum region overlap ratio 0-1 (default: 0.05)
 %   'min_region_points' - Minimum in-region track points for pass-through (default: 3)
-%   'max_tracks' - Max tracks to display (default: 2000 whole, inf others)
+%   'max_tracts' - Max tracks to display (default: 2000 whole, inf others)
 %
 % Visualization:
 %   'color_mode' - 'direction', 'fa', 'uniform', 'region' (default: 'direction')
@@ -44,7 +52,7 @@ function visualizeTractography(tracks_file, nim_file, varargin)
 % Grid Layout:
 %   'grid_cols' - Grid columns (default: auto)
 %   'subplot_size' - [width, height] (default: [400, 350])
-%   'show_all_tracks' - Force show ALL tracks in grid (default: true)
+%   'show_all_tracks' - Force show ALL tractsin grid (default: true)
 %
 % Examples:
 %   % Basic whole brain
@@ -60,18 +68,20 @@ function visualizeTractography(tracks_file, nim_file, varargin)
 %   visualizeTractography('tracks.mat', 'data.mat', 'mode', 'sequential', 'export_dir', 'output/')
 
 %% INPUT VALIDATION AND PARSING
-% Validate required arguments
-if nargin < 2
-    error('visualizeTractography requires 2 arguments: tracks_file, nim_file');
+% Handle flexible input: either run_dir OR (tracks_file, nim_file)
+if nargin < 1
+    error('visualizeTractography requires at least 1 argument: run_dir OR (tracks_file, nim_file)');
 end
 
-if ~ischar(tracks_file) && ~isstring(tracks_file)
-    error('tracks_file must be a string path to .mat file');
+% Check if first argument is a run directory or a tracks file
+first_arg = varargin{1};
+if ~ischar(first_arg) && ~isstring(first_arg)
+    error('First argument must be a string path');
 end
+first_arg = char(first_arg);
 
-if ~ischar(nim_file) && ~isstring(nim_file)
-    error('nim_file must be a string path to .mat file');
-end
+% Detect if this is a run directory (contains 'run_' or is a directory with output/tractography)
+[tracks_file, nim_file, remaining_args] = resolve_input_paths(first_arg, varargin);
 
 % Parse input parameters with comprehensive options
 p = inputParser;
@@ -92,7 +102,7 @@ addParameter(p, 'filter_mode', 'pass_through', @(x) ismember(x, {'pass_through',
 addParameter(p, 'region_filter', 'pass_through', @(x) ismember(x, {'pass_through', 'start_in', 'end_in'})); % For consistency with slice viewer
 addParameter(p, 'min_overlap', 0.05, @(x) isnumeric(x) && x >= 0 && x <= 1);
 addParameter(p, 'min_region_points', 3, @(x) isnumeric(x) && x >= 0);
-addParameter(p, 'max_tracks', [], @(x) isempty(x) || (isnumeric(x) && x > 0));
+addParameter(p, 'max_tracts', [], @(x) isempty(x) || (isnumeric(x) && x > 0));
 
 % Visualization parameters
 addParameter(p, 'color_mode', 'direction', @(x) ismember(x, {'direction', 'fa', 'uniform', 'region'}));
@@ -113,7 +123,7 @@ addParameter(p, 'show_background', [], @(x) isempty(x) || islogical(x));
 % Export behavior
 addParameter(p, 'silent_export', true, @islogical); % Don't display figures when exporting
 
-parse(p, tracks_file, nim_file, varargin{:});
+parse(p, tracks_file, nim_file, remaining_args{:});
 options = p.Results;
 
 % Handle legacy parameter names
@@ -167,13 +177,13 @@ end
 options.min_region_points = max(0, round(options.min_region_points));
 options.min_overlap = max(0, min(1, options.min_overlap));
 
-% Set default max_tracks based on mode
-if isempty(options.max_tracks)
+% Set default max_tractsbased on mode
+if isempty(options.max_tracts)
     switch options.mode
         case 'whole'
-            options.max_tracks = 2000;  % Performance limit
+            options.max_tracts= 2000;  % Performance limit
         case {'region', 'grid', 'sequential'}
-            options.max_tracks = inf;   % Show all tracks
+            options.max_tracts= inf;   % Show all tracks
     end
 end
 
@@ -233,16 +243,16 @@ function [tracks, nim] = load_and_validate_data(tracks_file, nim_file, options)
 
 fprintf('Loading and validating data...\n');
 
-%% Load tracks data
-fprintf('  Loading tracks from %s...\n', tracks_file);
+%% Load tractsdata
+fprintf('  Loading tracts from %s...\n', tracks_file);
 if ~exist(tracks_file, 'file')
-    error('Tracks file not found: %s\nPlease run tractography first.', tracks_file);
+    error('Tracts file not found: %s\nPlease run tractography first.', tracks_file);
 end
 
 try
     track_data = load(tracks_file);
     if ~isfield(track_data, 'tracks')
-        error('Invalid tracks file: missing "tracks" field');
+        error('Invalid tracts file: missing "tracts" field');
     end
     tracks = track_data.tracks;
 
@@ -336,10 +346,10 @@ if options.show_anatomy
 end
 
 % Plot tracks with direction-based coloring
-max_tracks_display = min(options.max_tracks, length(tracks));
-if max_tracks_display < length(tracks)
-    fprintf('  Limiting display to %d tracks for performance\n', max_tracks_display);
-    track_indices = round(linspace(1, length(tracks), max_tracks_display));
+max_tracts_display = min(options.max_tracts, length(tracks));
+if max_tracts_display < length(tracks)
+    fprintf('  Limiting display to %d tracts for performance\n', max_tracts_display);
+    track_indices = round(linspace(1, length(tracks), max_tracts_display));
     display_tracks = tracks(track_indices);
 else
     display_tracks = tracks;
@@ -351,7 +361,7 @@ plot_tracks_with_color(display_tracks, nim, options);
 dims = size(nim.FA);
 xlim([1 dims(1)]); ylim([1 dims(2)]); zlim([1 dims(3)]);
 xlabel('X'); ylabel('Y'); zlabel('Z');
-title(sprintf('Tractography Results (%d tracks, showing %d)', length(tracks), length(display_tracks)));
+title(sprintf('Tractography Results (%d tracts, showing %d)', length(tracks), length(display_tracks)));
 grid on; axis equal; view(45, 30);
 
 % Add color legend
@@ -402,7 +412,7 @@ end
 
 %% Filter tracks for the region(s)
 if options.multi_region
-    fprintf('Filtering tracks for multiple regions (%s mode)...\n', options.filter_mode);
+    fprintf('Filtering tracts for multiple regions (%s mode)...\n', options.filter_mode);
     filtered_tracks = {};
     total_tracks = 0;
 
@@ -412,22 +422,22 @@ if options.multi_region
         if ~isempty(region_tracks)
             filtered_tracks = [filtered_tracks; region_tracks];
             total_tracks = total_tracks + length(region_tracks);
-            fprintf('Region %d: %d tracks\n', region_id, length(region_tracks));
+            fprintf('Region %d: %d tracts\n', region_id, length(region_tracks));
         else
-            fprintf('Region %d: No tracks found\n', region_id);
+            fprintf('Region %d: No tracts found\n', region_id);
         end
     end
     filtered_tracks = filtered_tracks(:);
 else
     region_id = options.region_ids(1);
-    fprintf('Filtering tracks for region %d (%s mode)...\n', region_id, options.filter_mode);
+    fprintf('Filtering tracts for region %d (%s mode)...\n', region_id, options.filter_mode);
     filtered_tracks = filter_tracks_by_region(tracks, nim.parcellation_mask, region_id, options);
     total_tracks = length(filtered_tracks);
 end
 
 if isempty(filtered_tracks)
     if options.multi_region
-        warning('No tracks found for any of the specified regions with current filter settings');
+        warning('No tracts found for any of the specified regions with current filter settings');
     else
         warning('No tracks found for region %d with current filter settings', options.region_ids(1));
     end
@@ -447,9 +457,9 @@ else
 end
 
 %% Limit tracks if specified
-if ~isinf(options.max_tracks) && length(filtered_tracks) > options.max_tracks
-    fprintf('Limiting display to %d tracks for performance\n', options.max_tracks);
-    track_indices = round(linspace(1, length(filtered_tracks), options.max_tracks));
+if ~isinf(options.max_tracts) && length(filtered_tracks) > options.max_tracts
+    fprintf('Limiting display to %d tracks for performance\n', options.max_tracts);
+    track_indices = round(linspace(1, length(filtered_tracks), options.max_tracts));
     filtered_tracks = filtered_tracks(track_indices);
 end
 
@@ -582,7 +592,7 @@ for r = 1:length(unique_regions)
     % Filter tracks for this region - show ALL tracks if requested
     region_options = options;
     if options.show_all_tracks
-        region_options.max_tracks = inf;
+        region_options.max_tracts = inf;
     end
 
     filtered_tracks = filter_tracks_by_region(tracks, nim.parcellation_mask, region_id, region_options);
@@ -799,6 +809,8 @@ end
 
 function plot_anatomical_background(nim, alpha_value)
 % Plot FA slices as anatomical background
+% COORDINATE FIX: Track coords are (row, col, slice) = (Y_matlab, X_matlab, Z)
+% So we need X_plot = row indices, Y_plot = col indices
 
 if nargin < 2
     alpha_value = 0.15;
@@ -810,9 +822,10 @@ slices = slice_step:slice_step:dims(3)-slice_step;
 
 for s = slices
     fa_slice = nim.FA(:, :, s);
-    [X, Y] = meshgrid(1:size(fa_slice, 2), 1:size(fa_slice, 1));
-    Z = ones(size(X)) * s;
-    surf(X, Y, Z, fa_slice, 'EdgeColor', 'none', 'FaceAlpha', alpha_value);
+    % X_plot corresponds to dim1 (rows), Y_plot corresponds to dim2 (cols)
+    [Y_plot, X_plot] = meshgrid(1:size(fa_slice, 2), 1:size(fa_slice, 1));
+    Z = ones(size(X_plot)) * s;
+    surf(X_plot, Y_plot, Z, fa_slice, 'EdgeColor', 'none', 'FaceAlpha', alpha_value);
 end
 colormap(gray);
 end
@@ -820,15 +833,17 @@ end
 
 function plot_anatomical_background_subplot(nim)
 % Plot FA background for subplot (lighter)
+% COORDINATE FIX: Same as plot_anatomical_background
 dims = size(nim.FA);
 slice_step = max(1, round(dims(3) / 6));
 slices = slice_step:slice_step:dims(3)-slice_step;
 
 for s = slices
     fa_slice = nim.FA(:, :, s);
-    [X, Y] = meshgrid(1:size(fa_slice, 2), 1:size(fa_slice, 1));
-    Z = ones(size(X)) * s;
-    surf(X, Y, Z, fa_slice, 'EdgeColor', 'none', 'FaceAlpha', 0.05);
+    % X_plot corresponds to dim1 (rows), Y_plot corresponds to dim2 (cols)
+    [Y_plot, X_plot] = meshgrid(1:size(fa_slice, 2), 1:size(fa_slice, 1));
+    Z = ones(size(X_plot)) * s;
+    surf(X_plot, Y_plot, Z, fa_slice, 'EdgeColor', 'none', 'FaceAlpha', 0.05);
 end
 colormap(gray);
 end
@@ -836,6 +851,8 @@ end
 
 function plot_region_overlay(parcellation_mask, region_id, alpha_value)
 % Plot the parcellation region as a 3D overlay
+% COORDINATE SYSTEM: Tracks use (dim1, dim2, dim3) = (row, col, slice)
+% isosurface returns vertices as (col, row, slice) so we need to swap X and Y
 
 region_mask = parcellation_mask == region_id;
 
@@ -844,14 +861,15 @@ if sum(region_mask(:)) > 100 % Only if region has sufficient voxels
         % Smooth the mask slightly for better visualization
         region_mask_smooth = smooth3(double(region_mask), 'box', 3);
 
-        % Create isosurface
+        % Create isosurface - returns vertices in (X=col, Y=row, Z=slice) order
         [faces, vertices] = isosurface(region_mask_smooth, 0.5);
 
         if ~isempty(faces)
-            % COORDINATE FIX: Reorder vertices to match track coordinate system
+            % COORDINATE FIX: isosurface gives (col, row, slice)
+            % but tracks use (row, col, slice), so swap first two columns
             vertices_fixed = vertices;
-            vertices_fixed(:,1) = vertices(:,2); % X = old Y
-            vertices_fixed(:,2) = vertices(:,1); % Y = old X
+            vertices_fixed(:,1) = vertices(:,2); % X_plot = row = old Y
+            vertices_fixed(:,2) = vertices(:,1); % Y_plot = col = old X
             % Z stays the same
 
             % Plot region surface
@@ -861,9 +879,11 @@ if sum(region_mask(:)) > 100 % Only if region has sufficient voxels
         end
     catch
         % Fallback to scatter plot of region voxels
-        [i, j, k] = ind2sub(size(region_mask), find(region_mask));
-        if ~isempty(i)
-            scatter3(j, i, k, 10, 'red', 'filled', 'MarkerFaceAlpha', alpha_value);
+        % ind2sub returns (row, col, slice) indices
+        [row_idx, col_idx, slice_idx] = ind2sub(size(region_mask), find(region_mask));
+        if ~isempty(row_idx)
+            % Plot with (row, col, slice) = (X, Y, Z)
+            scatter3(row_idx, col_idx, slice_idx, 10, 'red', 'filled', 'MarkerFaceAlpha', alpha_value);
         end
     end
 end
@@ -872,6 +892,7 @@ end
 
 function plot_region_overlay_subplot(parcellation_mask, region_id, alpha_value)
 % Plot region overlay for subplot
+% Same coordinate fix as plot_region_overlay
 region_mask = parcellation_mask == region_id;
 
 if sum(region_mask(:)) > 50
@@ -880,18 +901,19 @@ if sum(region_mask(:)) > 50
         [faces, vertices] = isosurface(region_mask_smooth, 0.5);
 
         if ~isempty(faces)
+            % COORDINATE FIX: swap X and Y
             vertices_fixed = vertices;
-            vertices_fixed(:,1) = vertices(:,2);
-            vertices_fixed(:,2) = vertices(:,1);
+            vertices_fixed(:,1) = vertices(:,2); % X_plot = row
+            vertices_fixed(:,2) = vertices(:,1); % Y_plot = col
 
             patch('Vertices', vertices_fixed, 'Faces', faces, ...
                   'FaceColor', [1.0, 0.2, 0.2], 'EdgeColor', 'none', ...
                   'FaceAlpha', alpha_value, 'SpecularStrength', 0.1);
         end
     catch
-        [i, j, k] = ind2sub(size(region_mask), find(region_mask));
-        if ~isempty(i)
-            scatter3(j, i, k, 8, 'red', 'filled', 'MarkerFaceAlpha', alpha_value);
+        [row_idx, col_idx, slice_idx] = ind2sub(size(region_mask), find(region_mask));
+        if ~isempty(row_idx)
+            scatter3(row_idx, col_idx, slice_idx, 8, 'red', 'filled', 'MarkerFaceAlpha', alpha_value);
         end
     end
 end
@@ -1158,7 +1180,7 @@ end
 
 function plot_track_length_histogram(tracks)
 % Plot track length distribution
-if isfield(tracks, 'track_lengths') && ~isempty(tracks.track_lengths)
+if isfield(tracks, 'tract_lengths') && ~isempty(tracks.track_lengths)
     % Use pre-computed lengths if available
     track_lengths = tracks.track_lengths;
 else
@@ -1168,9 +1190,9 @@ end
 
 if ~isempty(track_lengths)
     histogram(track_lengths, 20);
-    xlabel('Track Length (points)');
+    xlabel('Tract Length (points)');
     ylabel('Count');
-    title('Track Length Distribution');
+    title('Tract Length Distribution');
 
     % Add statistics
     mean_len = mean(track_lengths);
@@ -1211,7 +1233,7 @@ if ~isempty(tracks)
     title('Seed Point Distribution');
     grid on; axis equal; view(3);
 else
-    text(0.5, 0.5, 'No tracks to display', 'HorizontalAlignment', 'center');
+    text(0.5, 0.5, 'No tracts to display', 'HorizontalAlignment', 'center');
     title('Seed Points');
 end
 end
@@ -1231,7 +1253,7 @@ if ~isempty(tracks)
 end
 
 fprintf('Color mode: %s\n', options.color_mode);
-fprintf('Max tracks displayed: %d\n', options.max_tracks);
+fprintf('Max tracts displayed: %d\n', options.max_tracts);
 fprintf('====================\n');
 end
 
@@ -1266,7 +1288,7 @@ end
 
 function display_track_statistics(tracks, region_id, region_name, options)
 % Display statistics about the filtered tracks
-fprintf('\n=== TRACK STATISTICS FOR REGION %d ===\n', region_id);
+fprintf('\n=== TRACT STATISTICS FOR REGION %d ===\n', region_id);
 if ~strcmp(region_name, sprintf('Region %d', region_id))
     fprintf('Region name: %s\n', region_name);
 end
@@ -1284,7 +1306,7 @@ if ~isempty(tracks)
             mean(track_lengths), min(track_lengths), max(track_lengths));
 
     % Estimate physical lengths (assuming 1mm spacing)
-    fprintf('Estimated track length (mm): Mean=%.1f, Min=%.1f, Max=%.1f\n', ...
+    fprintf('Estimated tract length (mm): Mean=%.1f, Min=%.1f, Max=%.1f\n', ...
             mean(track_lengths), min(track_lengths), max(track_lengths));
 end
 
@@ -1301,9 +1323,9 @@ if strcmp(options.filter_mode, 'pass_through')
     fprintf('Min in-region points: %d\n', options.min_region_points);
 end
 if options.show_all_tracks
-    fprintf('Track limits: NONE (ALL tracks displayed)\n');
+    fprintf('Track limits: NONE (ALL tracts displayed)\n');
 else
-    fprintf('Max tracks per region: %d\n', options.max_tracks);
+    fprintf('Max tracts per region: %d\n', options.max_tracts);
 end
 
 if ~isempty(region_info)
@@ -1332,7 +1354,7 @@ if ~isempty(region_info)
         end
     end
 
-    fprintf('\nTOTAL: %d regions, %d with tracks, %d tracks displayed\n', ...
+    fprintf('\nTOTAL: %d regions, %d with tracts, %d tracts displayed\n', ...
             length(region_info), regions_with_tracks, total_tracks);
 
     if ~isempty(track_counts)
@@ -1345,7 +1367,7 @@ else
 end
 
 if options.show_all_tracks
-    fprintf('\nIMPORTANT: ALL available tracks are displayed (no limits applied)\n');
+    fprintf('\nIMPORTANT: ALL available tracts are displayed (no limits applied)\n');
 end
 fprintf('=====================================\n');
 end
@@ -1353,7 +1375,7 @@ end
 
 function display_multi_region_statistics(tracks, region_ids, region_names, options)
 % Display statistics for multi-region visualization
-fprintf('\n=== MULTI-REGION TRACK STATISTICS ===\n');
+fprintf('\n=== MULTI-REGION TRACT STATISTICS ===\n');
 fprintf('Regions: %s\n', mat2str(region_ids));
 
 % Display region names if available
@@ -1369,7 +1391,7 @@ fprintf('Minimum overlap: %.1f%%\n', options.min_overlap * 100);
 if strcmp(options.filter_mode, 'pass_through')
     fprintf('Min in-region points: %d\n', options.min_region_points);
 end
-fprintf('Total tracks across all regions: %d\n', length(tracks));
+fprintf('Total tracts across all regions: %d\n', length(tracks));
 
 if ~isempty(tracks)
     track_lengths = cellfun(@(x) size(x, 1), tracks);
@@ -1377,11 +1399,11 @@ if ~isempty(tracks)
             mean(track_lengths), min(track_lengths), max(track_lengths));
 
     % Estimate physical lengths (assuming 1mm spacing)
-    fprintf('Estimated track length (mm): Mean=%.1f, Min=%.1f, Max=%.1f\n', ...
+    fprintf('Estimated tract length (mm): Mean=%.1f, Min=%.1f, Max=%.1f\n', ...
             mean(track_lengths), min(track_lengths), max(track_lengths));
 end
 
-fprintf('Note: Tracks may connect multiple regions or pass through them\n');
+fprintf('Note: Tracts may connect multiple regions or pass through them\n');
 fprintf('=====================================\n');
 end
 
@@ -1457,7 +1479,7 @@ log_entry = [log_entry sprintf('  Mode: %s, Format: %s, DPI: %d\n', ...
                                options.mode, options.export_format, options.export_dpi)];
 log_entry = [log_entry sprintf('  Filter: %s (overlap %.2f, minPts %d), Color: %s, Max tracks: %d\n', ...
                                options.filter_mode, options.min_overlap, options.min_region_points, ...
-                               options.color_mode, options.max_tracks)];
+                               options.color_mode, options.max_tracts)];
 if strcmp(options.mode, 'region')
     log_entry = [log_entry sprintf('  Region ID: %d\n', options.region_id)];
 end
@@ -1469,4 +1491,118 @@ if fid > 0
     fprintf(fid, '%s', log_entry);
     fclose(fid);
 end
+end
+
+
+%% ============================================================================
+%% INPUT PATH RESOLUTION (supports both run_dir and explicit file paths)
+%% ============================================================================
+
+function [tracks_file, nim_file, remaining_args] = resolve_input_paths(first_arg, all_args)
+% RESOLVE_INPUT_PATHS: Detect input format and resolve file paths
+%
+% Supports two input modes:
+%   1. Run directory: visualizeTractography('hinec_runs/run_20251125_*', ...)
+%   2. Explicit files: visualizeTractography(tracks_file, nim_file, ...)
+%
+% Returns:
+%   tracks_file - Path to tracks .mat file
+%   nim_file - Path to nim .mat file
+%   remaining_args - Additional arguments after file paths
+
+% Check if first_arg is a run directory
+is_run_dir = false;
+
+% Handle wildcard patterns (e.g., 'hinec_runs/run_*')
+if contains(first_arg, '*')
+    % Expand wildcard
+    matches = dir(first_arg);
+    if ~isempty(matches)
+        % Get the most recent match (last one alphabetically, which is newest by timestamp)
+        [~, idx] = sort({matches.name});
+        newest = matches(idx(end));
+        first_arg = fullfile(newest.folder, newest.name);
+        fprintf('Wildcard matched: %s\n', first_arg);
+    else
+        error('No directories match pattern: %s', first_arg);
+    end
+end
+
+% Check if it's a directory with the expected structure
+if isfolder(first_arg)
+    output_dir = fullfile(first_arg, 'output');
+    tractography_dir = fullfile(first_arg, 'tractography');
+
+    if isfolder(output_dir) && isfolder(tractography_dir)
+        is_run_dir = true;
+    end
+end
+
+if is_run_dir
+    % AUTO-DETECT MODE: Find files in run directory
+    fprintf('=== Auto-detecting files from run directory ===\n');
+    fprintf('Run directory: %s\n', first_arg);
+
+    % Find nim file in output/
+    output_dir = fullfile(first_arg, 'output');
+    nim_files = dir(fullfile(output_dir, '*.mat'));
+
+    if isempty(nim_files)
+        error('No .mat files found in output directory: %s', output_dir);
+    elseif length(nim_files) > 1
+        % Pick the largest file (likely the final output)
+        [~, idx] = max([nim_files.bytes]);
+        nim_file = fullfile(output_dir, nim_files(idx).name);
+        fprintf('  Multiple nim files found, using largest: %s\n', nim_files(idx).name);
+    else
+        nim_file = fullfile(output_dir, nim_files(1).name);
+    end
+    fprintf('  nim file: %s\n', nim_file);
+
+    % Find tracks file in tractography/
+    tractography_dir = fullfile(first_arg, 'tractography');
+    tracks_files = dir(fullfile(tractography_dir, 'tracks*.mat'));
+
+    if isempty(tracks_files)
+        error('No tracks*.mat files found in tractography directory: %s', tractography_dir);
+    elseif length(tracks_files) > 1
+        % Pick the most recent (by filename timestamp or modification time)
+        [~, idx] = max([tracks_files.datenum]);
+        tracks_file = fullfile(tractography_dir, tracks_files(idx).name);
+        fprintf('  Multiple tracks files found, using most recent: %s\n', tracks_files(idx).name);
+    else
+        tracks_file = fullfile(tractography_dir, tracks_files(1).name);
+    end
+    fprintf('  tracks file: %s\n', tracks_file);
+    fprintf('================================================\n\n');
+
+    % Remaining args are everything after the run_dir
+    remaining_args = all_args(2:end);
+
+else
+    % EXPLICIT FILE MODE: Traditional two-argument format
+    if length(all_args) < 2
+        error(['First argument is not a valid run directory.\n' ...
+               'Either provide a run directory: visualizeTractography(''hinec_runs/run_*'')\n' ...
+               'Or provide both files: visualizeTractography(tracks_file, nim_file)']);
+    end
+
+    tracks_file = char(all_args{1});
+    nim_file = char(all_args{2});
+
+    % Validate both are files (not directories)
+    if isfolder(tracks_file)
+        error('tracks_file appears to be a directory. Did you mean to use run directory mode?');
+    end
+    if isfolder(nim_file)
+        error('nim_file appears to be a directory. Did you mean to use run directory mode?');
+    end
+
+    % Remaining args are everything after the two file paths
+    remaining_args = all_args(3:end);
+end
+
+% Convert to char for consistency
+tracks_file = char(tracks_file);
+nim_file = char(nim_file);
 end
