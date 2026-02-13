@@ -70,17 +70,15 @@ octave-workspace
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,matlab
 
-# SPM
-spm12/*
-
 sample.mat
 
-nifti/*
+# SPM12 (large external dependency)
+spm12/
+lib/spm12/
+
 ISMRM/*
 
 *_figures*/*
-
-download.sh
 
 # agent related
 .claude/*
@@ -95,3 +93,6 @@ validation_results*
 
 # HINEC run directories (organized output)
 hinec_runs/
+
+# Experiment results (old runs, figures, challenge data)
+experiments/

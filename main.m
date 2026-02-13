@@ -200,18 +200,17 @@ if ~isfield(options, 'force_recompute_registration')
 end
 
 % Include folders to path
-addpath('nim_preprocessing/');
-addpath('nim_plots');
-addpath('nim_utils');
-addpath('nim_calculation');
-addpath('nim_parcellation');
-addpath('nim_tractography');
-addpath('nim_registration');  % Add registration module
-addpath('nim_tests');
-addpath(genpath('spm12'));
-addpath('utils');
-addpath('nifti_sample');
-addpath('bfgs');
+addpath('src/nim_preprocessing/');
+addpath('src/nim_plots');
+addpath('src/nim_utils');
+addpath('src/nim_calculation');
+addpath('src/nim_parcellation');
+addpath('src/nim_tractography');
+addpath('src/nim_registration');  % Add registration module
+addpath('tests');
+addpath(genpath('lib/spm12'));
+addpath('data');
+addpath('lib/bfgs');
 
 fprintf('=== HINEC Enhanced Pipeline with Registration ===\n');
 if options.enable_registration

@@ -73,11 +73,11 @@ HINEC (HIgh-order NEural Connectivity) is a MATLAB-based pipeline for processing
 ### Testing
 - SPM12 includes comprehensive test suite in `spm12/tests/`
 - No dedicated HINEC test framework present
-- Manual testing through sample data in `nifti_sample/`
+- Manual testing through sample data in `data/`
 
 ### Sample Data
-- `nifti_sample/original_sample/`: Basic diffusion data
-- `nifti_sample/parcellation_sample/`: Data with parcellation masks
+- `data/original_sample/`: Basic diffusion data
+- `data/parcellation_sample/`: Data with parcellation masks
 - Pre-computed results: `sample_parcellated.mat`
 
 ### Tractography
