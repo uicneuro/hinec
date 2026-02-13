@@ -12,7 +12,7 @@ function testFastViewer()
 fprintf('=== FAST TRACTOGRAPHY VIEWER TEST ===\n');
 
 %% Check for sample data
-sample_dir = fullfile(fileparts(mfilename('fullpath')), 'nifti_sample');
+sample_dir = fullfile(fileparts(mfilename('fullpath')), 'data');
 tracks_file = fullfile(sample_dir, 'sample_tracks.mat');
 nim_file = fullfile(sample_dir, 'sample_nim.mat');
 
@@ -168,7 +168,7 @@ for i = 1:num_tracks
 end
 
 %% Save test data
-sample_dir = fullfile(fileparts(mfilename('fullpath')), 'nifti_sample');
+sample_dir = fullfile(fileparts(mfilename('fullpath')), 'data');
 if ~exist(sample_dir, 'dir')
     mkdir(sample_dir);
 end

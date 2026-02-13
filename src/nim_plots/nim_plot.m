@@ -48,9 +48,9 @@ if ~isempty(opts.parcel_id)
     fprintf('DEBUG: parcel_id = %s (class: %s)\n', mat2str(opts.parcel_id), class(opts.parcel_id));
 end
 
-% Ensure utils directory is in path
+% Ensure nim_utils directory is in path
 if ~exist('zwuni', 'file')
-    addpath('utils');
+    addpath('src/nim_utils');
 end
 
 % Load nim structure if filename provided
