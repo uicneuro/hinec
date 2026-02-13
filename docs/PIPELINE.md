@@ -368,7 +368,7 @@ visualizeTractography('tracks.mat', 'output.mat');  % View tractography
 - `main.m` orchestrates preprocessing, registration, tractography, and plotting
 - Source modules: `nim_preprocessing/`, `nim_registration/`, `nim_calculation/`, `nim_tractography/`, `nim_utils/`
 - Visualization: `nim_plots/` and top-level `visualizeTractography*.m`
-- Sample data: `nifti_sample/`, `sample_parcellated.mat`
+- Sample data: `data/`, `sample_parcellated.mat`
 
 ### Coding Style
 - Four-space indentation
@@ -384,8 +384,8 @@ visualizeTractography('tracks.mat', 'output.mat');  % View tractography
 - For broader coverage: `runtests('nim_tests')`
 
 ### Sample Data
-- `nifti_sample/original_sample/`: Basic diffusion data
-- `nifti_sample/parcellation_sample/`: Data with parcellation masks
+- `data/original_sample/`: Basic diffusion data
+- `data/parcellation_sample/`: Data with parcellation masks
 - Pre-computed results: `sample_parcellated.mat`
 
 ---
