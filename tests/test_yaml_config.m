@@ -4,7 +4,7 @@
 fprintf('=== HINEC YAML Configuration System Test ===\n\n');
 
 % Add paths
-addpath('nim_utils');
+addpath('src/nim_utils');
 
 %% Test 1: Load default config
 fprintf('Test 1: Loading default configuration...\n');
