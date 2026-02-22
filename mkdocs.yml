@@ -1,0 +1,73 @@
+site_name: HINEC Documentation
+site_description: HIgh-order NEural Connectivity — dMRI Tractography Pipeline
+site_author: HINEC Team
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: USER_GUIDE.md
+  - Pipeline:
+    - Overview: PIPELINE.md
+    - Preprocessing: PREPROCESSING.md
+    - Architecture: ARCHITECTURE.md
+    - Run Directory System: RUN_DIRECTORY_SYSTEM.md
+  - Tractography:
+    - Standard Tractography: TRACTOGRAPHY.md
+    - High-Order Methods: High_Order.md
+    - RKF45 Adaptive: RKF.md
+    - RKF45 Usage: RKF_Usage.md
+    - Seeding Strategy: SEEDING_STRATEGY.md
+    - Implementation Workflow: hinec_tractography.md
+  - Configuration:
+    - YAML Config: YAML_CONFIG.md
+    - Changelog: CHANGELOG_YAML.md
+  - Visualization:
+    - Visualization Guide: VISUALIZATION_GUIDE.md
+    - Region Examples: REGION_VISUALIZATION_EXAMPLES.md
+    - Distributed Workflow: DISTRIBUTED_WORKFLOW.md
+  - Validation & Benchmarks:
+    - ISMRM Scoring: ISMRM_SCORING_ANALYSIS.md
+    - Validation Usage: VALIDATION_USAGE.md
+    - IronTract Workflow: IRONTRACT_WORKFLOW.md
+  - Reference:
+    - API Reference: API_REFERENCE.md
+    - Mathematical Foundations: MATHEMATICAL_FOUNDATIONS.md
+    - Science Background: SCIENCE.md
+  - Misc:
+    - Fast Viewer PRD: PRD_FastTractographySliceViewer.md
+    - String/Char Fixes: STRING_CHAR_FIXES.md
+    - Presentation Outline: presentation_outline.md

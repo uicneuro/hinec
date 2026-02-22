@@ -94,5 +94,8 @@ validation_results*
 # HINEC run directories (organized output)
 hinec_runs/
 
+# MkDocs build output
+site/
+
 # Experiment results (old runs, figures, challenge data)
 experiments/
