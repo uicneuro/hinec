@@ -53,14 +53,10 @@ M_0(x,y,z) = \text{BET}(B_0(x,y,z),\; f=0.3)
 $$
 
 **Registration Chain:**
-
-$$
-\mathbf{T}_{T1 \to \text{DWI}} = \text{epi\_reg}(B_0,\; T1,\; T1_{\text{brain}})
-$$
-
-$$
-M_{\text{DWI}} = \text{apply\_transform}(M_{\text{T1}},\; \mathbf{T}_{T1 \to \text{DWI}})
-$$
+```
+T_T1→DWI  = epi_reg(B0, T1, T1_brain)
+M_DWI     = apply_transform(M_T1, T_T1→DWI)
+```
 
 #### **Step 3: Denoising (Optional)**
 MP-PCA denoising or Gaussian smoothing:
@@ -101,9 +97,11 @@ $$
 #### **Step 5: Motion Correction**
 Rigid body motion correction with b-vector rotation:
 
-$$
-\mathbf{R}_b = \text{mcflirt}(\text{DWI volumes})
-$$
+```
+R_b = mcflirt(DWI_volumes)
+```
+
+The b-vectors must be rotated to match the corrected orientations:
 
 $$
 \mathbf{g}_i' = \mathbf{R}_b \, \mathbf{g}_i \quad \forall \, i \in [1, N_{\text{directions}}]
@@ -150,28 +148,17 @@ where $\mathcal{B}_1$ is a spherical structuring element (radius = 1 voxel) to r
 Complete T1-based registration workflow for enhanced atlas processing:
 
 **T1-MNI Registration Chain:**
-
-$$
-\mathbf{T}_{\text{linear}} = \text{FLIRT}(T1_{\text{brain}} \to \text{MNI152}_{1\text{mm}})
-$$
-
-$$
-\mathbf{W}_{\text{nonlinear}} = \text{FNIRT}(T1 \to \text{MNI152},\; \text{init} = \mathbf{T}_{\text{linear}})
-$$
-
-$$
-\mathbf{W}_{\text{inverse}} = \text{invwarp}(\mathbf{W}_{\text{nonlinear}}) \quad [\text{MNI} \to T1]
-$$
+```
+T_linear    = FLIRT(T1_brain → MNI152_1mm)
+W_nonlinear = FNIRT(T1 → MNI152, init=T_linear)
+W_inverse   = invwarp(W_nonlinear)              [MNI → T1]
+```
 
 **DWI Reference Creation:**
-
-$$
-\text{DWI}_{\text{ref}} = \text{fslroi}(\text{DWI}_{\text{processed}},\; 0,\; 1)
-$$
-
-$$
-\text{DWI}_{\text{ref\_masked}} = \text{DWI}_{\text{ref}} \times M_0
-$$
+```
+DWI_ref        = fslroi(DWI_processed, 0, 1)    [Extract first volume]
+DWI_ref_masked = DWI_ref × M0                   [Apply brain mask]
+```
 
 #### **Step 9: Enhanced Atlas Registration**
 T1-guided atlas transformation using composite registration chain:
@@ -232,13 +219,13 @@ where $\bar{\lambda} = (\lambda_1 + \lambda_2 + \lambda_3)/3$ is the mean diffus
 **Tensor Eigendecomposition:**
 
 $$
-\mathbf{D} = \mathbf{V} \boldsymbol{\Lambda} \mathbf{V}^\top
+\mathbf{D} = \mathbf{V} \, \mathbf{\Lambda} \, \mathbf{V}^\top
 $$
 
 where:
 
 - $\mathbf{V} = [\mathbf{v}_1 \; \mathbf{v}_2 \; \mathbf{v}_3]$ are eigenvectors (fiber directions)
-- $\boldsymbol{\Lambda} = \text{diag}(\lambda_1, \lambda_2, \lambda_3)$ are eigenvalues
+- $\mathbf{\Lambda} = \mathrm{diag}(\lambda_1, \lambda_2, \lambda_3)$ are eigenvalues
 
 ### 3. Tractography
 

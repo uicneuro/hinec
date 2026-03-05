@@ -6,9 +6,6 @@ classdef TestFullPipeline < matlab.unittest.TestCase
 %
 % Pipeline: nim_read -> nim_dt_spd -> nim_eig -> nim_fa -> nim_parcellation -> tractography
 
-    properties (ClassSetupParameter)
-    end
-
     properties
         nim           % nim structure after full pipeline
         nimRead       % nim structure after nim_read only
@@ -18,7 +15,6 @@ classdef TestFullPipeline < matlab.unittest.TestCase
         nimParc       % nim structure after parcellation
         tracks        % tractography output
         fixtureDir    % path to phantom fixture files
-        origDir       % original working directory
     end
 
     methods (TestClassSetup)
@@ -32,6 +28,7 @@ classdef TestFullPipeline < matlab.unittest.TestCase
             % Create phantom in temp directory
             testCase.fixtureDir = tempname;
             mkdir(testCase.fixtureDir);
+            testCase.addTeardown(@() rmdir(testCase.fixtureDir, 's'));
             create_test_phantom(testCase.fixtureDir);
 
             phantomFile = fullfile(testCase.fixtureDir, 'phantom.nii.gz');
@@ -53,10 +50,12 @@ classdef TestFullPipeline < matlab.unittest.TestCase
             testCase.nimParc = nim_parcellation(testCase.nimFA, parcFile);
 
             % Step 6: Tractography (run from temp dir to contain output files)
-            testCase.origDir = pwd;
             tractDir = tempname;
             mkdir(tractDir);
+            origDir = pwd;
             cd(tractDir);
+            testCase.addTeardown(@() cd(origDir));
+            testCase.addTeardown(@() rmdir(tractDir, 's'));
 
             options = struct();
             options.seed_density = 1;
@@ -66,22 +65,13 @@ classdef TestFullPipeline < matlab.unittest.TestCase
             options.angle_thresh = 60;
             options.max_steps = 500;
             options.min_length = 3;
-            options.enable_diagnostics = false;
+            % enable_diagnostics must be true: tractography progress
+            % reporting uses timing struct unconditionally
+            options.enable_diagnostics = true;
             testCase.tracks = nim_tractography_standard(testCase.nimParc, options);
 
             % Store final nim
             testCase.nim = testCase.nimParc;
-        end
-    end
-
-    methods (TestClassTeardown)
-        function cleanup(testCase)
-            if ~isempty(testCase.origDir)
-                cd(testCase.origDir);
-            end
-            if exist(testCase.fixtureDir, 'dir')
-                rmdir(testCase.fixtureDir, 's');
-            end
         end
     end
 
@@ -191,8 +181,8 @@ classdef TestFullPipeline < matlab.unittest.TestCase
             testCase.verifyGreaterThan(numel(tracks), 0, 'Should produce at least some tracks');
             % Each track should be Nx3
             for i = 1:min(10, numel(tracks))
-                testCase.verifySize(tracks{i}, [NaN, 3], ...
-                    'Each track should be Nx3');
+                testCase.verifyEqual(size(tracks{i}, 2), 3, ...
+                    'Each track should have 3 columns (x,y,z)');
                 testCase.verifyGreaterThanOrEqual(size(tracks{i}, 1), 2, ...
                     'Each track should have at least 2 points');
             end
@@ -200,7 +190,7 @@ classdef TestFullPipeline < matlab.unittest.TestCase
 
         function testTractographyBounds(testCase)
             tracks = testCase.tracks;
-            % All coordinates should be within volume bounds [1, 16]
+            % All coordinates should be within volume bounds
             for i = 1:numel(tracks)
                 coords = tracks{i};
                 testCase.verifyGreaterThanOrEqual(min(coords(:)), 0.5, ...

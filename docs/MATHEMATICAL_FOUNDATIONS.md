@@ -226,7 +226,7 @@ The search direction is $\mathbf{p}_k = -\mathbf{B}_k \nabla f(\mathbf{l}_k)$, f
 **Implementation flow** (`nim_dt_spd.m:76-98`):
 
 1. Compute OLS solution: $\mathbf{D} = \mathbf{H} \backslash \mathbf{Y}$
-2. Check eigenvalues: $[\mathbf{Q}, \boldsymbol{\lambda}] = \text{eig}(\text{reshape}(\mathbf{D}))$
+2. Check eigenvalues: $[\mathbf{Q}, \mathbf{\lambda}] = \text{eig}(\text{reshape}(\mathbf{D}))$
 3. If $\exists \, \lambda_i < 0$: run BFGS with Cholesky parameterization
 4. Validate: reject if NaN, Inf, or eigenvalues outside $[0, \, 0.01]$
 5. Sort eigenvalues descending: $\lambda_1 \geq \lambda_2 \geq \lambda_3$
@@ -310,10 +310,10 @@ QM = Q(:, ilM);
 The tensor can be reconstructed from its spectral decomposition:
 
 $$
-\mathbf{D} = \lambda_1 \mathbf{e}_1 \mathbf{e}_1^\top + \lambda_2 \mathbf{e}_2 \mathbf{e}_2^\top + \lambda_3 \mathbf{e}_3 \mathbf{e}_3^\top = \mathbf{Q} \boldsymbol{\Lambda} \mathbf{Q}^\top
+\mathbf{D} = \lambda_1 \mathbf{e}_1 \mathbf{e}_1^\top + \lambda_2 \mathbf{e}_2 \mathbf{e}_2^\top + \lambda_3 \mathbf{e}_3 \mathbf{e}_3^\top = \mathbf{Q} \mathbf{\Lambda} \mathbf{Q}^\top
 $$
 
-where $\mathbf{Q} = [\mathbf{e}_1 \; \mathbf{e}_2 \; \mathbf{e}_3]$ and $\boldsymbol{\Lambda} = \text{diag}(\lambda_1, \lambda_2, \lambda_3)$.
+where $\mathbf{Q} = [\mathbf{e}_1 \; \mathbf{e}_2 \; \mathbf{e}_3]$ and $\mathbf{\Lambda} = \text{diag}(\lambda_1, \lambda_2, \lambda_3)$.
 
 ### Tensor Geometry
 

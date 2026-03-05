@@ -26,18 +26,18 @@ runTractography.m                    nim_tractography_standard.m
 ### Why Centralize Seeding?
 
 1. **Separation of Concerns**
-   - `runTractography.m` = **Policy** (what to seed)
-   - `nim_tractography_standard.m` = **Mechanism** (how to track)
+    - `runTractography.m` = **Policy** (what to seed)
+    - `nim_tractography_standard.m` = **Mechanism** (how to track)
 
 2. **Flexibility**
-   - Different pipelines can use different seeding strategies
-   - IronTract can modify seeds without changing algorithm
-   - Easy to test different seeding approaches
+    - Different pipelines can use different seeding strategies
+    - IronTract can modify seeds without changing algorithm
+    - Easy to test different seeding approaches
 
 3. **Maintainability**
-   - Single source of truth for seeding decisions
-   - No duplicate fallback logic
-   - Clear error messages when seed mask missing
+    - Single source of truth for seeding decisions
+    - No duplicate fallback logic
+    - Clear error messages when seed mask missing
 
 ## Seeding Strategy Hierarchy
 
