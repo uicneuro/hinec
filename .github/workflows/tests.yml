@@ -83,7 +83,7 @@ jobs:
         if: steps.cache-fsl.outputs.cache-hit != 'true'
         run: |
           wget -q https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/releases/fslinstaller.py
-          python fslinstaller.py -d /usr/local/fsl --skip_registration
+          sudo python fslinstaller.py -d /usr/local/fsl --skip_registration
         timeout-minutes: 30
 
       - name: Setup FSL environment
