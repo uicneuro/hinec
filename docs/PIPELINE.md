@@ -27,66 +27,87 @@ The HINEC pipeline consists of four main stages with mathematical foundations:
 The preprocessing pipeline (`nim_preprocessing.m`) implements a 10-step process with comprehensive T1 integration addressing common artifacts in diffusion MRI:
 
 #### **Step 1: B0 Extraction**
-Extract the first volume (b=0) as reference:
-```
-B₀(x,y,z) = DWI(x,y,z,0)
-```
+Extract the first volume ($b=0$) as reference:
+
+$$
+B_0(x,y,z) = \text{DWI}(x,y,z,0)
+$$
 
 #### **Step 2: Advanced Brain Extraction with T1 Integration**
 Enhanced brain mask creation using T1 structural data when available:
 
 **T1-Enhanced Method (Preferred):**
-```
-T1_mask(x,y,z) = BET(T1(x,y,z), f=0.4)  [T1 brain extraction]
-M₀(x,y,z) = Transform(T1_mask, T1→DWI)   [Transfer to DWI space]
-```
+
+$$
+M_{\text{T1}}(x,y,z) = \text{BET}(T1(x,y,z),\; f=0.4)
+$$
+
+$$
+M_0(x,y,z) = \text{Transform}(M_{\text{T1}},\; T1 \to \text{DWI})
+$$
 
 **DWI-Only Fallback:**
-```
-M₀(x,y,z) = BET(B₀(x,y,z), f=0.3)
-```
+
+$$
+M_0(x,y,z) = \text{BET}(B_0(x,y,z),\; f=0.3)
+$$
 
 **Registration Chain:**
-```
-T_T1→DWI = epi_reg(B₀, T1, T1_brain)
-M_DWI = apply_transform(T1_mask, T_T1→DWI)
-```
+
+$$
+\mathbf{T}_{T1 \to \text{DWI}} = \text{epi\_reg}(B_0,\; T1,\; T1_{\text{brain}})
+$$
+
+$$
+M_{\text{DWI}} = \text{apply\_transform}(M_{\text{T1}},\; \mathbf{T}_{T1 \to \text{DWI}})
+$$
 
 #### **Step 3: Denoising (Optional)**
 MP-PCA denoising or Gaussian smoothing:
-```
-S_denoised(x,y,z,b) = S_raw(x,y,z,b) ⊗ G(σ)
-```
-where `G(σ)` is a Gaussian kernel with standard deviation σ.
+
+$$
+S_{\text{denoised}}(x,y,z,b) = S_{\text{raw}}(x,y,z,b) \otimes G(\sigma)
+$$
+
+where $G(\sigma)$ is a Gaussian kernel with standard deviation $\sigma$.
 
 #### **Step 4: Field Map Distortion Correction**
 Susceptibility distortion correction using field maps:
 
 **Field Map Processing:**
-```
-ΔB₀(x,y,z) = fieldmap_Hz(x,y,z)  [Hz]
-```
+
+$$
+\Delta B_0(x,y,z) = \text{fieldmap}_{\text{Hz}}(x,y,z) \quad [\text{Hz}]
+$$
 
 **FUGUE Distortion Correction:**
-```
-S_corrected(x',y',z',b) = S_raw(x,y,z,b)
-```
+
+$$
+S_{\text{corrected}}(x',y',z',b) = S_{\text{raw}}(x,y,z,b)
+$$
+
 where the spatial transformation is:
-```
-x' = x + ΔB₀(x,y,z) × dwell_time × PE_direction
-```
+
+$$
+x' = x + \Delta B_0(x,y,z) \times t_{\text{dwell}} \times \hat{\mathbf{n}}_{\text{PE}}
+$$
 
 **Parameters:**
-- `dwell_time`: Effective echo spacing (typically 0.58ms)
-- `PE_direction`: Phase encoding direction vector
-- `ΔB₀`: Field inhomogeneity in Hz
+
+- $t_{\text{dwell}}$: Effective echo spacing (typically 0.58 ms)
+- $\hat{\mathbf{n}}_{\text{PE}}$: Phase encoding direction vector
+- $\Delta B_0$: Field inhomogeneity in Hz
 
 #### **Step 5: Motion Correction**
 Rigid body motion correction with b-vector rotation:
-```
-R_b = mcflirt(DWI_volumes)
-g'ᵢ = R_b × gᵢ  ∀i ∈ [1,N_directions]
-```
+
+$$
+\mathbf{R}_b = \text{mcflirt}(\text{DWI volumes})
+$$
+
+$$
+\mathbf{g}_i' = \mathbf{R}_b \, \mathbf{g}_i \quad \forall \, i \in [1, N_{\text{directions}}]
+$$
 
 #### **Step 6: Eddy Current Correction**
 Advanced eddy current correction with fallback strategy:
@@ -95,45 +116,62 @@ Advanced eddy current correction with fallback strategy:
 **Method 2 (Fallback):** FSL eddy_correct for datasets without acqp/index files
 
 Mathematical model for eddy currents:
-```
-S_corrected(i) = S_raw(i) ∘ T_eddy(g_i)
-```
-where `T_eddy` represents the eddy-induced geometric distortion.
+
+$$
+S_{\text{corrected}}(i) = S_{\text{raw}}(i) \circ T_{\text{eddy}}(\mathbf{g}_i)
+$$
+
+where $T_{\text{eddy}}$ represents the eddy-induced geometric distortion.
 
 #### **Step 7: White Matter Segmentation**
 Create optimized seeding masks for tractography:
 
 **Preliminary DTI Calculation:**
-```
-D = (X^T X)^(-1) X^T ln(S/S₀)
-```
+
+$$
+\mathbf{D} = (\mathbf{X}^\top \mathbf{X})^{-1} \mathbf{X}^\top \ln(S / S_0)
+$$
 
 **FA-based White Matter Mask:**
-```
-WM_mask(x,y,z) = erosion(FA(x,y,z) > 0.2, SE_sphere(1))
-```
+
+$$
+\text{WM}_{\text{mask}}(x,y,z) = \text{erosion}\!\left(\text{FA}(x,y,z) > 0.2,\; \mathcal{B}_1\right)
+$$
 
 **Erosion Operation:**
-```
-WM_eroded = WM_raw ⊖ SE
-```
-where `SE` is a spherical structuring element to remove boundary voxels.
+
+$$
+\text{WM}_{\text{eroded}} = \text{WM}_{\text{raw}} \ominus \mathcal{B}_1
+$$
+
+where $\mathcal{B}_1$ is a spherical structuring element (radius = 1 voxel) to remove boundary voxels.
 
 #### **Step 8: T1 Preprocessing and Registration (When Available)**
 Complete T1-based registration workflow for enhanced atlas processing:
 
 **T1-MNI Registration Chain:**
-```
-T_linear = FLIRT(T1_brain → MNI152_1mm)
-W_nonlinear = FNIRT(T1 → MNI152, init=T_linear)
-W_inverse = invwarp(W_nonlinear)  [MNI→T1 transformation]
-```
+
+$$
+\mathbf{T}_{\text{linear}} = \text{FLIRT}(T1_{\text{brain}} \to \text{MNI152}_{1\text{mm}})
+$$
+
+$$
+\mathbf{W}_{\text{nonlinear}} = \text{FNIRT}(T1 \to \text{MNI152},\; \text{init} = \mathbf{T}_{\text{linear}})
+$$
+
+$$
+\mathbf{W}_{\text{inverse}} = \text{invwarp}(\mathbf{W}_{\text{nonlinear}}) \quad [\text{MNI} \to T1]
+$$
 
 **DWI Reference Creation:**
-```
-DWI_ref = fslroi(DWI_processed, 0, 1)  [Extract first volume]
-DWI_ref_masked = fslmaths(DWI_ref × M₀)  [Apply brain mask]
-```
+
+$$
+\text{DWI}_{\text{ref}} = \text{fslroi}(\text{DWI}_{\text{processed}},\; 0,\; 1)
+$$
+
+$$
+\text{DWI}_{\text{ref\_masked}} = \text{DWI}_{\text{ref}} \times M_0
+$$
 
 #### **Step 9: Enhanced Atlas Registration**
 T1-guided atlas transformation using composite registration chain:
@@ -141,21 +179,23 @@ T1-guided atlas transformation using composite registration chain:
 **T1-Based Atlas Registration (Preferred):**
 ```
 Atlas_DWI = applywarp(Atlas_MNI,
-                     warp=W_inverse,      [MNI→T1 transformation]
-                     postmat=T_T1→DWI,    [T1→DWI transformation]
+                     warp=W_inverse,
+                     postmat=T_T1_to_DWI,
                      ref=DWI_ref,
-                     interp=nn)           [Nearest neighbor for labels]
+                     interp=nn)
 ```
 
 **Mathematical Transformation:**
-```
-Atlas_DWI(x,y,z) = Atlas_MNI(W_inverse(T_T1→DWI^(-1)(x,y,z)))
-```
+
+$$
+\text{Atlas}_{\text{DWI}}(\mathbf{r}) = \text{Atlas}_{\text{MNI}}\!\left(\mathbf{W}_{\text{inverse}}\!\left(\mathbf{T}_{T1 \to \text{DWI}}^{-1}(\mathbf{r})\right)\right)
+$$
 
 **Direct Registration Fallback:**
-```
-Atlas_DWI = FLIRT(Atlas_MNI → DWI_ref, interp=nn)
-```
+
+$$
+\text{Atlas}_{\text{DWI}} = \text{FLIRT}(\text{Atlas}_{\text{MNI}} \to \text{DWI}_{\text{ref}},\; \text{interp} = \text{nn})
+$$
 
 #### **Step 10: Finalization**
 - Copy processed data to standard locations
@@ -168,33 +208,37 @@ DTI processing with robust tensor estimation:
 
 #### **Diffusion Tensor Calculation (`nim_dt_spd`)**
 Symmetric positive definite (SPD) constrained tensor estimation:
-```
-D = [Dxx Dxy Dxz]
-    [Dxy Dyy Dyz]  ∈ S₊³
-    [Dxz Dyz Dzz]
-```
+
+$$
+\mathbf{D} = \begin{bmatrix} D_{xx} & D_{xy} & D_{xz} \\ D_{xy} & D_{yy} & D_{yz} \\ D_{xz} & D_{yz} & D_{zz} \end{bmatrix} \in \mathcal{S}_+^3
+$$
 
 **Log-linear fitting:**
-```
-ln(S_i/S₀) = -b_i × g_i^T D g_i
-```
 
-**SPD Constraint:**
-Ensure D has positive eigenvalues: λ₁ ≥ λ₂ ≥ λ₃ > 0
+$$
+\ln(S_i / S_0) = -b_i \, \mathbf{g}_i^\top \mathbf{D} \, \mathbf{g}_i
+$$
+
+**SPD Constraint:** Ensure $\mathbf{D}$ has positive eigenvalues: $\lambda_1 \geq \lambda_2 \geq \lambda_3 > 0$
 
 #### **Fractional Anisotropy (`nim_fa`)**
-```
-FA = √(3/2) × √[(λ₁-λ̄)² + (λ₂-λ̄)² + (λ₃-λ̄)²] / √[λ₁² + λ₂² + λ₃²]
-```
-where `λ̄ = (λ₁ + λ₂ + λ₃)/3` is the mean diffusivity.
+
+$$
+\text{FA} = \sqrt{\frac{3}{2}} \cdot \frac{\sqrt{(\lambda_1 - \bar{\lambda})^2 + (\lambda_2 - \bar{\lambda})^2 + (\lambda_3 - \bar{\lambda})^2}}{\sqrt{\lambda_1^2 + \lambda_2^2 + \lambda_3^2}}
+$$
+
+where $\bar{\lambda} = (\lambda_1 + \lambda_2 + \lambda_3)/3$ is the mean diffusivity.
 
 **Tensor Eigendecomposition:**
-```
-D = V Λ V^T
-```
+
+$$
+\mathbf{D} = \mathbf{V} \boldsymbol{\Lambda} \mathbf{V}^\top
+$$
+
 where:
-- `V = [v₁ v₂ v₃]` are eigenvectors (fiber directions)
-- `Λ = diag(λ₁, λ₂, λ₃)` are eigenvalues
+
+- $\mathbf{V} = [\mathbf{v}_1 \; \mathbf{v}_2 \; \mathbf{v}_3]$ are eigenvectors (fiber directions)
+- $\boldsymbol{\Lambda} = \text{diag}(\lambda_1, \lambda_2, \lambda_3)$ are eigenvalues
 
 ### 3. Tractography
 
@@ -206,60 +250,76 @@ where:
 3. **Fallback 2**: Eroded brain mask
 
 **FACT Integration:**
-```
-r_{i+1} = r_i + Δs × e₁(r_i)
-```
+
+$$
+\mathbf{r}_{i+1} = \mathbf{r}_i + \Delta s \cdot \mathbf{e}_1(\mathbf{r}_i)
+$$
+
 where:
-- `r_i`: Current position
-- `Δs`: Step size (0.5mm)
-- `e₁(r_i)`: Principal eigenvector at position r_i
+
+- $\mathbf{r}_i$: Current position
+- $\Delta s$: Step size (0.5 mm)
+- $\mathbf{e}_1(\mathbf{r}_i)$: Principal eigenvector at position $\mathbf{r}_i$
 
 **Termination Criteria:**
-- `FA(r_i) < 0.15`: Low anisotropy termination
-- `angle(e₁(r_i), e₁(r_{i-1})) > 35°`: Sharp turn termination
-- `steps > 1000`: Maximum length termination
+
+- $\text{FA}(\mathbf{r}_i) < 0.15$: Low anisotropy termination
+- $\angle(\mathbf{e}_1(\mathbf{r}_i),\; \mathbf{e}_1(\mathbf{r}_{i-1})) > 35°$: Sharp turn termination
+- $\text{steps} > 1000$: Maximum length termination
 
 **Quality Metrics:**
-```
-Track_length = Σ ||r_{i+1} - r_i||
-Track_quality = mean(FA(r_i)) × (1 - curvature_penalty)
-```
+
+$$
+L_{\text{track}} = \sum_i \|\mathbf{r}_{i+1} - \mathbf{r}_i\|
+$$
+
+$$
+Q_{\text{track}} = \overline{\text{FA}}(\mathbf{r}_i) \times (1 - \text{curvature penalty})
+$$
 
 #### **Boundary Protection Algorithm**
 
 **Erosion-based Protection:**
-```
-Safe_mask = erosion(Tissue_mask, SE_sphere(r))
-```
+
+$$
+\text{Safe}_{\text{mask}} = \text{erosion}(\text{Tissue}_{\text{mask}},\; \mathcal{B}_r)
+$$
 
 **Distance-based Termination:**
-```
-d_boundary(r) = min_{boundary} ||r - boundary||
-terminate_if: d_boundary(r) < threshold
-```
+
+$$
+d_{\text{boundary}}(\mathbf{r}) = \min_{\mathbf{b} \in \partial\Omega} \|\mathbf{r} - \mathbf{b}\|
+$$
+
+Terminate if $d_{\text{boundary}}(\mathbf{r}) < \text{threshold}$.
 
 ### 4. Mathematical Framework
 
 #### **Diffusion Signal Model**
 The Stejskal-Tanner equation:
-```
-S(b,g) = S₀ × exp(-b × g^T D g)
-```
+
+$$
+S(b, \mathbf{g}) = S_0 \exp\!\left(-b \, \mathbf{g}^\top \mathbf{D} \, \mathbf{g}\right)
+$$
 
 #### **Tensor Metrics**
-- **Mean Diffusivity**: `MD = (λ₁ + λ₂ + λ₃)/3`
-- **Radial Diffusivity**: `RD = (λ₂ + λ₃)/2`
-- **Axial Diffusivity**: `AD = λ₁`
+
+- **Mean Diffusivity**: $\text{MD} = (\lambda_1 + \lambda_2 + \lambda_3) / 3$
+- **Radial Diffusivity**: $\text{RD} = (\lambda_2 + \lambda_3) / 2$
+- **Axial Diffusivity**: $\text{AD} = \lambda_1$
 
 #### **Field Map Correction Theory**
 Susceptibility-induced distortion model:
-```
-k_actual = k_nominal + γ × ΔB₀ × TE
-```
+
+$$
+k_{\text{actual}} = k_{\text{nominal}} + \gamma \, \Delta B_0 \, T_E
+$$
+
 where:
-- `γ`: Gyromagnetic ratio (42.58 MHz/T)
-- `TE`: Echo time
-- `ΔB₀`: B0 field inhomogeneity
+
+- $\gamma$: Gyromagnetic ratio ($42.58$ MHz/T)
+- $T_E$: Echo time
+- $\Delta B_0$: $B_0$ field inhomogeneity
 
 ## Data Flow
 

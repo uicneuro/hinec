@@ -1,0 +1,107 @@
+name: HINEC Tests
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MATLAB
+        uses: matlab-actions/setup-matlab@v2
+
+      - name: Run unit tests
+        uses: matlab-actions/run-tests@v2
+        with:
+          select-by-folder: tests/unit
+          source-folder: src;config
+          test-results-junit: results/unit-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: results/unit-results.xml
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          products: Image_Processing_Toolbox
+
+      - name: Run integration tests
+        uses: matlab-actions/run-tests@v2
+        with:
+          select-by-folder: tests/integration
+          source-folder: src;lib/bfgs;tests/fixtures;config
+          test-results-junit: results/integration-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: results/integration-results.xml
+
+  fsl-tests:
+    name: FSL Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          products: Image_Processing_Toolbox
+
+      - name: Cache FSL
+        id: cache-fsl
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/fsl
+          key: fsl-6.0.7-ubuntu-latest
+
+      - name: Install FSL
+        if: steps.cache-fsl.outputs.cache-hit != 'true'
+        run: |
+          wget -q https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/releases/fslinstaller.py
+          python fslinstaller.py -d /usr/local/fsl --skip_registration
+        timeout-minutes: 30
+
+      - name: Setup FSL environment
+        run: |
+          echo "FSLDIR=/usr/local/fsl" >> $GITHUB_ENV
+          echo "FSLOUTPUTTYPE=NIFTI_GZ" >> $GITHUB_ENV
+          echo "/usr/local/fsl/bin" >> $GITHUB_PATH
+
+      - name: Run FSL tests
+        uses: matlab-actions/run-tests@v2
+        with:
+          select-by-folder: tests/fsl
+          source-folder: src;lib/bfgs;tests/fixtures;config
+          test-results-junit: results/fsl-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fsl-test-results
+          path: results/fsl-results.xml
