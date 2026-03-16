@@ -11,9 +11,13 @@ The ISMRM scoring data provides **ground truth tractography** for validating fib
 **Format**: TrackVis `.trk` files (binary streamline format)
 
 **22 Major White Matter Bundles**:
+
 - **Commissural**: CA, CC, CP, MCP (corpus callosum variants)
+
 - **Association**: Cingulum (L/R), ILF (L/R), OR (L/R), SLF (L/R), UF (L/R)
+
 - **Projection**: BPS (L/R), ICP (L/R), SCP (L/R)
+
 - **Special**: Fornix
 
 **Bundle Statistics** (from file sizes):
@@ -37,16 +41,16 @@ Smallest bundles:
 **Three types of masks**:
 
 1. **`all_masks/`** (26 files): All streamlines must pass through these regions
-   - Example: `CA.nii.gz`, `CC_temporal.nii.gz`, `Fornix.nii.gz`
+    - Example: `CA.nii.gz`, `CC_temporal.nii.gz`, `Fornix.nii.gz`
 
 2. **`any_masks/`** (4 files): At least one streamline point must intersect
-   - Used for loose inclusion criteria
-   - Example: `MCP_any_mask.nii.gz`, `ICP_left_any_mask.nii.gz`
+    - Used for loose inclusion criteria
+    - Example: `MCP_any_mask.nii.gz`, `ICP_left_any_mask.nii.gz`
 
 3. **`endpoints/`** (45 files): Start/end regions for streamlines
-   - `*_head.nii.gz`: Starting points
-   - `*_tail.nii.gz`: Ending points
-   - Shared endpoints: `brainstem.nii.gz`, `occipital_left.nii.gz`
+    - `*_head.nii.gz`: Starting points
+    - `*_tail.nii.gz`: Ending points
+    - Shared endpoints: `brainstem.nii.gz`, `occipital_left.nii.gz`
 
 ### Configuration Files
 
@@ -86,8 +90,11 @@ Smallest bundles:
 ```
 
 **Geometric Constraints** (7 bundles use these):
+
 - `length`: Total streamline length in mm
+
 - `length_x`, `length_y`, `length_z`: Extent in specific axes
+
 - `length_x_abs`: Absolute X-axis span (for bilateral bundles)
 
 #### `config_file_tractometry.json`
@@ -192,19 +199,28 @@ track_coords_new = raw_trk_coords  # Uses header space/origin
 ### Impact on HINEC Pipeline
 
 **HINEC tractography output** (`nim_tractography_standard.m`):
+
 - Tracks stored as **voxel indices** (1-based MATLAB)
+
 - Coordinates are in **voxel space**, not world space
+
 - Example: `[47.0, 44.5, 27.9]` = voxel coordinates
 
 **ISMRM ground truth**:
+
 - TRK files with **world space coordinates**
+
 - Header contains voxel-to-world transform
+
 - StatefulTractogram handles coordinate conversion
 
 **THE PROBLEM**:
 If you save HINEC tracks as TRK files without proper header setup, the scoring scripts will **misinterpret coordinates**:
+
 - HINEC voxel coords treated as world coords → misalignment
+
 - Or: Missing 0.5 shift causes half-voxel offset
+
 - Result: Bundle ROI filtering fails → score = 0
 
 ## How to Use ISMRM Scoring with HINEC

@@ -84,13 +84,21 @@ visualizeTractographyRegion(region_id, tracks_file, nim_file, filter_mode, Name,
 
 **Parameters:**
 - `region_id`: Integer index of brain region (from parcellation mask) - **REQUIRED**
+
 - `tracks_file`: Path to tracks .mat file - **REQUIRED**
+
 - `nim_file`: Path to .mat file containing nim structure with parcellation - **REQUIRED**
+
 - `filter_mode`: How to filter tracks ('pass_through', 'start_in', 'end_in', 'connect_to')
+
 - `min_overlap`: Minimum fraction of track in region (0-1)
+
 - `show_region`: Show region as 3D overlay (true/false)
+
 - `color_mode`: Track coloring ('direction', 'fa', 'uniform', 'region')
+
 - `max_tracks`: Maximum tracks to display (default: unlimited)
+
 - `region_alpha`: Region overlay transparency (0-1)
 
 ### visualizeTractography()
@@ -103,6 +111,7 @@ visualizeTractography(tracks_file, nim_file)
 
 **Arguments:**
 - `tracks_file`: Path to tracks .mat file - **REQUIRED**
+
 - `nim_file`: Path to nim .mat file - **REQUIRED**
 
 ## Tips and Best Practices
