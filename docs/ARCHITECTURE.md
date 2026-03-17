@@ -349,6 +349,7 @@ Reads NIfTI-1 format diffusion MRI data with associated acquisition parameters.
 **Inputs**: NIfTI file path (without extension), optional brain mask and b-value/b-vector files.
 
 **Processing**:
+
 1. Load NIfTI image using SPM12's `load_nii()`
 2. Extract header metadata (dimensions, voxel sizes)
 3. Load b-values from `.bval` file and b-vectors from `.bvec` file
@@ -426,24 +427,28 @@ Validates mutual exclusivity and expected tissue proportions (WM ~40-45%, GM ~40
 Two primary algorithms are available:
 
 **Standard FACT** (`nim_tractography_standard.m`):
+
 - Discrete voxel-by-voxel tracking without interpolation
 - Variable step size determined by voxel boundary intersection
 - Bidirectional tracking from seed points
 - Seeding: uniform lattice with optional random jitter
 
 **HINEC High-Order** (`nim_tractography_hinec.m`):
+
 - Trilinear interpolation via pre-computed `griddedInterpolant` objects
 - Multiple integration methods: Euler, RK2, RK4, RKF45 (adaptive)
 - Anatomically Constrained Tractography (ACT) with tissue-type termination
 - Parallel processing support (`parfor` with `DataQueue` progress)
 
 Both algorithms share these stopping criteria:
+
 - FA below threshold (typically 0.1-0.2)
 - Angle between consecutive steps exceeds threshold (typically 35-60 degrees)
 - Track exits brain mask
 - Maximum step count reached
 
 **Seeding strategy** (3-tier priority):
+
 1. Preprocessed brain mask (best)
 2. Expanded parcellation mask (dilated regions)
 3. FA-threshold fallback (FA > 0.10)
@@ -549,6 +554,7 @@ Required for all preprocessing operations. Must be installed and initialized (`F
 ### SPM12
 
 Included in `lib/spm12/`. Used for:
+
 - NIfTI file I/O (`load_nii`, `save_nii`)
 - Optional registration method (alternative to FSL)
 - Image coregistration and normalization
@@ -568,6 +574,7 @@ Included in `lib/bfgs/`. Used by `nim_dt_spd.m` for enforcing positive-definiten
 ### Python (Optional)
 
 Required only for the fast distributed slice viewer:
+
 - Python 3.7+
 - tkinter (GUI framework)
 - Pillow (image loading)

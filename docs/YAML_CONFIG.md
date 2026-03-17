@@ -3,6 +3,7 @@
 ## Overview
 
 The HINEC pipeline now supports **YAML-based parameter configuration**, making it easy to:
+
 - Manage complex parameter sets in human-readable files
 - Version control your experimental configurations
 - Share reproducible analysis pipelines
@@ -94,6 +95,7 @@ tractography:
 ```
 
 **Options**:
+
 - `standard`: FACT algorithm (Euler integration, no interpolation)
 - `hinec`: High-order (RK2/RK4/RKF45, trilinear interpolation, ACT)
 
@@ -105,6 +107,7 @@ tractography:
 ```
 
 **Integration Orders**:
+
 - `1`: Euler (FACT default)
 - `2`: Runge-Kutta 2nd order
 - `4`: Runge-Kutta 4th order (HINEC default)
@@ -124,6 +127,7 @@ tractography:
 ```
 
 **Guidelines**:
+
 - `step_size`: 0.1-0.2 (precise), 0.2-0.3 (balanced), 0.3-0.5 (fast)
 - `rkf_tolerance`: 0.005 (high precision), 0.01 (balanced), 0.02 (fast)
 
@@ -135,6 +139,7 @@ tractography:
 ```
 
 **Seed Density Guidelines**:
+
 - `1-2`: Fast exploration
 - `4`: Balanced coverage (default)
 - `6-8`: Dense coverage for critical regions
@@ -149,6 +154,7 @@ tractography:
 ```
 
 **Guidelines**:
+
 - `termination_fa`: 0.05 (long tracks), 0.15 (balanced), 0.20 (short/fast)
 - `angle_thresh`: 30° (strict), 35-45° (balanced), 60° (permissive)
 
@@ -205,6 +211,7 @@ tractography:
 ```
 
 **Expected runtime**: 2-3x slower than default
+
 **Benefits**: Maximum accuracy, smooth tracks, fewer spurious connections
 
 ---
@@ -222,6 +229,7 @@ tractography:
 ```
 
 **Expected runtime**: 3-5x faster than default
+
 **Benefits**: Quick parameter testing, exploratory analysis
 
 ---
@@ -239,6 +247,7 @@ tractography:
 ```
 
 **Expected runtime**: Similar to default
+
 **Benefits**: Optimized for phantom validation, proven effective
 
 ---
@@ -256,6 +265,7 @@ tractography:
 ```
 
 **Expected runtime**: Slower (more seeds, longer tracks)
+
 **Benefits**: Better coverage in challenging white matter regions
 
 ---
@@ -269,6 +279,7 @@ The configuration system includes automatic validation:
 ```
 
 **Validation checks**:
+
 - `step_size > 0`
 - `angle_thresh ∈ (0, 180]`
 - `integration_order ∈ {1, 2, 4, 5}`
@@ -277,6 +288,7 @@ The configuration system includes automatic validation:
 - `rkf_safety ∈ (0, 1]` (if RKF45 enabled)
 
 **Warnings**:
+
 - Unusual `seed_density` outside 1-8 range
 
 ## Legacy Compatibility
@@ -316,6 +328,7 @@ Error parsing YAML at line 15: Invalid value
 ```
 
 **Common issues**:
+
 - Missing quotes around strings with special characters
 - Incorrect indentation (use 2 spaces, not tabs)
 - Missing colons after keys

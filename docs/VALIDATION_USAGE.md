@@ -226,9 +226,9 @@ For each bundle (e.g., "Cingulum_left"):
    ```
 
 3. **Compare with Ground Truth**:
-   - Load `bundles/Cingulum_left.trk`
-   - Compute distance between user and GT streamlines
-   - Calculate coverage and overreach metrics
+    - Load `bundles/Cingulum_left.trk`
+    - Compute distance between user and GT streamlines
+    - Calculate coverage and overreach metrics
 
 ### Example: Corpus Callosum U-shaped
 
@@ -276,10 +276,10 @@ Y: [-5.6, 72.1] mm
 Z: [6.3, 72.8] mm
 ```
 
-**Warning Signs** (check diagnostics section in report):<br>
-- ⚠️ World coordinates outside expected brain range (-100 to +100 mm)<br>
-- ⚠️ Voxel coordinates exceeding image dimensions<br>
-- ⚠️ All bundles showing 0% coverage (complete misalignment)<br>
+**Warning Signs** (check diagnostics section in report):
+- ⚠️ World coordinates outside expected brain range (-100 to +100 mm)
+- ⚠️ Voxel coordinates exceeding image dimensions
+- ⚠️ All bundles showing 0% coverage (complete misalignment)
 
 ### Manual Validation
 
@@ -298,9 +298,9 @@ If you get suspicious results (all 0% coverage):
    ```
 
 2. **Check Alignment**:
-   - Do tracks follow white matter pathways?
-   - Are tracks inside the brain?
-   - Do major bundles (corpus callosum, cingulum) look anatomically correct?
+    - Do tracks follow white matter pathways?
+    - Are tracks inside the brain?
+    - Do major bundles (corpus callosum, cingulum) look anatomically correct?
 
 ## Example Workflows
 
@@ -382,40 +382,44 @@ with open('cingulum_stats.txt', 'w') as f:
 
 **Cause**: Coordinate system misalignment
 
-**Solutions**:<br>
-1. Check coordinate diagnostics in report<br>
-2. Visually validate using TrackVis<br>
-3. Verify T1 reference image matches tractography<br>
-4. Check if nim.hdr.Transform is correctly set<br>
+**Solutions**:
+
+1. Check coordinate diagnostics in report
+2. Visually validate using TrackVis
+3. Verify T1 reference image matches tractography
+4. Check if nim.hdr.Transform is correctly set
 
 ### Issue: "No tracks found in .mat file"
 
 **Cause**: Field name mismatch
 
-**Solutions**:<br>
-1. Check .mat file structure: `scipy.io.whosmat('tracks.mat')`<br>
-2. Ensure field is named `tracks` or `tracts`<br>
-3. Verify tracks are stored as cell array, not plain array<br>
+**Solutions**:
+
+1. Check .mat file structure: `scipy.io.whosmat('tracks.mat')`
+2. Ensure field is named `tracks` or `tracts`
+3. Verify tracks are stored as cell array, not plain array
 
 ### Issue: High overreach (>50%) but good coverage
 
 **Interpretation**: Algorithm is capturing ground truth but also generating many extra streamlines
 
-**Solutions**:<br>
-1. Increase FA threshold to reduce spurious tracks<br>
-2. Reduce step size for more anatomically constrained tracking<br>
-3. Apply stricter angle constraints<br>
-4. Use more conservative termination criteria<br>
+**Solutions**:
+
+1. Increase FA threshold to reduce spurious tracks
+2. Reduce step size for more anatomically constrained tracking
+3. Apply stricter angle constraints
+4. Use more conservative termination criteria
 
 ### Issue: Low coverage (<30%) but low overreach
 
 **Interpretation**: Algorithm is conservative, missing valid pathways
 
-**Solutions**:<br>
-1. Decrease FA threshold to track in lower anisotropy regions<br>
-2. Increase seeding density<br>
-3. Relax angle constraints<br>
-4. Check if seeding covers all brain regions<br>
+**Solutions**:
+
+1. Decrease FA threshold to track in lower anisotropy regions
+2. Increase seeding density
+3. Relax angle constraints
+4. Check if seeding covers all brain regions
 
 ## Advanced Analysis
 
@@ -465,6 +469,6 @@ print(f"Average coverage across runs: {np.mean(coverages):.1f}% ± {np.std(cover
 
 ## References
 
-- ISMRM 2015 Tractography Challenge: http://tractometer.dinf.usherbrooke.ca/ismrm_2015_challenge/
+- [ISMRM 2015 Tractography Challenge](http://tractometer.dinf.usherbrooke.ca/ismrm_2015_challenge/)
 - Validation methodology: See `ISMRM_SCORING_ANALYSIS.md`
 - HINEC tractography: See `CLAUDE.md` for pipeline details

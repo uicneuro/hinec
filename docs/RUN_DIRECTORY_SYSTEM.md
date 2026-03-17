@@ -38,10 +38,15 @@ hinec_runs/
 ## Benefits
 
 ✅ **Clean Workspace**: No scattered files in project root
+
 ✅ **Reproducibility**: Full run provenance with copied config
+
 ✅ **Easy Comparison**: Side-by-side run analysis
+
 ✅ **Simple Cleanup**: Delete old runs without hunting for files
+
 ✅ **Safe Experimentation**: Runs don't interfere with each other
+
 ✅ **Audit Trail**: Complete history of experiments
 
 ## Usage
@@ -61,6 +66,7 @@ hinec_runs/
 **config.yml**: Exact copy of configuration used for reproducibility
 
 **run_info.txt**: Complete run metadata
+
 - Run ID and timestamp
 - Configuration used
 - System information (MATLAB version, platform)
@@ -70,16 +76,19 @@ hinec_runs/
 **logs/**: All pipeline output (currently in startup log, future versions will redirect here)
 
 **intermediate/**: All preprocessing artifacts
+
 - Preprocessed DWI
 - Brain mask (improved)
 - Tissue masks (WM, GM, CSF)
 - Parcellation mask
 
 **output/**: Final processed data
+
 - Main `.mat` file with complete nim structure
 - Includes `nim.run_info` field for traceability
 
 **tractography/**: Tractography results
+
 - Track files (`.mat` format)
 - **diagnostics/track_statistics.txt**: Detailed statistics
   - Track counts and lengths
@@ -123,6 +132,7 @@ cat hinec_runs/run_20250118_143045_high_precision/run_info.txt
 Format: `run_YYYYMMDD_HHMMSS_<config_preset>`
 
 Examples:
+
 - `run_20250118_143045_high_precision`
 - `run_20250118_150230_fast_exploration`
 - `run_20250118_162015_irontract`
@@ -135,6 +145,7 @@ The config preset name is extracted from the YAML filename.
 Format: `tracks_<algorithm>_YYYY-MM-DD_HH_MM_SS.mat`
 
 Examples:
+
 - `tracks_hinec_2025-01-18_14_30_45.mat`
 - `tracks_standard_2025-01-18_15_02_30.mat`
 
@@ -247,6 +258,7 @@ cat hinec_runs/latest  # Shows path to latest run directory
 ### Run Directory Creation
 
 The `create_run_directory.m` function:
+
 1. Creates timestamped directory name from config file
 2. Creates all subdirectories
 3. Copies configuration file
@@ -257,17 +269,20 @@ The `create_run_directory.m` function:
 ### Integration Points
 
 **main.m**:
+
 - Accepts optional `run_info` parameter
 - Redirects all intermediate files to `run_info.intermediate_dir`
 - Saves output to `run_info.output_dir`
 - Stores `run_info` in nim structure
 
 **runTractography.m**:
+
 - Accepts optional `run_info` parameter
 - Saves tracks to `run_info.tractography_dir`
 - Generates diagnostics in `run_info.diagnostics_dir`
 
 **run_hinec.sh**:
+
 - Calls `create_run_directory()` before pipeline
 - Passes `run_info` to both main() and runTractography()
 - Updates progress messages with run directory location
@@ -275,6 +290,7 @@ The `create_run_directory.m` function:
 ### Backward Compatibility
 
 The system is fully backward compatible:
+
 - Old scripts without run_info parameter still work
 - Files fall back to current directory behavior
 - YAML system works independently of run directories
@@ -282,6 +298,7 @@ The system is fully backward compatible:
 ## Future Enhancements
 
 Planned features:
+
 - Optional flag to disable run directory system
 - Automatic cleanup of runs older than N days
 - Run comparison tool

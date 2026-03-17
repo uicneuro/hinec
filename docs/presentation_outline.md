@@ -11,14 +11,16 @@
 - **Current limitation**: Conventional tractography confined to intracellular domain
 
 ### Problem Statement
+
 - Deterministic tractography methods struggle with:
-  - Crossing fiber regions (kissing, crossing, fanning)
-  - Discrete voxel-based tracking (FACT algorithm)
-  - Limited anatomical constraints
-  - Low-order integration methods
+    - Crossing fiber regions (kissing, crossing, fanning)
+    - Discrete voxel-based tracking (FACT algorithm)
+    - Limited anatomical constraints
+    - Low-order integration methods
 
 ### Research Objective
 Develop a high-order tractography pipeline that:
+
 - Enhances crossing fiber visualization through interpolation
 - Incorporates anatomical constraints (ACT)
 - Implements advanced numerical integration (RK4/RKF45)
@@ -47,6 +49,7 @@ Fiber Track Visualization
 ```
 
 **Key Components**:
+
 1. Interpolation methods (trilinear vs cubic)
 2. ACT-based tissue constraints
 3. High-order integration (RK4 vs RKF45)
@@ -77,6 +80,7 @@ Fiber Track Visualization
 - **Quality**: Smoothest fiber trajectories
 
 **Expected Visual Comparison**:
+
 - FACT: Angular, jagged tracks at crossing regions
 - Trilinear: Smoother transitions, some residual artifacts
 - Cubic: Smoothest trajectories, best crossing fiber resolution
@@ -87,6 +91,7 @@ Fiber Track Visualization
 
 #### Tissue Segmentation
 From FA-based segmentation:
+
 - **White Matter (WM)**: High FA (>0.3), primary tracking domain
 - **Gray Matter (GM)**: Medium FA (0.1-0.3), valid termination
 - **CSF**: Low FA (<0.1), invalid region
@@ -109,6 +114,7 @@ ELSE:
 3. **Improved specificity**: Tracks terminate in gray matter
 
 **Expected Visual Comparison**:
+
 - Without ACT: Tracks leak into CSF, unrealistic trajectories
 - With ACT: Clean termination at GM-WM boundaries, anatomically valid
 
@@ -128,6 +134,7 @@ pos_new = pos + h/6 * (k1 + 2*k2 + 2*k3 + k4)
 ```
 
 **Characteristics**:
+
 - **Order**: 4th-order accuracy (error ∝ h⁵)
 - **Step size**: Fixed throughout tracking
 - **Stability**: Excellent for smooth tensor fields
@@ -156,6 +163,7 @@ h_new = h * min(safety * (tolerance/error)^(1/5), max_factor)
 ```
 
 **Characteristics**:
+
 - **Order**: 5th-order accuracy with 4th-order error estimate
 - **Step size**: Adaptive (adjusts based on local curvature)
 - **Stability**: Superior in challenging regions (high curvature, crossing fibers)
@@ -175,6 +183,7 @@ h_new = h * min(safety * (tolerance/error)^(1/5), max_factor)
 | Crossing fiber handling | Poor | Good | Excellent |
 
 **Expected Visual Comparison**:
+
 - **RK4**: Smooth tracks, consistent step size, minor overshoot at sharp curves
 - **RKF45**: Smoothest tracks, small steps at curves (adaptive), reduced overshoot
 - **Difference**: Most visible at crossing regions and high-curvature areas
@@ -221,16 +230,19 @@ h_new = h * min(safety * (tolerance/error)^(1/5), max_factor)
 ### A. Interpolation Impact
 
 **FACT (No Interpolation)**
+
 - Visual: Blocky, staircase artifacts at voxel boundaries
 - Crossing regions: Poor resolution, premature termination
 - Track quality: Angular, unrealistic sharp turns
 
 **HINEC Trilinear**
+
 - Visual: Smoother than FACT, minor interpolation artifacts
 - Crossing regions: Improved resolution, better continuity
 - Track quality: Natural-looking trajectories
 
 **HINEC Cubic**
+
 - Visual: Smoothest trajectories, minimal artifacts
 - Crossing regions: Best resolution of complex crossings
 - Track quality: Most realistic fiber geometry
@@ -238,11 +250,13 @@ h_new = h * min(safety * (tolerance/error)^(1/5), max_factor)
 ### B. ACT Impact
 
 **Without ACT**
+
 - Visual: Tracks extend into CSF (ventricles)
 - Termination: Random endpoints, anatomically implausible
 - Specificity: Many false positive tracks
 
 **With ACT**
+
 - Visual: Clean tracks confined to WM, terminate at cortex
 - Termination: GM-WM boundary, biologically valid
 - Specificity: Reduced false positives, anatomically constrained
@@ -250,16 +264,19 @@ h_new = h * min(safety * (tolerance/error)^(1/5), max_factor)
 ### C. Integration Method Impact
 
 **RK4 (Fixed Step)**
+
 - Crossing regions: Good performance, occasional overshoot
 - Curved regions: Smooth tracking with consistent step size
 - Computation: Moderate speed
 
 **RKF45 (Adaptive Step)**
+
 - Crossing regions: Excellent performance, precise navigation
 - Curved regions: Adaptive step size reduces overshoot
 - Computation: Slower but more accurate
 
 **Expected Difference**:
+
 - Small steps at high-curvature regions (RKF45 advantage)
 - Smoother tracks through crossing fiber regions
 - Better preservation of track continuity
@@ -271,28 +288,30 @@ h_new = h * min(safety * (tolerance/error)^(1/5), max_factor)
 ### Key Innovations
 
 1. **Multi-domain Integration**
-   - Extends beyond intracellular (tensor) domain
-   - Incorporates anatomical (tissue) constraints
-   - Bridges geometric and biological information
+    - Extends beyond intracellular (tensor) domain
+    - Incorporates anatomical (tissue) constraints
+    - Bridges geometric and biological information
 
 2. **Methodological Advances**
-   - High-order interpolation reduces discretization artifacts
-   - ACT enforces biological plausibility
-   - Adaptive integration optimizes accuracy-speed tradeoff
+    - High-order interpolation reduces discretization artifacts
+    - ACT enforces biological plausibility
+    - Adaptive integration optimizes accuracy-speed tradeoff
 
 3. **Crossing Fiber Handling**
-   - Cubic interpolation smooths direction transitions
-   - RKF45 adapts to local complexity
-   - ACT prevents anatomically invalid trajectories
+    - Cubic interpolation smooths direction transitions
+    - RKF45 adapts to local complexity
+    - ACT prevents anatomically invalid trajectories
 
 ### Limitations & Future Work
 
 **Current Limitations**:
+
 - DTI model assumes single fiber per voxel
 - No quantitative validation metrics yet
 - Computational cost increases with method complexity
 
 **Future Directions**:
+
 1. Quantitative validation against known anatomy
 2. Integration with HARDI/Q-ball for true crossing resolution
 3. GPU acceleration for real-time performance
@@ -315,6 +334,7 @@ HINEC introduces three key methodological improvements:
 
 ### Clinical Relevance
 Enhanced tractography accuracy may improve:
+
 - Surgical planning (tumor resection, electrode placement)
 - Connectome mapping (network neuroscience)
 - Disease characterization (white matter pathologies)
@@ -322,10 +342,12 @@ Enhanced tractography accuracy may improve:
 ---
 
 ## 7. REFERENCES
-
 [1] Crossing fibers in white matter connectivity
+
 [2] Challenges in deterministic tractography
+
 [3] Limitations of single-tensor models
+
 [4] White matter atlas review and methodology
 
 ---
@@ -335,32 +357,38 @@ Enhanced tractography accuracy may improve:
 ### Panel Organization
 
 **Top Row: Introduction**
+
 - Title, authors, affiliations
 - Background (brain connectivity diagram)
 - Problem statement (crossing fiber illustration)
 
 **Middle Row: Methodology**
+
 - HINEC pipeline flowchart
 - Interpolation comparison (3 panels)
 - ACT tissue segmentation diagram
 - RK4 vs RKF45 algorithm comparison
 
 **Bottom Row: Results**
+
 - Visual comparisons (4 configurations × 3 ROIs)
 - Track overlays on FA maps
 - 3D renderings of major pathways
 
 **Footer: Conclusions & References**
+
 - Key findings summary
 - Future directions
 - References and acknowledgments
 
 ### Color Scheme
+
 - **WM tracks**: Use different colors per method for direct comparison
 - **Tissue masks**: WM (white), GM (gray), CSF (blue/cyan)
 - **Backgrounds**: Dark backgrounds for 3D renderings, white for diagrams
 
 ### Figure Recommendations
+
 1. Side-by-side track comparisons at crossing regions
 2. Zoomed insets showing interpolation differences
 3. ACT boundaries overlay on anatomical images
@@ -380,10 +408,13 @@ Enhanced tractography accuracy may improve:
 
 ### Anticipated Questions
 - **Q**: Why not use HARDI for crossing fibers?
+
   **A**: DTI provides computational efficiency; HINEC shows improvements are possible even within DTI framework. Future integration with HARDI is planned.
 
 - **Q**: What about quantitative validation?
+
   **A**: Current work focuses on methodological development with qualitative assessment. Quantitative validation against phantom data and known anatomy is next step.
 
 - **Q**: Computational cost?
+
   **A**: RKF45 with cubic interpolation is ~2x slower than FACT but provides significantly improved quality. GPU implementation planned for clinical deployment.

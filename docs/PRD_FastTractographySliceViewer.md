@@ -11,22 +11,22 @@ This PRD outlines the development of a high-performance slice viewer system that
 ### Current Performance Issues
 
 1. **Real-time Computation Bottleneck**: Every slice position change triggers:
-   - `buildTrackSliceLookup()` - O(n*tracks) complexity track indexing
-   - `getTracksInSlice()` - Track intersection calculations with tolerance
-   - `filterTracksByRegion()` - Region-based track filtering (if enabled)
-   - FA background slice extraction and rendering
-   - Track plotting and color computation
+    - `buildTrackSliceLookup()` - O(n*tracks) complexity track indexing
+    - `getTracksInSlice()` - Track intersection calculations with tolerance
+    - `filterTracksByRegion()` - Region-based track filtering (if enabled)
+    - FA background slice extraction and rendering
+    - Track plotting and color computation
 
 2. **GUI Responsiveness**: Python GUI calls MATLAB subprocess for each update:
-   - Process spawn overhead (1-2 seconds)
-   - MATLAB startup and path loading
-   - Data reload and reprocessing
-   - Image rendering and display
+    - Process spawn overhead (1-2 seconds)
+    - MATLAB startup and path loading
+    - Data reload and reprocessing
+    - Image rendering and display
 
 3. **User Experience**: 5-30 second delays make interactive exploration impossible:
-   - No smooth slider navigation
-   - No real-time feedback
-   - Cannot explore anatomical relationships efficiently
+    - No smooth slider navigation
+    - No real-time feedback
+    - Cannot explore anatomical relationships efficiently
 
 ### Performance Analysis
 
@@ -38,6 +38,7 @@ User moves slider → Python subprocess → MATLAB load → Track processing →
 ```
 
 **Identified Bottlenecks:**
+
 - Track-slice intersection: ~40% of computation time
 - FA background rendering: ~20% of computation time
 - Track color computation: ~15% of computation time
@@ -203,6 +204,7 @@ tractography_cache/
 **File**: `generateTractographySliceCache.m`
 
 **Responsibilities:**
+
 - Load and validate nim/tracks data
 - Generate parameter combinations
 - Optimize track-slice intersection algorithms
@@ -222,6 +224,7 @@ function saveSliceWithMetadata(image, filepath, metadata)
 **File**: `TractographyCacheManager.m`
 
 **Responsibilities:**
+
 - Manage cache directory structure
 - Handle parameter hashing and conflict resolution
 - Provide cache validation and integrity checks
@@ -240,6 +243,7 @@ function metadata = getCacheMetadata(cache_dir)
 **File**: `fast_tractography_viewer.py`
 
 **Responsibilities:**
+
 - Load pre-computed image cache
 - Provide instant slice navigation
 - Handle parameter switching
@@ -264,6 +268,7 @@ class ImageCache:
 **File**: `cache_config.py`
 
 **Responsibilities:**
+
 - Parameter validation and serialization
 - Configuration presets and templates
 - Cross-platform path management
@@ -273,12 +278,14 @@ class ImageCache:
 ### 1. Pre-computation Optimizations
 
 **Track-Slice Intersection Optimization:**
+
 - Vectorized coordinate rounding and bounds checking
 - Sparse indexing using pre-allocated cell arrays
 - Memory-mapped track data for large datasets
 - Parallel processing for independent slice computations
 
 **Rendering Pipeline Optimization:**
+
 - Pre-computed FA slice cache for anatomical backgrounds
 - Vectorized track color computation using look-up tables
 - Optimized plot rendering with reduced object creation
@@ -287,12 +294,14 @@ class ImageCache:
 ### 2. Storage Optimizations
 
 **Image Compression Strategy:**
+
 - PNG compression with optimal quality/size balance
 - Metadata embedded in image headers
 - Progressive JPEG for large volumes with quality fallback
 - Differential compression for similar adjacent slices
 
 **Cache Access Optimization:**
+
 - Predictive adjacent slice preloading
 - LRU cache for recently accessed images
 - Asynchronous background loading
@@ -301,12 +310,14 @@ class ImageCache:
 ### 3. GUI Performance Optimizations
 
 **Responsive Navigation:**
+
 - Image preloading based on navigation patterns
 - Async image loading with progress indicators
 - Smooth slider interaction with frame-rate limiting
 - Keyboard shortcuts for power users
 
 **Memory Management:**
+
 - Intelligent cache size limits based on available RAM
 - Background garbage collection
 - Lazy loading of parameter sets
@@ -319,6 +330,7 @@ class ImageCache:
 **Story 1.1**: As a researcher, I want to navigate between slices instantly so that I can explore tractography patterns efficiently.
 
 **Acceptance Criteria:**
+
 - [ ] Slice navigation responds within 100ms
 - [ ] Slider movement provides real-time visual feedback
 - [ ] No visual glitches or loading delays during navigation
@@ -328,6 +340,7 @@ class ImageCache:
 **Story 1.2**: As a researcher, I want to switch between different visualization parameters without waiting so that I can compare analysis approaches.
 
 **Acceptance Criteria:**
+
 - [ ] Parameter switching completes within 2 seconds
 - [ ] Current slice position is preserved during parameter changes
 - [ ] Visual indicators show available parameter sets
@@ -339,6 +352,7 @@ class ImageCache:
 **Story 2.1**: As a data analyst, I want to generate slice caches efficiently so that I can prepare datasets for interactive exploration.
 
 **Acceptance Criteria:**
+
 - [ ] Batch generation completes within 2 hours for standard datasets
 - [ ] Progress indicator shows completion percentage and ETA
 - [ ] Ability to pause/resume generation process
@@ -348,6 +362,7 @@ class ImageCache:
 **Story 2.2**: As a system administrator, I want to manage cache storage efficiently so that disk usage remains reasonable.
 
 **Acceptance Criteria:**
+
 - [ ] Cache size stays under 10GB for complete parameter sets
 - [ ] Automatic cleanup of old/unused caches
 - [ ] Storage quota warnings and management tools
@@ -359,6 +374,7 @@ class ImageCache:
 **Story 3.1**: As a new user, I want clear guidance on using the fast viewer so that I can start exploring data immediately.
 
 **Acceptance Criteria:**
+
 - [ ] Intuitive interface requiring no technical expertise
 - [ ] Built-in help system with contextual tooltips
 - [ ] Clear error messages with actionable guidance
@@ -370,12 +386,14 @@ class ImageCache:
 ### Phase 1: Core Architecture Foundation
 
 **Milestone 1.1: Optimized MATLAB Engine**
+
 - [ ] Implement `generateTractographySliceCache.m` with basic functionality
 - [ ] Optimize track-slice intersection algorithms
 - [ ] Add progress tracking and quality validation
 - [ ] Create cache directory structure and metadata system
 
 **Milestone 1.2: Image Cache System**
+
 - [ ] Design and implement hierarchical cache storage
 - [ ] Add metadata management and parameter hashing
 - [ ] Implement cache validation and integrity checks
@@ -384,12 +402,14 @@ class ImageCache:
 ### Phase 2: GUI Development
 
 **Milestone 2.1: Basic Fast Viewer**
+
 - [ ] Implement `FastTractographyViewer` class with cache loading
 - [ ] Add instant slice navigation with image preloading
 - [ ] Create responsive slider controls with real-time feedback
 - [ ] Implement multi-view synchronization
 
 **Milestone 2.2: Advanced Features**
+
 - [ ] Add parameter switching functionality
 - [ ] Implement keyboard shortcuts and power-user features
 - [ ] Create configuration management system
@@ -398,12 +418,14 @@ class ImageCache:
 ### Phase 3: Integration & Optimization
 
 **Milestone 3.1: Performance Optimization**
+
 - [ ] Profile and optimize critical performance paths
 - [ ] Implement advanced caching strategies
 - [ ] Add memory management and resource optimization
 - [ ] Validate performance targets are met
 
 **Milestone 3.2: Quality Assurance**
+
 - [ ] Comprehensive testing across different datasets
 - [ ] Cross-platform compatibility validation
 - [ ] User acceptance testing and feedback integration
@@ -412,12 +434,14 @@ class ImageCache:
 ### Phase 4: Production Deployment
 
 **Milestone 4.1: Production Readiness**
+
 - [ ] Final performance validation and optimization
 - [ ] Complete documentation and user guides
 - [ ] Integration testing with existing HINEC pipeline
 - [ ] Deployment scripts and installation procedures
 
 **Milestone 4.2: Launch Support**
+
 - [ ] User training and onboarding materials
 - [ ] Support documentation and troubleshooting guides
 - [ ] Performance monitoring and feedback collection
@@ -428,16 +452,19 @@ class ImageCache:
 ### Technical Risks
 
 **Risk T1: Storage Requirements Exceed Expectations**
+
 - *Probability*: Medium
 - *Impact*: High
 - *Mitigation*: Implement progressive compression, quality settings, and selective parameter generation
 
 **Risk T2: MATLAB Performance Optimization Insufficient**
+
 - *Probability*: Low
 - *Impact*: High
 - *Mitigation*: Fallback to C++ MEX implementations for critical algorithms, parallel processing
 
 **Risk T3: Cache Corruption or Integrity Issues**
+
 - *Probability*: Medium
 - *Impact*: Medium
 - *Mitigation*: Robust validation, automatic repair, incremental backup systems
@@ -445,11 +472,13 @@ class ImageCache:
 ### Operational Risks
 
 **Risk O1: User Adoption Challenges**
+
 - *Probability*: Medium
 - *Impact*: Medium
 - *Mitigation*: Comprehensive user testing, intuitive design, extensive documentation
 
 **Risk O2: Integration Complexity with Existing Systems**
+
 - *Probability*: Low
 - *Impact*: Medium
 - *Mitigation*: Maintain backward compatibility, gradual migration strategy
@@ -457,18 +486,21 @@ class ImageCache:
 ## Success Metrics
 
 ### Performance Metrics
+
 - **Navigation Speed**: <100ms slice transitions (Target: 50ms average)
 - **Pre-computation Time**: <2 hours for standard datasets (Target: 1 hour)
 - **Storage Efficiency**: <10GB total cache size (Target: 5GB)
 - **Memory Usage**: <2GB during operation (Target: 1GB)
 
 ### User Experience Metrics
+
 - **Task Completion Time**: 80% reduction in slice exploration time
 - **User Satisfaction**: >90% positive feedback on navigation smoothness
 - **Error Frequency**: <1% failure rate for slice navigation
 - **Learning Curve**: <15 minutes for new user proficiency
 
 ### Technical Metrics
+
 - **Cache Hit Rate**: >95% for normal navigation patterns
 - **Data Integrity**: 100% cache validation success rate
 - **Cross-platform Compatibility**: 100% functionality across Windows/macOS/Linux

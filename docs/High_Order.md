@@ -143,5 +143,3 @@ By combining:
 * **Anatomically Constrained Tractography (ACT)** for biological plausibility,
 
 the MATLAB FACT tractography pipeline becomes a **high-order deterministic tractography system** suitable for advanced diffusion MRI analysis.
-
-```

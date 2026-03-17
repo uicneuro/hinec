@@ -121,21 +121,24 @@ Simpler format - just links each bundle to its ground truth `.trk` file.
 **Method**: Filter user tractography using anatomical ROI constraints
 
 **Process**:
+
 1. Load user's whole-brain tractography
 2. Apply ROI constraints from `config_file_segmentation.json`:
-   - Keep only streamlines passing through **all** required masks
-   - Keep only streamlines with at least one point in **any** masks
-   - Keep only streamlines with endpoints in head/tail regions
-   - Apply geometric length constraints
+    - Keep only streamlines passing through **all** required masks
+    - Keep only streamlines with at least one point in **any** masks
+    - Keep only streamlines with endpoints in head/tail regions
+    - Apply geometric length constraints
 3. Compare filtered user tracks to ground truth
 4. Compute metrics (see below)
 
 **Advantages**:
+
 - Tests anatomical accuracy of streamlines
 - Evaluates tractography algorithm's ability to follow known pathways
 - Robust to seeding strategy differences
 
 **Disadvantages**:
+
 - Requires precise ROI mask alignment
 - Sensitive to coordinate system errors (see warning below)
 
@@ -144,17 +147,20 @@ Simpler format - just links each bundle to its ground truth `.trk` file.
 **Method**: Use machine learning to identify bundles in user tractography
 
 **Process**:
+
 1. Load ground truth bundles as training data
 2. Use RecoBundles algorithm to find similar streamlines in user tractography
 3. Compare recognized bundles to ground truth
 4. Compute metrics
 
 **Advantages**:
+
 - More forgiving of ROI misalignment
 - Tests bundle recognition capability
 - Simulates clinical bundle identification workflow
 
 **Disadvantages**:
+
 - Requires Dipy RecoBundles implementation
 - Less direct test of anatomical accuracy
 
@@ -371,11 +377,13 @@ print("3. Check if streamlines follow anatomical structures")
 ### Validation Against Other Methods
 
 Compare with:
+
 - **IronTract**: Anatomical tracing (more accurate but lower throughput)
 - **Tractometer**: Synthetic phantoms (perfect ground truth but unrealistic)
 - **Clinical consensus**: Expert manual segmentation (subjective but relevant)
 
 **Recommendation**: Use ISMRM as **one of multiple validation methods**:
+
 - ISMRM: Anatomical accuracy
 - IronTract: Biological validation
 - Synthetic: Algorithm verification
@@ -392,7 +400,7 @@ Compare with:
 
 ## References
 
-- ISMRM 2015 Tractography Challenge: http://tractometer.dinf.usherbrooke.ca/ismrm_2015_challenge/
-- Dipy StatefulTractogram: https://dipy.org/documentation/latest/reference/dipy.io.stateful_tractogram/
-- TrackVis format spec: http://trackvis.org/docs/?subsect=fileformat
-- Renauld 2023 update: https://github.com/scilus/ismrm_2015_tractography_challenge_scoring
+- [ISMRM 2015 Tractography Challenge](http://tractometer.dinf.usherbrooke.ca/ismrm_2015_challenge/)
+- [Dipy StatefulTractogram](https://dipy.org/documentation/latest/reference/dipy.io.stateful_tractogram/)
+- [TrackVis format spec](http://trackvis.org/docs/?subsect=fileformat)
+- [Renauld 2023 update](https://github.com/scilus/ismrm_2015_tractography_challenge_scoring)

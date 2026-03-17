@@ -232,6 +232,7 @@ where:
 #### **FACT Algorithm with Advanced Seeding**
 
 **Hierarchical Seeding Strategy:**
+
 1. **Primary**: White matter mask from preprocessing pipeline
 2. **Fallback 1**: FA-based white matter (FA > 0.2, eroded)
 3. **Fallback 2**: Eroded brain mask
@@ -323,6 +324,7 @@ Eddy → Eddy Correction → Parcellation → Track Validation → Reports
 ## File Naming Convention
 
 **Input Files:**
+
 - `{name}_raw.nii.gz` - Raw DWI data
 - `{name}.bvec` - B-vectors
 - `{name}.bval` - B-values
@@ -332,6 +334,7 @@ Eddy → Eddy Correction → Parcellation → Track Validation → Reports
 - `{name}_index.txt` - Volume indices (optional)
 
 **Output Files:**
+
 - `{name}.nii.gz` - Preprocessed DWI data
 - `{name}_M.nii.gz` - Brain mask
 - `{name}_WM_mask.nii.gz` - White matter mask
@@ -363,8 +366,11 @@ Eddy → Eddy Correction → Parcellation → Track Validation → Reports
 ## Performance Characteristics
 
 **Preprocessing Time:** ~30-60 seconds per dataset (depends on field map complexity)
+
 **Memory Requirements:** ~2-4 GB RAM for typical datasets
+
 **Quality Improvement:** 60-80% reduction in edge artifacts
+
 **Connectivity Preservation:** >95% of genuine white matter tracts maintained
 
 ## Installation and Setup
@@ -372,11 +378,13 @@ Eddy → Eddy Correction → Parcellation → Track Validation → Reports
 ### Requirements
 
 **MATLAB Toolboxes:**
+
 - Image Processing Toolbox
 - Statistics and Machine Learning Toolbox
 - Tools for NIfTI and ANALYZE image
 
 **External Software:**
+
 - **Statistical Parametric Mapping (SPM12)**: Must be in `spm12/` directory (included in repo)
 - **FSL**: Must be initialized before use
 
@@ -391,6 +399,7 @@ main('{data_location}/{prefix}', 'output.mat')
 ### Data Preparation
 
 To run HINEC from scratch, you must provide:
+
 - `{prefix}_raw.nii.gz` - Raw NIfTI file
 - `{prefix}.bvec` - B-vector file
 - `{prefix}.bval` - B-value file
@@ -412,12 +421,14 @@ visualizeTractography('tracks.mat', 'output.mat');  % View tractography
 ## Development Guidelines
 
 ### Project Structure
+
 - `main.m` orchestrates preprocessing, registration, tractography, and plotting
 - Source modules: `nim_preprocessing/`, `nim_registration/`, `nim_calculation/`, `nim_tractography/`, `nim_utils/`
 - Visualization: `nim_plots/` and top-level `visualizeTractography*.m`
 - Sample data: `data/`, `sample_parcellated.mat`
 
 ### Coding Style
+
 - Four-space indentation
 - One MATLAB function per file named identically to the function
 - lowerCamelCase for pipeline entry points (`runTractography`, `visualizeTractography`)
@@ -426,11 +437,13 @@ visualizeTractography('tracks.mat', 'output.mat');  % View tractography
 - Structure arguments preferred over long positional lists
 
 ### Testing
+
 - Quick diagnostics in `nim_tests/`
 - Run `matlab -batch "addpath(genpath('.')); nim_tests/test_functions"` before committing
 - For broader coverage: `runtests('nim_tests')`
 
 ### Sample Data
+
 - `data/original_sample/`: Basic diffusion data
 - `data/parcellation_sample/`: Data with parcellation masks
 - Pre-computed results: `sample_parcellated.mat`
