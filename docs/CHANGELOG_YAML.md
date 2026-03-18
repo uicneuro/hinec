@@ -277,7 +277,7 @@ Simple MATLAB-compatible YAML parser that handles:
 - No support for complex YAML features (anchors, aliases, etc.)
 - For HINEC config needs only
 
-For complex YAML needs, consider: [Visiting yamlmatlab](https://github.com/ewiger/yamlmatlab)
+For complex YAML needs, consider visiting: [yamlmatlab](https://github.com/ewiger/yamlmatlab)
 
 ### Validation Strategy
 
