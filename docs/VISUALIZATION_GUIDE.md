@@ -45,6 +45,7 @@ Displays principal eigenvectors color-coded by direction. This is the primary to
 ### DTI Color Convention
 
 The standard neuroimaging color coding:
+
 - **Red** = Left/Right (X axis)
 - **Green** = Anterior/Posterior (Y axis)
 - **Blue** = Superior/Inferior (Z axis)
@@ -333,6 +334,7 @@ C = nim_plot_connectivity_matrix(data_t.tracks, data_n.nim);
 ### Output
 
 Creates a 4-panel figure:
+
 1. **Heatmap**: Region-by-region connectivity strength
 2. **Histogram**: Distribution of connection strengths
 3. **Node strengths**: Bar chart showing total connectivity per region

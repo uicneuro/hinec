@@ -9,6 +9,7 @@ The HINEC standard tractography implementation provides deterministic fiber trac
 ## Workflow Architecture
 
 ### 1. Entry Points
+
 - **`runTractography('data.mat')`** - Simple entry point with default parameters
 - **`nim_tractography_standard(nim, options)`** - Core algorithm with custom options
 - **Direct integration** - Called from main HINEC pipeline after DTI processing
@@ -41,15 +42,18 @@ function tracks = nim_tractography_standard(data_path, options)
 ```
 
 **Input:**
+
 - `data_path`: Path to .mat file or nim structure directly
 - `options`: Configuration structure (optional)
 
 **Output:**
+
 - `tracks`: Cell array where each cell contains an Nx3 matrix of track coordinates
 
 ### Processing Stages
 
 #### Stage 1: Data Loading and Validation
+
 **Location**: `nim_tractography_standard.m:59-75`
 
 ```matlab
@@ -72,12 +76,14 @@ end
 ```
 
 **Required NIM Structure Fields:**
+
 - `nim.evec`: 5D array [x,y,z,component,eigenvector] - Diffusion tensor eigenvectors
 - `nim.FA`: 3D array [x,y,z] - Fractional anisotropy values
 - `nim.eval`: 3D array [x,y,z,eigenvalue] - Eigenvalues (for validation)
 - `nim.mask`: 3D array [x,y,z] - Brain mask (optional but recommended)
 
 #### Stage 2: Performance Optimizations
+
 **Location**: `nim_tractography_standard.m:83-106`
 
 **Critical Optimization**: Pre-computation of eigenvector components
@@ -95,10 +101,11 @@ nim.v1_z = squeeze(nim.evec(:,:,:,3,1));  % Z component of primary eigenvector
 **Location**: `nim_tractography_standard.m:108-138`
 
 **Hierarchical Masking Strategy:**
+
 1. **Base FA threshold**: `nim.FA > options.fa_threshold`
 2. **Brain mask priority**:
-   - Primary: `nim.mask` (from preprocessing)
-   - Fallback: `nim.parcellation_mask` (from atlas registration)
+    - Primary: `nim.mask` (from preprocessing)
+    - Fallback: `nim.parcellation_mask` (from atlas registration)
 3. **Artifact exclusion**: Remove bottom 10% of slices to avoid susceptibility artifacts
 
 ```matlab
@@ -149,6 +156,7 @@ end
 ```
 
 **Seed Density Impact:**
+
 - `density = 1`: One seed per voxel center
 - `density = 5`: Five randomly distributed seeds per voxel (default)
 - Higher density increases track count but also computation time
@@ -292,6 +300,7 @@ end
 ```
 
 **Interpolation Details:**
+
 - Uses MATLAB's `interp3` with linear interpolation
 - Pre-computed components eliminate 5D array indexing
 - Coordinate system: MATLAB convention (Y,X,Z for interp3)
@@ -414,11 +423,13 @@ Steps per second: 2,965
 ### Scaling Characteristics
 
 **Computational Complexity**: O(S × L × I)
+
 - S = Number of seeds
 - L = Average track length (steps)  
 - I = Interpolation operations per step (~4)
 
 **Typical Performance**: 
+
 - Dataset: 128×128×60 volume, ~10,000 seeds
 - Processing Time: 30-60 seconds on modern hardware
 - Track Generation Rate: 50-200 tracks/second
@@ -479,22 +490,22 @@ save(output_file, 'tracks', 'options', 'track_stats', 'track_lengths', 'dims');
 
 #### Multi-Panel Visualization
 1. **3D Tracks with FA Background** (`subplot(2,2,1)`)
-   - Semi-transparent FA slices as anatomical reference
-   - Direction-colored tracks (RGB = XYZ components)
-   - Limited to 800 tracks for performance
+    - Semi-transparent FA slices as anatomical reference
+    - Direction-colored tracks (RGB = XYZ components)
+    - Limited to 800 tracks for performance
 
 2. **Direction-Colored Tracks Only** (`subplot(2,2,2)`)
-   - Pure track visualization without anatomy
-   - Color legend: Red=L-R, Green=A-P, Blue=S-I
-   - Up to 1,500 tracks displayed
+    - Pure track visualization without anatomy
+    - Color legend: Red=L-R, Green=A-P, Blue=S-I
+    - Up to 1,500 tracks displayed
 
 3. **FA Map Cross-Section** (`subplot(2,2,3)`)
-   - Grayscale FA map at mid-brain slice
-   - Shows tissue contrast and quality
+    - Grayscale FA map at mid-brain slice
+    - Shows tissue contrast and quality
 
 4. **Seed Point Distribution** (`subplot(2,2,4)`)
-   - 3D scatter plot of seed locations
-   - Demonstrates spatial sampling strategy
+    - 3D scatter plot of seed locations
+    - Demonstrates spatial sampling strategy
 
 ### Advanced Visualization: `visualizeTractography.m`
 
@@ -524,6 +535,7 @@ visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
 ```
 
 **Output:**
+
 - 2x3 subplot layout with main 3D view
 - Track length histogram
 - Seed point distribution analysis
@@ -543,6 +555,7 @@ visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
 ```
 
 **Features:**
+
 - Region-specific track filtering
 - Region overlay visualization
 - Multiple filtering strategies
@@ -574,6 +587,7 @@ visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
 #### Configuration Options
 
 **Display Parameters:**
+
 - `color_mode`: 'direction' (default), 'fa', 'uniform', 'region'
 - `show_axis_labels`: Display X/Y/Z axis labels (default: true)
 - `show_grid`: Display grid lines (default: false)
@@ -581,12 +595,14 @@ visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
 - `show_info`: Display information text (default: true)
 
 **Track Filtering:**
+
 - `filter_mode`: 'all', 'passing_through', 'ending_in', 'start_in', 'contained'
 - `min_length`: Minimum track length in mm (default: 10)
 - `max_tracks`: Maximum tracks to display (default: 1000)
 - `min_overlap`: Minimum region overlap fraction (default: 0.1)
 
 **Export Settings:**
+
 - `export_dir`: Directory for saving images (default: 'tractography_figures/')
 - `export_format`: 'png' (default), 'pdf', 'eps', 'fig'
 - `export_dpi`: Resolution for raster formats (default: 150)
@@ -624,11 +640,13 @@ python tractography_slice_gui.py
 #### Parameters
 
 **Required Arguments:**
+
 - `tracks_file`: Path to tracks .mat file
 - `nim_file`: Path to nim structure .mat file
 - `x`, `y`, `z`: Slice positions in voxel coordinates
 
 **Optional Parameters:**
+
 - `'save'`: Output PNG filename (if not specified, just displays)
 - `'tolerance'`: Slice thickness in voxels (default: 2)
 - `'show_crosshairs'`: Show slice intersections (default: true)
@@ -638,6 +656,7 @@ python tractography_slice_gui.py
 
 #### Output Format
 The viewer shows three orthogonal slice views:
+
 1. **Axial (Z)**: Top-down view (X-Y plane)
 2. **Sagittal (X)**: Side view (Y-Z plane)
 3. **Coronal (Y)**: Front view (X-Z plane)
@@ -654,6 +673,7 @@ track = [x1, y1, z1;    % First point (start)
 ```
 
 **Important Notes:**
+
 - **Not just endpoints**: Each track contains the complete 3D trajectory
 - **Variable length**: Tracks contain 10-1000+ points depending on fiber length
 - **Coordinate system**: Voxel space coordinates (X, Y, Z)
@@ -688,6 +708,7 @@ Brain Parcellation (nim_parcellation)
 
 ### Data Dependencies
 **Required Pipeline Steps:**
+
 1. `nim_dt_spd`: Provides diffusion tensors
 2. `nim_eig`: Provides eigenvectors and eigenvalues  
 3. `nim_fa`: Provides anisotropy maps for seeding and termination
@@ -846,18 +867,21 @@ visualizer = TrackVisualizer(tracks, nim);
 The HINEC standard tractography implementation provides a robust, optimized solution for deterministic fiber tracking in diffusion MRI data. Key strengths include:
 
 **Technical Excellence:**
+
 - Comprehensive parameter validation and error handling
 - Performance optimizations achieving 2,000+ tracking steps per second
 - Automatic quality assessment and detailed timing diagnostics
 - Memory-efficient track storage and processing
 
 **Usability Features:**
+
 - Simple entry points for common use cases
 - Extensive visualization capabilities  
 - Automatic result saving with metadata
 - Integration with the complete HINEC pipeline
 
 **Scientific Validity:**
+
 - Biologically plausible tracking constraints
 - Proper handling of anisotropy-based termination
 - Support for brain mask boundaries

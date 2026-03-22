@@ -119,12 +119,14 @@ tracks = nim_tractography_hinec('data.mat', options);
 ### Computational Cost
 
 **RKF45 vs RK4**:
+
 - **Stages**: 7 vs 4 (1.75× more interpolations)
 - **Error estimation**: Included (no extra cost)
 - **Adaptive stepping**: May reduce total steps
 - **Overall**: ~1.5-2× slower than RK4, but higher accuracy
 
 **Expected Timing** (typical brain, 10K seeds):
+
 - RK4 fixed: ~5-10 minutes
 - RKF45 adaptive (tol=0.01): ~8-15 minutes
 - RKF45 adaptive (tol=0.005): ~12-20 minutes
@@ -132,23 +134,27 @@ tracks = nim_tractography_hinec('data.mat', options);
 ### Accuracy Gains
 
 **Local Error Scaling**:
+
 - Euler (order 1): Error ~ h²
 - RK2 (order 2): Error ~ h³
 - RK4 (order 4): Error ~ h⁵
 - **RKF45 (order 5)**: Error ~ h⁶ ← Best
 
 **Global Error** (accumulation over N steps):
+
 - RK4: Error ~ N·h⁵
 - RKF45: Error ~ N·h⁶ (superior)
 
 ### Step Rejection Statistics
 
 **Normal Operation**:
+
 - Rejection rate: 5-15% of steps
 - Retry rate: 1-3% of steps
 - Most rejected steps succeed on first retry
 
 **High rejection rates** (>20%) indicate:
+
 - Tolerance too tight for step size
 - Complex direction field
 - Consider: reduce tolerance or increase initial step_size
@@ -314,13 +320,19 @@ options.max_steps = 10000;  % instead of 5000
 RKF45 adaptive integration provides **superior numerical accuracy** with **minimal user intervention** through automatic error control. Recommended for:
 
 ✅ **Publication-quality results**
+
 ✅ **High-precision connectivity analysis**
+
 ✅ **Challenging fiber configurations**
+
 ✅ **Regions with complex geometry**
 
 Use fixed-step RK4 for:
+
 ✅ **Rapid exploration**
+
 ✅ **Parameter screening**
+
 ✅ **Large-scale batch processing**
 
 **Default recommendation**: `integration_order=5, adaptive_step=true, rkf_tolerance=0.01`

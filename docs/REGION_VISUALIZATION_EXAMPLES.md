@@ -18,6 +18,7 @@ runTractography('sample_parcellated.mat');
 After running `runTractography()`, your tracks will be in `tractography_results/`. 
 
 Use `ls tractography_results/` to find your specific tracks file name, e.g.:
+
 - `tracks_2024-01-01_12-00-00.mat`
 
 ### Step 2: Visualize a Specific Region
@@ -83,6 +84,7 @@ visualizeTractographyRegion(region_id, tracks_file, nim_file, filter_mode, Name,
 ```
 
 **Parameters:**
+
 - `region_id`: Integer index of brain region (from parcellation mask) - **REQUIRED**
 - `tracks_file`: Path to tracks .mat file - **REQUIRED**
 - `nim_file`: Path to .mat file containing nim structure with parcellation - **REQUIRED**
@@ -102,6 +104,7 @@ visualizeTractography(tracks_file, nim_file)
 ```
 
 **Arguments:**
+
 - `tracks_file`: Path to tracks .mat file - **REQUIRED**
 - `nim_file`: Path to nim .mat file - **REQUIRED**
 
@@ -117,6 +120,7 @@ ls *.mat
 ```
 
 ### Performance Tips
+
 - Use `max_tracks` parameter to limit display for better performance  
 - Start with smaller regions (higher region IDs) for faster visualization
 - Use `'uniform'` color mode for fastest rendering
@@ -155,27 +159,33 @@ ls *.mat
 ### Common Errors
 
 **"visualizeTractographyRegion requires 3 arguments"**
+
 - You must specify ALL three arguments: region_id, tracks_file, nim_file
 - Example: `visualizeTractographyRegion(5, 'tractography_results/tracks_*.mat', 'sample_parcellated.mat')`
 
 **"Region X does not exist"**
+
 - Check the parcellation mask in your nim file to see available regions
 - Check that parcellation was successful
 
 **"Tracks file not found"**
+
 - Check the exact filename in `tractography_results/` directory
 - Run `runTractography('sample_parcellated.mat')` first to generate tracks
 
 **"Nim file not found"**
+
 - Check that your .mat file exists and contains nim structure
 - Run `main()` first to generate nim data with parcellation
 
 **"No tracks found for region X"**
+
 - Try lowering `min_overlap` parameter
 - Use different filter mode (e.g., 'pass_through' instead of 'start_in')
 - Check if region is too small or in non-white-matter area
 
 **Poor performance/visualization**
+
 - Reduce `max_tracks` parameter
 - Use `'uniform'` color mode
 - Set `show_region` to false

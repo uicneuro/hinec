@@ -49,6 +49,7 @@ main('ironTract/sub-MR243', 'ironTract.mat');
 ```
 
 **What happens**:
+
 - Detects IronTract file format automatically
 - Generates brain mask using FSL BET
 - Applies MNI atlas parcellation
@@ -56,6 +57,7 @@ main('ironTract/sub-MR243', 'ironTract.mat');
 - Saves complete `nim` structure to `ironTract.mat`
 
 **Important Files Generated**:
+
 - `ironTract.mat` - Processed nim structure with all metrics
 - `ironTract_mask_improved.nii.gz` - Brain mask
 - `parcellation_mask.nii.gz` - Atlas parcellation
@@ -84,6 +86,7 @@ runTractography('ironTract.mat', 'IronTract', 'ironTract/injection.nii.gz', 'iro
 ```
 
 **What happens**:
+
 - Loads processed `nim` structure
 - Runs FACT tractography with optimized parameters
 - Saves tracks to `tractography_results/tracks_standard.mat`
@@ -100,6 +103,7 @@ When you run tractography with IronTract arguments, it automatically:
 4. **Saves Submissions**: Creates numbered files `submission_001.nii.gz`, `submission_002.nii.gz`, etc.
 
 **Parameter Sweep Defaults**:
+
 - Angle thresholds: `[30, 45, 60, 75, 90]` degrees
 - Generates 5 submission volumes for ROC analysis
 - Each volume uses same tracks but different filtering
@@ -153,6 +157,7 @@ ironTract_submissions/
 ```
 
 Each submission file is:
+
 - Binary mask (0 or 1)
 - 1 = voxel visited by streamlines from injection site
 - Matches injection mask header for proper alignment
@@ -249,19 +254,27 @@ end
 ## Troubleshooting
 
 ### Issue: "Dimension mismatch" errors
+
 **Cause**: Incorrect filtering of bval/bvec arrays
+
 **Solution**: Updated code maintains unfiltered arrays in `nim` structure, downstream functions filter when needed
 
 ### Issue: "Compressed NIfTI files are not supported"
+
 **Cause**: SPM doesn't handle .nii.gz directly
+
 **Solution**: Automatic gunzip wrapper added to preprocessing functions
 
 ### Issue: "Variable not saved" for large files
+
 **Cause**: Default MAT-file format limited to 2GB
+
 **Solution**: Automatic v7.3 format for files >1900MB
 
 ### Issue: Label file not found
+
 **Cause**: Parcellation generates XML labels, not MAT files
+
 **Solution**: Added XML label loading support to `nim_load_labels.m`
 
 ## References
@@ -272,6 +285,7 @@ end
 ## File Changes Summary
 
 Modified files for IronTract support:
+
 1. `nim_utils/nim_read.m` - Multi-format detection
 2. `nim_utils/nim_load_labels.m` - XML label support
 3. `nim_utils/nim_save.m` - Large file support (v7.3)

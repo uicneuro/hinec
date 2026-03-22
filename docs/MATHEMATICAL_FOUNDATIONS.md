@@ -789,7 +789,7 @@ $p(a)$ and $p(a,b)$ are estimated from 64-bin histograms. NMI $= 1$ indicates no
 HINEC constructs a chain of transforms between three coordinate spaces:
 
 $$
-\text{DWI native} \xleftrightarrow{\text{6 DOF FLIRT}} \text{T1 native} \xleftrightarrow{\text{12 DOF FLIRT + FNIRT}} \text{MNI standard}
+\text{DWI native} \leftrightarrow{\text{6 DOF FLIRT}} \text{T1 native} \leftrightarrow{\text{12 DOF FLIRT + FNIRT}} \text{MNI standard}
 $$
 
 **Forward chain** (DWI $\to$ MNI): compose transforms

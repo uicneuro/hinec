@@ -49,6 +49,7 @@ if isfield(nim, 'mask') && ~isempty(nim.mask)
     brain_mask = nim.mask > 0.5;
     brain_mask = brain_mask & (nim.FA > 0.05);  % Exclude CSF
 ```
+
 - **Source**: FSL brain extraction or manual mask
 - **Coverage**: Complete brain with clean boundaries
 - **Quality**: Best anatomical accuracy
@@ -60,6 +61,7 @@ elseif isfield(nim, 'parcellation_mask')
     brain_mask = imdilate(parcel_mask, strel('sphere', 3));
     brain_mask = brain_mask & (nim.FA > 0.05);
 ```
+
 - **Source**: Atlas-based parcellation
 - **Coverage**: Labeled regions + surrounding tissue
 - **Quality**: Good for known anatomical structures
@@ -69,6 +71,7 @@ elseif isfield(nim, 'parcellation_mask')
 else
     brain_mask = nim.FA > 0.10;
 ```
+
 - **Source**: Fractional anisotropy map
 - **Coverage**: White matter core only
 - **Quality**: Misses low-anisotropy regions (fornix, cingulum)

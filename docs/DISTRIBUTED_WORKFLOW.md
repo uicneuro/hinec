@@ -13,6 +13,7 @@ This guide explains how to use the Fast Tractography Slice Viewer in a **distrib
 ## What is the "Cache"?
 
 The **cache** is a directory containing:
+
 - **Pre-generated slice images** (PNG/JPG files)
 - **Metadata** (JSON files with configuration)
 - **NO original .mat files** (they stay on server)
@@ -170,6 +171,7 @@ python FastTractographyViewer.py /path/to/slices
 ### What You'll See
 
 The GUI will open with:
+
 - Three orthogonal views (Axial, Sagittal, Coronal)
 - Interactive sliders for navigation
 - Sub-100ms slice transitions
@@ -177,6 +179,7 @@ The GUI will open with:
 - Export capabilities
 
 ### Keyboard Shortcuts
+
 - `←/→` - Navigate one slice
 - `↑/↓` - Navigate 10 slices
 - Enable/disable crosshair synchronization
@@ -266,11 +269,13 @@ sudo apt-get install python3-tk
 ```
 
 **Problem**: "Invalid cache directory"
+
 - Make sure you're pointing to the ROOT cache directory
 - Should contain `datasets/` subdirectory
 - Check that transfer completed successfully
 
 **Problem**: "Images not loading"
+
 - Verify cache structure is intact
 - Check file permissions: `ls -la /path/to/slices/datasets/`
 - Re-extract if using compressed transfer
@@ -341,7 +346,9 @@ done
 ## Summary
 
 ✓ **Server**: `addpath('nim_visualization'); generateSlices('tracks.mat', 'nim.mat', '/export/slices')`
+
 ✓ **Transfer**: `rsync -avz server:/export/slices/ ~/local/slices/`
+
 ✓ **Local**: `./viewSlices.sh ~/local/slices/`
 
 **Result**: Instant slice navigation with no MATLAB on local computer!

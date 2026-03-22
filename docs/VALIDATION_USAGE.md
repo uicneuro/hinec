@@ -5,11 +5,17 @@
 The `validate_ismrm_tractography.py` script provides comprehensive validation of HINEC tractography against ISMRM 2015 ground truth data.
 
 **What it does**:
+
 1. ✅ Converts HINEC tracks from MATLAB format to world coordinates
+
 2. ✅ Segments bundles using ROI-based anatomical constraints
+
 3. ✅ Compares with ISMRM ground truth tractography
+
 4. ✅ Computes accuracy metrics (coverage, overreach, Dice)
+
 5. ✅ Generates HTML report with visualizations
+
 6. ✅ Validates coordinate system alignment
 
 ## Quick Start
@@ -57,13 +63,19 @@ validation_results/
 ### Input Requirements
 
 **NIM File** (`--nim-file`):
+
 - MATLAB `.mat` file with nim structure
+
 - Must contain `hdr` field with Transform information
+
 - Used for voxel-to-world coordinate conversion
 
 **Tracks File** (`--tracks-file`):
+
 - MATLAB `.mat` file with tractography results
+
 - Must contain `tracks` field (cell array of Nx3 matrices)
+
 - Tracks stored as 1-based MATLAB voxel indices
 
 **Scoring Directory** (`--scoring-dir`):
@@ -85,9 +97,13 @@ validation_results/
 ### 1. HTML Report (`validation_report.html`)
 
 Interactive report with:
+
 - **Summary statistics**: Valid bundles, coverage, overreach
+
 - **Per-bundle table**: Detailed metrics for each bundle
+
 - **Coordinate diagnostics**: Voxel and world coordinate ranges
+
 - **Interpretation guide**: How to read the metrics
 
 **Open in browser**:
@@ -133,8 +149,11 @@ Machine-readable results for further analysis:
 ### 3. Segmented Bundles (`*_segmented.trk`)
 
 TrackVis format files for each bundle that passed ROI filtering:
+
 - Can be visualized in TrackVis, MI-Brain, or DSI Studio
+
 - Used for visual validation of segmentation accuracy
+
 - Compatible with further analysis tools
 
 ## Metrics Explained
@@ -145,6 +164,7 @@ TrackVis format files for each bundle that passed ROI filtering:
 **Formula**: `(# GT streamlines within 10mm of user tracks) / (total GT streamlines) × 100`
 
 **Interpretation**:
+
 - **>70%**: Excellent coverage - capturing most of ground truth
 - **50-70%**: Good coverage - major pathways captured
 - **30-50%**: Moderate coverage - missing some pathways
@@ -156,6 +176,7 @@ TrackVis format files for each bundle that passed ROI filtering:
 **Formula**: `(# user streamlines >10mm from any GT) / (total user streamlines) × 100`
 
 **Interpretation**:
+
 - **<20%**: Excellent specificity - few spurious tracks
 - **20-35%**: Good specificity - moderate false positives
 - **35-50%**: Moderate specificity - significant false positives
@@ -167,6 +188,7 @@ TrackVis format files for each bundle that passed ROI filtering:
 **Formula**: `2 × (# matched streamlines) / (# user + # GT streamlines)`
 
 **Interpretation**:
+
 - **>0.8**: Excellent agreement
 - **0.6-0.8**: Good agreement
 - **0.4-0.6**: Moderate agreement
@@ -176,6 +198,7 @@ TrackVis format files for each bundle that passed ROI filtering:
 **Definition**: Bundles with at least one streamline passing all ROI constraints
 
 **ROI Constraints** (per bundle):
+
 - **All mask**: All points must pass through
 - **Any mask**: At least one point must intersect
 - **Endpoints**: Start/end in correct anatomical regions
@@ -188,9 +211,9 @@ TrackVis format files for each bundle that passed ROI filtering:
 For each bundle (e.g., "Cingulum_left"):
 
 1. **Load Anatomical Masks**:
-   - `all_masks/Cingulum_left.nii.gz` - Required pathway
-   - `endpoints/Cingulum_left_head.nii.gz` - Start region
-   - `endpoints/Cingulum_left_tail.nii.gz` - End region
+    - `all_masks/Cingulum_left.nii.gz` - Required pathway
+    - `endpoints/Cingulum_left_head.nii.gz` - Start region
+    - `endpoints/Cingulum_left_tail.nii.gz` - End region
 
 2. **Apply Constraints**:
    ```
@@ -203,9 +226,9 @@ For each bundle (e.g., "Cingulum_left"):
    ```
 
 3. **Compare with Ground Truth**:
-   - Load `bundles/Cingulum_left.trk`
-   - Compute distance between user and GT streamlines
-   - Calculate coverage and overreach metrics
+    - Load `bundles/Cingulum_left.trk`
+    - Compute distance between user and GT streamlines
+    - Calculate coverage and overreach metrics
 
 ### Example: Corpus Callosum U-shaped
 
@@ -225,6 +248,7 @@ For each bundle (e.g., "Cingulum_left"):
 ```
 
 **Filtering Logic**:
+
 1. Keep streamlines passing through CC u-shaped mask (entire pathway)
 2. Keep streamlines with at least one point in inclusion mask
 3. Keep streamlines with endpoints in left and right striatal regions
@@ -274,9 +298,9 @@ If you get suspicious results (all 0% coverage):
    ```
 
 2. **Check Alignment**:
-   - Do tracks follow white matter pathways?
-   - Are tracks inside the brain?
-   - Do major bundles (corpus callosum, cingulum) look anatomically correct?
+    - Do tracks follow white matter pathways?
+    - Are tracks inside the brain?
+    - Do major bundles (corpus callosum, cingulum) look anatomically correct?
 
 ## Example Workflows
 
@@ -359,6 +383,7 @@ with open('cingulum_stats.txt', 'w') as f:
 **Cause**: Coordinate system misalignment
 
 **Solutions**:
+
 1. Check coordinate diagnostics in report
 2. Visually validate using TrackVis
 3. Verify T1 reference image matches tractography
@@ -369,6 +394,7 @@ with open('cingulum_stats.txt', 'w') as f:
 **Cause**: Field name mismatch
 
 **Solutions**:
+
 1. Check .mat file structure: `scipy.io.whosmat('tracks.mat')`
 2. Ensure field is named `tracks` or `tracts`
 3. Verify tracks are stored as cell array, not plain array
@@ -378,6 +404,7 @@ with open('cingulum_stats.txt', 'w') as f:
 **Interpretation**: Algorithm is capturing ground truth but also generating many extra streamlines
 
 **Solutions**:
+
 1. Increase FA threshold to reduce spurious tracks
 2. Reduce step size for more anatomically constrained tracking
 3. Apply stricter angle constraints
@@ -388,6 +415,7 @@ with open('cingulum_stats.txt', 'w') as f:
 **Interpretation**: Algorithm is conservative, missing valid pathways
 
 **Solutions**:
+
 1. Decrease FA threshold to track in lower anisotropy regions
 2. Increase seeding density
 3. Relax angle constraints
@@ -441,6 +469,6 @@ print(f"Average coverage across runs: {np.mean(coverages):.1f}% ± {np.std(cover
 
 ## References
 
-- ISMRM 2015 Tractography Challenge: http://tractometer.dinf.usherbrooke.ca/ismrm_2015_challenge/
+- [ISMRM 2015 Tractography Challenge](http://tractometer.dinf.usherbrooke.ca/ismrm_2015_challenge/)
 - Validation methodology: See `ISMRM_SCORING_ANALYSIS.md`
 - HINEC tractography: See `CLAUDE.md` for pipeline details

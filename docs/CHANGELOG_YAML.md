@@ -9,6 +9,7 @@ Implemented a comprehensive YAML-based parameter configuration system for the HI
 ### New Files Created
 
 **Configuration System**:
+
 - `nim_utils/load_config_yaml.m` - YAML parser with validation
 - `config/hinec_default.yml` - Default balanced configuration
 - `config/high_precision.yml` - Publication-quality preset
@@ -16,6 +17,7 @@ Implemented a comprehensive YAML-based parameter configuration system for the HI
 - `config/irontract.yml` - IronTract challenge preset
 
 **Documentation**:
+
 - `docs/YAML_CONFIG.md` - Complete configuration reference (124 KB)
 - `config/README.md` - Quick reference for config directory
 - `test_yaml_config.m` - Validation test script
@@ -23,6 +25,7 @@ Implemented a comprehensive YAML-based parameter configuration system for the HI
 ### Modified Files
 
 **Core Pipeline**:
+
 - `run_hinec.sh` - Added optional config file argument
 - `main.m` - Added YAML config support (backward compatible)
 - `runTractography.m` - Added YAML config support (backward compatible)
@@ -74,6 +77,7 @@ Parameters are validated when loaded:
 ```
 
 **Checks include**:
+
 - Step size must be positive
 - Angle threshold in (0, 180]
 - Integration order in {1, 2, 4, 5}
@@ -134,6 +138,7 @@ runTractography('data.mat', config);
 ## Parameter Organization
 
 ### Preprocessing Section
+
 - Denoising settings
 - Motion/eddy correction
 - Brain mask improvement
@@ -246,6 +251,7 @@ Update shell scripts to use config files:
 ## Future Enhancements
 
 Potential improvements:
+
 1. JSON support (in addition to YAML)
 2. GUI config editor
 3. Config validation CLI tool
@@ -257,6 +263,7 @@ Potential improvements:
 ### YAML Parser
 
 Simple MATLAB-compatible YAML parser that handles:
+
 - Key-value pairs
 - Nested sections
 - Comments
@@ -265,15 +272,17 @@ Simple MATLAB-compatible YAML parser that handles:
 - Strings (quoted and unquoted)
 
 **Limitations**:
+
 - No support for arrays/lists
 - No support for complex YAML features (anchors, aliases, etc.)
 - For HINEC config needs only
 
-For complex YAML needs, consider: https://github.com/ewiger/yamlmatlab
+For complex YAML needs, consider visiting: [yamlmatlab](https://github.com/ewiger/yamlmatlab)
 
 ### Validation Strategy
 
 Two-phase validation:
+
 1. **Syntax validation** - During YAML parsing
 2. **Semantic validation** - After loading complete config
 
@@ -282,6 +291,7 @@ Two-phase validation:
 ## Credits
 
 Implementation Date: 2025-01-18
+
 Based on code review findings and parameter management requirements.
 
 ## See Also

@@ -5,6 +5,7 @@
 MATLAB distinguishes between **string** types (introduced in newer versions) and **char arrays** (classic MATLAB). Many file operations like `fileparts()`, `copyfile()`, and `movefile()` expect char arrays, but the YAML config system and shell script may pass string types.
 
 **Error Symptoms**:
+
 - `Error using fileparts: Input path must be text`
 - `Error using copyfile: All arguments must be non-empty character vectors or string scalars`
 - `Operands to the logical AND (&&) and OR (||) operators must be convertible to logical scalar values`
@@ -30,6 +31,7 @@ When the run directory system was implemented, file paths were being passed arou
 **Location**: Lines 322, 351, 396
 
 **Functions Fixed**:
+
 - `setup_file_paths(imgpath, run_info)` - Line 322
 - `handle_preprocessed_data(img_file, mask_file, imgpath, run_info)` - Line 351
 - `handle_raw_data(img_file, raw_file, t1_file, imgpath, options, run_info)` - Line 396
@@ -41,11 +43,13 @@ imgpath = char(imgpath);
 ```
 
 **Why This Works**:
+
 - Ensures `fileparts(imgpath)` works correctly
 - Ensures string concatenation like `[imgpath '.nii.gz']` produces char arrays
 - All subsequent operations receive proper char array types
 
 **Also Fixed**:
+
 - Line 342-343: `detect_data_type()` - Wrapped `isfile()` with `any()` for scalar logical
 - Line 135, 422: Error messages - Wrapped arguments with `char()` for proper formatting
 
@@ -75,6 +79,7 @@ description = char(p.Results.description);
 ```
 
 **Why This Works**:
+
 - `config_file` comes from shell script (may be string type)
 - Converting at entry ensures `fileparts(config_file)` works at line 55
 - Converting parsed arguments ensures all path construction uses char arrays
@@ -97,6 +102,7 @@ brain_mask_file = char(brain_mask_file);
 ```
 
 **Why This Works**:
+
 - Called from `main.m` which may pass string types from YAML config
 - `fileparts(dwi_or_b0_file)` at line 37 now works correctly
 - `movefile(bet_mask_file, brain_mask_file)` at line 69 works correctly
@@ -123,14 +129,17 @@ file_prefix = char(file_prefix);
 ## Functions That Don't Need Fixes
 
 ### `runTractography.m`
+
 - **Why**: Uses `fullfile()` for paths but doesn't receive external file paths directly
 - **Status**: ✅ No string/char issues
 
 ### `nim_registration/register_t1_to_mni.m`
+
 - **Why**: Receives `registration_data` structure, not direct file paths
 - **Status**: ✅ No string/char issues
 
 ### `nim_utils/load_config_yaml.m`
+
 - **Why**: Only reads YAML files, returns structures with values (strings are fine in structures)
 - **Status**: ✅ No string/char issues
 
@@ -157,6 +166,7 @@ ls -l hinec_runs/latest/tractography/
 ```
 
 **Expected Behavior**:
+
 1. ✅ Preprocessing runs in `ISMRM/` directory
 2. ✅ Files copied to `hinec_runs/run_YYYYMMDD_HHMMSS_hinec_default/intermediate/`
 3. ✅ DTI calculation uses copied files from run directory
@@ -184,6 +194,7 @@ end
 
 ### 2. Detect String/Char Issues
 Look for these patterns that indicate potential issues:
+
 - `fileparts(variable)` - variable MUST be char array
 - `copyfile(src, dst)` - both MUST be char arrays
 - `movefile(src, dst)` - both MUST be char arrays
@@ -191,6 +202,7 @@ Look for these patterns that indicate potential issues:
 
 ### 3. Testing with YAML Configs
 When testing with YAML config system, paths come from:
+
 - Shell script arguments (may be strings)
 - YAML file values (parsed as strings)
 - `fullfile()` results (returns string if inputs are strings)
@@ -237,6 +249,7 @@ end
 ```
 
 **Benefits**:
+
 - Single point of conversion
 - Cleaner code throughout function
 - No risk of forgetting `char()` wrapper
@@ -270,6 +283,7 @@ function nim_save(nim, nimpath)
 ```
 
 **Why This Works**:
+
 - MATLAB's `save()` function requires char array, not string type
 - Removing the `string` type declaration from arguments allows any type
 - Converting to char at entry ensures compatibility
@@ -306,6 +320,7 @@ atlas_labels_file = [file_prefix suffix_atlas_labels];
 ```
 
 **Why This Works**:
+
 - Original code used `+` operator which creates string types
 - Changed to `[]` concatenation which preserves char array type
 - `fileparts()` at line 21 now receives proper char array
@@ -316,6 +331,7 @@ atlas_labels_file = [file_prefix suffix_atlas_labels];
 ## Summary
 
 **Files Modified**: 5 files
+
 - `main.m` (3 functions) ✅
 - `nim_utils/create_run_directory.m` (1 function) ✅
 - `nim_preprocessing/preproc_brain_extraction.m` (1 function) ✅
@@ -323,6 +339,7 @@ atlas_labels_file = [file_prefix suffix_atlas_labels];
 - `nim_utils/nim_load_nim.m` (1 function) ✅ **NEW**
 
 **Files Already Correct**: 3 files
+
 - `nim_preprocessing/nim_preprocessing.m` ✅
 - `nim_utils/nim_read.m` ✅
 - `runTractography.m` ✅

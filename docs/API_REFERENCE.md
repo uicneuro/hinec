@@ -13,6 +13,7 @@ Comprehensive reference for every public function in HINEC. Organized by module 
 Core pipeline: data loading, preprocessing, DTI calculation, registration, and parcellation.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `imgpath` | char | Yes | Path to NIfTI image file (without extension) |
@@ -24,6 +25,7 @@ Core pipeline: data loading, preprocessing, DTI calculation, registration, and p
 **Returns**: None (saves nim structure to `nimpath`)
 
 **Behavior**:
+
 - Skips processing if output file already exists (caching)
 - Auto-detects raw data (filename contains `_raw`) and triggers preprocessing
 - Sequentially runs: nim_read → nim_preprocessing → nim_dt_spd → nim_eig → nim_fa → nim_registration → nim_parcellation → tissue segmentation
@@ -44,6 +46,7 @@ main('data/sample_raw', 'output/sample.mat', 't1_file', 'data/t1.nii.gz');
 Fiber tractography execution with algorithm selection and seeding strategy.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `data_path` | char | Yes | Path to .mat file with processed nim structure |
@@ -57,6 +60,7 @@ Fiber tractography execution with algorithm selection and seeding strategy.
 **Returns**: None (saves tracks to `tractography_results/` directory)
 
 **Output file**: `tracks_{algorithm}_{YYYY-MM-DD_HH_MM_SS}.mat` containing:
+
 - `tracks` — cell array of fiber tracks
 - `options` — parameters used
 - `elapsed_time` — computation time
@@ -87,11 +91,13 @@ Quick-start demo script. Loads `sample_parcellated.mat` and visualizes parcellat
 Read NIfTI-1 diffusion MRI data with acquisition parameters.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `imgpath` | char | Yes | Path to NIfTI file (without extension) |
 
 **Returns**: `nim` struct with fields:
+
 - `.img` — 4D image data [X, Y, Z, N]
 - `.img_b0` — B0 (non-diffusion) volumes
 - `.img_bi` — Diffusion-weighted volumes
@@ -118,6 +124,7 @@ Read NIfTI-1 diffusion MRI data with acquisition parameters.
 Save processed nim structure to MAT file.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `nim` | struct | Yes | NIM data structure |
@@ -134,6 +141,7 @@ Save processed nim structure to MAT file.
 Load a previously saved nim structure with associated masks and labels.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `file_prefix` | char | Yes | File path prefix for data files |
@@ -149,6 +157,7 @@ Load a previously saved nim structure with associated masks and labels.
 Load parcellation labels into nim structure. Searches for XML (FSL atlas) and MAT file formats.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `nim` | struct | Yes | NIM structure with `parcellation_mask_file` field |
@@ -164,6 +173,7 @@ Load parcellation labels into nim structure. Searches for XML (FSL atlas) and MA
 Load atlas labels from FSL XML file.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `atlas_type` | char | Yes | `'HarvardOxford'`, `'JHU'`, or `'JHU-tract'` |
@@ -179,6 +189,7 @@ Load atlas labels from FSL XML file.
 Parse YAML configuration file into MATLAB struct.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `config_file` | char | Yes | Path to YAML config file |
@@ -194,6 +205,7 @@ Parse YAML configuration file into MATLAB struct.
 Create organized, timestamped run directory for reproducibility.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `config_file` | char | Yes | Path to YAML config file |
@@ -202,6 +214,7 @@ Create organized, timestamped run directory for reproducibility.
 | `'description'` | char | No | Run description |
 
 **Returns**: `run_info` struct with fields:
+
 - `.run_dir` — Full path to created directory
 - `.config_file` — Path to copied config
 - `.logs_dir`, `.intermediate_dir`, `.output_dir`, `.tractography_dir`, `.diagnostics_dir`
@@ -221,6 +234,7 @@ Create organized, timestamped run directory for reproducibility.
 Calculate diffusion tensors with SPD (symmetric positive-definite) constraint.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `nim` | struct | Yes | NIM structure with `.img`, `.bval`, `.bvec` |
@@ -229,11 +243,13 @@ Calculate diffusion tensors with SPD (symmetric positive-definite) constraint.
 | `opts.FontSize` | int | No | Plot font size. Default: 16 |
 
 **Returns**: `nim` updated with:
+
 - `.DT` — [X, Y, Z, 6] diffusion tensor components
 - `.evec` — [X, Y, Z, 3, 3] sorted eigenvectors
 - `.eval` — [X, Y, Z, 3] sorted eigenvalues (descending)
 
 **Behavior**:
+
 1. Compute ADC: Y = ln(S₀/S) / b
 2. Build design matrix H from gradient directions
 3. Least squares fit: D = H \ Y for each voxel
@@ -250,6 +266,7 @@ Calculate diffusion tensors with SPD (symmetric positive-definite) constraint.
 Basic diffusion tensor calculation without SPD enforcement.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `nim` | struct | Yes | NIM structure with `.img`, `.bval`, `.bvec` |
@@ -266,12 +283,14 @@ Basic diffusion tensor calculation without SPD enforcement.
 Eigendecomposition of diffusion tensors.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `nim` | struct | Yes | NIM structure with `.DT` |
 | `opts.Mask` | string | No | `"on"` (default) or `"off"` |
 
 **Returns**: `nim` updated with:
+
 - `.evec` — [X, Y, Z, 3, 3] eigenvectors (columns sorted by eigenvalue)
 - `.eval` — [X, Y, Z, 3] eigenvalues (sorted descending via `maxk()`)
 
@@ -284,6 +303,7 @@ Eigendecomposition of diffusion tensors.
 Compute fractional anisotropy from eigenvalues.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `nim` | struct | Yes | NIM structure with `.eval` |
@@ -302,6 +322,7 @@ Compute fractional anisotropy from eigenvalues.
 Orchestrator for the 10-step FSL-based preprocessing pipeline (815 lines).
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `file_prefix` | char | Yes | Path prefix for input files |
@@ -357,6 +378,7 @@ Thresholds: WM: FA > 0.2 (eroded), GM: 0.05 < FA ≤ 0.2, CSF: FA ≤ 0.05.
 Multi-modal registration pipeline orchestrator.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `nim` | struct | Yes | NIM structure with `.FA` |
@@ -393,6 +415,7 @@ Register T1 to MNI152 template. Two-stage: linear (FLIRT 12 DOF) + optional nonl
 Apply a chain of transforms between coordinate spaces.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `input_file` | char | Yes | Input image file |
@@ -424,6 +447,7 @@ Apply a chain of transforms between coordinate spaces.
 Atlas-based brain parcellation.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `nim` | struct | Yes | NIM structure |
@@ -454,12 +478,14 @@ Enhanced parcellation using multi-modal registration chain (MNI → T1 → DWI).
 FACT (Fiber Assignment by Continuous Tracking) deterministic tractography.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `data_path` | char or struct | Yes | Path to .mat file or nim struct |
 | `options` | struct | No | Tractography parameters (see below) |
 
 **Options**:
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `seed_density` | int | 1 | Seeds per voxel dimension |
@@ -514,6 +540,7 @@ High-order deterministic tractography with interpolation, numerical integration,
 Legacy high-order tractography with spline/linear interpolation and RK4/RK2 integration.
 
 **Parameters**:
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `order` | int | 3 | Interpolation order (high-order: spline, 1: linear) |
@@ -535,6 +562,7 @@ Legacy high-order tractography with spline/linear interpolation and RK4/RK2 inte
 3D visualization of fiber tracks.
 
 **Options**:
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `color_mode` | char | `'direction'` | `'direction'`, `'fa'`, `'parcellation'` |
@@ -554,6 +582,7 @@ Limits display to 2000 tracks for performance.
 Visualize tracks for a specific brain region with filtering.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `tracks` | cell | Yes | Fiber tracks |
@@ -561,6 +590,7 @@ Visualize tracks for a specific brain region with filtering.
 | `region_id` | int | Yes | Parcellation region index |
 
 **Options**:
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `filter_mode` | char | `'pass_through'` | `'pass_through'`, `'start_in'`, `'end_in'`, `'connect_to'` |
@@ -581,6 +611,7 @@ Visualize tracks for a specific brain region with filtering.
 Compute and visualize region-to-region connectivity matrix.
 
 **Options**:
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `min_track_length` | int | 10 | Minimum track points |
@@ -600,6 +631,7 @@ Creates 4-subplot figure: heatmap, histogram, node strengths, and summary.
 Visualize eigenvector field on a 2D slice.
 
 **Options**:
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `slice` | int | middle | Slice index |
@@ -618,12 +650,14 @@ Masks vectors by FA > 0.2 and overlays on FA background.
 Compute excitation propagation time map based on DTI anisotropy.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `nim` | struct | Yes | NIM with `.FA` and `.evec` |
 | `seed_points` | Nx3 | Yes | Seed coordinates |
 
 **Options**:
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `conduction_speed` | double | 1.0 | Base conduction speed |
@@ -644,12 +678,14 @@ Compute excitation propagation time map based on DTI anisotropy.
 Unified tractography visualization with 4 modes. Supports run directory auto-detection.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `tracks_file` | char | Yes | Path to tracks .mat file (supports wildcards and run dirs) |
 | `nim_file` | char | Yes | Path to nim .mat file |
 
 **Name-Value Options**:
+
 | Name | Type | Default | Description |
 |---|---|---|---|
 | `'mode'` | char | `'whole'` | `'whole'`, `'region'`, `'grid'`, `'sequential'` |
@@ -669,6 +705,7 @@ Unified tractography visualization with 4 modes. Supports run directory auto-det
 Command-line 2D slice viewer with three orthogonal views.
 
 **Name-Value Options**:
+
 | Name | Type | Default | Description |
 |---|---|---|---|
 | `'slice_axial'` | int | middle | Axial slice index |
@@ -687,6 +724,7 @@ Command-line 2D slice viewer with three orthogonal views.
 Server-side pre-generation of slice images for fast distributed viewing.
 
 **Parameters**:
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `tracks_file` | char | Yes | Path to tracks .mat file |
@@ -694,6 +732,7 @@ Server-side pre-generation of slice images for fast distributed viewing.
 | `output_dir` | char | Yes | Output directory for cache |
 
 **Name-Value Options**:
+
 | Name | Type | Default | Description |
 |---|---|---|---|
 | `'resolution'` | [1x2] | [800, 600] | Image resolution [width, height] |
@@ -718,6 +757,7 @@ Complete cache generation pipeline with parallel processing and quality validati
 Class for managing slice cache directories with JSON metadata.
 
 **Methods**:
+
 | Method | Description |
 |---|---|
 | `TractographyCacheManager(cache_dir)` | Constructor |
@@ -760,6 +800,7 @@ MATLAB bridge to Python FastTractographyViewer. Auto-generates cache, checks Pyt
 DTI eigenvector visualization.
 
 **Name-Value Options**:
+
 | Name | Type | Default | Description |
 |---|---|---|---|
 | `'mode'` | char | `'single'` | `'single'`, `'parcel'`, `'parcels'` |
@@ -777,6 +818,7 @@ Color coding follows DTI convention: Red = Left/Right (X), Green = Anterior/Post
 Reshape 6-element diffusion vector to 3×3 symmetric matrix.
 
 **Input**: `d` — [Dxx, Dyy, Dzz, Dxy, Dxz, Dyz]
+
 **Output**: `D` — 3×3 symmetric tensor matrix.
 
 ---
@@ -804,6 +846,7 @@ High-order spectral interpolation of eigenvectors using GLL quadrature nodes.
 Compute Gauss-Lobatto-Legendre quadrature nodes and weights.
 
 **Input**: `p` — polynomial degree.
+
 **Returns**: `[z, w]` — (p+1)×1 nodes on [-1, 1] and weights.
 
 ---

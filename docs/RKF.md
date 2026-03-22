@@ -4,9 +4,9 @@
 
 We seek a numerical solution to the initial value problem (IVP)
 for a (possibly vector-valued) ODE:
-\[
+\(
 \frac{dy}{dx} = f(x, y), \quad y(x_0) = y_0,
-\]
+\)
 where \(y \in \mathbb{R}^m\) and \(f: \mathbb{R} \times \mathbb{R}^m \to \mathbb{R}^m\).
 
 ### 2. Explicit s-Stage Runge–Kutta Method
@@ -15,7 +15,7 @@ An explicit \(s\)-stage Runge–Kutta (RK) method advances the solution
 from \((x_n, y_n)\) to \((x_{n+1}, y_{n+1})\) with step size \(h\) by:
 
 1. Compute stages \(k_i\):
-   \[
+   \(
    \begin{aligned}
    k_1 &= f(x_n, y_n), \\
    k_2 &= f\!\bigl(x_n + c_2 h,\; y_n + h a_{21} k_1 \bigr), \\
@@ -23,12 +23,12 @@ from \((x_n, y_n)\) to \((x_{n+1}, y_{n+1})\) with step size \(h\) by:
        &\quad \vdots \\
    k_s &= f\!\bigl(x_n + c_s h,\; y_n + h (a_{s1}k_1 + \cdots + a_{s,s-1}k_{s-1}) \bigr).
    \end{aligned}
-   \]
+   \)
 
 2. Update solution:
-   \[
+   \(
    y_{n+1} = y_n + h \sum_{i=1}^s b_i k_i.
-   \]
+   \)
 
 The coefficients \(a_{ij}, b_i, c_i\) define the scheme and are usually
 presented in a **Butcher tableau**:
@@ -58,12 +58,12 @@ but two different sets of weights:
 - The other gives an approximation \(\hat{y}_{n+1}\) of order \(q = p+1\) (higher order).
 
 Given stages \(k_i\) from above, we form:
-\[
+\(
 \begin{aligned}
 \hat{y}_{n+1} &= y_n + h \sum_{i=1}^s \hat{b}_i k_i \quad \text{(higher order, e.g. 5th)}, \\
 \tilde{y}_{n+1} &= y_n + h \sum_{i=1}^s b_i k_i \quad \text{(lower order, e.g. 4th)}.
 \end{aligned}
-\]
+\)
 
 Here \(\hat{b}_i\) and \(b_i\) are the two sets of weights (often called
 “embedded weights”). Both approximations reuse the same \(k_i\).
@@ -109,15 +109,15 @@ Given a user-specified tolerance `tol`, we compare:
 
 - If `err <= tol`:
   - Accept the step:
-    \[
+    \(
     y_{n+1} \gets \hat{y}_{n+1} \quad (\text{use higher-order solution}),
-    \]
+    \)
   - Optionally increase the step size for the next step.
 - If `err > tol`:
   - Reject the step:
-    \[
+    \(
     y_{n+1} \text{ not updated},
-    \]
+    \)
   - Decrease the step size and recompute.
 
 A typical step size update rule for a RK5(4) pair is:
@@ -133,9 +133,9 @@ where:
 
 Commonly, \(h_{\text{new}}\) is also constrained, e.g.:
 
-\[
+\(
 h_{\text{new}} = \max(h_{\min}, \min(h_{\max}, h_{\text{new}})),
-\]
+\)
 and sometimes limited in growth (e.g. at most doubled per step).
 
 ---
@@ -146,19 +146,19 @@ Given \((x_n, y_n)\) and current step size \(h\):
 
 1. Compute stages \(k_1, \dots, k_s\) using coefficients \(a_{ij}, c_i\).
 2. Compute:
-   - higher-order solution \(\hat{y}_{n+1}\) using weights \(\hat{b}_i\),
-   - lower-order solution \(\tilde{y}_{n+1}\) using weights \(b_i\).
+    - higher-order solution \(\hat{y}_{n+1}\) using weights \(\hat{b}_i\),
+    - lower-order solution \(\tilde{y}_{n+1}\) using weights \(b_i\).
 3. Compute error estimate:
-   \[
+   \(
    e_{n+1} = \hat{y}_{n+1} - \tilde{y}_{n+1},
    \quad \text{err} = \| e_{n+1} \|.
-   \]
+   \)
 4. If `err <= tol`:
-   - accept step: \(x_{n+1} = x_n + h\), \(y_{n+1} = \hat{y}_{n+1}\).
+    - accept step: \(x_{n+1} = x_n + h\), \(y_{n+1} = \hat{y}_{n+1}\).
 5. Choose new step size:
-   \[
+   \(
    h_{\text{new}} = \text{safety} \cdot h \left( \frac{\text{tol}}{\text{err}} \right)^{1/5},
-   \]
+   \)
    with appropriate bounds and growth limits.
 6. If the step was rejected, retry with \(h_{\text{new}}\).
 
