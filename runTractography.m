@@ -250,6 +250,13 @@ fprintf('==========================\n');
 % Generate timestamp for output filename
 timestamp = datestr(now, 'yyyy-mm-dd_HH_MM_SS');
 
+% Pass output directory to tractography functions
+if use_run_dir
+    options.output_dir = run_info.tractography_dir;
+else
+    options.output_dir = 'tractography_results';
+end
+
 if strcmpi(algorithm, 'hinec')
     fprintf('Running HINEC high-order tractography (interpolation + RK4 + ACT)...\n');
     tic;

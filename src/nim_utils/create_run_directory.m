@@ -63,36 +63,30 @@ function run_info = create_run_directory(config_file, varargin)
 
     run_dir = fullfile(base_dir, run_name);
 
-    % Check if directory already exists
-    if exist(run_dir, 'dir')
-        warning('Run directory already exists: %s', run_dir);
-        % Append counter to make it unique
-        counter = 1;
-        while exist(sprintf('%s_%d', run_dir, counter), 'dir')
-            counter = counter + 1;
-        end
-        run_dir = sprintf('%s_%d', run_dir, counter);
-        fprintf('Using unique name: %s\n', run_dir);
-    end
-
-    % Create run directory
-    mkdir(run_dir);
-    fprintf('Created run directory: %s\n', run_dir);
-
-    % Create subdirectories
+    % Define subdirectories
     logs_dir = fullfile(run_dir, 'logs');
     intermediate_dir = fullfile(run_dir, 'intermediate');
     output_dir = fullfile(run_dir, 'output');
     tractography_dir = fullfile(run_dir, 'tractography');
     diagnostics_dir = fullfile(tractography_dir, 'diagnostics');
 
-    mkdir(logs_dir);
-    mkdir(intermediate_dir);
-    mkdir(output_dir);
-    mkdir(tractography_dir);
-    mkdir(diagnostics_dir);
+    % Check if directory already exists (e.g. pre-created by shell script)
+    if exist(run_dir, 'dir')
+        fprintf('Reusing existing run directory: %s\n', run_dir);
+    else
+        mkdir(run_dir);
+        fprintf('Created run directory: %s\n', run_dir);
+    end
 
-    fprintf('Created subdirectories:\n');
+    % Create subdirectories (mkdir is safe if they already exist)
+    subdirs = {logs_dir, intermediate_dir, output_dir, tractography_dir, diagnostics_dir};
+    for i = 1:length(subdirs)
+        if ~exist(subdirs{i}, 'dir')
+            mkdir(subdirs{i});
+        end
+    end
+
+    fprintf('Subdirectories ready:\n');
     fprintf('  logs/         - Pipeline logs\n');
     fprintf('  intermediate/ - Preprocessing artifacts\n');
     fprintf('  output/       - Final processed data\n');

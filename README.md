@@ -15,6 +15,10 @@ Human brain white matter tractography pipeline with **YAML-based parameter confi
 
 # Fast exploration (parameter testing)
 ./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/fast_exploration.yml
+
+# Export visualization figures (headless, no interactive MATLAB needed)
+./bin/run_visualization.sh hinec_runs/run_20260330_*/
+./bin/run_visualization.sh hinec_runs/run_20260330_*/ '' grid png
 ```
 
 **NEW**: All runs are now automatically organized in `hinec_runs/run_YYYYMMDD_HHMMSS_<config>/` directories! No more scattered files cluttering your workspace.
@@ -72,6 +76,7 @@ hinec_runs/run_20250118_143045_high_precision/
 - `hinec_default.yml` - Balanced performance (recommended)
 - `high_precision.yml` - Publication quality (RKF45 adaptive)
 - `fast_exploration.yml` - Quick parameter testing (3-5x faster)
+- `euler_interpolated.yml` - Euler with trilinear interpolation
 - `irontract.yml` - IronTract challenge optimized
 
 **Documentation**: See [docs/YAML_CONFIG.md](docs/YAML_CONFIG.md)

@@ -315,6 +315,34 @@ visualizeTractography('tracks.mat', 'nim.mat', 'mode', 'whole', ...
     'export', 'figures/whole_brain.png');
 ```
 
+### CLI Visualization Export (Shell Script)
+
+Export figures headlessly without an interactive MATLAB session:
+
+```bash
+# From a run directory (auto-detects tracks + nim files)
+./bin/run_visualization.sh hinec_runs/run_20260330_*/
+
+# Specify mode and format
+./bin/run_visualization.sh hinec_runs/run_20260330_*/ '' grid png
+
+# Export specific region as PDF
+./bin/run_visualization.sh hinec_runs/run_20260330_*/ '' region pdf 5
+
+# With explicit file paths and custom output directory
+./bin/run_visualization.sh tracks.mat nim.mat figures/ whole png '' 600
+```
+
+Arguments: `<run_dir|tracks_file> [nim_file] [output_dir] [mode] [format] [region] [dpi]`
+
+| Argument | Default | Options |
+|----------|---------|---------|
+| mode | `whole` | `whole`, `region`, `grid`, `sequential` |
+| format | `png` | `png`, `pdf`, `eps` |
+| dpi | `300` | Any positive integer |
+
+Output is saved to `<run_dir>/figures/<mode>/` by default.
+
 ### Interactive Slice Viewer
 
 ```matlab

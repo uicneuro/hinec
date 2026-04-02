@@ -201,6 +201,9 @@ failure_reasons.no_boundary_exit = 0;
 failure_reasons.short_tracks = 0;
 failure_reasons.successful = 0;
 
+% Termination reason counters
+term_reasons = containers.Map('KeyType', 'char', 'ValueType', 'int64');
+
 % Convert angle threshold to cosine for efficiency
 cos_angle_thresh = cos(deg2rad(options.angle_thresh));
 
@@ -223,22 +226,29 @@ for i = 1:size(seed_points, 1)
         rate = i / elapsed;
         eta = (size(seed_points, 1) - i) / rate;
         fprintf('\n%d/%d (%.1f seeds/s, ETA: %.1f min) ', i, size(seed_points, 1), rate, eta/60);
-        % m = memory;
-        % fprintf('\nMemory: %.1f GB used', m.MemUsedMATLAB/1e9);
     end
-    
+
     seed = seed_points(i, :);
 
     % Track in both directions and combine into one track
     if options.enable_diagnostics
-        [track_forward, step_timing_fwd] = track_fiber_fact(nim, seed, +1, options, cos_angle_thresh);
-        [track_backward, step_timing_bwd] = track_fiber_fact(nim, seed, -1, options, cos_angle_thresh);
+        [track_forward, step_timing_fwd, reason_fwd] = track_fiber_fact(nim, seed, +1, options, cos_angle_thresh);
+        [track_backward, step_timing_bwd, reason_bwd] = track_fiber_fact(nim, seed, -1, options, cos_angle_thresh);
         timing.interpolation_time = timing.interpolation_time + step_timing_fwd.interpolation_time + step_timing_bwd.interpolation_time;
         timing.boundary_time = timing.boundary_time + step_timing_fwd.boundary_time + step_timing_bwd.boundary_time;
         timing.step_count = timing.step_count + step_timing_fwd.step_count + step_timing_bwd.step_count;
+        % Count termination reasons
+        for r = {reason_fwd, reason_bwd}
+            key = r{1};
+            if term_reasons.isKey(key)
+                term_reasons(key) = term_reasons(key) + 1;
+            else
+                term_reasons(key) = int64(1);
+            end
+        end
     else
-        track_forward = track_fiber_fact(nim, seed, +1, options, cos_angle_thresh);
-        track_backward = track_fiber_fact(nim, seed, -1, options, cos_angle_thresh);
+        [track_forward, ~, ~] = track_fiber_fact(nim, seed, +1, options, cos_angle_thresh);
+        [track_backward, ~, ~] = track_fiber_fact(nim, seed, -1, options, cos_angle_thresh);
     end
 
     % Diagnostic: Check if tracks were generated
@@ -306,12 +316,31 @@ other_failures = total_attempts - failure_reasons.no_initial_direction - failure
 fprintf('Failed during generation: %d (%.1f%%)\n', other_failures, 100*other_failures/total_attempts);
 fprintf('========================\n');
 
+% Termination reason breakdown
+if options.enable_diagnostics && term_reasons.Count > 0
+    fprintf('\n=== TERMINATION REASON BREAKDOWN ===\n');
+    total_dir_tracks = size(seed_points, 1) * 2;
+    keys = term_reasons.keys;
+    vals = cell2mat(term_reasons.values);
+    [~, sort_idx] = sort(vals, 'descend');
+    for k = 1:length(sort_idx)
+        key = keys{sort_idx(k)};
+        count = term_reasons(key);
+        fprintf('  %-20s: %7d (%5.1f%%)\n', key, count, 100*double(count)/total_dir_tracks);
+    end
+    fprintf('====================================\n');
+end
+
 if success_rate < 10
     fprintf('⚠️  WARNING: Extremely low success rate! Check algorithm parameters.\n');
 end
 
 % SAVE RESULTS AUTOMATICALLY
-output_dir = 'tractography_results';
+if isfield(options, 'output_dir') && ~isempty(options.output_dir)
+    output_dir = options.output_dir;
+else
+    output_dir = 'tractography_results';
+end
 if ~exist(output_dir, 'dir')
     mkdir(output_dir);
 end
@@ -421,7 +450,7 @@ seed_info = struct('description', description, ...
                    'voxel_spacing', voxel_spacing);
 end
 
-function [track, step_timing] = track_fiber_fact(nim, seed, direction, options, cos_angle_thresh)
+function [track, step_timing, termination_reason] = track_fiber_fact(nim, seed, direction, options, cos_angle_thresh)
 % FACT: Fiber Assignment by Continuous Tracking with voxel boundary intersection
 %
 % TRUE FACT ALGORITHM:
@@ -443,12 +472,15 @@ function [track, step_timing] = track_fiber_fact(nim, seed, direction, options, 
 %
 % Returns:
 %   track - Array of positions along fiber track
+%   step_timing - Timing diagnostics
+%   termination_reason - String indicating why tracking stopped
 
 % Initialize position and streamline
 current_pos = seed;
 track = zeros(options.max_steps + 1, 3);
 track(1, :) = current_pos;
 track_length = 1;
+termination_reason = 'unknown';
 
 % Initialize timing
 if nargout > 1
@@ -462,6 +494,7 @@ end
 [dir_vec, fa_val] = get_voxel_direction_fact(nim, current_pos, options);
 if isempty(dir_vec) || fa_val < options.termination_fa
     track = track(1:track_length, :);
+    termination_reason = 'initial_fa';
     return;
 end
 
@@ -480,6 +513,7 @@ while true
 
     % Check termination criteria BEFORE advancing
     if fa_val < options.termination_fa
+        termination_reason = 'fa';
         break;
     end
 
@@ -490,6 +524,7 @@ while true
         if norm(current_step) > 1e-6
             current_step = current_step / norm(current_step);
             if dot(dir_vec, current_step) < cos_angle_thresh
+                termination_reason = 'angle';
                 break;
             end
         end
@@ -497,6 +532,7 @@ while true
 
     % Check maximum steps
     if track_length >= options.max_steps
+        termination_reason = 'max_steps';
         break;
     end
 
@@ -505,6 +541,7 @@ while true
 
     % Check if exit point is valid
     if isempty(exit_point) || any(exit_point < 1) || any(exit_point > dims)
+        termination_reason = 'no_exit';
         break;
     end
 
@@ -517,6 +554,7 @@ while true
         exit_voxel = round(exit_point);
         if all(exit_voxel >= 1) && all(exit_voxel <= dims)
             if ~nim.dilated_brain_mask(exit_voxel(1), exit_voxel(2), exit_voxel(3))
+                termination_reason = 'brain_mask';
                 break;
             end
         end
@@ -536,6 +574,7 @@ while true
     % Get new direction from new voxel (no interpolation - true FACT)
     [new_dir, fa_val] = get_voxel_direction_fact(nim, current_pos, options);
     if isempty(new_dir)
+        termination_reason = 'no_direction';
         break;
     end
 
@@ -556,10 +595,10 @@ function exit_point = find_voxel_boundary_exit(position, direction, dims)
 
 exit_point = [];
 
-% Get current voxel bounds
-current_voxel = floor(position);
-voxel_min = current_voxel;
-voxel_max = current_voxel + 1;
+% Get current voxel bounds (centered on nearest integer, matching round() in direction lookup)
+current_voxel = round(position);
+voxel_min = current_voxel - 0.5;
+voxel_max = current_voxel + 0.5;
 
 % Find intersection with all 6 voxel faces
 min_t = inf;
@@ -601,9 +640,12 @@ for dim = 1:3
     end
 end
 
-% Return the closest valid exit point
+% Return the closest valid exit point, nudged past the boundary
 if ~isempty(best_exit) && min_t < inf
-    exit_point = best_exit;
+    % Nudge slightly along direction to cross into the next voxel.
+    % Without this, round() assigns boundary points (n.5) back to the
+    % same voxel due to MATLAB's round-half-away-from-zero behavior.
+    exit_point = best_exit + 1e-4 * direction;
     % Ensure exit point is within volume bounds
     exit_point = max(exit_point, [1, 1, 1]);
     exit_point = min(exit_point, dims);

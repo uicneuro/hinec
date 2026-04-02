@@ -1,0 +1,39 @@
+# HINEC Pipeline Configuration - Euler Interpolated
+# Euler integration (order 1) with trilinear interpolation
+# Comparison point between pure FACT and higher-order methods
+
+preprocessing:
+  run_denoising: true
+  denoise_method: "dwidenoise"
+  run_motion_correction: true
+  run_eddy: true
+  improve_mask: true
+  atlas_type: "jhu"
+  t1_available: false
+  use_t1_registration: false
+  register_to_mni: false
+
+tractography:
+  algorithm: "hinec"
+
+  # Euler integration with trilinear interpolation
+  integration_order: 1
+  interp_method: "trilinear"
+
+  # Step size
+  step_size: 0.5
+  adaptive_step: false
+
+  # Seeding parameters
+  seed_density: 4
+  seed_strategy: "uniform"
+
+  # Termination criteria (match default for fair comparison)
+  termination_fa: 0.2
+  angle_thresh: 35
+  max_steps: 800
+  min_length: 45
+
+  # ACT
+  act_enabled: true
+  enable_diagnostics: true

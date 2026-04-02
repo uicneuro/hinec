@@ -425,6 +425,62 @@ print('-dpdf', '-r300', 'figures/fig1_final.pdf');
 
 ---
 
+## CLI Export with Shell Script
+
+Export tractography figures from the command line without an interactive MATLAB session. The script wraps `visualizeTractography()` with `export_dir` set and runs in the background.
+
+### Usage
+
+```bash
+# From a run directory (auto-detects tracks + nim)
+./bin/run_visualization.sh <run_dir> [output_dir] [mode] [format] [region] [dpi]
+
+# With explicit file paths
+./bin/run_visualization.sh <tracks_file> <nim_file> [output_dir] [mode] [format] [region] [dpi]
+```
+
+### Arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `output_dir` | `<run_dir>/figures/` | Where to save exported images |
+| `mode` | `whole` | `whole`, `region`, `grid`, `sequential` |
+| `format` | `png` | `png`, `pdf`, `eps` |
+| `region` | — | Region ID(s) for region mode (e.g., `5` or `5,10,15`) |
+| `dpi` | `300` | Export resolution |
+
+### Examples
+
+```bash
+# Whole brain 3D view (default)
+./bin/run_visualization.sh hinec_runs/run_20260330_124146_standard_fact/
+
+# Grid layout of all regions as PDF
+./bin/run_visualization.sh hinec_runs/run_20260330_*/ '' grid pdf
+
+# Specific regions at high resolution
+./bin/run_visualization.sh hinec_runs/run_20260330_*/ '' region png '5,10,15' 600
+
+# Custom output directory with explicit files
+./bin/run_visualization.sh tracks.mat nim.mat publication_figures/ whole pdf '' 600
+```
+
+### Output Structure
+
+```
+<output_dir>/
+├── whole/              tractography_whole.png
+├── region/             tractography_region-05.png
+├── grid/               tractography_grid.png
+├── sequential/         sequential_region-01.png, ...
+└── metadata/
+    └── export_log.txt  (reproducibility metadata)
+```
+
+Logs are saved to `<run_dir>/logs/visualization_<timestamp>.log`. Monitor with `tail -f`.
+
+---
+
 ## Cross-References
 
 - Distributed workflow setup: [DISTRIBUTED_WORKFLOW.md](DISTRIBUTED_WORKFLOW.md)

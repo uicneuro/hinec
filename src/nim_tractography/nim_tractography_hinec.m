@@ -540,7 +540,11 @@ if success_rate < 10
 end
 
 % SAVE RESULTS AUTOMATICALLY
-output_dir = 'tractography_results';
+if isfield(options, 'output_dir') && ~isempty(options.output_dir)
+    output_dir = options.output_dir;
+else
+    output_dir = 'tractography_results';
+end
 if ~exist(output_dir, 'dir')
     mkdir(output_dir);
 end

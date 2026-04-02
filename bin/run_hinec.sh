@@ -81,15 +81,22 @@ if [[ -f "$t1_file" ]]; then
     printf 'Found T1 anatomical: %s\n' "$t1_file"
 fi
 
-# Create timestamped log file
-timestamp=$(date +"%Y-%m-%d_%H_%M_%S")
-log_file="hinec_${timestamp}.log"
-
 # Helper function to escape MATLAB strings
 escape_matlab_string() {
     local str=$1
     printf "%s" "${str//\'/''}"
 }
+
+# Create run directory from shell (matches MATLAB create_run_directory naming)
+timestamp=$(date +"%Y%m%d_%H%M%S")
+config_name=$(basename "$config_file" .yml)
+run_name="run_${timestamp}_${config_name}"
+run_dir="hinec_runs/${run_name}"
+
+mkdir -p "${run_dir}/logs" "${run_dir}/intermediate" "${run_dir}/output" "${run_dir}/tractography/diagnostics"
+cp "$config_file" "${run_dir}/config.yml"
+
+log_file="${run_dir}/logs/pipeline.log"
 
 # Build MATLAB command
 printf '\n========================================\n'
@@ -98,6 +105,7 @@ printf '========================================\n'
 printf 'Input: %s\n' "$raw_file"
 printf 'Output: %s\n' "$output_mat"
 printf 'Config: %s\n' "$config_file"
+printf 'Run dir: %s\n' "$run_dir"
 printf 'Log: %s\n' "$log_file"
 printf '========================================\n\n'
 
@@ -105,22 +113,23 @@ printf '========================================\n\n'
 printf 'Starting background execution...\n'
 
 # Combine both phases into single MATLAB command
+# Pass pre-created run directory to MATLAB instead of creating it there
 matlab_command="addpath(genpath('.')); "
 matlab_command+="fprintf('\\n========================================\\n'); "
 matlab_command+="fprintf('LOADING CONFIGURATION\\n'); "
 matlab_command+="fprintf('========================================\\n'); "
 matlab_command+="config = load_config_yaml('$(escape_matlab_string "$config_file")'); "
 matlab_command+="fprintf('\\n========================================\\n'); "
-matlab_command+="fprintf('CREATING RUN DIRECTORY\\n'); "
+matlab_command+="fprintf('USING RUN DIRECTORY\\n'); "
 matlab_command+="fprintf('========================================\\n'); "
-matlab_command+="run_info = create_run_directory('$(escape_matlab_string "$config_file")'); "
+matlab_command+="run_info = create_run_directory('$(escape_matlab_string "$config_file")', 'run_name', '$(escape_matlab_string "$run_name")'); "
 matlab_command+="fprintf('\\n========================================\\n'); "
 matlab_command+="fprintf('PHASE 1: Preprocessing and DTI calculation\\n'); "
 matlab_command+="fprintf('========================================\\n'); "
 matlab_command+="main('$(escape_matlab_string "$data_prefix")', '$(escape_matlab_string "$output_mat")', config, run_info); "
 matlab_command+="fprintf('\\n✅ Phase 1 complete\\n\\n'); "
 matlab_command+="fprintf('========================================\\n'); "
-matlab_command+="fprintf('PHASE 2: HINEC High-order Tractography\\n'); "
+matlab_command+="fprintf('PHASE 2: Tractography\\n'); "
 matlab_command+="fprintf('========================================\\n'); "
 matlab_command+="[~, output_mat_name, output_mat_ext] = fileparts('$(escape_matlab_string "$output_mat")'); "
 matlab_command+="output_mat_path = fullfile(run_info.output_dir, [output_mat_name output_mat_ext]); "
@@ -135,7 +144,7 @@ matlab_command+="fprintf('  Logs: %s\\n', run_info.logs_dir); "
 matlab_command+="fprintf('Configuration: %s\\n', '$(escape_matlab_string "$config_file")'); "
 matlab_command+="fprintf('========================================\\n');"
 
-# Run in background with nohup
+# Run in background with nohup, log goes directly into run directory
 nohup matlab -batch "$matlab_command" > "$log_file" 2>&1 &
 pid=$!
 
@@ -143,13 +152,12 @@ printf '\n========================================\n'
 printf 'HINEC PIPELINE LAUNCHED IN BACKGROUND\n'
 printf '========================================\n'
 printf 'Process ID (PID): %d\n' "$pid"
-printf 'Startup log: %s\n' "$log_file"
+printf 'Run directory: %s\n' "$run_dir"
 printf 'Config file: %s\n' "$config_file"
-printf '\nOrganized run directory will be created:\n'
-printf '  hinec_runs/run_YYYYMMDD_HHMMSS_<config>/\n'
+printf '\nDirectory structure:\n'
+printf '  %s/\n' "$run_dir"
 printf '    ├── config.yml          (copy of config used)\n'
-printf '    ├── run_info.txt        (run metadata)\n'
-printf '    ├── logs/               (pipeline logs)\n'
+printf '    ├── logs/pipeline.log   (live log output)\n'
 printf '    ├── intermediate/       (preprocessing artifacts)\n'
 printf '    ├── output/             (processed .mat file)\n'
 printf '    └── tractography/       (tracks + diagnostics)\n'
@@ -162,7 +170,7 @@ printf '\nKill if needed:\n'
 printf '  kill %d\n' "$pid"
 printf '\nView results when complete:\n'
 printf '  ls -lt hinec_runs/latest/\n'
-printf '  ls -lt hinec_runs/\n'
+printf '  ls -lt %s/\n' "$run_dir"
 printf '\nEdit configuration:\n'
 printf '  nano %s\n' "$config_file"
 printf '========================================\n'

@@ -31,6 +31,7 @@ HINEC (HIgh-order NEural Connectivity) is a MATLAB-based pipeline for processing
 - `generateSlices(tracks_file, nim_file, output_dir)` - Server-side slice generation for distributed viewing
 - `launchFastViewer(tracks_file, nim_file)` - MATLAB bridge to Python fast viewer
 - `FastTractographyViewer.py` - Python GUI for instant slice navigation (no MATLAB required)
+- `bin/run_visualization.sh <run_dir> [output_dir] [mode] [format] [region] [dpi]` - CLI figure export (headless)
 
 ## Architecture
 
