@@ -65,10 +65,45 @@ No build step is required. MATLAB source files are used directly.
 
 ## 3. Quick Start
 
-Process the sample data end-to-end in under 5 minutes:
+### Using Shell Scripts (Recommended)
+
+The simplest way to run HINEC end-to-end — preprocessing, DTI, and tractography in one command:
+
+```bash
+cd /path/to/hinec
+
+# Process sample data with default configuration
+./bin/run_hinec.sh data/parcellation_sample/sample sample.mat
+
+# Export visualization figures (after pipeline completes)
+./bin/run_visualization.sh hinec_runs/run_*_hinec_default/ figures/sample
+```
+
+The first argument is a **data prefix** — this is the shared path and name that all your input files have in common, without any suffix or extension. For example, given these files:
+
+```
+data/parcellation_sample/
+├── sample_raw.nii.gz    ← raw diffusion data
+├── sample.bval          ← b-values
+├── sample.bvec          ← b-vectors
+└── sample_T1.nii.gz     ← T1 anatomical (optional)
+```
+
+The data prefix is `data/parcellation_sample/sample` — HINEC appends `_raw.nii.gz`, `.bval`, `.bvec`, etc. automatically.
+
+More examples:
+
+| Your files | Data prefix |
+|---|---|
+| `data/ISMRM/ISMRM_raw.nii.gz`, `ISMRM.bval`, `ISMRM.bvec` | `data/ISMRM/ISMRM` |
+| `subjects/sub01/dwi_raw.nii.gz`, `dwi.bval`, `dwi.bvec` | `subjects/sub01/dwi` |
+| `my_data.nii.gz`, `my_data.bval`, `my_data.bvec` | `my_data` |
+
+If your files end in `_raw.nii.gz`, HINEC runs FSL preprocessing automatically. If they end in just `.nii.gz` (no `_raw`), it assumes data is already preprocessed.
+
+### Using MATLAB
 
 ```matlab
-% In MATLAB, navigate to the hinec directory
 cd /path/to/hinec
 
 % Process sample data (preprocessed, no FSL needed)
@@ -85,10 +120,7 @@ nim_plot(nim, 'mode', 'single');
 Or use the pre-computed sample:
 
 ```matlab
-% Load pre-computed results
 load('data/parcellation_sample/sample_motion_corrected.mat');
-
-% Visualize parcellations
 nim_plot(nim, 'mode', 'parcels');
 ```
 
@@ -137,16 +169,26 @@ main('path/to/data/subject', 'output/subject.mat', ...
 ### Option B: Shell Script
 
 ```bash
-# Full pipeline with configuration
-./bin/run_hinec.sh path/to/data/subject.nii.gz config/hinec_default.yml
+# Usage: ./bin/run_hinec.sh <data_prefix> <output_mat> [config_file]
+
+# Default config (HINEC RK4 + cubic interpolation)
+./bin/run_hinec.sh path/to/data/subject subject.mat
+
+# Standard FACT for comparison
+./bin/run_hinec.sh path/to/data/subject subject.mat config/standard_fact.yml
+
+# High precision (publication quality)
+./bin/run_hinec.sh path/to/data/subject subject.mat config/high_precision.yml
 
 # The script:
-# 1. Validates input files exist
-# 2. Creates a timestamped run directory
-# 3. Runs preprocessing (Phase 1)
+# 1. Validates input files exist (<prefix>_raw.nii.gz, .bval, .bvec)
+# 2. Creates a timestamped run directory in hinec_runs/
+# 3. Runs preprocessing + DTI calculation (Phase 1)
 # 4. Runs tractography (Phase 2)
-# 5. Logs everything to the run directory
+# 5. Logs everything to <run_dir>/logs/pipeline.log
 ```
+
+Note: `<data_prefix>` is the shared path without `_raw.nii.gz` — see [Quick Start](#3-quick-start) for examples.
 
 ### Input Data Requirements
 

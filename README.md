@@ -7,7 +7,13 @@ Human brain white matter tractography pipeline with **YAML-based parameter confi
 ### Using Shell Script (Recommended)
 
 ```bash
-# Default configuration - creates organized run directory automatically
+# Usage: ./bin/run_hinec.sh <data_prefix> <output_mat> [config_file]
+#
+# <data_prefix> is the shared path of your input files, without extensions.
+# Given files: my_data/subject_raw.nii.gz, my_data/subject.bval, my_data/subject.bvec
+# The prefix is: my_data/subject
+
+# Default configuration
 ./bin/run_hinec.sh data/parcellation_sample/sample sample.mat
 
 # High precision (publication quality)
@@ -16,9 +22,8 @@ Human brain white matter tractography pipeline with **YAML-based parameter confi
 # Fast exploration (parameter testing)
 ./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/fast_exploration.yml
 
-# Export visualization figures (headless, no interactive MATLAB needed)
-./bin/run_visualization.sh hinec_runs/run_20260330_*/
-./bin/run_visualization.sh hinec_runs/run_20260330_*/ '' grid png
+# Export visualization figures (after pipeline completes)
+./bin/run_visualization.sh hinec_runs/run_20260330_*/ figures/my_output
 ```
 
 **NEW**: All runs are now automatically organized in `hinec_runs/run_YYYYMMDD_HHMMSS_<config>/` directories! No more scattered files cluttering your workspace.
