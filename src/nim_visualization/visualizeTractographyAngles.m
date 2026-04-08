@@ -78,7 +78,14 @@ end
 first_arg = char(first_arg);
 
 % Detect if this is a run directory (contains 'run_' or is a directory with output/tractography)
-[tracks_file, nim_file, remaining_args] = resolve_input_paths(first_arg, varargin);
+[tracks_file, nim_file, remaining_args, run_dir] = resolve_input_paths(first_arg, varargin);
+
+% Default output_dir: <run_dir>/figures/ when using a run directory
+if isempty(run_dir)
+    default_output_dir = './tractography_angles';
+else
+    default_output_dir = fullfile(run_dir, 'figures');
+end
 
 % Parse input parameters
 p = inputParser;
@@ -86,7 +93,7 @@ addRequired(p, 'tracks_file');
 addRequired(p, 'nim_file');
 
 % Output parameters
-addParameter(p, 'output_dir', './tractography_angles', @(x) ischar(x) || isstring(x));
+addParameter(p, 'output_dir', default_output_dir, @(x) ischar(x) || isstring(x));
 addParameter(p, 'format', 'png', @(x) ismember(x, {'png', 'pdf', 'eps', 'fig'}));
 addParameter(p, 'dpi', 300, @(x) isnumeric(x) && x > 0);
 
@@ -322,11 +329,12 @@ end
 %% HELPER FUNCTIONS
 %% ============================================================================
 
-function [tracks_file, nim_file, remaining_args] = resolve_input_paths(first_arg, all_args)
+function [tracks_file, nim_file, remaining_args, run_dir] = resolve_input_paths(first_arg, all_args)
 % RESOLVE_INPUT_PATHS: Detect input format and resolve file paths
-% (Same logic as visualizeTractography.m)
+% Returns run_dir as non-empty string when a run directory was detected.
 
 is_run_dir = false;
+run_dir = '';
 
 % Handle wildcard patterns
 if contains(first_arg, '*')
@@ -348,6 +356,7 @@ if isfolder(first_arg)
 
     if isfolder(output_dir) && isfolder(tractography_dir)
         is_run_dir = true;
+        run_dir = first_arg;
     end
 end
 

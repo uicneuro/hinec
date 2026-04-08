@@ -6,27 +6,28 @@
 # Optionally generates single-mode views (whole, grid, region, sequential).
 #
 # Usage:
-#   ./bin/run_visualization.sh <run_dir> <output_dir> [format] [region] [dpi]
+#   ./bin/run_visualization.sh <run_dir> [format] [region] [dpi]
 #   ./bin/run_visualization.sh <tracks_file> <nim_file> <output_dir> [format] [region] [dpi]
 #
 # Arguments:
 #   run_dir      Path to a HINEC run directory (e.g., hinec_runs/run_20260330_*)
+#                Figures are saved to <run_dir>/figures/ automatically
 #   tracks_file  Path to tracks .mat file
 #   nim_file     Path to nim .mat file
-#   output_dir   Output directory for images (REQUIRED)
+#   output_dir   Output directory for images (required in explicit mode)
 #   format       png | pdf | eps (default: png)
 #   region       Region ID(s), e.g. '5' or '5,10,15' (default: all tracks)
 #   dpi          Export resolution (default: 300)
 #
 # Examples:
-#   # All 8 angles, whole brain
-#   ./bin/run_visualization.sh hinec_runs/run_20260330_*/ experiments/tractography_figures/FACT
+#   # Run directory mode (figures saved to <run_dir>/figures/)
+#   ./bin/run_visualization.sh hinec_runs/run_20260330_*/
 #
-#   # All 8 angles, filtered by regions
-#   ./bin/run_visualization.sh hinec_runs/run_20260330_*/ figures/corpus_callosum png '23,24,25,26,27,28'
+#   # With format and region options
+#   ./bin/run_visualization.sh hinec_runs/run_20260330_*/ png '23,24,25,26,27,28'
 #
 #   # PDF at high DPI
-#   ./bin/run_visualization.sh hinec_runs/run_20260330_*/ figures/FACT pdf '' 600
+#   ./bin/run_visualization.sh hinec_runs/run_20260330_*/ pdf '' 600
 #
 #   # Explicit files
 #   ./bin/run_visualization.sh tracks.mat nim.mat figures/euler png
@@ -38,19 +39,20 @@ set -euo pipefail
 # ============================================================
 usage() {
     printf 'Usage:\n'
-    printf '  %s <run_dir>                 <output_dir> [format] [region] [dpi]\n' "$0"
+    printf '  %s <run_dir>                 [format] [region] [dpi]\n' "$0"
     printf '  %s <tracks_file> <nim_file>  <output_dir> [format] [region] [dpi]\n' "$0"
+    printf '\nRun directory mode saves figures to <run_dir>/figures/ automatically.\n'
     printf '\nGenerates all 8 anatomical viewing angles (superior, inferior, anterior,\n'
     printf 'posterior, left, right, oblique_left, oblique_right).\n'
     printf '\nFormats: png (default), pdf, eps\n'
     printf '\nExamples:\n'
-    printf '  %s hinec_runs/run_20260330_*/ experiments/tractography_figures/FACT\n' "$0"
-    printf '  %s hinec_runs/run_20260330_*/ figures/FACT png "23,24,25"\n' "$0"
+    printf '  %s hinec_runs/run_20260330_*/\n' "$0"
+    printf '  %s hinec_runs/run_20260330_*/ png "23,24,25"\n' "$0"
     printf '  %s tracks.mat nim.mat figures/euler\n' "$0"
     exit 1
 }
 
-if [[ $# -lt 2 ]]; then
+if [[ $# -lt 1 ]]; then
     usage
 fi
 
@@ -93,8 +95,8 @@ resolved=$(resolve_run_dir "$1")
 if [[ -n "$resolved" ]]; then
     input_mode="run_dir"
     run_dir="$resolved"
-    output_dir="$2"
-    shift 2
+    output_dir="${run_dir}/figures"
+    shift 1
 else
     if [[ $# -lt 3 ]]; then
         printf 'Error: "%s" is not a run directory. Provide <tracks_file> <nim_file> <output_dir>.\n' "$1" >&2
@@ -145,7 +147,6 @@ matlab_command="addpath(genpath('.')); "
 
 if [[ "$input_mode" == "run_dir" ]]; then
     matlab_command+="visualizeTractographyAngles('$(escape_matlab_string "$run_dir")', "
-    matlab_command+="'output_dir', '$(escape_matlab_string "$output_dir")', "
     matlab_command+="'format', '${format}', "
     matlab_command+="'dpi', ${dpi}"
     matlab_command+="${region_arg});"

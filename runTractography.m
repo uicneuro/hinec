@@ -250,12 +250,6 @@ fprintf('==========================\n');
 % Generate timestamp for output filename
 timestamp = datestr(now, 'yyyy-mm-dd_HH_MM_SS');
 
-% Pass output directory to tractography functions
-if use_run_dir
-    options.output_dir = run_info.tractography_dir;
-else
-    options.output_dir = 'tractography_results';
-end
 
 if strcmpi(algorithm, 'hinec')
     fprintf('Running HINEC high-order tractography (interpolation + RK4 + ACT)...\n');
@@ -286,7 +280,6 @@ fprintf('  Max length: %d points\n', max(track_lengths));
 fprintf('  Min length: %d points\n', min(track_lengths));
 
 %% Save results
-% Use run directory if specified, otherwise use default tractography_results
 if use_run_dir
     output_dir = run_info.tractography_dir;
     fprintf('\nUsing run directory for tractography output\n');
@@ -297,7 +290,7 @@ else
     end
 end
 
-save(fullfile(output_dir, output_filename), 'tracks', 'options', 'elapsed_time', 'algorithm');
+save(fullfile(output_dir, output_filename), 'tracks', 'options', 'elapsed_time', 'algorithm', '-v7.3');
 fprintf('\nResults saved to %s/%s\n', output_dir, output_filename);
 fprintf('Algorithm used: %s\n', algorithm);
 

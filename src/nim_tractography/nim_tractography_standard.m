@@ -335,46 +335,6 @@ if success_rate < 10
     fprintf('⚠️  WARNING: Extremely low success rate! Check algorithm parameters.\n');
 end
 
-% SAVE RESULTS AUTOMATICALLY
-if isfield(options, 'output_dir') && ~isempty(options.output_dir)
-    output_dir = options.output_dir;
-else
-    output_dir = 'tractography_results';
-end
-if ~exist(output_dir, 'dir')
-    mkdir(output_dir);
-end
-
-% Save tracks with metadata
-timestamp = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
-output_file = fullfile(output_dir, sprintf('tracks_%s.mat', timestamp));
-
-% Calculate track statistics
-if track_count > 0
-    track_lengths = zeros(track_count, 1);
-    for i = 1:track_count
-        if size(tracks{i}, 1) > 1
-            track_lengths(i) = sum(vecnorm(diff(tracks{i}), 2, 2));
-        end
-    end
-    
-    track_stats = struct();
-    track_stats.num_tracks = track_count;
-    track_stats.mean_length = mean(track_lengths);
-    track_stats.median_length = median(track_lengths);
-    track_stats.max_length = max(track_lengths);
-    track_stats.min_length = min(track_lengths);
-    track_stats.total_length = sum(track_lengths);
-else
-    track_lengths = [];
-    track_stats = struct('num_tracks', 0);
-end
-
-% Save everything - use v7.3 format for large variables (>2GB support)
-fprintf('Saving results (using MAT v7.3 for large file support)...\n');
-save(output_file, 'tracks', 'options', 'track_stats', 'track_lengths', 'dims', '-v7.3');
-fprintf('Results saved to: %s\n', output_file);
-
 end
 
 function [seed_points, seed_info] = generate_seed_points_fact(seed_mask, options, dims)
