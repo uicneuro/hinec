@@ -37,10 +37,48 @@ except ImportError:
     print("Install with: pip install scipy")
     sys.exit(1)
 
+try:
+    import h5py
+    H5PY_AVAILABLE = True
+except ImportError:
+    H5PY_AVAILABLE = False
+
+
+def _load_hdf5_tracks(mat_file):
+    """Load tracks from MATLAB v7.3 (HDF5) file via h5py."""
+    with h5py.File(mat_file, 'r') as f:
+        if 'tracks' in f:
+            tracks_ref = f['tracks']
+        elif 'tracts' in f:
+            tracks_ref = f['tracts']
+        else:
+            raise ValueError("No 'tracks' or 'tracts' field in HDF5 file")
+
+        tracks = []
+        if tracks_ref.dtype == np.dtype('O'):
+            num_tracks = tracks_ref.shape[0] * tracks_ref.shape[1]
+            tracks_flat = tracks_ref[...].flatten()
+            for i in range(num_tracks):
+                track = f[tracks_flat[i]][()]
+                if track.size == 0:
+                    continue
+                if track.shape[0] == 3 and track.shape[1] != 3:
+                    track = track.T  # 3xN -> Nx3
+                elif track.shape[1] != 3:
+                    continue
+                tracks.append(track.astype(np.float32) - 1.0)
+        else:
+            data = tracks_ref[()]
+            if data.ndim == 2 and data.shape[1] == 3:
+                tracks.append(data.astype(np.float32) - 1.0)
+            else:
+                raise ValueError(f"Unexpected track data shape: {data.shape}")
+    return tracks
+
 
 def load_hinec_tracks(mat_file):
     """
-    Load HINEC tracks from MATLAB .mat file.
+    Load HINEC tracks from MATLAB .mat file (handles both standard and v7.3/HDF5).
 
     Expected structure:
         tracks: cell array where each cell is an Nx3 matrix
@@ -51,9 +89,28 @@ def load_hinec_tracks(mat_file):
     """
     print(f"Loading HINEC tracks from {mat_file}...")
 
-    mat_data = scipy.io.loadmat(mat_file)
+    try:
+        mat_data = scipy.io.loadmat(mat_file)
+    except NotImplementedError as e:
+        # MATLAB v7.3 is HDF5 — scipy can't read it
+        if 'v7.3' in str(e) or 'HDF' in str(e):
+            if not H5PY_AVAILABLE:
+                raise ImportError(
+                    "This is a MATLAB v7.3 file (HDF5). Install h5py: pip install h5py"
+                )
+            print("  Format: MATLAB v7.3 (HDF5)")
+            tracks = _load_hdf5_tracks(mat_file)
+            print(f"  Loaded {len(tracks)} tracks")
+            if len(tracks) > 0:
+                all_coords = np.vstack(tracks)
+                print(f"  Coordinate range (0-based voxels):")
+                print(f"    X: [{all_coords[:,0].min():.1f}, {all_coords[:,0].max():.1f}]")
+                print(f"    Y: [{all_coords[:,1].min():.1f}, {all_coords[:,1].max():.1f}]")
+                print(f"    Z: [{all_coords[:,2].min():.1f}, {all_coords[:,2].max():.1f}]")
+            return tracks
+        raise
 
-    # Try different possible field names
+    # Standard MATLAB format
     if 'tracks' in mat_data:
         tracks_cell = mat_data['tracks']
     elif 'tracts' in mat_data:
@@ -61,12 +118,10 @@ def load_hinec_tracks(mat_file):
     else:
         raise ValueError("No 'tracks' or 'tracts' field found in .mat file")
 
-    # Convert MATLAB cell array to Python list of numpy arrays
     tracks = []
     for i in range(tracks_cell.shape[0]):
-        track = tracks_cell[i, 0]  # Extract from cell array
-        if track.size > 0:  # Skip empty tracks
-            # Convert from 1-based MATLAB indices to 0-based Python indices
+        track = tracks_cell[i, 0]
+        if track.size > 0:
             track_0based = track.astype(np.float32) - 1.0
             tracks.append(track_0based)
 
@@ -83,15 +138,21 @@ def load_hinec_tracks(mat_file):
     return tracks
 
 
-def convert_to_trk(tracks, reference_nii, output_trk, space='voxmm'):
+def convert_to_trk(tracks, reference_nii, output_trk, space='voxmm', trk_ref=None):
     """
     Convert HINEC tracks to TRK format with proper header.
 
     Args:
         tracks: List of Nx3 numpy arrays (0-based voxel coordinates)
-        reference_nii: Path to reference NIfTI (for header/affine)
+        reference_nii: Path to NIfTI whose affine defines the voxel grid the
+            tracks came from (used for voxel -> world conversion).
         output_trk: Output TRK file path
         space: Coordinate space ('vox', 'voxmm', or 'rasmm')
+        trk_ref: Optional separate NIfTI to attach as the saved TRK's reference.
+            Use this when the ROI/atlas masks the scorer compares against live
+            in a different reference space (e.g. scoring T1 at 1 mm) than the
+            DWI the tracks came from (e.g. 2 mm). World mm coordinates remain
+            physically correct; only the saved reference metadata changes.
 
     Coordinate spaces:
         'vox'    - Voxel indices (0-based)
@@ -145,16 +206,33 @@ def convert_to_trk(tracks, reference_nii, output_trk, space='voxmm'):
         print(f"    Y: [{all_coords[:,1].min():.1f}, {all_coords[:,1].max():.1f}]")
         print(f"    Z: [{all_coords[:,2].min():.1f}, {all_coords[:,2].max():.1f}]")
 
-    # Create Tractogram
-    print(f"\nCreating Tractogram...")
-    tractogram = Tractogram(
-        streamlines=converted_tracks,
-        affine_to_rasmm=affine if space != 'rasmm' else np.eye(4)
-    )
-
-    # Save TRK file
-    print(f"Saving to {output_trk}...")
-    save(tractogram, output_trk, bbox_valid_check=False)
+    # Save TRK. If a separate trk_ref is provided, use dipy's StatefulTractogram
+    # so the saved TRK header carries the trk_ref's affine/dims/voxel sizes —
+    # what scilpy compares against the ROI masks. The streamlines are already
+    # in physical mm world coords (computed using reference_nii's affine), so
+    # they remain at the correct anatomical location regardless of which
+    # reference is attached for metadata purposes.
+    if space == 'rasmm' and trk_ref is not None:
+        try:
+            from dipy.io.stateful_tractogram import StatefulTractogram, Space
+            from dipy.io.streamline import save_tractogram
+        except ImportError:
+            print("Error: dipy is required for --trk-ref. Install with: pip install dipy")
+            sys.exit(1)
+        print(f"\nAttaching saved TRK reference: {trk_ref}")
+        trk_ref_img = nib.load(trk_ref)
+        print(f"  TRK header dims: {trk_ref_img.shape[:3]}, voxel size: {trk_ref_img.header.get_zooms()[:3]} mm")
+        sft = StatefulTractogram(converted_tracks, trk_ref, Space.RASMM)
+        print(f"Saving to {output_trk}...")
+        save_tractogram(sft, output_trk, bbox_valid_check=False)
+    else:
+        print(f"\nCreating Tractogram...")
+        tractogram = Tractogram(
+            streamlines=converted_tracks,
+            affine_to_rasmm=affine if space != 'rasmm' else np.eye(4)
+        )
+        print(f"Saving to {output_trk}...")
+        save(tractogram, output_trk)
 
     print("✓ Conversion complete!")
     print(f"\nTo verify alignment:")
@@ -191,9 +269,14 @@ Note: ISMRM scoring expects proper coordinate space attributes in TRK header.
     parser.add_argument('tracks_mat', help='HINEC tractography .mat file')
     parser.add_argument('reference_nii', help='Reference NIfTI image')
     parser.add_argument('output_trk', help='Output TrackVis .trk file')
-    parser.add_argument('--space', default='voxmm',
+    parser.add_argument('--space', default='rasmm',
                        choices=['vox', 'voxmm', 'rasmm'],
-                       help='Coordinate space (default: voxmm)')
+                       help='Coordinate space (default: rasmm — what the ISMRM 2023 scilpy scorer expects)')
+    parser.add_argument('--trk-ref', default=None,
+                       help='Optional separate NIfTI to attach as the saved TRK reference. Use when '
+                            'the scorer compares against masks in a different reference (e.g. scoring '
+                            'T1 at 1 mm) than the DWI where tracks live (e.g. 2 mm). Only used with '
+                            '--space rasmm.')
 
     args = parser.parse_args()
 
@@ -206,7 +289,8 @@ Note: ISMRM scoring expects proper coordinate space attributes in TRK header.
             sys.exit(1)
 
         # Convert to TRK
-        convert_to_trk(tracks, args.reference_nii, args.output_trk, args.space)
+        convert_to_trk(tracks, args.reference_nii, args.output_trk, args.space,
+                       trk_ref=args.trk_ref)
 
     except Exception as e:
         print(f"\nError: {e}")

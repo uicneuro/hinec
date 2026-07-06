@@ -99,3 +99,7 @@ site/
 
 # Experiment results (old runs, figures, challenge data)
 experiments/
+# Large experiment artifacts (ISMRM validation) — not for upstream
+mrtrix_runs/
+lib/spm12.zip
+data/ismrm2015/

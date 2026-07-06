@@ -320,8 +320,18 @@ if use_parfor
     % Ensure parallel pool is started
     pool = gcp('nocreate');
     if isempty(pool)
-        fprintf('Starting parallel pool...\n');
-        pool = parpool('local');
+        % Cap worker count to avoid oversubscribing shared machines. An
+        % unbounded parpool('local') grabs all physical cores (64 here),
+        % which thrashes badly when another heavy job is already running.
+        % Override with the HINEC_MAX_WORKERS environment variable.
+        max_workers_env = getenv('HINEC_MAX_WORKERS');
+        if ~isempty(max_workers_env) && ~isnan(str2double(max_workers_env))
+            n_workers = max(1, round(str2double(max_workers_env)));
+        else
+            n_workers = 8;  % conservative default: real speedup, safe headroom
+        end
+        fprintf('Starting parallel pool with %d workers (cap; set HINEC_MAX_WORKERS to change)...\n', n_workers);
+        pool = parpool('local', n_workers);
     end
     fprintf('Using %d parallel workers\n', pool.NumWorkers);
 else
@@ -546,13 +556,18 @@ fprintf('========================================\n');
 fprintf('Algorithm: Interpolation + RK4 + ACT\n');
 if act_enabled
     fprintf('ACT Status: ENABLED (WM/GM/CSF masks active)\n');
-    fprintf('ACT Effectiveness: %.1f%% valid GM terminations\n', track_stats.act_effectiveness_pct);
+    total_act_terms = failure_reasons.gm_termination + failure_reasons.csf_termination + failure_reasons.outside_termination;
+    if total_act_terms > 0
+        fprintf('ACT Effectiveness: %.1f%% valid GM terminations\n', 100*failure_reasons.gm_termination/total_act_terms);
+    end
 else
     fprintf('ACT Status: DISABLED (no tissue masks)\n');
 end
 fprintf('Tracks Generated: %d\n', track_count);
-fprintf('Mean Track Length: %.2f mm\n', track_stats.mean_length);
-fprintf('Output File: %s\n', output_file);
+if ~isempty(tracks)
+    track_lens_vox = cellfun(@(t) sum(sqrt(sum(diff(t,1,1).^2, 2))), tracks);
+    fprintf('Mean Track Length: %.2f voxels (%.1f points/track)\n', mean(track_lens_vox), mean(cellfun(@(t) size(t,1), tracks)));
+end
 fprintf('========================================\n');
 
 end
@@ -666,6 +681,8 @@ if nargout > 1
     step_timing.interpolation_time = 0;  % Included in RK4 timing
     step_timing.boundary_time = 0;
     step_timing.step_count = 0;
+    step_timing.rkf_rejections = 0;
+    step_timing.rkf_retries = 0;
 end
 
 % Get initial direction using interpolation

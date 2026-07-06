@@ -152,15 +152,24 @@ fprintf('\n=== Configuring Seeding Strategy ===\n');
 seed_mask = [];
 seeding_strategy = '';
 
+% Seed FA threshold: voxels below this FA are excluded from seeding.
+% Default 0.05 (just excludes CSF). Set seed_fa_threshold: 0.2 in the config
+% to seed only from white matter (matched WM-seeding comparisons).
+if isfield(options, 'seed_fa_threshold') && ~isempty(options.seed_fa_threshold)
+    seed_fa_thr = options.seed_fa_threshold;
+else
+    seed_fa_thr = 0.05;
+end
+
 % Strategy 1: Preprocessed brain mask (BEST)
 if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
     brain_mask = nim.mask > 0.5;
     fprintf('Strategy: Preprocessed brain mask\n');
     seeding_strategy = 'brain_mask';
 
-    % Optional: Refine with minimal FA to avoid ventricles/CSF
-    brain_mask = brain_mask & (nim.FA > 0.05);
-    fprintf('  Refined with FA > 0.05 to exclude CSF\n');
+    % Refine with FA threshold to exclude CSF (and optionally GM if WM-seeding)
+    brain_mask = brain_mask & (nim.FA > seed_fa_thr);
+    fprintf('  Refined with FA > %.2f for seeding\n', seed_fa_thr);
 
     seed_mask = brain_mask;
 

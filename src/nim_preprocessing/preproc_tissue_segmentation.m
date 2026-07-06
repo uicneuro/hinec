@@ -71,22 +71,39 @@ end
 % Convert brain mask to binary
 brain_mask_binary = brain_mask_data > 0.5;
 
-fprintf('Generating tissue masks using FA thresholds...\n');
-fprintf('  WM threshold: FA > 0.2\n');
-fprintf('  GM threshold: 0.05 < FA <= 0.2\n');
-fprintf('  CSF threshold: FA <= 0.05\n');
+% Adaptive FA thresholds: fixed FA cutoffs (WM>0.2, CSF<=0.05) are tuned for
+% real human-brain DTI. They misclassify low-FA datasets (synthetic phantoms,
+% paediatric, low-SNR) as mostly CSF, which makes ACT terminate tracks
+% aggressively. Use percentile-based thresholds within the brain mask so the
+% partitioning adapts to whatever FA distribution the data actually has,
+% with sanity floors so we don't drift too far from biology.
+fa_in_brain = fa_data(brain_mask_binary);
+adaptive_wm_thresh  = max(prctile(fa_in_brain, 60), 0.1);   % WM ≈ top 40% FA, floor 0.10
+adaptive_csf_thresh = min(prctile(fa_in_brain, 20), 0.1);   % CSF ≈ bottom 20% FA, ceil 0.10
+% Ensure ordering: wm_thresh > csf_thresh
+if adaptive_wm_thresh <= adaptive_csf_thresh
+    adaptive_wm_thresh = adaptive_csf_thresh + 0.05;
+end
+
+fprintf('Generating tissue masks using adaptive FA thresholds...\n');
+fprintf('  FA range in brain: [%.3f, %.3f] (median %.3f)\n', ...
+        min(fa_in_brain), max(fa_in_brain), median(fa_in_brain));
+fprintf('  WM threshold:  FA > %.3f (60th percentile, floored at 0.10)\n', adaptive_wm_thresh);
+fprintf('  GM range:      %.3f < FA <= %.3f\n', adaptive_csf_thresh, adaptive_wm_thresh);
+fprintf('  CSF threshold: FA <= %.3f (20th percentile, capped at 0.10)\n', adaptive_csf_thresh);
 
 %% Generate White Matter Mask
-% WM: FA > 0.2, constrained to brain, eroded to remove boundary voxels
-wm_preliminary = (fa_data > 0.2) & brain_mask_binary;
+% WM: high-FA tissue, constrained to brain, eroded to remove boundary voxels
+wm_preliminary = (fa_data > adaptive_wm_thresh) & brain_mask_binary;
 
 % Count preliminary WM voxels
 wm_prelim_count = sum(wm_preliminary(:));
 fprintf('  Preliminary WM voxels: %d (%.1f%% of brain)\n', ...
         wm_prelim_count, 100*wm_prelim_count/sum(brain_mask_binary(:)));
 
-% Save preliminary WM mask for erosion
-temp_wm_prelim = [strrep(file_prefix, '_raw', '') '_temp_WM_prelim.nii.gz'];
+% Save preliminary WM mask for erosion. SPM can't write .nii.gz directly,
+% so write to .nii and let fslmaths (next step) read it.
+temp_wm_prelim = [strrep(file_prefix, '_raw', '') '_temp_WM_prelim.nii'];
 V_out = V_mask;
 V_out.fname = temp_wm_prelim;
 V_out.dt = [2 0]; % uint8 binary mask
@@ -132,27 +149,33 @@ fprintf('  ✓ Final WM voxels (after erosion): %d (%.1f%% of brain)\n', ...
 
 %% Generate Gray Matter Mask
 % GM: 0.05 < FA <= 0.2, constrained to brain
-gm_mask = (fa_data > 0.05) & (fa_data <= 0.2) & brain_mask_binary;
+gm_mask = (fa_data > adaptive_csf_thresh) & (fa_data <= adaptive_wm_thresh) & brain_mask_binary;
 
 gm_count = sum(gm_mask(:));
 fprintf('  ✓ GM voxels: %d (%.1f%% of brain)\n', ...
         gm_count, 100*gm_count/sum(brain_mask_binary(:)));
 
-% Save GM mask
-V_out.fname = gm_mask_file;
+% Save GM mask. SPM can't write .nii.gz directly — write .nii then gzip.
+temp_gm_nii = strrep(gm_mask_file, '.nii.gz', '.nii');
+V_out.fname = temp_gm_nii;
 spm_write_vol(V_out, double(gm_mask));
+gzip(temp_gm_nii);
+if isfile(temp_gm_nii); delete(temp_gm_nii); end
 
 %% Generate CSF Mask
 % CSF: FA <= 0.05, constrained to brain
-csf_mask = (fa_data <= 0.05) & brain_mask_binary;
+csf_mask = (fa_data <= adaptive_csf_thresh) & brain_mask_binary;
 
 csf_count = sum(csf_mask(:));
 fprintf('  ✓ CSF voxels: %d (%.1f%% of brain)\n', ...
         csf_count, 100*csf_count/sum(brain_mask_binary(:)));
 
-% Save CSF mask
-V_out.fname = csf_mask_file;
+% Save CSF mask. SPM can't write .nii.gz directly — write .nii then gzip.
+temp_csf_nii = strrep(csf_mask_file, '.nii.gz', '.nii');
+V_out.fname = temp_csf_nii;
 spm_write_vol(V_out, double(csf_mask));
+gzip(temp_csf_nii);
+if isfile(temp_csf_nii); delete(temp_csf_nii); end
 
 %% Validate tissue masks
 fprintf('\nValidating tissue segmentation...\n');

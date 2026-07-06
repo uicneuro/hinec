@@ -295,21 +295,45 @@ end
 
 function apply_mni_to_t1_fsl(input_file, output_file, registration_data, options, fsl_path)
 % Apply MNI to T1 transform using FSL (inverse of T1 to MNI)
+%
+% Nonlinear path: applywarp with the inverse warp produced by invwarp.
+% Linear path: invert the forward linear matrix via convert_xfm, then flirt
+% -applyxfm. Previously errored as "not implemented yet".
 
 t1_mni_data = registration_data.transforms.t1_to_mni;
+cleanup_inverse_mat = '';
 
 if strcmp(t1_mni_data.type, 'nonlinear') && isfield(t1_mni_data, 'inverse_warp')
-    % Use inverse nonlinear warp
     cmd = sprintf('%s/bin/applywarp --ref=%s --in=%s --warp=%s --out=%s --interp=%s', ...
         fsl_path, options.reference_space, input_file, t1_mni_data.inverse_warp, ...
         output_file, options.interpolation);
 else
-    % Use inverse linear transform - need to compute it
-    error('Linear MNI to T1 inverse transform not implemented yet');
+    % Linear inverse path: compute inverse of the forward linear matrix on the
+    % fly, then apply via flirt -applyxfm.
+    if ~isfield(t1_mni_data, 'linear_transform_file') || isempty(t1_mni_data.linear_transform_file)
+        error('apply_mni_to_t1_fsl: no linear_transform_file available to invert');
+    end
+    fwd_mat = t1_mni_data.linear_transform_file;
+    inv_mat = [tempname '_mni_to_t1.mat'];
+    cleanup_inverse_mat = inv_mat;
+
+    cmd_inv = sprintf('%s/bin/convert_xfm -omat %s -inverse %s', fsl_path, inv_mat, fwd_mat);
+    [status, cmdout] = system(cmd_inv);
+    if status ~= 0
+        error('FSL convert_xfm (inverse) failed: %s', cmdout);
+    end
+
+    fsl_interp = get_fsl_interpolation(options.interpolation);
+    cmd = sprintf('%s/bin/flirt -in %s -ref %s -applyxfm -init %s -out %s -interp %s', ...
+        fsl_path, input_file, options.reference_space, inv_mat, output_file, fsl_interp);
 end
 
 fprintf('    Command: %s\n', cmd);
 [status, cmdout] = system(cmd);
+
+if ~isempty(cleanup_inverse_mat) && isfile(cleanup_inverse_mat)
+    delete(cleanup_inverse_mat);
+end
 
 if status ~= 0
     error('FSL MNI to T1 transform failed: %s', cmdout);

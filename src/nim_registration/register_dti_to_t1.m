@@ -18,6 +18,18 @@ if ~options.force_recompute && isfile(dti_to_t1_matrix)
     load(dti_to_t1_matrix, 'dti_to_t1_transform_matrix');
     registration_data.transforms.dti_to_t1_matrix = dti_to_t1_transform_matrix;
     registration_data.transforms.dti_to_t1_file = dti_to_t1_matrix;
+    % Restore the FSL transform file paths so nim_apply_transforms can find
+    % them. The full-registration path (register_dti_to_t1_fsl) sets these
+    % at line 123-124; the cache path used to drop them, which made any
+    % downstream apply_dti_to_t1_fsl / apply_t1_to_dti_fsl call fail with
+    % "FSL T1 to DTI transform file not found".
+    if isfile(dti_to_t1_transform)
+        registration_data.transforms.dti_to_t1_fsl_file = dti_to_t1_transform;
+    end
+    t1_to_dti_transform_cached = [registration_data.output_prefix '_t1_to_dti_transform.txt'];
+    if isfile(t1_to_dti_transform_cached)
+        registration_data.transforms.t1_to_dti_fsl_file = t1_to_dti_transform_cached;
+    end
     return;
 end
 

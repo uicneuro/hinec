@@ -1,0 +1,133 @@
+function generate_registration_report(registration_data, options)
+% generate_registration_report: Generate HTML report of registration results
+
+fprintf('Generating registration report...\n');
+
+report_file = [registration_data.output_prefix '_registration_report.html'];
+
+try
+    fid = fopen(report_file, 'w');
+
+    % HTML header
+    fprintf(fid, '<!DOCTYPE html>\n<html>\n<head>\n');
+    fprintf(fid, '<title>HINEC Registration Report</title>\n');
+    fprintf(fid, '<style>\n');
+    fprintf(fid, 'body { font-family: Arial, sans-serif; margin: 40px; }\n');
+    fprintf(fid, 'h1 { color: #2E86AB; }\n');
+    fprintf(fid, 'h2 { color: #A23B72; margin-top: 30px; }\n');
+    fprintf(fid, 'table { border-collapse: collapse; width: 100%%; margin: 20px 0; }\n');
+    fprintf(fid, 'th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n');
+    fprintf(fid, 'th { background-color: #f2f2f2; }\n');
+    fprintf(fid, '.quality-good { color: #28a745; font-weight: bold; }\n');
+    fprintf(fid, '.quality-moderate { color: #ffc107; font-weight: bold; }\n');
+    fprintf(fid, '.quality-poor { color: #dc3545; font-weight: bold; }\n');
+    fprintf(fid, '</style>\n</head>\n<body>\n');
+
+    % Report content
+    fprintf(fid, '<h1>HINEC Registration Report</h1>\n');
+    fprintf(fid, '<p><strong>Generated:</strong> %s</p>\n', char(registration_data.created));
+
+    % Input files
+    fprintf(fid, '<h2>Input Files</h2>\n');
+    fprintf(fid, '<table>\n');
+    fprintf(fid, '<tr><th>File Type</th><th>Path</th></tr>\n');
+    fprintf(fid, '<tr><td>DWI</td><td>%s</td></tr>\n', registration_data.input.dwi_file);
+    fprintf(fid, '<tr><td>T1</td><td>%s</td></tr>\n', registration_data.input.t1_file);
+    if options.register_to_mni
+        fprintf(fid, '<tr><td>MNI Template</td><td>%s</td></tr>\n', registration_data.input.mni_template);
+    end
+    fprintf(fid, '</table>\n');
+
+    % Registration parameters
+    fprintf(fid, '<h2>Registration Parameters</h2>\n');
+    fprintf(fid, '<table>\n');
+    fprintf(fid, '<tr><th>Parameter</th><th>Value</th></tr>\n');
+    fprintf(fid, '<tr><td>Method</td><td>%s</td></tr>\n', options.registration_method);
+    fprintf(fid, '<tr><td>DTI->T1 DOF</td><td>%d</td></tr>\n', options.dti_reg_dof);
+    if options.register_to_mni
+        fprintf(fid, '<tr><td>T1->MNI Type</td><td>%s</td></tr>\n', options.t1_mni_reg_type);
+    end
+    fprintf(fid, '</table>\n');
+
+    % Quality metrics
+    if isfield(registration_data, 'quality_metrics')
+        fprintf(fid, '<h2>Registration Quality</h2>\n');
+        fprintf(fid, '<table>\n');
+        fprintf(fid, '<tr><th>Registration</th><th>NMI Score</th><th>Quality</th></tr>\n');
+
+        if isfield(registration_data.quality_metrics, 'dti_t1_nmi')
+            nmi = registration_data.quality_metrics.dti_t1_nmi;
+            if nmi > 0.3
+                quality_class = 'quality-good';
+                quality_text = 'Good';
+            elseif nmi > 0.2
+                quality_class = 'quality-moderate';
+                quality_text = 'Moderate';
+            else
+                quality_class = 'quality-poor';
+                quality_text = 'Poor';
+            end
+            fprintf(fid, '<tr><td>DTI → T1</td><td>%.4f</td><td class="%s">%s</td></tr>\n', ...
+                nmi, quality_class, quality_text);
+        end
+
+        if isfield(registration_data.quality_metrics, 't1_mni_nmi')
+            nmi = registration_data.quality_metrics.t1_mni_nmi;
+            if nmi > 0.4
+                quality_class = 'quality-good';
+                quality_text = 'Good';
+            elseif nmi > 0.3
+                quality_class = 'quality-moderate';
+                quality_text = 'Moderate';
+            else
+                quality_class = 'quality-poor';
+                quality_text = 'Poor';
+            end
+            fprintf(fid, '<tr><td>T1 → MNI</td><td>%.4f</td><td class="%s">%s</td></tr>\n', ...
+                nmi, quality_class, quality_text);
+        end
+
+        fprintf(fid, '</table>\n');
+    end
+
+    % Output files
+    fprintf(fid, '<h2>Output Files</h2>\n');
+    fprintf(fid, '<table>\n');
+    fprintf(fid, '<tr><th>Description</th><th>Path</th></tr>\n');
+
+    if isfield(registration_data.registered_images, 'b0_in_t1')
+        fprintf(fid, '<tr><td>B0 in T1 space</td><td>%s</td></tr>\n', ...
+            registration_data.registered_images.b0_in_t1);
+    end
+
+    if isfield(registration_data.registered_images, 't1_in_dti')
+        fprintf(fid, '<tr><td>T1 in DTI space</td><td>%s</td></tr>\n', ...
+            registration_data.registered_images.t1_in_dti);
+    end
+
+    if isfield(registration_data.registered_images, 't1_in_mni')
+        fprintf(fid, '<tr><td>T1 in MNI space</td><td>%s</td></tr>\n', ...
+            registration_data.registered_images.t1_in_mni);
+    end
+
+    fprintf(fid, '<tr><td>Registration data</td><td>%s</td></tr>\n', registration_data.output_file);
+
+    fprintf(fid, '</table>\n');
+
+    % Footer
+    fprintf(fid, '<hr>\n');
+    fprintf(fid, '<p><em>Generated by HINEC Registration Pipeline</em></p>\n');
+    fprintf(fid, '</body>\n</html>\n');
+
+    fclose(fid);
+
+    fprintf('  ✓ Registration report: %s\n', report_file);
+
+catch ME
+    warning(ME.identifier, 'Failed to generate registration report: %s', ME.message);
+    if exist('fid', 'var') && fid > 0
+        fclose(fid);
+    end
+end
+
+end
