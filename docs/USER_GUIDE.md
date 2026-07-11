@@ -155,7 +155,7 @@ main('path/to/data/subject_raw', 'output/subject.mat', ...
      't1_file', 'path/to/data/subject_t1.nii.gz');
 
 % With YAML configuration
-config = load_config_yaml('config/high_precision.yml');
+config = load_config_yaml('config/hinec_dti_cubic.yml');
 main('path/to/data/subject', 'output/subject.mat', 'config', config);
 
 % With run directory organization
@@ -175,10 +175,10 @@ main('path/to/data/subject', 'output/subject.mat', ...
 ./bin/run_hinec.sh path/to/data/subject subject.mat
 
 # Standard FACT for comparison
-./bin/run_hinec.sh path/to/data/subject subject.mat config/standard_fact.yml
+./bin/run_hinec.sh path/to/data/subject subject.mat config/standard_dti.yml
 
 # High precision (publication quality)
-./bin/run_hinec.sh path/to/data/subject subject.mat config/high_precision.yml
+./bin/run_hinec.sh path/to/data/subject subject.mat config/hinec_dti_cubic.yml
 
 # The script:
 # 1. Validates input files exist (<prefix>_raw.nii.gz, .bval, .bvec)
@@ -215,14 +215,14 @@ HINEC provides 5 configuration presets in `config/`:
 | Preset | File | Algorithm | Integration | Best For |
 |---|---|---|---|---|
 | Default | `hinec_default.yml` | hinec | RK4 | General use |
-| High Precision | `high_precision.yml` | hinec | RKF45 adaptive | Publication figures |
-| Fast Exploration | `fast_exploration.yml` | hinec | RK2 | Quick parameter testing |
-| Standard FACT | `standard_fact.yml` | standard | Euler | Baseline comparison |
+| High Precision | `hinec_dti_cubic.yml` | hinec | RKF45 adaptive | Publication figures |
+| Fast Exploration | `hinec_dti_fast.yml` | hinec | RK2 | Quick parameter testing |
+| Standard FACT | `standard_dti.yml` | standard | Euler | Baseline comparison |
 | IronTract | `irontract.yml` | hinec | RK4 | IronTract challenge |
 
 ```matlab
 % Load a preset
-config = load_config_yaml('config/high_precision.yml');
+config = load_config_yaml('config/hinec_dti_cubic.yml');
 
 % Use it
 main('data/subject', 'output/subject.mat', 'config', config);
@@ -272,7 +272,7 @@ runTractography('output/subject.mat', 'algorithm', 'standard');
 runTractography('output/subject.mat', 'algorithm', 'hinec');
 
 % RKF45 adaptive stepping (highest accuracy)
-config = load_config_yaml('config/high_precision.yml');
+config = load_config_yaml('config/hinec_dti_cubic.yml');
 runTractography('output/subject.mat', 'algorithm', 'hinec', 'config', config);
 ```
 
@@ -498,7 +498,7 @@ end
 2. Reduce seed density: `options.seed_density = 2` instead of 4
 3. Use v7.3 MAT files: `nim_save` automatically uses v7.3 for large files
 4. Close other applications to free RAM
-5. Use the `fast_exploration.yml` preset for initial testing
+5. Use the `hinec_dti_fast.yml` preset for initial testing
 
 ### String vs Char Array Errors
 

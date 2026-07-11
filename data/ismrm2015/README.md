@@ -54,9 +54,9 @@ ln -sf "$src/T1.nii.gz"        ismrm2015_T1.nii.gz
 ```bash
 ./bin/run_hinec.sh data/ismrm2015/ismrm2015 ismrm2015.mat config/ismrm2015.yml
 # or for comparison runs:
-./bin/run_hinec.sh data/ismrm2015/ismrm2015 ismrm2015.mat config/high_precision.yml
+./bin/run_hinec.sh data/ismrm2015/ismrm2015 ismrm2015.mat config/hinec_dti_cubic.yml
 ./bin/run_hinec.sh data/ismrm2015/ismrm2015 ismrm2015.mat config/hinec_default.yml
-./bin/run_hinec.sh data/ismrm2015/ismrm2015 ismrm2015.mat config/fast_exploration.yml
+./bin/run_hinec.sh data/ismrm2015/ismrm2015 ismrm2015.mat config/hinec_dti_fast.yml
 ```
 
 ## Score against ISMRM ground truth

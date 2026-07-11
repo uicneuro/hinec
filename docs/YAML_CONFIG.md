@@ -18,7 +18,7 @@ The HINEC pipeline now supports **YAML-based parameter configuration**, making i
 ./run_hinec.sh data/parcellation_sample/sample sample.mat
 
 # Use custom configuration
-./run_hinec.sh data/parcellation_sample/sample sample.mat config/high_precision.yml
+./run_hinec.sh data/parcellation_sample/sample sample.mat config/hinec_dti_cubic.yml
 ```
 
 ### Available Presets
@@ -26,8 +26,8 @@ The HINEC pipeline now supports **YAML-based parameter configuration**, making i
 | Config File | Purpose | Speed | Quality |
 |-------------|---------|-------|---------|
 | `hinec_default.yml` | Balanced performance | Medium | Good |
-| `high_precision.yml` | Publication quality | Slow | Excellent |
-| `fast_exploration.yml` | Quick testing | Fast | Moderate |
+| `hinec_dti_cubic.yml` | Publication quality | Slow | Excellent |
+| `hinec_dti_fast.yml` | Quick testing | Fast | Moderate |
 | `irontract.yml` | IronTract challenge | Medium | High |
 
 ## Configuration File Structure
@@ -312,8 +312,8 @@ runTractography('data.mat', config);
 Error: Configuration file not found: config/missing.yml
 Available configs:
   config/hinec_default.yml
-  config/high_precision.yml
-  config/fast_exploration.yml
+  config/hinec_dti_cubic.yml
+  config/hinec_dti_fast.yml
   config/irontract.yml
 ```
 
@@ -380,7 +380,7 @@ runTractography('data.mat', config);
 # Process multiple subjects with same config
 
 for subject in subject_001 subject_002 subject_003; do
-    ./run_hinec.sh data/${subject} processed/${subject}.mat config/high_precision.yml
+    ./run_hinec.sh data/${subject} processed/${subject}.mat config/hinec_dti_cubic.yml
 done
 ```
 
@@ -394,7 +394,7 @@ git commit -m "Add config for Experiment 1 (high precision, dense seeding)"
 
 ## Best Practices
 
-1. **Start with presets**: Use `hinec_default.yml` or `high_precision.yml` as starting points
+1. **Start with presets**: Use `hinec_default.yml` or `hinec_dti_cubic.yml` as starting points
 2. **Document changes**: Add comments explaining why parameters were changed
 3. **Version control**: Keep configs in git for reproducibility
 4. **Test incrementally**: Change one parameter at a time when optimizing

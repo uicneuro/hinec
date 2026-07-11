@@ -1,0 +1,29 @@
+# HINEC interpolated DTI — EULER integration (order 1) + trilinear interpolation.
+# The lowest-order interpolated tracker: a comparison point between pure FACT
+# (standard_dti) and the higher-order hinec integrators.
+# (Formerly euler_interpolated.yml.)
+#
+#   ./bin/run_tractography.sh hinec_dti_euler --score
+
+preprocessing:
+  denoise_method: 'dwidenoise'
+
+tractography:
+  # tracker + direction source
+  algorithm: 'hinec'
+  field: 'dti'
+  # direction shaping — interp_method (spatial kernel) x sel_power (alignment steering); they compose
+  interp_method: 'trilinear'   # 'trilinear' | 'cubic'
+  sel_power: 0                 # trajectory-dependent selectivity (0 = plain interpolation)
+  # integrator — numerical stepping scheme
+  integration_order: 1         # 1 Euler | 2 RK2 | 4 RK4 | 5 RKF45 (adaptive)
+  step_size: 0.5
+  # seeding
+  seed_density: 4
+  # termination
+  fa_threshold: 0.1
+  termination_fa: 0.2
+  angle_thresh: 35
+  min_length: 45
+  max_steps: 800
+  act_enabled: true

@@ -207,9 +207,11 @@ term_reasons = containers.Map('KeyType', 'char', 'ValueType', 'int64');
 % Convert angle threshold to cosine for efficiency
 cos_angle_thresh = cos(deg2rad(options.angle_thresh));
 
-% Initialize timing for tracking
+% Initialize timing for tracking. tracking_start is always set so progress
+% reporting works even when diagnostics are disabled.
+tracking_start = tic;
 if options.enable_diagnostics
-    timing.tracking_start = tic;
+    timing.tracking_start = tracking_start;
     timing.interpolation_time = 0;
     timing.boundary_time = 0;
     timing.step_count = 0;
@@ -222,7 +224,7 @@ last_report_time = tic;
 for i = 1:size(seed_points, 1)
     % Progress reporting with time estimate
     if mod(i, 10) == 0
-        elapsed = toc(timing.tracking_start);
+        elapsed = toc(tracking_start);
         rate = i / elapsed;
         eta = (size(seed_points, 1) - i) / rate;
         fprintf('\n%d/%d (%.1f seeds/s, ETA: %.1f min) ', i, size(seed_points, 1), rate, eta/60);
@@ -288,7 +290,7 @@ tracks = tracks(1:track_count);
 
 % Print final timing report
 if options.enable_diagnostics
-    timing.tracking_time = toc(timing.tracking_start);
+    timing.tracking_time = toc(tracking_start);
     timing.total_time = toc(timing.total_start);
     
     fprintf('\n\n=== FACT TIMING REPORT ===\n');

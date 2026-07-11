@@ -40,12 +40,18 @@ RUN_DIR="$(cd "$1" && pwd)"
 [[ -d "$RUN_DIR" ]] || { echo "Error: not a directory: $1" >&2; exit 1; }
 
 # Locate the latest tracks .mat in the run's tractography/ dir
-TRACKS_MAT=$(ls -t "$RUN_DIR"/tractography/tracks_*.mat 2>/dev/null | head -1 || true)
+TRACKS_MAT=$(ls -t "$RUN_DIR"/tractography/tracks*.mat 2>/dev/null | head -1 || true)
 [[ -n "$TRACKS_MAT" ]] || { echo "Error: no tracks_*.mat in $RUN_DIR/tractography/" >&2; exit 1; }
 
-# Locate the preprocessed DWI NIfTI (its affine is what hinec_to_trk uses)
-DWI_NII=$(ls "$RUN_DIR"/intermediate/*.nii.gz 2>/dev/null | grep -v _M.nii.gz | grep -v parcellation | head -1 || true)
-[[ -n "$DWI_NII" ]] || { echo "Error: no preprocessed DWI in $RUN_DIR/intermediate/" >&2; exit 1; }
+# Locate the preprocessed DWI NIfTI (its affine is what hinec_to_trk uses).
+DWI_NII=$(ls "$RUN_DIR"/intermediate/*.nii.gz 2>/dev/null | grep -v _M.nii.gz | grep -v parcellation | grep -v mask | head -1 || true)
+# Fallback to the canonical preprocessed ISMRM DWI if this run dir has none
+# (e.g. a tractography-only run dir whose intermediate/ was not populated).
+if [[ -z "$DWI_NII" ]]; then
+    DWI_NII=$(ls "${REPO_ROOT}"/data/ismrm2015/ismrm2015.nii.gz 2>/dev/null | head -1 || true)
+    [[ -n "$DWI_NII" ]] && echo "Note: using canonical DWI reference $DWI_NII (run dir had none)"
+fi
+[[ -n "$DWI_NII" ]] || { echo "Error: no preprocessed DWI in $RUN_DIR/intermediate/ and no canonical fallback" >&2; exit 1; }
 
 SCORING_DIR="$RUN_DIR/scoring"
 mkdir -p "$SCORING_DIR"

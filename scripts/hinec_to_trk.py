@@ -89,11 +89,15 @@ def load_hinec_tracks(mat_file):
     """
     print(f"Loading HINEC tracks from {mat_file}...")
 
+    # MATLAB v7.3 is HDF5, which scipy.io cannot read. Depending on the scipy
+    # version this surfaces as NotImplementedError OR MatReadError ("first 20
+    # bytes == 0") -- so fall back to the h5py loader on ANY scipy read failure
+    # if the file is in fact a valid HDF5/v7.3 file.
     try:
         mat_data = scipy.io.loadmat(mat_file)
-    except NotImplementedError as e:
-        # MATLAB v7.3 is HDF5 — scipy can't read it
-        if 'v7.3' in str(e) or 'HDF' in str(e):
+    except Exception as e:  # noqa: BLE001 -- broad on purpose (scipy raises several types)
+        is_hdf5 = H5PY_AVAILABLE and h5py.is_hdf5(mat_file)
+        if is_hdf5 or 'v7.3' in str(e) or 'HDF' in str(e):
             if not H5PY_AVAILABLE:
                 raise ImportError(
                     "This is a MATLAB v7.3 file (HDF5). Install h5py: pip install h5py"

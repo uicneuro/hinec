@@ -24,9 +24,9 @@ function run_info = create_run_directory(config_file, varargin)
 %              .timestamp      - Run timestamp string
 %
 % Example:
-%   run_info = create_run_directory('config/high_precision.yml');
+%   run_info = create_run_directory('config/hinec_dti.yml');
 %   run_info = create_run_directory('config/irontract.yml', 'run_name', 'my_experiment');
-%   run_info = create_run_directory('config/fast_exploration.yml', 'base_dir', 'experiments');
+%   run_info = create_run_directory('config/hinec_csd.yml', 'base_dir', 'experiments');
 
     % Convert config_file to char array for consistent handling
     config_file = char(config_file);

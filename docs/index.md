@@ -20,10 +20,10 @@ HINEC processes raw diffusion-weighted MRI (dMRI) data through a complete pipeli
 ./bin/run_hinec.sh data/parcellation_sample/sample sample.mat
 
 # High precision (publication quality)
-./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/high_precision.yml
+./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/hinec_dti_cubic.yml
 
 # Fast exploration
-./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/fast_exploration.yml
+./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/hinec_dti_fast.yml
 ```
 
 Or from MATLAB:

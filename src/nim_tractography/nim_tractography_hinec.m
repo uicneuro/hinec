@@ -109,6 +109,12 @@ end
 if ~isfield(options, 'interp_method')
     options.interp_method = "trilinear";  % HINEC: Use trilinear interpolation
 end
+if ~isfield(options, 'field') || isempty(options.field)
+    options.field = 'dti';   % 'dti' (principal eigenvector) | 'csd' (FOD peaks)
+end
+if ~isfield(options, 'sel_power') || isempty(options.sel_power)
+    options.sel_power = 0;   % 0 = plain trilinear; >0 = trajectory-dependent (aligned-voxel) interp
+end
 if ~isfield(options, 'integration_order')
     options.integration_order = 4;  % HINEC: RK4 integration by default
 end
@@ -242,6 +248,20 @@ nim.v1_y_interp = griddedInterpolant(grid_vectors, nim.v1_y, interp_method, 'non
 nim.v1_z_interp = griddedInterpolant(grid_vectors, nim.v1_z, interp_method, 'none');
 
 fprintf('HINEC: griddedInterpolant objects created successfully\n');
+
+% CSD / sel_power support: raw principal-eigenvector array (for trajectory-dependent
+% DTI interpolation) and FOD peak field (for CSD tracking).
+options.field = lower(char(string(options.field)));
+nim.E1arr = cat(4, nim.v1_x, nim.v1_y, nim.v1_z);   % [D1 D2 D3 3]
+if strcmp(options.field, 'csd')
+    if ~isfield(nim,'peaks') || ~isfield(nim,'npeaks')
+        error('HINEC field=csd needs nim.peaks/npeaks (run nim_csd).');
+    end
+    nim.PK = nim.peaks; nim.NP = nim.npeaks;
+    fprintf('HINEC: CSD FOD-peak tracking (sel_power=%g)\n', options.sel_power);
+elseif options.sel_power > 0
+    fprintf('HINEC: trajectory-dependent DTI interpolation (sel_power=%g)\n', options.sel_power);
+end
 
 if options.enable_diagnostics
     timing.precompute_time = toc(timing.precompute_start);
@@ -854,7 +874,7 @@ while true
     current_pos = next_pos;
 
     % Get new direction using interpolation
-    [new_dir, fa_val] = interpolate_direction_trilinear(nim, current_pos, options);
+    [new_dir, fa_val] = interpolate_direction_trilinear(nim, current_pos, options, dir_vec);
     if isempty(new_dir)
         if nargout > 2
             termination_reason = 'no_direction';
@@ -948,32 +968,32 @@ k1 = dir_vec;
 
 % Stage 2: k2 = f(x_n + c_2*h, y_n + h*(a_21*k1))
 pos_k2 = pos + h * (a(2,1) * k1);
-[k2, ~] = interpolate_direction_trilinear(nim, pos_k2, options);
+[k2, ~] = interpolate_direction_trilinear(nim, pos_k2, options, dir_vec);
 if isempty(k2), k2 = k1; else, if dot(k2, k1) < 0, k2 = -k2; end; end
 
 % Stage 3: k3 = f(x_n + c_3*h, y_n + h*(a_31*k1 + a_32*k2))
 pos_k3 = pos + h * (a(3,1)*k1 + a(3,2)*k2);
-[k3, ~] = interpolate_direction_trilinear(nim, pos_k3, options);
+[k3, ~] = interpolate_direction_trilinear(nim, pos_k3, options, dir_vec);
 if isempty(k3), k3 = k2; else, if dot(k3, k1) < 0, k3 = -k3; end; end
 
 % Stage 4: k4
 pos_k4 = pos + h * (a(4,1)*k1 + a(4,2)*k2 + a(4,3)*k3);
-[k4, ~] = interpolate_direction_trilinear(nim, pos_k4, options);
+[k4, ~] = interpolate_direction_trilinear(nim, pos_k4, options, dir_vec);
 if isempty(k4), k4 = k3; else, if dot(k4, k1) < 0, k4 = -k4; end; end
 
 % Stage 5: k5
 pos_k5 = pos + h * (a(5,1)*k1 + a(5,2)*k2 + a(5,3)*k3 + a(5,4)*k4);
-[k5, ~] = interpolate_direction_trilinear(nim, pos_k5, options);
+[k5, ~] = interpolate_direction_trilinear(nim, pos_k5, options, dir_vec);
 if isempty(k5), k5 = k4; else, if dot(k5, k1) < 0, k5 = -k5; end; end
 
 % Stage 6: k6
 pos_k6 = pos + h * (a(6,1)*k1 + a(6,2)*k2 + a(6,3)*k3 + a(6,4)*k4 + a(6,5)*k5);
-[k6, ~] = interpolate_direction_trilinear(nim, pos_k6, options);
+[k6, ~] = interpolate_direction_trilinear(nim, pos_k6, options, dir_vec);
 if isempty(k6), k6 = k5; else, if dot(k6, k1) < 0, k6 = -k6; end; end
 
 % Stage 7: k7
 pos_k7 = pos + h * (a(7,1)*k1 + a(7,2)*k2 + a(7,3)*k3 + a(7,4)*k4 + a(7,5)*k5 + a(7,6)*k6);
-[k7, ~] = interpolate_direction_trilinear(nim, pos_k7, options);
+[k7, ~] = interpolate_direction_trilinear(nim, pos_k7, options, dir_vec);
 if isempty(k7), k7 = k6; else, if dot(k7, k1) < 0, k7 = -k7; end; end
 
 % Compute 5th-order solution (PRIMARY - used for advancement)
@@ -1022,7 +1042,7 @@ k1 = dir_vec;
 
 % k2: direction at position + 0.5*h*k1
 pos_k2 = pos + 0.5 * h * k1;
-[k2, ~] = interpolate_direction_trilinear(nim, pos_k2, options);
+[k2, ~] = interpolate_direction_trilinear(nim, pos_k2, options, dir_vec);
 if isempty(k2)
     % Fallback to k1 if interpolation fails
     k2 = k1;
@@ -1035,7 +1055,7 @@ end
 
 % k3: direction at position + 0.5*h*k2
 pos_k3 = pos + 0.5 * h * k2;
-[k3, ~] = interpolate_direction_trilinear(nim, pos_k3, options);
+[k3, ~] = interpolate_direction_trilinear(nim, pos_k3, options, dir_vec);
 if isempty(k3)
     % Fallback to k2 if interpolation fails
     k3 = k2;
@@ -1048,7 +1068,7 @@ end
 
 % k4: direction at position + h*k3
 pos_k4 = pos + h * k3;
-[k4, ~] = interpolate_direction_trilinear(nim, pos_k4, options);
+[k4, ~] = interpolate_direction_trilinear(nim, pos_k4, options, dir_vec);
 if isempty(k4)
     % Fallback to k3 if interpolation fails
     k4 = k3;
@@ -1098,7 +1118,7 @@ switch options.integration_order
         k1 = dir_vec;
         mid_pos = pos + 0.5 * h * k1;
 
-        [k2, ~] = interpolate_direction_trilinear(nim, mid_pos, options);
+        [k2, ~] = interpolate_direction_trilinear(nim, mid_pos, options, dir_vec);
         if ~isempty(k2)
             % Ensure direction consistency
             if dot(k2, dir_vec) < 0
@@ -1158,8 +1178,12 @@ end
 end
 
 
-function [direction, fa_value] = interpolate_direction_trilinear(nim, pos, options)
-% HINEC: Fast interpolation of direction and FA using pre-created griddedInterpolant
+function [direction, fa_value] = interpolate_direction_trilinear(nim, pos, options, ref_dir)
+% HINEC: Fast interpolation of direction and FA using pre-created griddedInterpolant.
+% field='csd' -> trajectory-dependent FOD-peak selection; sel_power>0 -> aligned-voxel
+% weighted DTI interpolation; else plain trilinear of the principal eigenvector.
+% ref_dir (optional) = the incoming tangent, used to select the peak / weight the blend.
+if nargin < 4, ref_dir = []; end
 %
 % OPTIMIZED INTERPOLATION:
 % - Uses pre-created griddedInterpolant objects (2-5x faster than interp3)
@@ -1207,6 +1231,26 @@ end
 % Check for NaN (outside bounds) or too low FA
 if isnan(fa_value) || fa_value < options.termination_fa
     fa_value = 0;
+    return;
+end
+
+% --- trajectory-dependent direction: CSD FOD peaks OR sel_power-weighted DTI ---
+fld = 'dti'; if isfield(options,'field')&&~isempty(options.field), fld = lower(char(string(options.field))); end
+selp = 0;   if isfield(options,'sel_power')&&~isempty(options.sel_power), selp = options.sel_power; end
+% interp_method also drives the SPATIAL kernel of the sel_power blend: 'cubic' -> tricubic
+% (4x4x4) stencil, else trilinear (2x2x2). So cubic composes WITH sel_power, not either/or.
+cub = false; if isfield(options,'interp_method')&&~isempty(options.interp_method), cub = strcmpi(char(string(options.interp_method)),'cubic'); end
+if strcmp(fld,'csd')
+    if isempty(ref_dir), ref_dir = dominant_peak_h(nim,pos,dims); end
+    if isempty(ref_dir), return; end
+    [direction, okd] = interp_peak_traj_h(nim.PK, nim.NP, pos, ref_dir, selp, dims, cub);
+    if ~okd, direction = []; end
+    return;
+elseif selp > 0
+    if isempty(ref_dir), ref_dir = plain_v1_h(nim,pos); end
+    if isempty(ref_dir), return; end
+    [direction, okd] = interp_e1_traj_h(nim.E1arr, pos, ref_dir, selp, dims, cub);
+    if ~okd, direction = []; end
     return;
 end
 
@@ -1298,4 +1342,96 @@ catch ME
     tissue_type = 'OUTSIDE';
 end
 
+end
+
+% ==== trajectory-dependent interpolation (CSD peaks / sel_power DTI) ==================
+% Ported so HINEC supports CSD FOD-peak tracking and sel_power directional interpolation.
+
+% Per-axis interpolation stencil: cubic -> Catmull-Rom 4-tap (offsets -1..2), else
+% trilinear 2-tap (offsets 0..1). Weights sum to 1 in both cases; cubic weights may be
+% negative (interpolating), which is fine for the normalized directional blend below.
+function [offs,w]=stencil_h(t,cub)
+if cub
+  offs=[-1 0 1 2];
+  w=[ -0.5*t^3 +     t^2 - 0.5*t, ...
+       1.5*t^3 - 2.5*t^2       + 1, ...
+      -1.5*t^3 + 2.0*t^2 + 0.5*t, ...
+       0.5*t^3 - 0.5*t^2 ];
+else
+  offs=[0 1];
+  w=[1-t, t];
+end
+end
+
+% DTI: aligned-voxel weighted interpolation of the principal-eigenvector array E [D D D 3].
+% cub=true -> tricubic (4x4x4) spatial stencil; false -> trilinear (identical to the
+% pre-cubic behavior). Alignment weighting (al^sel) is applied per neighbor either way.
+function [d,ok]=interp_e1_traj_h(E,x,v,sel,dims,cub)
+d=[0 0 0]; ok=false;
+if nargin<6, cub=false; end
+if any(x<1)||x(1)>dims(1)||x(2)>dims(2)||x(3)>dims(3), return; end
+x0=floor(x); fr=x-x0; ix=x0(1); iy=x0(2); iz=x0(3);
+if ix<1||iy<1||iz<1||ix>=dims(1)||iy>=dims(2)||iz>=dims(3), return; end
+[ox,wgx]=stencil_h(fr(1),cub); [oy,wgy]=stencil_h(fr(2),cub); [oz,wgz]=stencil_h(fr(3),cub);
+% near a face the wider cubic stencil would read out of bounds -> fall back to trilinear
+if ix+min(ox)<1||ix+max(ox)>dims(1)||iy+min(oy)<1||iy+max(oy)>dims(2)||iz+min(oz)<1||iz+max(oz)>dims(3)
+  [ox,wgx]=stencil_h(fr(1),false); [oy,wgy]=stencil_h(fr(2),false); [oz,wgz]=stencil_h(fr(3),false);
+end
+v=v/max(norm(v),1e-9); acc=[0 0 0]; wsum=0;
+for a=1:numel(ox)
+ for b=1:numel(oy)
+  for c=1:numel(oz)
+   sp=wgx(a)*wgy(b)*wgz(c);
+   e=[E(ix+ox(a),iy+oy(b),iz+oz(c),1),E(ix+ox(a),iy+oy(b),iz+oz(c),2),E(ix+ox(a),iy+oy(b),iz+oz(c),3)];
+   ne=norm(e); if ne<1e-9, continue; end; e=e/ne; if e*v'<0, e=-e; end
+   al=max(0,e*v'); w=sp*(al^sel); acc=acc+w*e; wsum=wsum+abs(w);
+  end
+ end
+end
+na=norm(acc); if wsum>1e-9 && na>1e-6, d=acc/na; ok=true; end
+end
+
+% CSD: at each stencil voxel select the FOD peak nearest v, then aligned-voxel weighted blend.
+% cub=true -> tricubic (4x4x4) spatial stencil; false -> trilinear (identical to prior behavior).
+function [d,ok]=interp_peak_traj_h(P,NP,x,v,sel,dims,cub)
+d=[0 0 0]; ok=false;
+if nargin<7, cub=false; end
+if any(x<1)||x(1)>dims(1)||x(2)>dims(2)||x(3)>dims(3), return; end
+x0=floor(x); fr=x-x0; ix=x0(1); iy=x0(2); iz=x0(3);
+if ix<1||iy<1||iz<1||ix>=dims(1)||iy>=dims(2)||iz>=dims(3), return; end
+[ox,wgx]=stencil_h(fr(1),cub); [oy,wgy]=stencil_h(fr(2),cub); [oz,wgz]=stencil_h(fr(3),cub);
+if ix+min(ox)<1||ix+max(ox)>dims(1)||iy+min(oy)<1||iy+max(oy)>dims(2)||iz+min(oz)<1||iz+max(oz)>dims(3)
+  [ox,wgx]=stencil_h(fr(1),false); [oy,wgy]=stencil_h(fr(2),false); [oz,wgz]=stencil_h(fr(3),false);
+end
+v=v/max(norm(v),1e-9); acc=[0 0 0]; wsum=0;
+for a=1:numel(ox)
+ for b=1:numel(oy)
+  for c=1:numel(oz)
+   sp=wgx(a)*wgy(b)*wgz(c);
+   ux=ix+ox(a); uy=iy+oy(b); uz=iz+oz(c); np=NP(ux,uy,uz); if np<1, continue; end
+   bestpk=[0 0 0]; bestal=-1;
+   for p=1:np
+     pk=[P(ux,uy,uz,p,1),P(ux,uy,uz,p,2),P(ux,uy,uz,p,3)]; nn=norm(pk); if nn<1e-9, continue; end
+     pk=pk/nn; if pk*v'<0, pk=-pk; end; al=pk*v';
+     if al>bestal, bestal=al; bestpk=pk; end
+   end
+   if bestal<0, continue; end
+   w=sp*(max(0,bestal)^sel); acc=acc+w*bestpk; wsum=wsum+abs(w);
+  end
+ end
+end
+na=norm(acc); if wsum>1e-9 && na>1e-6, d=acc/na; ok=true; end
+end
+
+% initial reference where no incoming tangent exists: plain v1 (DTI) / dominant peak (CSD)
+function d=plain_v1_h(nim,pos)
+d=[nim.v1_x_interp(pos(1),pos(2),pos(3)),nim.v1_y_interp(pos(1),pos(2),pos(3)),nim.v1_z_interp(pos(1),pos(2),pos(3))];
+if any(isnan(d))||norm(d)<1e-6, d=[]; else, d=d/norm(d); end
+end
+function d=dominant_peak_h(nim,pos,dims)
+vp=min(max(round(pos),1),dims); d=[];
+if nim.NP(vp(1),vp(2),vp(3))>=1
+  d=[nim.PK(vp(1),vp(2),vp(3),1,1),nim.PK(vp(1),vp(2),vp(3),1,2),nim.PK(vp(1),vp(2),vp(3),1,3)];
+  if norm(d)<1e-6, d=[]; else, d=d/norm(d); end
+end
 end

@@ -1,9 +1,13 @@
-# HINEC configuration for ISMRM 2015 Tractography Challenge
-# Dataset: 2 mm isotropic, 32 dirs, b=1000. T1 provided for registration.
+# ismrm2015 — dataset/preprocessing config for the ISMRM 2015 Tractography Challenge.
+# Dataset: 2 mm isotropic, 32 dirs, b=1000. Builds the nim via run_hinec.sh; the
+# tractography block below is the initial-pass default (mirrors hinec_dti) — iterate/tune
+# per experiment with run_tractography.sh on the built nim.
 #
-# Pair with the data layout in data/ismrm2015/ — see data/ismrm2015/README.md.
-# Scoring with scilpy (Renauld 2023) expects streamlines in RAS world (mm)
-# coords; run scripts/hinec_to_trk.py --space rasmm after the pipeline finishes.
+# Pair with the data layout in data/ismrm2015/ — see data/ismrm2015/README.md. Scoring with
+# scilpy (Renauld 2023) expects streamlines in RAS world (mm); run scripts/hinec_to_trk.py
+# --space rasmm after the pipeline finishes.
+#
+#   ./bin/run_hinec.sh data/ismrm2015/ismrm2015 ismrm2015.mat config/ismrm2015.yml
 
 preprocessing:
   run_denoising: true
@@ -12,38 +16,33 @@ preprocessing:
   run_eddy: true
   improve_mask: true
   atlas_type: 'jhu'
-
-  # T1 registration is DISABLED here because nim_apply_transforms does not yet
-  # implement the inverse MNI->T1 warp needed by nim_parcellation_registered.
-  # Without it, parcellation is less precisely T1-aligned, but tractography is
-  # unaffected: tracks live in DWI voxel space and the DWI's intrinsic affine
-  # still maps voxel -> RAS world correctly for the scilpy scorer.
-  # Re-enable once nim_apply_transforms.m grows the inverse-warp implementation.
+  # T1 registration DISABLED here (nim_apply_transforms lacks the inverse MNI->T1 warp
+  # needed by nim_parcellation_registered). Tractography is unaffected: tracks live in DWI
+  # voxel space and the DWI affine still maps voxel -> RAS world for the scorer.
   t1_available: false
   use_t1_registration: false
   register_to_mni: false
 
 tractography:
+  # tracker + direction source
   algorithm: 'hinec'
-
-  # RK4 with trilinear interp — same parameter family as the IronTract preset,
-  # which has been validated against tractography challenges.
-  integration_order: 4
-  interp_method: 'trilinear'
-  adaptive_step: false
+  field: 'dti'
+  # direction shaping — interp_method (spatial kernel) x sel_power (alignment steering); they compose
+  interp_method: 'trilinear'   # 'trilinear' | 'cubic'
+  sel_power: 16                # trajectory-dependent selectivity (0 = plain interpolation)
+  # integrator — numerical stepping scheme
+  integration_order: 5         # 1 Euler | 2 RK2 | 4 RK4 | 5 RKF45 (adaptive)
+  adaptive_step: true
+  rkf_tolerance: 0.02
   step_size: 0.2
-
-  # Dense uniform seeding for whole-brain coverage (ISMRM scoring rewards
-  # bundle coverage; sparse seeding hurts).
-  seed_density: 4
-  seed_strategy: 'uniform'
-
-  # Low FA threshold to reach into challenging bundles (fornix, cingulum,
-  # CC ends). Angle 35° is a conservative curvature cap.
-  termination_fa: 0.1
-  angle_thresh: 35
-  max_steps: 1000
-  min_length: 20    # mm — ISMRM bundles include short fibers; don't over-filter
-
-  act_enabled: true
-  enable_diagnostics: true
+  step_min: 0.02
+  step_max: 0.5
+  # seeding
+  seed_density: 8
+  # termination
+  fa_threshold: 0.10
+  termination_fa: 0.10
+  angle_thresh: 45
+  min_length: 15
+  max_steps: 3000
+  act_enabled: false

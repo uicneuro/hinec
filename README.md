@@ -17,10 +17,10 @@ Human brain white matter tractography pipeline with **YAML-based parameter confi
 ./bin/run_hinec.sh data/parcellation_sample/sample sample.mat
 
 # High precision (publication quality)
-./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/high_precision.yml
+./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/hinec_dti_cubic.yml
 
 # Fast exploration (parameter testing)
-./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/fast_exploration.yml
+./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/hinec_dti_fast.yml
 
 # Export visualization figures (after pipeline completes)
 ./bin/run_visualization.sh hinec_runs/run_20260330_*/ figures/my_output
@@ -50,7 +50,7 @@ runTractography(output_mat, config, run_info);
 Every pipeline run creates a timestamped directory with all outputs:
 
 ```
-hinec_runs/run_20250118_143045_high_precision/
+hinec_runs/run_20250118_143045_hinec_dti_cubic/
 ├── config.yml          # Copy of config used
 ├── run_info.txt        # Run metadata
 ├── logs/               # Pipeline logs
@@ -79,9 +79,9 @@ hinec_runs/run_20250118_143045_high_precision/
 
 **Available Presets**:
 - `hinec_default.yml` - Balanced performance (recommended)
-- `high_precision.yml` - Publication quality (RKF45 adaptive)
-- `fast_exploration.yml` - Quick parameter testing (3-5x faster)
-- `euler_interpolated.yml` - Euler with trilinear interpolation
+- `hinec_dti_cubic.yml` - Publication quality (RKF45 adaptive)
+- `hinec_dti_fast.yml` - Quick parameter testing (3-5x faster)
+- `hinec_dti_euler.yml` - Euler with trilinear interpolation
 - `irontract.yml` - IronTract challenge optimized
 
 **Documentation**: See [docs/YAML_CONFIG.md](docs/YAML_CONFIG.md)

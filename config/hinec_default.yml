@@ -1,95 +1,38 @@
-# HINEC Pipeline Configuration
-# Default parameter settings for preprocessing and tractography
-# Copy this file and modify for custom experiments
+# hinec_default — generic full-pipeline default (used when run_hinec.sh / load_config_yaml
+# get no config). The only config pairing a FULL preprocessing block with a general-purpose
+# hinec DTI tractography block (cubic interpolation + RK4 + ACT). For a specific dataset use
+# a dataset config (ismrm2015, irontract); to iterate trackers on a built nim use a tracker
+# config (hinec_dti / hinec_csd / mmf_dti / mmf_csd / standard_dti / hinec_dti_*).
+#
+#   ./bin/run_hinec.sh <data_prefix> out.mat            # uses this file by default
 
-# ==============================================================================
-# PREPROCESSING CONFIGURATION
-# ==============================================================================
 preprocessing:
-  # Denoising
   run_denoising: true
-  denoise_method: "dwidenoise" # Options: 'dwidenoise' (MRtrix), 'susan' (FSL), 'nlmeans', 'gaussian'
-
-  # Motion and eddy current correction
+  denoise_method: 'dwidenoise'   # 'dwidenoise' (MRtrix) | 'susan' (FSL) | 'nlmeans' | 'gaussian'
   run_motion_correction: true
   run_eddy: true
-
-  # Brain extraction
   improve_mask: true
-
-  # Atlas and parcellation
-  atlas_type: "jhu" # Options: 'jhu', 'aal', 'desikan'
-
-  # T1 registration (optional)
+  atlas_type: 'jhu'              # 'jhu' | 'aal' | 'desikan'
   t1_available: false
   use_t1_registration: false
   register_to_mni: false
 
-# ==============================================================================
-# TRACTOGRAPHY CONFIGURATION
-# ==============================================================================
 tractography:
-  # Algorithm selection
-  algorithm: "hinec" # Options: 'standard' (FACT), 'hinec' (high-order)
-
-  # Integration method
-  integration_order: 4 # 1=Euler, 2=RK2, 4=RK4, 5=RKF45
-  interp_method: "cubic" # Options: 'trilinear', 'cubic', 'none'
-
-  # Step size control
-  step_size: 0.2 # Fixed step size in voxel units
-
-  # RKF45 adaptive stepping (only when integration_order=5)
-  adaptive_step: false
-  rkf_tolerance: 0.01 # Error tolerance in voxels
-  rkf_safety: 0.9 # Safety factor for step adjustment
-  step_min: 0.01 # Minimum step size (voxels)
-  step_max: 1.0 # Maximum step size (voxels)
-
-  # Seeding parameters
-  seed_density: 4 # Seeds per voxel (1-8 recommended)
-  seed_strategy: "uniform" # Options: 'uniform'
-
-  # Termination criteria
-  termination_fa: 0.2 # FA threshold for track termination
-  angle_thresh: 35 # Maximum curvature angle (degrees)
-  max_steps: 800 # Maximum integration steps per track
-  min_length: 45 # Minimum track length (mm)
-
-  # Anatomically Constrained Tractography (ACT)
-  act_enabled: true # Enable ACT if tissue masks available
-
-  # Advanced options
-  enable_diagnostics: true
-# ==============================================================================
-# PRESET CONFIGURATIONS
-# ==============================================================================
-# Uncomment a preset section to override individual parameters
-# You can also create custom presets by copying and modifying these
-
-# FAST EXPLORATION (quick results, lower quality)
-# tractography:
-#   integration_order: 2
-#   step_size: 0.3
-#   seed_density: 2
-#   termination_fa: 0.2
-#   angle_thresh: 45
-
-# HIGH PRECISION (publication quality, slower)
-# tractography:
-#   integration_order: 5
-#   adaptive_step: true
-#   rkf_tolerance: 0.005
-#   step_size: 0.1
-#   seed_density: 6
-#   termination_fa: 0.1
-#   angle_thresh: 30
-
-# IRONTRACT CHALLENGE
-# tractography:
-#   algorithm: 'hinec'
-#   integration_order: 4
-#   step_size: 0.2
-#   seed_density: 4
-#   termination_fa: 0.1
-#   angle_thresh: 35
+  # tracker + direction source
+  algorithm: 'hinec'
+  field: 'dti'
+  # direction shaping — interp_method (spatial kernel) x sel_power (alignment steering); they compose
+  interp_method: 'cubic'       # 'trilinear' | 'cubic'
+  sel_power: 0                 # trajectory-dependent selectivity (0 = plain interpolation)
+  # integrator — numerical stepping scheme
+  integration_order: 4         # 1 Euler | 2 RK2 | 4 RK4 | 5 RKF45 (adaptive)
+  step_size: 0.2
+  # seeding
+  seed_density: 4
+  # termination
+  fa_threshold: 0.1
+  termination_fa: 0.2
+  angle_thresh: 35
+  min_length: 45
+  max_steps: 800
+  act_enabled: true

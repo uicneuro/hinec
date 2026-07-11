@@ -1,20 +1,13 @@
-# irontract — dataset/preprocessing config for the IronTract Challenge phantom.
-# Builds the nim via run_hinec.sh; the tractography block mirrors hinec_dti (initial pass) —
-# iterate/tune per experiment with run_tractography.sh on the built nim. See
-# docs/IRONTRACT_WORKFLOW.md (nim_irontract_submit packages the submission).
+# HINEC interpolated streamline tractography on the DTI principal-eigenvector field,
+# with trajectory-dependent (sel_power) directional interpolation + RK4/RKF45 + ACT.
 #
-#   ./bin/run_hinec.sh <data_prefix> irontract.mat config/irontract.yml
+#   ./bin/run_tractography.sh hinec_dti --score
+#
+# (This is the tracker that used to be mislabelled 'mmf' with integrator: 'rkf45'.
+#  For the genuine connection-form Method of Moving Frames, use mmf_dti.yml.)
 
 preprocessing:
-  run_denoising: true
   denoise_method: 'dwidenoise'
-  run_motion_correction: true
-  run_eddy: true
-  improve_mask: true
-  atlas_type: 'jhu'
-  t1_available: false
-  use_t1_registration: false
-  register_to_mni: false
 
 tractography:
   # tracker + direction source

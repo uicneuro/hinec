@@ -104,3 +104,29 @@ mrtrix_runs/
 lib/spm12.zip
 data/ismrm2015/*
 !data/ismrm2015/README.md
+
+# ===== MMF / tractography work additions =====
+
+# Python bytecode caches
+__pycache__/
+*.pyc
+*.pyo
+
+# NIfTI volumes and tractography exports are data / large binaries — never commit
+*.nii
+*.nii.gz
+*.trk
+*.tck
+
+# LaTeX report — a deliverable, not part of the code repo
+report_mmf/
+
+# One-time DSE / exploration figures + data blobs. docs/ is the user-facing
+# mkdocs source; these scratch figures are not part of the generated site.
+docs/figs/
+
+# Internal research notes not in the mkdocs nav (not user-facing docs)
+docs/INTERP_GAIN_AT_OPTIMUM.md
+
+# Personal discussion / reference notes — not part of the code repo
+DiscussionWithPeng_Winter2026.pdf

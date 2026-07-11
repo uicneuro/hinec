@@ -453,7 +453,7 @@ Export tractography figures from the command line without an interactive MATLAB 
 
 ```bash
 # Whole brain 3D view (default)
-./bin/run_visualization.sh hinec_runs/run_20260330_124146_standard_fact/
+./bin/run_visualization.sh hinec_runs/run_20260330_124146_standard_dti/
 
 # Grid layout of all regions as PDF
 ./bin/run_visualization.sh hinec_runs/run_20260330_*/ '' grid pdf

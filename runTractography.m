@@ -66,7 +66,7 @@ if nargin >= 2
         % First argument is run_info structure
         run_info = arg1;
         fprintf('Using run directory: %s\n', run_info.run_dir);
-    elseif strcmpi(arg1, 'standard') || strcmpi(arg1, 'hinec')
+    elseif strcmpi(arg1, 'standard') || strcmpi(arg1, 'hinec') || strcmpi(arg1, 'mmf')
         % Legacy: algorithm selection string
         algorithm = lower(arg1);
     elseif strcmpi(arg1, 'IronTract')
@@ -90,6 +90,7 @@ addpath('src/nim_tractography');
 addpath('src/nim_utils');
 addpath('src/nim_plots');
 addpath('src/nim_challenges');
+addpath('src/nim_calculation');
 
 fprintf('=== HINEC Tractography Pipeline ===\n');
 
@@ -215,7 +216,8 @@ options.seed_mask = seed_mask;
 
 %% ACT Configuration: Add tissue masks if available
 fprintf('\n=== Anatomically Constrained Tractography (ACT) Configuration ===\n');
-if isfield(nim, 'wm_mask') && isfield(nim, 'gm_mask') && isfield(nim, 'csf_mask')
+act_enabled = ~isfield(options,'act_enabled') || ~isequal(options.act_enabled, 0) && ~isequal(options.act_enabled, false);
+if act_enabled && isfield(nim, 'wm_mask') && isfield(nim, 'gm_mask') && isfield(nim, 'csf_mask')
     % All three tissue masks are available - enable full ACT
     options.wm_mask = nim.wm_mask;
     options.gm_mask = nim.gm_mask;
@@ -260,7 +262,55 @@ fprintf('==========================\n');
 timestamp = datestr(now, 'yyyy-mm-dd_HH_MM_SS');
 
 
-if strcmpi(algorithm, 'hinec')
+% CSD FOD peaks are needed by ANY tracker running field=csd (hinec AND mmf), so
+% provision them BEFORE the algorithm dispatch. Compute with nim_csd when the config
+% sets field=csd, cached next to the source nim (<source>_csd.mat) so it is computed
+% once per preprocessed dataset and reused by every tractography config.
+fld = 'dti';
+if isfield(options, 'field') && ~isempty(options.field)
+    fld = lower(char(string(options.field)));
+end
+if strcmp(fld, 'csd') && ~isfield(nim, 'peaks')
+    csd_cache = regexprep(data_path, '\.mat$', '_csd.mat');
+    if isfile(csd_cache)
+        fprintf('field=csd: loading cached CSD FOD from %s\n', csd_cache);
+        Sc = load(csd_cache);
+        nim.peaks = Sc.peaks; nim.npeaks = Sc.npeaks; nim.peak_w = Sc.peak_w;
+        if isfield(Sc, 'fod_sh'), nim.fod_sh = Sc.fod_sh; end
+    else
+        fprintf('field=csd: computing CSD FOD peaks (nim_csd)...\n');
+        csd_opts = struct('lmax', 6, 'n_iter', 50, 'peak_thresh', 0.5, ...
+                          'peak_min_sep', 45, 'max_peaks', 3);
+        csd_keys = {'lmax', 'n_iter', 'peak_thresh', 'peak_min_sep', 'max_peaks'};
+        for ci = 1:numel(csd_keys)
+            ck = ['csd_' csd_keys{ci}];
+            if isfield(options, ck) && ~isempty(options.(ck))
+                csd_opts.(csd_keys{ci}) = options.(ck);
+            end
+        end
+        nim = nim_csd(nim, csd_opts);
+        try
+            peaks = nim.peaks; npeaks = nim.npeaks; peak_w = nim.peak_w; %#ok<NASGU>
+            if isfield(nim, 'fod_sh')
+                fod_sh = nim.fod_sh; %#ok<NASGU>
+                save(csd_cache, 'peaks', 'npeaks', 'peak_w', 'fod_sh', '-v7.3');
+            else
+                save(csd_cache, 'peaks', 'npeaks', 'peak_w', '-v7.3');
+            end
+            fprintf('  cached CSD FOD -> %s\n', csd_cache);
+        catch
+            % non-fatal: proceed without caching
+        end
+    end
+end
+
+if strcmpi(algorithm, 'mmf')
+    fprintf('Running MMF connection-frame tractography (moving frames + connection 1-form)...\n');
+    tic;
+    tracks = nim_tractography_mmf_connframe(nim, options);
+    elapsed_time = toc;
+    output_filename = sprintf('tracks_mmf_%s.mat', timestamp);
+elseif strcmpi(algorithm, 'hinec')
     fprintf('Running HINEC high-order tractography (interpolation + RK4 + ACT)...\n');
     tic;
     tracks = nim_tractography_hinec(nim, options);
@@ -350,4 +400,13 @@ if enable_irontract
 end
 
 fprintf('=== Tractography Complete ===\n');
+end
+
+function val = get_opt(s, field, default)
+% Safe struct field accessor with a default.
+if isfield(s, field) && ~isempty(s.(field))
+    val = s.(field);
+else
+    val = default;
+end
 end

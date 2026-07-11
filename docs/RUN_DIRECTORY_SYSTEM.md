@@ -10,7 +10,7 @@ Each pipeline run creates an isolated directory:
 
 ```
 hinec_runs/
-├── run_20250118_143045_high_precision/     # Timestamped run directory
+├── run_20250118_143045_hinec_dti_cubic/     # Timestamped run directory
 │   ├── config.yml                           # Copy of config used
 │   ├── run_info.txt                         # Run metadata
 │   ├── logs/
@@ -29,10 +29,10 @@ hinec_runs/
 │       └── diagnostics/
 │           └── track_statistics.txt
 │
-├── run_20250118_150230_fast_exploration/
+├── run_20250118_150230_hinec_dti_fast/
 │   └── (same structure)
 │
-└── latest -> run_20250118_150230_fast_exploration/  # Symlink to most recent
+└── latest -> run_20250118_150230_hinec_dti_fast/  # Symlink to most recent
 ```
 
 ## Benefits
@@ -58,7 +58,7 @@ hinec_runs/
 ./run_hinec.sh sample sample_output.mat
 
 # Run with custom config
-./run_hinec.sh sample sample_output.mat config/high_precision.yml
+./run_hinec.sh sample sample_output.mat config/hinec_dti_cubic.yml
 ```
 
 ### Run Directory Contents
@@ -111,8 +111,8 @@ ls -lt hinec_runs/
 
 **Compare configs**:
 ```bash
-diff hinec_runs/run_20250118_143045_high_precision/config.yml \
-     hinec_runs/run_20250118_150230_fast_exploration/config.yml
+diff hinec_runs/run_20250118_143045_hinec_dti_cubic/config.yml \
+     hinec_runs/run_20250118_150230_hinec_dti_fast/config.yml
 ```
 
 **Compare track counts**:
@@ -122,7 +122,7 @@ grep "Total tracks" hinec_runs/run_*/tractography/diagnostics/track_statistics.t
 
 **View run metadata**:
 ```bash
-cat hinec_runs/run_20250118_143045_high_precision/run_info.txt
+cat hinec_runs/run_20250118_143045_hinec_dti_cubic/run_info.txt
 ```
 
 ## File Naming Convention
@@ -133,8 +133,8 @@ Format: `run_YYYYMMDD_HHMMSS_<config_preset>`
 
 Examples:
 
-- `run_20250118_143045_high_precision`
-- `run_20250118_150230_fast_exploration`
+- `run_20250118_143045_hinec_dti_cubic`
+- `run_20250118_150230_hinec_dti_fast`
 - `run_20250118_162015_irontract`
 - `run_20250118_173200_hinec_default`
 
@@ -155,7 +155,7 @@ Examples:
 
 ```bash
 # Delete specific run
-rm -rf hinec_runs/run_20250118_143045_high_precision/
+rm -rf hinec_runs/run_20250118_143045_hinec_dti_cubic/
 
 # Delete all runs before specific date
 find hinec_runs/ -name "run_202501*" -type d -exec rm -rf {} +
@@ -168,11 +168,11 @@ ls -t hinec_runs/ | tail -n +6 | xargs -I {} rm -rf hinec_runs/{}
 
 ```bash
 # Archive a run for long-term storage
-tar -czf run_20250118_143045_high_precision.tar.gz \
-    hinec_runs/run_20250118_143045_high_precision/
+tar -czf run_20250118_143045_hinec_dti_cubic.tar.gz \
+    hinec_runs/run_20250118_143045_hinec_dti_cubic/
 
 # Extract archived run
-tar -xzf run_20250118_143045_high_precision.tar.gz -C hinec_runs/
+tar -xzf run_20250118_143045_hinec_dti_cubic.tar.gz -C hinec_runs/
 ```
 
 ## Integration with MATLAB
@@ -183,10 +183,10 @@ You can also use the run directory system directly from MATLAB:
 
 ```matlab
 % Load configuration
-config = load_config_yaml('config/high_precision.yml');
+config = load_config_yaml('config/hinec_dti_cubic.yml');
 
 % Create run directory
-run_info = create_run_directory('config/high_precision.yml');
+run_info = create_run_directory('config/hinec_dti_cubic.yml');
 
 % Run preprocessing with run directory
 main('sample', 'processed.mat', config, run_info);

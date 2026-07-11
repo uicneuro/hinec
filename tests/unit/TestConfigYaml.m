@@ -16,8 +16,8 @@ classdef TestConfigYaml < matlab.unittest.TestCase
     methods (Test)
         function testAllPresetsLoad(testCase)
             % All 5 YAML config files should load without error
-            presets = {'hinec_default.yml', 'fast_exploration.yml', ...
-                       'high_precision.yml', 'standard_fact.yml', 'irontract.yml'};
+            presets = {'hinec_default.yml', 'hinec_dti.yml', ...
+                       'hinec_csd.yml', 'standard_dti.yml', 'irontract.yml'};
             for i = 1:numel(presets)
                 cfg = load_config_yaml(fullfile(testCase.ConfigDir, presets{i}));
                 testCase.verifyTrue(isstruct(cfg), ...

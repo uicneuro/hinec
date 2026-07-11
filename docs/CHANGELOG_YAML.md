@@ -12,8 +12,8 @@ Implemented a comprehensive YAML-based parameter configuration system for the HI
 
 - `nim_utils/load_config_yaml.m` - YAML parser with validation
 - `config/hinec_default.yml` - Default balanced configuration
-- `config/high_precision.yml` - Publication-quality preset
-- `config/fast_exploration.yml` - Quick testing preset
+- `config/hinec_dti_cubic.yml` - Publication-quality preset
+- `config/hinec_dti_fast.yml` - Quick testing preset
 - `config/irontract.yml` - IronTract challenge preset
 
 **Documentation**:
@@ -65,8 +65,8 @@ Four ready-to-use presets for common scenarios:
 | Preset | Integration | Speed | Use Case |
 |--------|-------------|-------|----------|
 | `hinec_default.yml` | RK4 | Baseline | Standard analysis |
-| `high_precision.yml` | RKF45 adaptive | 2-3x slower | Publications |
-| `fast_exploration.yml` | RK2 | 3-5x faster | Parameter testing |
+| `hinec_dti_cubic.yml` | RKF45 adaptive | 2-3x slower | Publications |
+| `hinec_dti_fast.yml` | RK2 | 3-5x faster | Parameter testing |
 | `irontract.yml` | RK4 | Baseline | IronTract challenge |
 
 ### 3. Automatic Validation
@@ -94,7 +94,7 @@ All existing code continues to work:
 runTractography('data.mat', 'hinec');
 
 % New YAML usage
-config = load_config_yaml('config/high_precision.yml');
+config = load_config_yaml('config/hinec_dti_cubic.yml');
 runTractography('data.mat', config);
 ```
 
@@ -107,7 +107,7 @@ runTractography('data.mat', config);
 ./run_hinec.sh data/subject processed.mat
 
 # Use custom config
-./run_hinec.sh data/subject processed.mat config/high_precision.yml
+./run_hinec.sh data/subject processed.mat config/hinec_dti_cubic.yml
 ```
 
 ### Create Custom Config

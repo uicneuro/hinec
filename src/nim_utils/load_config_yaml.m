@@ -177,6 +177,14 @@ function config = validate_config(config)
         'max_steps', 1000, ...
         'min_length', 35, ...
         'act_enabled', true, ...
+        'gate_power', 1.0, ...
+        'crossing_cp', 0.15, ...
+        'curv_beta', 2.0, ...
+        'bishop_eps', 1.0e-6, ...
+        'crossing_detect', 'both', ...
+        'swing_ratio_max', 0.3, ...
+        'transport_gate', true, ...
+        'transport_strength', 0.97, ...
         'enable_diagnostics', true));
 
     % Validate tractography parameters
@@ -236,6 +244,31 @@ function validate_tractography_params(params)
     % FA threshold
     if params.termination_fa < 0 || params.termination_fa > 1
         error('termination_fa must be in [0, 1], got: %.2f', params.termination_fa);
+    end
+
+    % MMF crossing-aware tracker validation (only when algorithm == 'mmf')
+    if isfield(params, 'algorithm') && strcmpi(params.algorithm, 'mmf')
+        if isfield(params, 'gate_power') && params.gate_power < 0
+            error('gate_power must be >= 0, got: %.4f', params.gate_power);
+        end
+        if isfield(params, 'crossing_cp') && (params.crossing_cp < 0 || params.crossing_cp > 1)
+            error('crossing_cp must be in [0,1], got: %.4f', params.crossing_cp);
+        end
+        if isfield(params, 'curv_beta') && params.curv_beta < 0
+            error('curv_beta must be >= 0, got: %.4f', params.curv_beta);
+        end
+        if isfield(params, 'crossing_detect') && ...
+                ~ismember(lower(char(params.crossing_detect)), {'swing','planarity','both'})
+            error('crossing_detect must be swing|planarity|both, got: %s', char(string(params.crossing_detect)));
+        end
+        if isfield(params, 'transport_strength') && ...
+                (params.transport_strength < 0 || params.transport_strength > 1)
+            error('transport_strength must be in [0,1], got: %.4f', params.transport_strength);
+        end
+        if isfield(params, 'swing_ratio_max') && ...
+                (params.swing_ratio_max < 0 || params.swing_ratio_max > 1)
+            error('swing_ratio_max must be in [0,1], got: %.4f', params.swing_ratio_max);
+        end
     end
 
     fprintf('✓ Parameter validation passed\n');

@@ -52,7 +52,9 @@ nav:
     - Architecture: ARCHITECTURE.md
     - Run Directory System: RUN_DIRECTORY_SYSTEM.md
   - Tractography:
-    - Standard Tractography: TRACTOGRAPHY.md
+    - Methods Overview: TRACTOGRAPHY_METHODS.md
+    - MMF Connection-Form: MMF_TRACTOGRAPHY.md
+    - Standard (FACT): TRACTOGRAPHY.md
     - High-Order Methods: High_Order.md
     - RKF45 Adaptive: RKF.md
     - RKF45 Usage: RKF_Usage.md

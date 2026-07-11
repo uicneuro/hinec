@@ -250,6 +250,19 @@ nim = nim_dt_spd(nim);
 nim = nim_eig(nim);
 nim = nim_fa(nim);
 
+%% Step 2b: MMF moving-frame geometry (frame field + connection 1-form) baked into the
+%% nim, so tractography (algorithm 'mmf') can trace through it without rebuilding it.
+%% Property of the space -> built once here, like FA/evec (Chun-Peng steps 1-3).
+try
+    if exist('config','var') && isstruct(config) && isfield(config,'tractography')
+        nim = nim_mmf_geometry(nim, config.tractography);   % honour frame_sel_power / field
+    else
+        nim = nim_mmf_geometry(nim);
+    end
+catch ME
+    warning('nim_mmf_geometry failed (%s); MMF tractography will build it on demand.', ME.message);
+end
+
 %% Step 3: Registration (if enabled)
 registration_data = [];
 if options.enable_registration
@@ -356,9 +369,13 @@ end
 fprintf("\nGenerating tissue masks for ACT (WM, GM, CSF)...\n");
 if isfile(brain_mask_file)
     try
-        % Generate tissue-specific masks using FA-based segmentation
+        % Generate tissue masks — prefer real FSL FAST on the anatomical T1,
+        % resampled into DWI space via the world affine (NOT the T1->DWI
+        % registration, which may be disabled/broken). Falls back to FA-tertiles
+        % only if no T1 is available.
+        anat_t1_file = [char(imgpath) '_T1.nii.gz'];
         [wm_mask_file, gm_mask_file, csf_mask_file] = ...
-            preproc_tissue_segmentation(nim.FA, brain_mask_file, output_prefix);
+            preproc_tissue_segmentation(nim.FA, brain_mask_file, output_prefix, anat_t1_file);
 
         % Load tissue masks into nim structure for tractography
         if isfile(wm_mask_file)
@@ -399,19 +416,20 @@ end
 %% Step 6: Save enhanced nim structure
 % Redirect output to run directory if specified
 if use_run_dir
-    % Extract just the filename (no directory) from nimpath
+    % Canonical nim at the DATA LAYER (next to the input, e.g.
+    % data/ismrm2015/ismrm2015.mat) — the stable source that run_tractography
+    % reads, so the preprocessed nim never has to be dug out of a run dir.
+    data_nimpath = [char(imgpath) '.mat'];
+    nim_save(nim, data_nimpath);
+    fprintf('✓ Saved canonical nim to data layer: %s\n', data_nimpath);
+
+    % Copy into this preprocessing run's output/ (with run_info embedded) for
+    % that run's own provenance/self-containment.
     [~, output_name, output_ext] = fileparts(nimpath);
-    fprintf('DEBUG: nimpath = %s\n', nimpath);
-    fprintf('DEBUG: output_name = %s\n', output_name);
-    fprintf('DEBUG: output_ext = %s\n', output_ext);
-    fprintf('DEBUG: run_info.output_dir = %s\n', run_info.output_dir);
     final_nimpath = fullfile(run_info.output_dir, [output_name output_ext]);
-    fprintf('DEBUG: final_nimpath = %s\n', final_nimpath);
+    nim.run_info = run_info;
     nim_save(nim, final_nimpath);
     fprintf('✓ Saved to run directory: %s\n', final_nimpath);
-
-    % Also save run_info to nim structure for reference
-    nim.run_info = run_info;
 else
     nim_save(nim, nimpath);
 end

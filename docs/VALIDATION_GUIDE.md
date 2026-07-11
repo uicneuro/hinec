@@ -91,8 +91,8 @@ Output lands in a timestamped `hinec_runs/run_<TIMESTAMP>_ismrm2015/`:
 - `output/ismrm2015.mat` — the processed `nim` struct
 - `tractography/tracks_hinec_*.mat` — the streamlines (voxel coords)
 
-`config/ismrm2015.yml` and `config/max_coverage.yml` are the two presets tuned
-for this phantom (max_coverage scored highest in our tests).
+`config/ismrm2015.yml` and `config/hinec_dti_cubic_recall.yml` are the two presets tuned
+for this phantom (hinec_dti_cubic_recall scored highest in our tests).
 
 > **Tip:** on a shared machine, cap the parallel pool with
 > `HINEC_MAX_WORKERS=8` so tracking doesn't oversubscribe cores.
@@ -126,7 +126,7 @@ print('Dice=%.3f  OL=%.3f  OR=%.3f  VB=%.0f'%(r['mean_f1'],r['mean_OL'],r['mean_
 
 ```bash
 ~/venvs/ismrm/bin/python scripts/compare_ismrm_results.py \
-    hinec_runs/run_*_ismrm2015 hinec_runs/run_*_max_coverage
+    hinec_runs/run_*_ismrm2015 hinec_runs/run_*_hinec_dti_cubic_recall
 ```
 
 Prints a side-by-side table of headline metrics and per-bundle Dice.

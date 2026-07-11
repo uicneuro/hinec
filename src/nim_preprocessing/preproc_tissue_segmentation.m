@@ -1,29 +1,40 @@
-function [wm_mask_file, gm_mask_file, csf_mask_file] = preproc_tissue_segmentation(fa_data, brain_mask_file, file_prefix)
-% preproc_tissue_segmentation: Generate tissue-specific masks using FA-based segmentation
+function [wm_mask_file, gm_mask_file, csf_mask_file] = preproc_tissue_segmentation(fa_data, brain_mask_file, file_prefix, t1_file)
+% preproc_tissue_segmentation: Generate WM/GM/CSF tissue masks for ACT.
 %
-% This function creates three tissue masks for Anatomically Constrained Tractography (ACT):
-%   - White Matter (WM): FA > 0.2, eroded to remove boundary voxels
-%   - Gray Matter (GM): 0.05 < FA < 0.2, intermediate anisotropy
-%   - CSF: FA < 0.05, low anisotropy
+% PRIMARY method: FSL FAST on the anatomical T1, resampled into DWI space via the
+% images' WORLD affines (flirt -usesqform) — no registration step, so it does not
+% depend on (and is not corrupted by) the T1->DWI registration. This is the right
+% approach when the T1 is already world-aligned to the diffusion (e.g. the ISMRM
+% challenge T1). FALLBACK (no T1): FA-tertile binning, which bins anisotropy — NOT
+% tissue — so ACT would terminate streamlines mid-crossing. Used only for DWI-only
+% data where no anatomical T1 exists.
 %
 % Arguments:
-%   fa_data - FA data array (from nim.FA) for tissue classification
-%   brain_mask_file - Path to the brain mask (tissue masks will be constrained to brain)
-%   file_prefix - Prefix for output files
+%   fa_data          - FA array (nim.FA), used only by the FA-tertile fallback
+%   brain_mask_file  - brain mask (DWI space); the resample grid + tissue domain
+%   file_prefix      - prefix for output files
+%   t1_file          - (optional) anatomical T1 (world-aligned to the DWI, any
+%                      resolution); enables real FSL FAST tissue segmentation
 %
-% Returns:
-%   wm_mask_file - Path to white matter mask
-%   gm_mask_file - Path to gray matter mask
-%   csf_mask_file - Path to CSF mask
+% Returns paths to the WM / GM / CSF masks.
 %
-% Reference: PIPELINE.md Step 7 - White Matter Segmentation (extended for ACT)
-
-fprintf('Step: FA-based tissue segmentation for ACT...\n');
+% Reference: PIPELINE.md Step 7 (Tractoflow-style anatomical priors for ACT)
 
 % Define output file paths
 wm_mask_file = [strrep(file_prefix, '_raw', '') '_WM_mask.nii.gz'];
 gm_mask_file = [strrep(file_prefix, '_raw', '') '_GM_mask.nii.gz'];
 csf_mask_file = [strrep(file_prefix, '_raw', '') '_CSF_mask.nii.gz'];
+
+% PRIMARY: real anatomical segmentation from the T1 via FSL FAST.
+if nargin >= 4 && ~isempty(t1_file) && isfile(t1_file)
+    if tissue_from_t1_fast(t1_file, brain_mask_file, wm_mask_file, gm_mask_file, csf_mask_file)
+        fprintf('  ✓ Tissue masks from FSL FAST on the anatomical T1 (world-aligned)\n');
+        return;
+    end
+    fprintf('  ⚠ T1 FAST segmentation failed; falling back to FA-tertiles\n');
+end
+
+fprintf('Step: FA-based tissue segmentation for ACT (FALLBACK — no usable T1)...\n');
 
 % Verify inputs
 if isempty(fa_data)
@@ -240,4 +251,35 @@ fprintf('  GM mask:  %s (%.1f MB)\n', gm_mask_file, dir(gm_mask_file).bytes/1024
 fprintf('  CSF mask: %s (%.1f MB)\n', csf_mask_file, dir(csf_mask_file).bytes/1024/1024);
 fprintf('  Ready for Anatomically Constrained Tractography (ACT)\n');
 
+end
+
+% ---------------------------------------------------------------------------
+function ok = tissue_from_t1_fast(t1_file, dwi_ref, wm_out, gm_out, csf_out)
+% Real WM/GM/CSF via FSL FAST on the anatomical T1, resampled into DWI space via
+% the world affines (flirt -usesqform) — NO registration, so a broken/absent
+% T1->DWI registration cannot corrupt it (the T1 must be world-aligned to the DWI).
+% FAST orders classes by intensity: seg_0=CSF (dark), seg_1=GM, seg_2=WM (bright).
+ok = false;
+fsldir = getenv('FSLDIR'); if isempty(fsldir), return; end
+tmp = tempname;
+try
+    % brain-extract the T1, then 3-class FAST (full T1 resolution)
+    system(sprintf('%s/bin/bet %s %s_brain -f 0.3 -R > /dev/null 2>&1', fsldir, t1_file, tmp));
+    bt = [tmp '_brain.nii.gz']; if ~isfile(bt), bt = t1_file; end
+    system(sprintf('%s/bin/fast -t 1 -n 3 -g -o %s %s > /dev/null 2>&1', fsldir, tmp, bt));
+    if ~isfile([tmp '_seg_2.nii.gz']), return; end
+    map = {csf_out, '0'; gm_out, '1'; wm_out, '2'};      % out file <- FAST class idx
+    for i = 1:3
+        seg = sprintf('%s_seg_%s.nii.gz', tmp, map{i,2});
+        % resample T1-space seg -> DWI grid through the world affine, then binarize
+        system(sprintf(['%s/bin/flirt -in %s -ref %s -applyxfm -usesqform ' ...
+                '-interp nearestneighbour -out %s > /dev/null 2>&1'], fsldir, seg, dwi_ref, map{i,1}));
+        system(sprintf('%s/bin/fslmaths %s -mas %s -bin %s > /dev/null 2>&1', ...
+                fsldir, map{i,1}, dwi_ref, map{i,1}));
+    end
+    ok = isfile(wm_out) && isfile(gm_out) && isfile(csf_out);
+catch
+    ok = false;
+end
+try, delete([tmp '*']); catch, end
 end

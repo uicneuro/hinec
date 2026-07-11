@@ -51,9 +51,9 @@ hinec/
 │
 ├── config/                         # YAML configuration presets
 │   ├── hinec_default.yml           #   Default balanced parameters
-│   ├── high_precision.yml          #   RKF45 adaptive, publication quality
-│   ├── fast_exploration.yml        #   RK2, quick testing
-│   ├── standard_fact.yml           #   Baseline FACT algorithm
+│   ├── hinec_dti_cubic.yml          #   RKF45 adaptive, publication quality
+│   ├── hinec_dti_fast.yml        #   RK2, quick testing
+│   ├── standard_dti.yml           #   Baseline FACT algorithm
 │   └── irontract.yml              #   IronTract challenge preset
 │
 ├── src/                            # Source code modules
@@ -501,9 +501,9 @@ tractography:
 | Preset | Algorithm | Integration | Step Size | Seed Density | Use Case |
 |---|---|---|---|---|---|
 | `hinec_default.yml` | hinec | RK4 | 0.2 | 4 | Balanced default |
-| `high_precision.yml` | hinec | RKF45 | 0.2 | 4 | Publication quality |
-| `fast_exploration.yml` | hinec | RK2 | 0.3 | 2 | Quick testing |
-| `standard_fact.yml` | standard | Euler | 0.5 | 4 | Baseline FACT |
+| `hinec_dti_cubic.yml` | hinec | RKF45 | 0.2 | 4 | Publication quality |
+| `hinec_dti_fast.yml` | hinec | RK2 | 0.3 | 2 | Quick testing |
+| `standard_dti.yml` | standard | Euler | 0.5 | 4 | Baseline FACT |
 | `irontract.yml` | hinec | RK4 | 0.2 | 4 | IronTract challenge |
 
 See [YAML_CONFIG.md](YAML_CONFIG.md) for complete configuration reference.

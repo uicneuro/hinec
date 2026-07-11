@@ -19,11 +19,11 @@ catch ME
     return;
 end
 
-%% Test 2: Load high precision config
-fprintf('\nTest 2: Loading high precision configuration...\n');
+%% Test 2: Load an RKF45 tracker config
+fprintf('\nTest 2: Loading RKF45 tracker configuration (hinec_dti)...\n');
 try
-    config_hp = load_config_yaml('config/high_precision.yml');
-    fprintf('  ✓ High precision config loaded\n');
+    config_hp = load_config_yaml('config/hinec_dti.yml');
+    fprintf('  ✓ hinec_dti config loaded\n');
     fprintf('    Integration order: %d\n', config_hp.tractography.integration_order);
     fprintf('    Adaptive step: %d\n', config_hp.tractography.adaptive_step);
     fprintf('    RKF tolerance: %.4f\n', config_hp.tractography.rkf_tolerance);
@@ -53,9 +53,12 @@ end
 fprintf('\nTest 4: Checking preset configurations...\n');
 presets = {
     'config/hinec_default.yml', 'Default';
-    'config/high_precision.yml', 'High Precision';
-    'config/fast_exploration.yml', 'Fast Exploration';
-    'config/irontract.yml', 'IronTract'
+    'config/hinec_dti.yml',     'HINEC DTI';
+    'config/hinec_csd.yml',     'HINEC CSD';
+    'config/mmf_dti.yml',       'MMF DTI';
+    'config/standard_dti.yml',  'Standard FACT';
+    'config/irontract.yml',     'IronTract';
+    'config/ismrm2015.yml',     'ISMRM-2015'
 };
 
 all_exist = true;
@@ -78,7 +81,7 @@ end
 %% Test 5: RKF45 parameter validation
 fprintf('\nTest 5: RKF45 parameter validation...\n');
 try
-    config_rkf = load_config_yaml('config/high_precision.yml');
+    config_rkf = load_config_yaml('config/hinec_dti.yml');
 
     % Verify RKF45 parameters are present
     assert(isfield(config_rkf.tractography, 'rkf_tolerance'), 'RKF tolerance field');
@@ -100,8 +103,8 @@ end
 %% Test 6: Compare configs
 fprintf('\nTest 6: Comparing configurations...\n');
 config_default = load_config_yaml('config/hinec_default.yml');
-config_fast = load_config_yaml('config/fast_exploration.yml');
-config_precise = load_config_yaml('config/high_precision.yml');
+config_fast = load_config_yaml('config/standard_dti.yml');
+config_precise = load_config_yaml('config/hinec_dti.yml');
 
 fprintf('\n  Parameter Comparison:\n');
 fprintf('  %-20s %10s %10s %10s\n', 'Parameter', 'Default', 'Fast', 'Precise');
@@ -118,5 +121,5 @@ fprintf('========================================\n');
 fprintf('\nYAML configuration system is ready to use!\n');
 fprintf('\nQuick start:\n');
 fprintf('  ./run_hinec.sh data/subject processed.mat\n');
-fprintf('  ./run_hinec.sh data/subject processed.mat config/high_precision.yml\n');
+fprintf('  ./run_hinec.sh data/subject processed.mat config/ismrm2015.yml\n');
 fprintf('\nSee docs/YAML_CONFIG.md for complete documentation.\n');

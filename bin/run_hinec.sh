@@ -18,7 +18,7 @@
 #   ./run_hinec.sh data/parcellation_sample/sample sample_hinec.mat
 #
 #   # Use custom configuration
-#   ./run_hinec.sh data/parcellation_sample/sample sample_hinec.mat config/high_precision.yml
+#   ./run_hinec.sh data/parcellation_sample/sample sample_hinec.mat config/ismrm2015.yml
 #
 # Input files expected:
 #   <data_prefix>_raw.nii.gz  - Raw diffusion data
@@ -38,7 +38,7 @@ if [[ $# -lt 2 ]]; then
     echo "" >&2
     echo "Examples:" >&2
     echo "  $0 data/parcellation_sample/sample sample_hinec.mat" >&2
-    echo "  $0 data/parcellation_sample/sample sample_hinec.mat config/high_precision.yml" >&2
+    echo "  $0 data/parcellation_sample/sample sample_hinec.mat config/ismrm2015.yml" >&2
     exit 1
 fi
 
