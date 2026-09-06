@@ -1,3 +1,34 @@
+# YAML Configuration Changelog
+
+## Schema rework - canonical nested configuration (current)
+
+Old configs still load; each superseded key produces a deprecation warning naming
+its replacement.
+
+- `integration_order` -> `integrator.method`. The old key was a **method selector
+  wearing a numeric-order name**: `5` meant RKF45, a 4(5) embedded pair whose order
+  is 4, not 5.
+- `max_steps` -> `termination.max_arc`. The old key counted integration steps, so
+  halving the step size silently halved how far a track could travel. `max_arc` is an
+  arc length in voxels; `max_steps` is derived as `ceil(max_arc / step)`.
+- Config gained **two levels of nesting** (`section.group.key`) and inline lists.
+  A third level is a parse error. The previous parser was indentation-blind and
+  silently misparsed nested YAML rather than rejecting it.
+- Unknown keys are now an **error**, not a silent no-op - which is how
+  `rkf_tolerance` (hinec) and `rkf_tol` (mmf) came to mean the same thing under two
+  names.
+- Retired eight keys no tracker read (`gate_power`, `crossing_cp`, `curv_beta`,
+  `crossing_detect`, `swing_ratio_max`, `transport_gate`, `transport_strength`,
+  `bishop_eps`) plus `fa_threshold`, which was printed but never used to terminate.
+- Every parameter, `preprocessing.*` included, is reachable from the CLI via
+  `--set <path>=<value>` on both launchers.
+- `docs/YAML_CONFIG.md` is now **generated** from `src/nim_utils/nim_config_schema.m`,
+  with a test that fails if code and docs drift.
+
+Everything below predates the rework and is kept as history.
+
+---
+
 # YAML Configuration System - Implementation Summary
 
 ## Overview

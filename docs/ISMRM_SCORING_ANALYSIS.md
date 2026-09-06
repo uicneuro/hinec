@@ -4,6 +4,69 @@
 
 The ISMRM scoring data provides **ground truth tractography** for validating fiber tracking algorithms. Based on analysis of `scoring_data_Renauld2023/`.
 
+
+## Reconstruction against ground truth
+
+Each bundle below is seeded from its own ISMRM mask, tracked with **no
+filtering**, and then **clipped** to the bundle's containment corridor for
+display. Grey is the ground-truth tractogram; colour is ours.
+
+!!! warning "Clipped, not filtered — and why that distinction matters"
+    The scorer defines a bundle by containment: a streamline with *any* point
+    outside the corridor is not that bundle and is discarded whole. That is the
+    correct rule for scoring and a misleading one for a picture. A streamline
+    that follows a bundle correctly and then overshoots past its end gets deleted
+    entirely, taking the correct portion with it — so the figure shows a bundle
+    that stops short, which reads as the tracker *failing to reach* when what
+    actually happened is that it reached too far.
+
+    These figures clip instead, and state how much length was lost, so the
+    overshoot is visible rather than hidden.
+
+**How much of each bundle leaves its own corridor:**
+
+| bundle | streamlines | length outside the corridor |
+|---|--:|--:|
+| CC_u_shaped | 16287 | **28%** |
+| ILF_right | 2394 | **42%** |
+| BPS_right | 7810 | **43%** |
+| Cingulum_right | 5450 | **59%** |
+| SLF_right | 3901 | **61%** |
+| UF_right | 1398 | **62%** |
+
+That is the honest headline for single-tensor DTI tracking on this phantom:
+between a quarter and two thirds of produced streamline length leaves the bundle
+it was seeded in. The streamlines are typically correct along the bundle and then
+continue past its end onto whichever tract is locally strongest — a crossing
+problem, not a termination one. `field: csd` is the intended remedy and has not
+yet been evaluated here.
+
+These remain **qualitative** figures, and seeding from a bundle's own mask is a
+far easier problem than the whole-brain submission the challenge is designed
+around, so none of this constitutes a challenge score.
+
+### Projection
+
+![BPS_right](img/bundle_bps_right.png)
+
+### Commissural
+
+![CC_u_shaped](img/bundle_cc_u_shaped.png)
+
+### Association
+
+![SLF_right](img/bundle_slf_right.png)
+
+![ILF_right](img/bundle_ilf_right.png)
+
+![UF_right](img/bundle_uf_right.png)
+
+### Limbic
+
+![Cingulum_right](img/bundle_cingulum_right.png)
+
+---
+
 ## Data Structure
 
 ### Ground Truth Bundles (`bundles/`)

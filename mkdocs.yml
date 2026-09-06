@@ -36,6 +36,8 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - tables
+  - attr_list
+  - md_in_html
   - toc:
       permalink: true
 
@@ -68,13 +70,17 @@ nav:
     - Region Examples: REGION_VISUALIZATION_EXAMPLES.md
     - Distributed Workflow: DISTRIBUTED_WORKFLOW.md
   - Validation & Benchmarks:
+    - Convergence & Verification: CONVERGENCE.md
     - ISMRM Scoring: ISMRM_SCORING_ANALYSIS.md
+    - Validation Guide: VALIDATION_GUIDE.md
     - Validation Usage: VALIDATION_USAGE.md
     - IronTract Workflow: IRONTRACT_WORKFLOW.md
   - Reference:
     - API Reference: API_REFERENCE.md
     - Mathematical Foundations: MATHEMATICAL_FOUNDATIONS.md
     - Science Background: SCIENCE.md
+  - About:
+    - Team: ABOUT.md
   - Misc:
     - Fast Viewer PRD: PRD_FastTractographySliceViewer.md
     - String/Char Fixes: STRING_CHAR_FIXES.md

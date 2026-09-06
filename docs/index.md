@@ -2,6 +2,12 @@
 
 Human brain white matter tractography pipeline with YAML-based parameter configuration.
 
+![Whole-brain tractogram](img/tractogram_whole_brain.png)
+
+*Whole-brain tractogram of the ISMRM 2015 phantom — RK4 with a C² spline
+interpolant. Colour encodes direction: red left–right, green anterior–posterior,
+blue superior–inferior.*
+
 ## What is HINEC?
 
 HINEC processes raw diffusion-weighted MRI (dMRI) data through a complete pipeline:
@@ -38,8 +44,10 @@ runhinec
 | Section | Description |
 |---|---|
 | [Pipeline](PIPELINE.md) | End-to-end data flow and module overview |
-| [Tractography](TRACTOGRAPHY.md) | Standard and high-order fiber tracking |
+| [Tractography](TRACTOGRAPHY_METHODS.md) | Standard, high-order and MMF fibre tracking |
 | [Configuration](YAML_CONFIG.md) | YAML parameter system |
 | [Visualization](VISUALIZATION_GUIDE.md) | 3D and distributed slice viewing |
 | [API Reference](API_REFERENCE.md) | Complete function reference |
 | [Math Foundations](MATHEMATICAL_FOUNDATIONS.md) | Formulas and numerical methods |
+| [Convergence](CONVERGENCE.md) | Solution verification — does it converge, and how fast |
+| [Team](ABOUT.md) | Researchers and advisor |

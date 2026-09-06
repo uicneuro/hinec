@@ -337,10 +337,50 @@ options.min_length = 20;            % Minimum track length in mm
 - **`fa_threshold` (0.25)**: Higher values restrict seeding to high-anisotropy regions
 - **`termination_fa` (0.1)**: Lower values allow tracking into gray matter transitions
 
-#### Angle Threshold (`angle_thresh`)
-- **Range**: 15-60 degrees (typical)
-- **Impact**: Lower values create straighter, more conservative tracks
-- **Biological**: ~25-30 degrees matches neurobiological constraints
+#### Angle Threshold (`termination.angle_max`, tracker option `angle_thresh`)
+
+**Units: degrees of turning per VOXEL OF ARC, not per step.** The budget for one
+step is `angle_max x step`, so refining the step tightens the budget in proportion
+and the same physical curvature bound is enforced at every step size. It is a
+minimum radius of curvature in disguise: `R = 57.3 / angle_max` voxels.
+
+- **Default 225**: this is the classic 45 deg/step evaluated at the default step
+  of 0.2. It is not an unusually permissive setting at that step.
+- **Typical**: 175-300 (35-60 deg/step at step 0.2).
+- **Impact**: lower values create straighter, more conservative tracks.
+- **`0` disables the criterion outright.** Use this for a control run rather than
+  setting a very large value - see the ceiling below for why those differ.
+
+**The 90 degree ceiling.** `v1` is a *line* field: it is defined only up to sign,
+so every tangent is sign-aligned to its predecessor before the turn between them
+is measured. That confines the measured turn to `[0, 90]` degrees. **A budget
+above 90 degrees can never be exceeded, so the criterion is not loose there - it
+is absent.** At `angle_max: 225` this happens for every step at or above 0.4
+voxels. `load_config_yaml` warns when a config lands in that regime.
+
+This matters most for a step-size ladder, where `step` is swept deliberately: at
+225 deg/voxel the budget runs from 112 deg at step 0.5 (inert) down to 0.45 deg at
+step 0.002 (cuts nearly everything). The criterion is not held fixed across such a
+ladder in any useful sense, which is why `config/reference.yml` sets
+`angle_max: 0`.
+
+**The budget comes from the nominal step, never the realised chord.** For
+`dx/ds = v(x)` with `|v| = 1` a step advances `step` of arc by construction; the
+straight-line chord between its endpoints is shorter. Genuine curvature shortens
+it by `O(h^3)` (negligible), but disagreement among the RK stage vectors shortens
+it a great deal, and that is a discretisation artefact rather than a statement
+that less arc was covered. Budgeting by the chord is therefore *method-dependent*:
+Euler and RK2 advance by `h x (unit vector)` so their chord is identically `h`,
+while RK4 averages four stage vectors and its chord was measured as low as
+`0.25 h` on ISMRM 2015 data - a 4x tighter angle limit for RK4 alone, at the same
+nominal step. All three trackers now budget through `nim_angle_limit`.
+
+**FACT is budgeted per voxel transition.** `nim_tractography_standard` is
+piecewise constant within a voxel and turns only at voxel boundaries, so one
+transition is charged as one voxel of arc. Deliberately not the length of the
+segment travelled: a streamline that clips a voxel corner covers a tiny arc, but
+the turn waiting at the boundary is a property of the data, not of how much of
+the voxel it happened to cross.
 
 #### Track Length (`min_length`)
 - **Purpose**: Filter out spurious short tracks

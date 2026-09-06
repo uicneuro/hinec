@@ -484,12 +484,16 @@ preprocessing:
   fieldmap_correction: true/false
 
 tractography:
-  algorithm: standard | hinec
-  integration_order: 1 (Euler) | 2 (RK2) | 4 (RK4) | 5 (RKF45)
-  interpolation: none | trilinear | cubic | spline
-  step_size: 0.1 - 1.0 (voxel units)
-  angle_threshold: 20 - 90 (degrees)
-  fa_threshold: 0.05 - 0.3
+  algorithm: hinec | standard | mmf
+  integrator:
+    method: euler | rk2 | rk4 | rkf45     # a METHOD name, not an order
+    step: 0.01 - 1.0                      # voxel units
+  interpolation:
+    method: trilinear | cubic
+  termination:
+    angle_max: 20 - 90                    # degrees
+    fa_min: 0.05 - 0.3
+    max_arc: arc length in voxels         # max_steps is derived from this
   seed_density: 1 - 10 (seeds per voxel dimension)
   adaptive_step: true/false (RKF45 only)
   adaptive_tolerance: 0.001 - 0.1

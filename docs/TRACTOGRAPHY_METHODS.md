@@ -15,6 +15,22 @@ runTractography(nim, config)
 
 ---
 
+## What it produces
+
+Seeding from a region rather than the whole brain gives bundle-specific
+tractography. Below, six ISMRM 2015 bundles spanning the major fibre classes,
+each seeded from its own mask and filtered by the endpoint pair and containment
+corridor that define it — see [`seeding.roi`](YAML_CONFIG.md) and
+[`filter.endpoints_in`](YAML_CONFIG.md).
+
+![Six bundles](img/tractogram_bundles.png)
+
+Each is reconstructed independently; they are drawn together here only to show
+their spatial relationship. Per-bundle comparisons against ground truth are in
+[ISMRM Scoring](ISMRM_SCORING_ANALYSIS.md#reconstruction-against-ground-truth).
+
+---
+
 ## The three trackers
 
 | Algorithm | File | Model | Integration | Interpolation | `field` |
