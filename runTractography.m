@@ -273,14 +273,26 @@ if act_enabled && isfield(nim, 'wm_mask') && isfield(nim, 'gm_mask') && isfield(
             csf_voxels, 100 * csf_voxels / numel(nim.FA));
     fprintf('  ACT will constrain seeding to WM and terminate at GM/CSF boundaries\n');
 else
-    % Tissue masks not available - disable ACT
+    % ACT off. Hand the tracker empty masks either way - it decides whether ACT
+    % is active purely from whether it received them - but say WHICH of the two
+    % reasons applies, because the remedies are different and telling someone to
+    % regenerate masks they already have sends them in a circle.
     options.wm_mask = [];
     options.gm_mask = [];
     options.csf_mask = [];
 
-    fprintf('⚠ ACT disabled: Tissue masks not available\n');
-    fprintf('  Tractography will use FA-based termination only\n');
-    fprintf('  To enable ACT, run main() to generate tissue masks first\n');
+    have_masks = isfield(nim, 'wm_mask') && isfield(nim, 'gm_mask') && isfield(nim, 'csf_mask');
+    if have_masks
+        fprintf('⚠ ACT disabled by config (tractography.act: false)\n');
+        fprintf('  Tissue masks ARE present in the nim (WM %d, GM %d, CSF %d voxels)\n', ...
+            sum(nim.wm_mask(:) > 0.5), sum(nim.gm_mask(:) > 0.5), sum(nim.csf_mask(:) > 0.5));
+        fprintf('  Tractography will use FA-based termination only\n');
+        fprintf('  To enable ACT, set  act: true  under tractography: in the config\n');
+    else
+        fprintf('⚠ ACT disabled: tissue masks not present in the nim\n');
+        fprintf('  Tractography will use FA-based termination only\n');
+        fprintf('  To enable ACT, run main() to generate tissue masks first\n');
+    end
 end
 
 % Show detailed seeding statistics
