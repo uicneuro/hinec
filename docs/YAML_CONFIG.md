@@ -133,6 +133,7 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 | `run_eddy` | logical | `true` | - | Run eddy-current correction (FSL). |
 | `improve_mask` | logical | `true` | - | Refine the brain mask using FA. |
 | `atlas_type` | string | `jhu` | - | Atlas used for parcellation. |
+| `bundle_roi_dir` | string | `` | - | Optional directory of bundle masks to use as the parcellation INSTEAD of the atlas, e.g. data/ismrm2015/scoring_data_Renauld2023/ROI. Must contain all_masks/ (containment corridors, which become the labels) and may contain endpoints/ and any_masks/ (gates, addressable by name but not labels). The atlas parcellation is preserved as parcellation_mask_<atlas_type> rather than discarded. Empty = atlas only. Set this when ROIs should be addressed by the names a scorer uses: an atlas label and a bundle of the same name are not the same region. |
 | `t1_available` | logical | `false` | - | A T1 volume is present alongside the DWI. |
 | `use_t1_registration` | logical | `false` | - | Register T1 to DWI space. |
 | `register_to_mni` | logical | `false` | - | Register to MNI space. |

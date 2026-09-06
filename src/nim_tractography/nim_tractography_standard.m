@@ -62,6 +62,15 @@ end
 if ~isfield(options, 'angle_thresh')
     options.angle_thresh = 60;   % deg per voxel of arc; matches the schema default
 end
+if ~isfield(options, 'max_arc')
+    % Arc length in voxels. Derived from max_steps when a caller supplies only
+    % that, so a hand-built options struct behaves like a config-driven one.
+    if isfield(options, 'max_steps') && isfield(options, 'step_size')
+        options.max_arc = options.max_steps * options.step_size;
+    else
+        options.max_arc = 400;
+    end
+end
 if ~isfield(options, 'max_steps')
     options.max_steps = 5000;
 end
@@ -469,6 +478,7 @@ current_pos = seed;
 track = zeros(options.max_steps + 1, 3);
 track(1, :) = current_pos;
 track_length = 1;
+arc_travelled = 0;   % voxels of arc actually covered, for the max_arc cap
 termination_reason = 'unknown';
 
 % Initialize timing
@@ -519,7 +529,19 @@ while true
         end
     end
 
-    % Check maximum steps
+    % Cap by ARC LENGTH, which is what max_arc means.
+    %
+    % max_steps is derived as ceil(max_arc/step), and for a fixed-step integrator
+    % that is exactly max_arc of arc. FACT is not fixed-step: it jumps to the next
+    % voxel boundary, so its "steps" are crossings of roughly one voxel each and
+    % comparing a crossing count against max_arc/step caps the track at the wrong
+    % length - with standard_dti (max_arc 2500, step 0.5) it allowed 5000
+    % crossings, twice the intended arc. Accumulate the real arc instead, and keep
+    % max_steps only as a loop guard.
+    if arc_travelled >= options.max_arc
+        termination_reason = 'max_arc';
+        break;
+    end
     if track_length >= options.max_steps
         termination_reason = 'max_steps';
         break;
@@ -554,6 +576,7 @@ while true
     end
 
     % Add exit point to streamline
+    arc_travelled = arc_travelled + norm(exit_point - current_pos);
     track_length = track_length + 1;
     track(track_length, :) = exit_point;
 

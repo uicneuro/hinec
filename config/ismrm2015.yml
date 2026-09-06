@@ -13,6 +13,13 @@
 # everything else comes from nim_config_schema defaults.
 # Any parameter can be overridden on the CLI: --set <path>=<value>
 
+preprocessing:
+  # Address ROIs by the names the ISMRM scorer uses. An atlas label and a bundle
+  # of the same name are not the same region: JHU label 47 "Uncinate fasciculus R"
+  # is 24 voxels on this grid against the ISMRM bundle-density mask's 1503, a Dice
+  # of 0.018. The JHU parcellation is preserved as parcellation_mask_jhu.
+  bundle_roi_dir: data/ismrm2015/scoring_data_Renauld2023/ROI
+
 tractography:
   integrator:
     method: rkf45

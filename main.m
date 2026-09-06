@@ -320,6 +320,30 @@ else
     nim = nim_parcellation(nim, parcellation_mask_file, parc_opts);
 end
 
+%% Optional: replace the atlas parcellation with bundle masks
+% An atlas label and a bundle of the same name are not the same region - JHU
+% label 47 "Uncinate fasciculus R" is 24 voxels against the ISMRM bundle-density
+% mask's 1503, a Dice of 0.018. When a dataset ships its own bundle definitions,
+% address those instead. nim_attach_bundle_rois keeps the atlas parcellation
+% under parcellation_mask_<atlas_type>, so nothing is lost.
+bundle_roi_dir = '';
+if isfield(options, 'bundle_roi_dir') && ~isempty(options.bundle_roi_dir)
+    bundle_roi_dir = options.bundle_roi_dir;
+elseif isfield(options, 'preprocessing_options') && ...
+        isfield(options.preprocessing_options, 'bundle_roi_dir')
+    bundle_roi_dir = options.preprocessing_options.bundle_roi_dir;
+end
+if ~isempty(bundle_roi_dir)
+    if isfolder(bundle_roi_dir)
+        fprintf('\n=== Attaching bundle ROIs from %s ===\n', bundle_roi_dir);
+        nim = nim_attach_bundle_rois(nim, bundle_roi_dir, img_file);
+    else
+        warning('main:bundleRoiDir', ...
+            'bundle_roi_dir "%s" does not exist; keeping the atlas parcellation.', ...
+            bundle_roi_dir);
+    end
+end
+
 % Store parcellation mask file path for reference
 nim.parcellation_mask_file = parcellation_mask_file;
 

@@ -39,6 +39,7 @@ e('preprocessing.run_motion_correction',true,          'logical', {}, [],       
 e('preprocessing.run_eddy',             true,          'logical', {}, [],       {}, {'n/a'}, 'Run eddy-current correction (FSL).')
 e('preprocessing.improve_mask',         true,          'logical', {}, [],       {}, {'n/a'}, 'Refine the brain mask using FA.')
 e('preprocessing.atlas_type',           'jhu',         'string',  {'jhu','harvardoxford','jhu-tract'}, [], {}, {'n/a'}, 'Atlas used for parcellation.')
+e('preprocessing.bundle_roi_dir',       '',            'string',  {}, [],       {}, {'n/a'}, 'Optional directory of bundle masks to use as the parcellation INSTEAD of the atlas, e.g. data/ismrm2015/scoring_data_Renauld2023/ROI. Must contain all_masks/ (containment corridors, which become the labels) and may contain endpoints/ and any_masks/ (gates, addressable by name but not labels). The atlas parcellation is preserved as parcellation_mask_<atlas_type> rather than discarded. Empty = atlas only. Set this when ROIs should be addressed by the names a scorer uses: an atlas label and a bundle of the same name are not the same region.')
 e('preprocessing.t1_available',         false,         'logical', {}, [],       {}, {'n/a'}, 'A T1 volume is present alongside the DWI.')
 e('preprocessing.use_t1_registration',  false,         'logical', {}, [],       {}, {'n/a'}, 'Register T1 to DWI space.')
 e('preprocessing.register_to_mni',      false,         'logical', {}, [],       {}, {'n/a'}, 'Register to MNI space.')

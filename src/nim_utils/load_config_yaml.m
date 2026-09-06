@@ -270,11 +270,19 @@ function v = check_value(v, entry, src)
                     src, entry.path, val2str(v));
             end
             v = char(v);
-            if ~isempty(entry.allowed) && ~any(strcmpi(v, entry.allowed))
-                error('load_config_yaml:badValue', '%s: "%s" must be one of {%s}, got "%s".', ...
-                    src, entry.path, strjoin(entry.allowed, ', '), v);
+            if ~isempty(entry.allowed)
+                if ~any(strcmpi(v, entry.allowed))
+                    error('load_config_yaml:badValue', '%s: "%s" must be one of {%s}, got "%s".', ...
+                        src, entry.path, strjoin(entry.allowed, ', '), v);
+                end
+                % Enums are matched case-insensitively, so normalise them to the
+                % canonical spelling. Free-form strings are NOT normalised: this
+                % used to lower() every string value, which silently corrupted
+                % anything case-sensitive - a filesystem path like
+                % data/ismrm2015/scoring_data_Renauld2023/ROI became
+                % .../scoring_data_renauld2023/roi and then failed to exist.
+                v = lower(v);
             end
-            v = lower(v);
         case 'list'
             if isempty(v), v = {}; return; end
             if ~iscell(v), v = {v}; end

@@ -248,6 +248,26 @@ classdef TestConfigSchema < matlab.unittest.TestCase
                 'nim_config_apply_overrides:unknownKey');
         end
 
+        function freeFormStringsKeepTheirCase(tc)
+            % Enum values are matched case-insensitively and normalised to the
+            % canonical spelling; free-form strings must NOT be. Every string
+            % value used to be lower()ed, which silently corrupted anything
+            % case-sensitive - a path such as scoring_data_Renauld2023/ROI became
+            % scoring_data_renauld2023/roi and then failed to exist.
+            w = warning('off','all'); cw = onCleanup(@() warning(w));
+            d = tempname; mkdir(d); co = onCleanup(@() rmdir(d,'s'));
+            f = fullfile(d, 'case.yml');
+            fid = fopen(f,'w');
+            fprintf(fid, 'preprocessing:\n  bundle_roi_dir: Some/MixedCase/Path\n');
+            fprintf(fid, 'tractography:\n  integrator:\n    method: RK4\n');
+            fclose(fid);
+            c = load_config_yaml(f);
+            tc.verifyEqual(c.preprocessing.bundle_roi_dir, 'Some/MixedCase/Path', ...
+                'a free-form string must keep the case it was written in');
+            tc.verifyEqual(c.tractography.integrator.method, 'rk4', ...
+                'an enum must still be normalised to its canonical spelling');
+        end
+
         % ------------------------------------------------------------ docs
         function documentationMatchesSchema(tc)
             % Guards the drift that made the old docs describe integration_order
