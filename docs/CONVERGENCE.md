@@ -1,19 +1,27 @@
-# Convergence & Solution Verification
+# Solution Verification
 
-Does HINEC converge? As the discretisation is refined, does the computed
-solution approach a limit, and at what rate?
+Streamline tractography is the numerical solution of an ordinary differential
+equation, $d\mathbf{x}/ds = \mathbf{v}(\mathbf{x})$. This page establishes that
+HINEC's solver converges under refinement of both discretisations — the
+integration step and the spatial sampling of the direction field — and measures
+the rate of each.
 
-This is **verification**, not validation: it asks whether the equations are
-being solved correctly, not whether the resulting streamlines correspond to
-anatomy. Nothing on this page speaks to anatomical accuracy — the ISMRM
-ground-truth bundles are used only to define a seed region.
+!!! abstract "Result"
+    Both axes converge monotonically at stable power-law rates. Under step
+    refinement the integrators reach their formal orders: Euler $0.99$, RK2
+    $2.01$, RK4 $\mathbf{4.00}$ with a $C^2$ spline interpolant. Under spatial
+    refinement the order is $\approx 2.25$. **Spatial resolution is the binding
+    constraint**: past a moderately coarse step there is little left to gain from
+    refining time.
 
-!!! abstract "Summary"
-    The pipeline converges on both axes, monotonically and at stable power-law
-    rates. Refining the **integration step**, the integrators reach their formal
-    orders: Euler 0.99, RK2 2.01, RK4 **4.00** with a $C^2$ spline interpolant.
-    Refining the **spatial sampling** of the direction field gives order
-    $\approx 2.25$. Spatial resolution is therefore the binding constraint.
+!!! note "Scope — verification, not validation"
+    Verification asks whether the equations are being solved correctly.
+    Validation asks whether the answer corresponds to anatomy. This page is the
+    former only, and no claim about anatomical accuracy follows from anything
+    below. The ISMRM ground-truth bundles appear here solely to define a seed
+    region; for what the streamlines are actually worth against them, see
+    [ISMRM Scoring](ISMRM_SCORING_ANALYSIS.md), where between 28% and 62% of
+    produced streamline length leaves the bundle it was seeded in.
 
 ---
 

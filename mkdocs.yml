@@ -78,8 +78,8 @@ nav:
     - Visualization Guide: VISUALIZATION_GUIDE.md
     - Region Examples: REGION_VISUALIZATION_EXAMPLES.md
     - Distributed Workflow: DISTRIBUTED_WORKFLOW.md
-  - Validation & Benchmarks:
-    - Convergence & Verification: CONVERGENCE.md
+  - Verification & Validation:
+    - Solution Verification: CONVERGENCE.md
     - ISMRM Scoring: ISMRM_SCORING_ANALYSIS.md
     - Validation Guide: VALIDATION_GUIDE.md
     - Validation Usage: VALIDATION_USAGE.md

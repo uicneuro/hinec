@@ -49,5 +49,5 @@ runhinec
 | [Visualization](VISUALIZATION_GUIDE.md) | 3D and distributed slice viewing |
 | [API Reference](API_REFERENCE.md) | Complete function reference |
 | [Math Foundations](MATHEMATICAL_FOUNDATIONS.md) | Formulas and numerical methods |
-| [Convergence](CONVERGENCE.md) | Solution verification — does it converge, and how fast |
+| [Solution Verification](CONVERGENCE.md) | Convergence under refinement, and the observed order |
 | [Team](ABOUT.md) | Researchers and advisor |
