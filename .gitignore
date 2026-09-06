@@ -120,13 +120,26 @@ __pycache__/
 
 # LaTeX report — a deliverable, not part of the code repo
 report_mmf/
+report_convergence/
 
 # One-time DSE / exploration figures + data blobs. docs/ is the user-facing
 # mkdocs source; these scratch figures are not part of the generated site.
 docs/figs/
+
+# MATLAB scratch figures. .fig files carry the whole 3D scene and run to tens of
+# MB each; the publishable renders live in docs/img/ and are committed there.
+figures/
+*.fig
 
 # Internal research notes not in the mkdocs nav (not user-facing docs)
 docs/INTERP_GAIN_AT_OPTIMUM.md
 
 # Personal discussion / reference notes — not part of the code repo
 DiscussionWithPeng_Winter2026.pdf
+
+# Local datasets (sorted into the new data/ layout) — large binaries, never commit
+data/covid/*
+data/irontract/*
+
+# Planning / spec documents — working artifacts, never shipped
+plans/
