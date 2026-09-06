@@ -1,224 +1,184 @@
 # Region-Specific Tractography Visualization
 
-This guide shows how to visualize tractography tracks for specific brain regions using the new region visualization functions.
+Worked examples for displaying the streamlines associated with one or more
+parcellation regions. All of it goes through `visualizeTractography` in
+`mode: 'region'` — the older standalone entry points
+(`visualizeTractographyRegion`, `visualizeTractographyAllRegions`,
+`nim_plot_tractography_region`) were folded into it and no longer exist as
+callable functions.
 
-## Quick Start
+For the full parameter reference, see the
+[Visualization Guide](VISUALIZATION_GUIDE.md).
 
-First, make sure you have processed data with tractography and parcellation:
+---
 
-```matlab
-% Run the full pipeline if you haven't already
-main('data/parcellation_sample/sample', 'sample_parcellated.mat');
-runTractography('sample_parcellated.mat');
+## Prerequisites
+
+You need a processed `nim` with a parcellation and a set of tracks:
+
+```bash
+./bin/run_hinec.sh data/parcellation_sample/sample sample.mat config/hinec_default.yml
+./bin/run_tractography.sh hinec_dti     # defaults to the newest processed run
 ```
 
-## Basic Usage
+Both land in a timestamped `hinec_runs/run_<TIMESTAMP>_<config>/`, with the nim
+under `output/` and the tracks under `tractography/` as
+`tracks_<algorithm>_<timestamp>.mat`.
 
-### Step 1: Find Your Tracks File
-After running `runTractography()`, your tracks will be in `tractography_results/`. 
+---
 
-Use `ls tractography_results/` to find your specific tracks file name, e.g.:
+## Basic usage
 
-- `tracks_2024-01-01_12-00-00.mat`
+`visualizeTractography` accepts either a run directory (it finds the nim and the
+newest tracks itself) or an explicit tracks/nim pair.
 
-### Step 2: Visualize a Specific Region
 ```matlab
-% Basic usage - ALL arguments required
-visualizeTractographyRegion(5, 'tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat');
+% From a run directory
+visualizeTractography('hinec_runs/run_<TIMESTAMP>_hinec_dti/', ...
+    'mode', 'region', 'region', 5);
 
-% With different filter modes
-visualizeTractographyRegion(12, 'tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat', 'start_in');
-visualizeTractographyRegion(8, 'tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat', 'end_in');
-visualizeTractographyRegion(5, 'tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat', 'connect_to');
+% From explicit files
+visualizeTractography('hinec_runs/run_<TIMESTAMP>_hinec_dti/tractography/tracks_hinec_<TS>.mat', ...
+                      'hinec_runs/run_<TIMESTAMP>_hinec_dti/output/sample.mat', ...
+    'mode', 'region', 'region', 5);
 ```
 
-## Advanced Options
+The parameter is `region` (singular), and it takes a scalar or a vector:
 
-### Custom Visualization Settings
 ```matlab
-% Advanced example with custom settings
-visualizeTractographyRegion(5, 'tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat', 'pass_through', ...
-    'color_mode', 'fa', ...           % Color by FA values
-    'max_tracks', 500, ...            % Limit to 500 tracks for performance
-    'show_region', true, ...          % Show region overlay
-    'region_alpha', 0.5, ...          % Region transparency
-    'min_overlap', 0.2);              % 20% minimum overlap
+visualizeTractography(run_dir, 'mode', 'region', 'region', [5, 10, 15]);
 ```
 
-### Different Color Modes
+---
+
+## Filter modes
+
+`filter_mode` decides what "associated with the region" means:
+
+| mode | keeps tracks that |
+|---|---|
+| `'pass_through'` (default) | touch the region at any point |
+| `'start_in'` | begin inside the region |
+| `'end_in'` | end inside the region |
+| `'connect_to'` | link the region to another parcellation region |
+
 ```matlab
-% Direction-based coloring (default)
-visualizeTractographyRegion(5, 'tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat', 'pass_through', ...
-    'color_mode', 'direction');
-
-% FA-based coloring (hot colormap)
-visualizeTractographyRegion(5, 'tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat', 'pass_through', ...
-    'color_mode', 'fa');
-
-% Single color for all tracks
-visualizeTractographyRegion(5, 'tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat', 'pass_through', ...
-    'color_mode', 'uniform');
-
-% Region-based coloring
-visualizeTractographyRegion(5, 'tractography_results/tracks_2024-01-01_12-00-00.mat', 'sample_parcellated.mat', 'pass_through', ...
-    'color_mode', 'region');
+visualizeTractography(run_dir, 'mode', 'region', 'region', 12, 'filter_mode', 'start_in');
+visualizeTractography(run_dir, 'mode', 'region', 'region',  8, 'filter_mode', 'end_in');
+visualizeTractography(run_dir, 'mode', 'region', 'region',  5, 'filter_mode', 'connect_to');
 ```
 
-## Filter Modes Explained
+Two thresholds shape `pass_through`: `min_overlap` (fraction of the track inside
+the region, default 0.05) and `min_region_points` (absolute number of in-region
+points, default 3). Raise either to demand more than a glancing intersection.
 
-1. **'pass_through'** (default): Shows tracks that pass through the region at any point
-2. **'start_in'**: Shows only tracks that start within the region
-3. **'end_in'**: Shows only tracks that end within the region  
-4. **'connect_to'**: Shows tracks that connect the region to other regions
+!!! note "Display filtering is not tractography filtering"
+    These options select what is *drawn* from a track set that already exists.
+    To restrict which streamlines are *produced*, use the tractography config —
+    `seeding.roi` to seed inside a region, `filter.include_roi` for a waypoint
+    test, and `filter.endpoints_in` / `filter.contained_in` for the endpoint and
+    containment tests the ISMRM scorer uses. See
+    [ISMRM Scoring](ISMRM_SCORING_ANALYSIS.md).
 
-## Function Reference
+---
 
-### visualizeTractographyRegion()
-Main function for region-specific visualization.
+## Colouring
 
-**Syntax:**
+| `color_mode` | effect |
+|---|---|
+| `'direction'` (default) | RGB from local orientation: red = left–right, green = anterior–posterior, blue = superior–inferior |
+| `'fa'` | hot colormap from mean FA along the track |
+| `'uniform'` | one colour for all tracks; the cheapest to render |
+| `'region'` | one colour per parcellation region |
+
 ```matlab
-visualizeTractographyRegion(region_id, tracks_file, nim_file)
-visualizeTractographyRegion(region_id, tracks_file, nim_file, filter_mode)
-visualizeTractographyRegion(region_id, tracks_file, nim_file, filter_mode, Name, Value, ...)
+visualizeTractography(run_dir, 'mode', 'region', 'region', 5, 'color_mode', 'fa');
 ```
 
-**Parameters:**
+---
 
-- `region_id`: Integer index of brain region (from parcellation mask) - **REQUIRED**
-- `tracks_file`: Path to tracks .mat file - **REQUIRED**
-- `nim_file`: Path to .mat file containing nim structure with parcellation - **REQUIRED**
-- `filter_mode`: How to filter tracks ('pass_through', 'start_in', 'end_in', 'connect_to')
-- `min_overlap`: Minimum fraction of track in region (0-1)
-- `show_region`: Show region as 3D overlay (true/false)
-- `color_mode`: Track coloring ('direction', 'fa', 'uniform', 'region')
-- `max_tracks`: Maximum tracks to display (default: unlimited)
-- `region_alpha`: Region overlay transparency (0-1)
+## A fuller example
 
-### visualizeTractography()
-Original visualization function (also requires all arguments).
-
-**Syntax:**
 ```matlab
-visualizeTractography(tracks_file, nim_file)
+visualizeTractography(run_dir, ...
+    'mode', 'region', ...
+    'region', 5, ...
+    'filter_mode', 'pass_through', ...
+    'color_mode', 'fa', ...        % colour by mean FA
+    'max_tracts', 500, ...         % cap the number drawn
+    'show_region', true, ...       % draw the region as a 3D overlay
+    'region_alpha', 0.5, ...       % overlay transparency
+    'min_overlap', 0.2);           % require 20% of the track inside the region
 ```
 
-**Arguments:**
+`max_tracts` defaults to 2000 in whole-brain mode and to unlimited otherwise, so
+setting it explicitly is usually worthwhile on dense track sets.
 
-- `tracks_file`: Path to tracks .mat file - **REQUIRED**
-- `nim_file`: Path to nim .mat file - **REQUIRED**
+---
 
-## Tips and Best Practices
+## Surveying every region
 
-### Finding Your Files
+Grid mode renders all parcellation regions at once, and sequential mode steps
+through them one at a time:
+
 ```matlab
-% List available tracks files
-ls tractography_results/
-
-% List .mat files in current directory
-ls *.mat
+visualizeTractography(run_dir, 'mode', 'grid');
+visualizeTractography(run_dir, 'mode', 'grid', 'filter_mode', 'start_in');
+visualizeTractography(run_dir, 'mode', 'sequential');
 ```
 
-### Performance Tips
+---
 
-- Use `max_tracks` parameter to limit display for better performance  
-- Start with smaller regions (higher region IDs) for faster visualization
-- Use `'uniform'` color mode for fastest rendering
+## Headless export
 
-### Interpretation Tips
-- **Direction coloring**: Red=Left-Right, Green=Anterior-Posterior, Blue=Superior-Inferior
-- **FA coloring**: Bright colors indicate high anisotropy (well-organized fibers)
-- **Region overlay**: Red transparent surface shows the selected region
-- Track statistics are printed to console for quantitative analysis
+To export without an interactive session, use the shell wrapper, which renders
+eight standard anatomical views through `visualizeTractographyAngles`:
 
-### Common Use Cases
+```bash
+# All tracks, eight views, into <run_dir>/figures/
+./bin/run_visualization.sh hinec_runs/run_<TIMESTAMP>_hinec_dti/
 
-1. **Explore region connectivity**:
-   ```matlab
-   visualizeTractographyRegion(region_id, 'tractography_results/tracks_*.mat', 'sample_parcellated.mat', 'connect_to');
-   ```
+# Restricted to regions 5, 10 and 15, at 600 dpi
+./bin/run_visualization.sh hinec_runs/run_<TIMESTAMP>_hinec_dti/ png '5,10,15' 600
+```
 
-2. **Find outgoing pathways**:
-   ```matlab
-   visualizeTractographyRegion(region_id, 'tractography_results/tracks_*.mat', 'sample_parcellated.mat', 'start_in');
-   ```
+From MATLAB, `visualizeTractography` writes into a directory with
+`export_dir` / `export_format` / `export_dpi`:
 
-3. **Find incoming pathways**:
-   ```matlab
-   visualizeTractographyRegion(region_id, 'tractography_results/tracks_*.mat', 'sample_parcellated.mat', 'end_in');
-   ```
+```matlab
+visualizeTractography(run_dir, 'mode', 'region', 'region', 5, ...
+    'export_dir', 'figures/', 'export_format', 'pdf', 'export_dpi', 600);
+```
 
-4. **Study tract organization**:
-   ```matlab
-   visualizeTractographyRegion(region_id, 'tractography_results/tracks_*.mat', 'sample_parcellated.mat', 'pass_through', ...
-       'color_mode', 'fa');
-   ```
+---
+
+## Common use cases
+
+| goal | call |
+|---|---|
+| everything related to a region | `'mode','region','region',id` |
+| outgoing pathways | `..., 'filter_mode','start_in'` |
+| incoming pathways | `..., 'filter_mode','end_in'` |
+| inter-region connections | `..., 'filter_mode','connect_to'` |
+| tract organisation | `..., 'color_mode','fa'` |
+
+---
 
 ## Troubleshooting
 
-### Common Errors
+**"Region X does not exist"** — the ID is not present in
+`nim.parcellation_mask`. Check with `unique(nim.parcellation_mask(:))`, and
+confirm the parcellation step ran.
 
-**"visualizeTractographyRegion requires 3 arguments"**
+**No tracks found for a region** — lower `min_overlap` or
+`min_region_points`, switch from `start_in` to `pass_through`, or check whether
+the region lies outside white matter. Small atlas labels are a common cause: the
+JHU parcellation is thin (about 9,600 labelled voxels in the ISMRM data, with
+individual labels down to a couple of dozen), so many regions intersect very few
+streamlines. `nim_roi_mask` accepts a dilation argument for this reason.
 
-- You must specify ALL three arguments: region_id, tracks_file, nim_file
-- Example: `visualizeTractographyRegion(5, 'tractography_results/tracks_*.mat', 'sample_parcellated.mat')`
+**Tracks file not found** — pass the run directory and let auto-detection find
+it, or check the exact name under `<run_dir>/tractography/`.
 
-**"Region X does not exist"**
-
-- Check the parcellation mask in your nim file to see available regions
-- Check that parcellation was successful
-
-**"Tracks file not found"**
-
-- Check the exact filename in `tractography_results/` directory
-- Run `runTractography('sample_parcellated.mat')` first to generate tracks
-
-**"Nim file not found"**
-
-- Check that your .mat file exists and contains nim structure
-- Run `main()` first to generate nim data with parcellation
-
-**"No tracks found for region X"**
-
-- Try lowering `min_overlap` parameter
-- Use different filter mode (e.g., 'pass_through' instead of 'start_in')
-- Check if region is too small or in non-white-matter area
-
-**Poor performance/visualization**
-
-- Reduce `max_tracks` parameter
-- Use `'uniform'` color mode
-- Set `show_region` to false
-
-## Example Workflow
-
-```matlab
-% 1. Find your tracks file
-ls tractography_results/
-
-% 2. Pick an interesting region (e.g., region 15) and your actual tracks file
-region_id = 15;
-tracks_file = 'tractography_results/tracks_2024-01-01_12-00-00.mat';  % Use your actual file
-nim_file = 'sample_parcellated.mat';
-
-% 3. Explore different aspects of this region
-visualizeTractographyRegion(region_id, tracks_file, nim_file, 'pass_through');  % All related tracks
-visualizeTractographyRegion(region_id, tracks_file, nim_file, 'start_in');      % Outgoing tracks  
-visualizeTractographyRegion(region_id, tracks_file, nim_file, 'end_in');        % Incoming tracks
-visualizeTractographyRegion(region_id, tracks_file, nim_file, 'connect_to');    % Inter-region connections
-
-% 4. Study with different color modes
-visualizeTractographyRegion(region_id, tracks_file, nim_file, 'pass_through', ...
-    'color_mode', 'fa');
-visualizeTractographyRegion(region_id, tracks_file, nim_file, 'pass_through', ...
-    'color_mode', 'direction');
-```
-
-This gives you a comprehensive view of how the selected brain region connects to the rest of the brain through white matter pathways.
-
-## Key Differences from Original Functions
-
-- **No auto-detection**: ALL file arguments must be specified explicitly
-- **Clear error messages**: Functions will tell you exactly what arguments are missing
-- **Consistent with visualizeTractography**: Both functions now require all arguments
-- **No guessing**: You always know exactly which files are being used
+**Slow or unreadable rendering** — lower `max_tracts`, use
+`color_mode: 'uniform'`, and set `show_region` false.

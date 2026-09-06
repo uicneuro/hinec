@@ -7,9 +7,9 @@ peaks**. This page is the map; each tracker links to its own deep-dive.
 
 ```
 runTractography(nim, config)
-        │  dispatch on config.tractography.algorithm   (runTractography.m:265)
+        │  dispatch on config.tractography.algorithm   (runTractography.m)
         ├── 'standard' → nim_tractography_standard      FACT, discrete voxel tensors
-        ├── 'hinec'    → nim_tractography_hinec          interpolated streamlines (RK4/RKF45)
+        ├── 'hinec'    → nim_tractography_hinec          interpolated streamlines
         └── 'mmf'      → nim_tractography_mmf_connframe   connection-form Method of Moving Frames
 ```
 
@@ -36,8 +36,8 @@ their spatial relationship. Per-bundle comparisons against ground truth are in
 | Algorithm | File | Model | Integration | Interpolation | `field` |
 |---|---|---|---|---|---|
 | `standard` | `nim_tractography_standard.m` | single tensor | Euler (FACT) | none (discrete voxel tensor) | dti |
-| `hinec` | `nim_tractography_hinec.m` | tensor **or** CSD FOD | RK2 / RK4 / RKF45 | trilinear + trajectory-dependent (`sel_power`) | dti \| csd |
-| `mmf` | `nim_tractography_mmf_connframe.m` | tensor **or** CSD FOD | RK4 on the frame system | connection 1-form field | dti \| csd |
+| `hinec` | `nim_tractography_hinec.m` | tensor **or** CSD FOD | Euler / RK2 / RK4 / RKF45 | trilinear \| cubic \| spline | dti \| csd |
+| `mmf` | `nim_tractography_mmf_connframe.m` | tensor **or** CSD FOD | RK4 or RKF45 on the frame system | connection 1-form field | dti \| csd |
 
 ### `standard` — FACT
 
@@ -47,21 +47,38 @@ the reference baseline. Full internals: **[Standard Tractography](TRACTOGRAPHY.m
 
 ### `hinec` — interpolated streamlines
 
-The workhorse interpolated tracker:
+The workhorse interpolated tracker. Tracking is **interpolation plus integration only** —
+the direction returned is a pure function of position, so classical Runge–Kutta order
+theory applies to it.
 
-- **Trilinear + trajectory-dependent interpolation.** `sel_power` (default `0` = plain
-  trilinear) weights each contributing voxel by how well its direction aligns with the
-  incoming trajectory, \( w = |n\cdot v|^{\text{sel\_power}} \). Higher `sel_power`
-  sharpens crossings — the streamline follows the population it is already on instead of
-  averaging across the crossing. `config/hinec_dti.yml` and `config/hinec_csd.yml` use 16.
-- **High-order integration.** `integration_order` = 1 (Euler), 2 (RK2), 4 (RK4), or 5
-  (**RKF45** Dormand–Prince adaptive step; set `adaptive_step: true`). See
-  [RKF45](RKF.md).
-- **`field: dti`** tracks the interpolated principal eigenvector.
-  **`field: csd`** tracks **FOD peaks**: at each step it selects the peak best aligned with
-  the approach direction, resolving crossings by trajectory. Requires the CSD peak field
-  (see [below](#csd-fod-reconstruction)).
-- **ACT** (Anatomically Constrained Tractography) when WM/GM/CSF masks are present.
+- **Interpolation.** `interpolation.method` selects the spatial kernel: `trilinear`
+  (\(C^0\)), `cubic` (\(C^1\), Keys cubic convolution — not a spline), or `spline`
+  (\(C^2\)). The kernel's smoothness caps the order the integrator can actually reach;
+  measured orders are in [Solution Verification](CONVERGENCE.md).
+  `interpolation.upsample` resamples the field onto a grid of spacing `1/upsample` voxels
+  before the interpolants are built (`>1` refines, `<1` coarsens) without changing the
+  coordinate frame.
+- **Integration.** `integrator.method` = `euler`, `rk2`, `rk4` (default), or `rkf45`
+  (Dormand–Prince embedded pair with adaptive stepping; `integrator.adaptive`,
+  `tolerance`, `step_min`, `step_max`, `safety`). See [RKF45](RKF.md).
+- **`field: dti`** interpolates the **dyadic** \( v_1 v_1^{\mathsf T} \) and takes its
+  principal eigenvector, which is sign-invariant — interpolating signed eigenvector
+  components would average across the arbitrary per-voxel sign of a line field.
+  **`field: csd`** tracks **FOD peaks**: at each step the peak nearest the incoming tangent
+  is taken, which reduces a multi-valued field to one direction and resolves crossings by
+  approach direction. Requires the CSD peak field (see [below](#csd-fod-reconstruction)).
+- **ACT** (Anatomically Constrained Tractography), off by default (`tractography.act`),
+  active only when WM/GM/CSF masks are present in the `nim`.
+
+!!! note "`sel_power` has been removed"
+    Earlier versions re-weighted each stencil voxel by \( |n\cdot v|^{\text{sel\_power}} \),
+    the alignment of its direction with the incoming tangent. For DTI there is one principal
+    eigenvector per voxel and so nothing to disambiguate; the term simply bent a
+    single-valued field toward the current heading, making the ODE direction-dependent
+    (\( dx/ds = v(x, dx/ds) \)) and putting it outside classical order theory. It is gone
+    from `hinec`. MMF keeps its own, separate `mmf.frame_sel_power` for building the frame
+    field. Nearest-peak selection under `field: csd` is retained because it is structural,
+    not a tunable steering term.
 
 !!! note "Renaming (July 2026)"
     `hinec` is the tracker previously **mislabelled** `algorithm: mmf` with
@@ -86,7 +103,7 @@ Both `hinec` and `mmf` accept `field: dti` (default) or `field: csd`.
 - **`dti`** — direction(s) from the diffusion-tensor principal eigenvector. One direction
   per voxel; cannot represent crossings.
 - **`csd`** — direction(s) from **Constrained Spherical Deconvolution** FOD peaks. Up to
-  `csd_max_peaks` fiber populations per voxel; resolves crossings.
+  `csd.max_peaks` fiber populations per voxel; resolves crossings.
 
 ### CSD FOD reconstruction
 
@@ -107,27 +124,20 @@ the DTI field are interchangeable upstream of tracking:
 | `nim.peak_w`  `[X Y Z maxK]`   | peak amplitudes (used by [SIFT](#sift-tractogram-filtering)) |
 | `nim.fod_sh`                   | SH FOD coefficients |
 
-**Provisioning & caching.** When `algorithm: mmf` and `field: csd`, `runTractography`
-(mmf branch, `runTractography.m:265`) computes the FOD once with `nim_csd` and caches it next
-to the source nim as `<source>_csd.mat` (e.g. `data/ismrm2015/ismrm2015_csd.mat`), reusing
-the cache on subsequent runs.
+**Provisioning & caching.** `runTractography` provisions the peaks **before** the algorithm
+dispatch, so any tracker running `field: csd` — `hinec` and `mmf` alike — gets them. The FOD
+is computed once with `nim_csd` and cached next to the source nim as `<source>_csd.mat`
+(e.g. `data/ismrm2015/ismrm2015_csd.mat`); later runs load the cache.
 
-!!! warning "Known limitation — `hinec` + `field: csd` peak provisioning"
-    The CSD compute/load block currently lives **only** in `runTractography`'s `mmf` branch.
-    The `hinec` branch calls `nim_tractography_hinec` directly, which **errors**
-    (`HINEC field=csd needs nim.peaks/npeaks (run nim_csd)`) if `nim.peaks` is not already on
-    the loaded `nim` — which the standard flow does not populate. So `config/hinec_csd.yml`
-    only runs if peaks are provisioned first (e.g. by an earlier `mmf`+`csd` run, or by
-    hoisting the CSD block to cover both branches). `mmf_csd.yml` is unaffected.
-
-**CSD parameters** (config `tractography:` keys; defaults as applied by `runTractography`):
+**CSD parameters** (config section `tractography.csd`):
 
 | Key | Default | Meaning |
 |---|---|---|
-| `csd_lmax` | 6 | SH order (capped by #directions) |
-| `csd_max_peaks` | 3 | max peaks kept per voxel |
-| `csd_peak_thresh` | 0.5 | min peak amplitude (fraction of max FOD) |
-| `csd_peak_min_sep` | 45 | min angular separation between peaks (deg) |
+| `lmax` | 6 | SH order (capped by the number of directions) |
+| `max_peaks` | 3 | max peaks kept per voxel |
+| `peak_thresh` | 0.5 | min peak amplitude (fraction of max FOD) |
+| `peak_min_sep` | 45 | min angular separation between peaks (deg) |
+| `n_iter` | 50 | deconvolution iterations |
 
 ---
 
@@ -206,8 +216,8 @@ tagged, scorable run dir):
 ./bin/run_tractography.sh hinec_csd --score
 
 # design-space sweep with --set (DSE), no new YAML per point
-for s in 8 16 32; do
-  ./bin/run_tractography.sh hinec_csd --score --set sel_power=$s
+for d in 4 8 16; do
+  ./bin/run_tractography.sh hinec_csd --score --set seeding.density=$d
 done
 ```
 
@@ -216,8 +226,11 @@ done
   `--source <nim.mat | run_dir>`. The DWI reference is **copied (frozen)** into the new run's
   `intermediate/` (+ `SOURCE.txt`) so a later reprocess can't corrupt an old run's scoring
   reference.
-- **`--set key=value`** overrides any `config.tractography` param on the CLI; the run-dir
-  name is tagged with the overrides and `overrides.txt` records them.
+- **`--set key=value`** overrides any schema parameter on the CLI, addressed by canonical
+  path (`tractography.integrator.step`), by path with the section assumed
+  (`integrator.step`), or by a bare leaf name when it is unique (`upsample`). Unknown or
+  ambiguous keys are an error, not a silent no-op. The run-dir name is tagged with the
+  overrides and `overrides.txt` records them.
 - **`--score`** runs `bin/run_ismrm_scoring.sh` on the run dir →
   `scoring/renauld2023/results.json` (headline keys `mean_f1`, `mean_OL`, `mean_OR_gt`,
   `VB`). Compare runs by that JSON.
@@ -236,11 +249,12 @@ See also [Run Directory System](RUN_DIRECTORY_SYSTEM.md) and
 | Goal | Start with |
 |---|---|
 | Fast baseline / sanity check | `standard` (`config/standard_dti.yml`) |
-| Best deterministic single-tensor result | `hinec` + `field: dti` (`config/hinec_dti.yml`; add `--set angle_thresh=60 --set termination_fa=0.05` to push recall) |
+| Best deterministic single-tensor result | `hinec` + `field: dti` (`config/hinec_dti.yml`; loosen `termination.angle_max` / `termination.fa_min` to push recall) |
 | Crossings resolved by FOD | `hinec` + `field: csd` (`config/hinec_csd.yml`) |
 | Intrinsic curvature/torsion geometry | `mmf` (`config/mmf_dti.yml` / `mmf_csd.yml`) |
 | Cut overreach after tracking | any of the above, then [`run_sift.sh`](#sift-tractogram-filtering) |
 | Probabilistic recall reference | PFT baseline (`scripts/run_pft_dipy.py`) |
 
-See the [config catalog](YAML_CONFIG.md#preset-catalog) for the full preset list and every
-parameter.
+[YAML Config](YAML_CONFIG.md) documents every parameter; it is generated from
+`src/nim_utils/nim_config_schema.m`, the single source of truth for the config surface.
+`config/README.md` lists the shipped presets and the naming rule they follow.

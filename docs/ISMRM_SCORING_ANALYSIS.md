@@ -1,9 +1,25 @@
-# ISMRM 2015 Tractography Challenge Scoring Analysis
+# ISMRM 2015 Challenge Scoring
 
-## Overview
+The ISMRM 2015 Tractography Challenge ships a synthetic whole-brain phantom
+together with the ground truth used to score it. This page documents what is in
+that scoring package, how a bundle is defined by it, what the shipped HINEC
+scoring path does with it, and what our reconstructions currently measure.
+Everything below is read from
+`data/ismrm2015/scoring_data_Renauld2023/` (Renauld et al. 2023 revision of the
+original 2015 scoring system).
 
-The ISMRM scoring data provides **ground truth tractography** for validating fiber tracking algorithms. Based on analysis of `scoring_data_Renauld2023/`.
+!!! warning "The scorer expects a whole-brain tractogram"
+    The Renauld 2023 scorer takes **one whole-brain tractogram** and segments it
+    into 26 bundles using ROI gates. Its headline numbers — `mean_f1`,
+    `mean_OL`, `mean_OR_gt`, `VB` — are averages over all 26. Feeding it
+    streamlines from a single seed ROI is not a valid use of it: at most one
+    bundle can be recovered, so `VB` caps at 1 of 26 and a mean over 26 bundles
+    is dominated by the 25 that were never attempted. **No score obtained that
+    way is comparable to a published challenge result.** Every score collected
+    for HINEC so far is of that kind; the whole-brain submission has not been
+    run.
 
+---
 
 ## Reconstruction against ground truth
 
@@ -21,7 +37,9 @@ display. Grey is the ground-truth tractogram; colour is ours.
     actually happened is that it reached too far.
 
     These figures clip instead, and state how much length was lost, so the
-    overshoot is visible rather than hidden.
+    overshoot is visible rather than hidden. Clipping is `nim_plot_bundles`'
+    `.clip` option; rejection is `nim_filter_tracks_roi`, which is what scoring
+    uses.
 
 **How much of each bundle leaves its own corridor:**
 
@@ -67,403 +85,219 @@ around, so none of this constitutes a challenge score.
 
 ---
 
-## Data Structure
+## What defines a bundle
 
-### Ground Truth Bundles (`bundles/`)
+A bundle in this scoring system is an **endpoint pair plus a containment
+corridor**, not a parcellation label. `config_file_segmentation.json` gives one
+entry per bundle:
 
-**Format**: TrackVis `.trk` files (binary streamline format)
-
-**22 Major White Matter Bundles**:
-
-- **Commissural**: CA, CC, CP, MCP (corpus callosum variants)
-
-- **Association**: Cingulum (L/R), ILF (L/R), OR (L/R), SLF (L/R), UF (L/R)
-
-- **Projection**: BPS (L/R), ICP (L/R), SCP (L/R)
-
-- **Special**: Fornix
-
-**Bundle Statistics** (from file sizes):
-```
-Largest bundles:
-- Cingulum_right: 29.4 MB (~30K streamlines)
-- OR_right: 9.8 MB (~10K streamlines)
-- MCP: 30.3 MB (~31K streamlines)
-- CC: 24.2 MB (~25K streamlines)
-
-Smallest bundles:
-- CP: 331 KB (~340 streamlines)
-- CA: 526 KB (~540 streamlines)
-- Fornix: 4.1 MB (~4K streamlines)
-```
-
-### ROI Masks (`ROI/`)
-
-**Purpose**: Define anatomical constraints for bundle segmentation
-
-**Three types of masks**:
-
-1. **`all_masks/`** (26 files): All streamlines must pass through these regions
-    - Example: `CA.nii.gz`, `CC_temporal.nii.gz`, `Fornix.nii.gz`
-
-2. **`any_masks/`** (4 files): At least one streamline point must intersect
-    - Used for loose inclusion criteria
-    - Example: `MCP_any_mask.nii.gz`, `ICP_left_any_mask.nii.gz`
-
-3. **`endpoints/`** (45 files): Start/end regions for streamlines
-    - `*_head.nii.gz`: Starting points
-    - `*_tail.nii.gz`: Ending points
-    - Shared endpoints: `brainstem.nii.gz`, `occipital_left.nii.gz`
-
-### Configuration Files
-
-#### `config_file_segmentation.json`
-
-**Purpose**: ROI-based bundle segmentation rules
-
-**Structure per bundle**:
 ```json
 {
-  "bundle_name": {
-    "all_mask": "path/to/required_mask.nii.gz",
-    "any_mask": "path/to/inclusion_mask.nii.gz",  // Optional
-    "head": "path/to/start_region.nii.gz",
-    "tail": "path/to/end_region.nii.gz",
-    "length": [min, max],  // mm, optional
-    "length_x": [min, max],  // X-axis constraints, optional
-    "length_y": [min, max],  // Y-axis constraints, optional
-    "length_x_abs": [min, max]  // |X| constraints, optional
+  "UF_right": {
+    "all_mask": "ROI/all_masks/UF_right.nii.gz",
+    "head":     "ROI/endpoints/UF_right_head.nii.gz",
+    "tail":     "ROI/endpoints/UF_right_tail.nii.gz"
   }
 }
 ```
 
-**Example - Corpus Callosum U-shaped**:
+A streamline is assigned to `UF_right` only if one end lands in the head ROI, the
+other end in the tail ROI, and **every** point lies inside `all_mask`. Two
+optional gates appear on some bundles:
+
+- `any_mask` — at least one point must fall inside it. Present on 6 of the 26
+  entries: `CC_u_shaped`, `MCP`, and the four `ICP_*_part*` entries.
+- `length`, `length_x`, `length_y`, `length_z`, `length_x_abs` — total streamline
+  length and per-axis extents, in millimetres. Present on 4 of the 26:
+  `CC_u_shaped`, `Cingulum_left`, `Cingulum_right`, `MCP`. `CC_u_shaped` is the
+  fully loaded case:
+
 ```json
 {
   "CC_u_shaped": {
-    "all_mask": "ROI/all_masks/CC_u_shaped.nii.gz",
-    "any_mask": "ROI/any_masks/CC_u_shaped_inclusion_mask.nii.gz",
-    "head": "ROI/endpoints/CC_striatal_left.nii.gz",
-    "tail": "ROI/endpoints/CC_striatal_right.nii.gz",
-    "length": [70, 1000],      // 70-1000mm total length
-    "length_y": [0, 32],        // Max 32mm anterior extent
-    "length_x_abs": [35, 1000]  // Must span >35mm laterally
+    "all_mask":     "ROI/all_masks/CC_u_shaped.nii.gz",
+    "any_mask":     "ROI/any_masks/CC_u_shaped_inclusion_mask.nii.gz",
+    "head":         "ROI/endpoints/CC_striatal_left.nii.gz",
+    "tail":         "ROI/endpoints/CC_striatal_right.nii.gz",
+    "length":       [70, 1000],
+    "length_y":     [0, 32],
+    "length_x_abs": [35, 1000]
   }
 }
 ```
 
-**Geometric Constraints** (7 bundles use these):
+!!! warning "An atlas label of the same name is not the same region"
+    A JHU atlas label and an ISMRM bundle can share a name and describe very
+    different volumes. JHU label 47, *Uncinate fasciculus R*, is 24 voxels on
+    the 2 mm DWI grid; the corresponding ISMRM bundle-density mask (`scoring_data_2015/masks/bundles/`) occupies 1503 and the Renauld containment corridor 14260, and the two
+    overlap at a Dice of 0.018. Seeding from the atlas label and scoring against
+    the ISMRM bundle of that name is therefore not a like-for-like comparison.
+    Address the challenge's own regions instead: build the parcellation from the
+    challenge masks with `nim_parcellation_from_masks`, after which ROI names
+    resolve against `nim.roi_masks` (see `nim_roi_mask`).
 
-- `length`: Total streamline length in mm
+### Bundle gates in HINEC
 
-- `length_x`, `length_y`, `length_z`: Extent in specific axes
+Two `tractography.filter` predicates express the scorer's definition directly:
 
-- `length_x_abs`: Absolute X-axis span (for bilateral bundles)
+| key | test |
+|---|---|
+| `filter.endpoints_in` | two regions; keep a track only if one **end** lands in each, either way round |
+| `filter.contained_in` | keep a track only if **every** point lies inside the given regions |
 
-#### `config_file_tractometry.json`
+These are distinct from `filter.include_roi`, which is a *waypoint* test — it
+asks whether a track passes through a region, not where it stops.
 
-**Purpose**: Map bundle names to ground truth files for tractometry analysis
-
-**Structure**:
-```json
-{
-  "bundle_name": {
-    "gt_mask": "bundles/bundle_name.trk"
-  }
-}
+```yaml
+tractography:
+  filter:
+    endpoints_in: [UF_right_head, UF_right_tail]
+    contained_in: [UF_right]
 ```
 
-Simpler format - just links each bundle to its ground truth `.trk` file.
+---
 
-## Scoring Methodology
+## What is in the scoring package
 
-### Two Scoring Methods
-
-#### 1. ROI-Based Scoring (Segmentation)
-
-**Method**: Filter user tractography using anatomical ROI constraints
-
-**Process**:
-
-1. Load user's whole-brain tractography
-2. Apply ROI constraints from `config_file_segmentation.json`:
-    - Keep only streamlines passing through **all** required masks
-    - Keep only streamlines with at least one point in **any** masks
-    - Keep only streamlines with endpoints in head/tail regions
-    - Apply geometric length constraints
-3. Compare filtered user tracks to ground truth
-4. Compute metrics (see below)
-
-**Advantages**:
-
-- Tests anatomical accuracy of streamlines
-- Evaluates tractography algorithm's ability to follow known pathways
-- Robust to seeding strategy differences
-
-**Disadvantages**:
-
-- Requires precise ROI mask alignment
-- Sensitive to coordinate system errors (see warning below)
-
-#### 2. RecoBundles Scoring (Bundle Recognition)
-
-**Method**: Use machine learning to identify bundles in user tractography
-
-**Process**:
-
-1. Load ground truth bundles as training data
-2. Use RecoBundles algorithm to find similar streamlines in user tractography
-3. Compare recognized bundles to ground truth
-4. Compute metrics
-
-**Advantages**:
-
-- More forgiving of ROI misalignment
-- Tests bundle recognition capability
-- Simulates clinical bundle identification workflow
-
-**Disadvantages**:
-
-- Requires Dipy RecoBundles implementation
-- Less direct test of anatomical accuracy
-
-### Evaluation Metrics (Typical)
-
-Based on standard tractometry evaluation:
-
-1. **Valid Bundles (VB)**: % of submitted bundles passing validity checks
-2. **Valid Connections (VC)**: % of correct endpoint connections
-3. **Invalid Bundles (IB)**: % of bundles with anatomically impossible paths
-4. **Bundle Coverage (BC)**: % of ground truth covered by submission
-5. **Bundle Overreach (BO)**: % of submission not in ground truth
-6. **Weighted Dice**: Spatial overlap weighted by streamline density
-
-**Formula** (typical):
 ```
-Score = (VB + VC - IB + BC - BO) / normalization_factor
+scoring_data_Renauld2023/
+├── bundles/                       21 ground-truth .trk files
+│   └── sub_bundles/               8 further .trk files (CC and ICP subdivisions)
+├── ROI/
+│   ├── all_masks/                 26 containment corridors
+│   ├── any_masks/                 4 inclusion masks
+│   └── endpoints/                 45 head/tail ROIs (some shared, e.g. brainstem)
+├── config_file_segmentation.json  26 bundle definitions (ROI gates)
+├── config_file_tractometry.json   bundle name -> ground-truth .trk
+└── t1.nii.gz                      1 mm reference, 180x216x180
 ```
 
-## Critical File Format Warning
+The 21 top-level bundles are commissural (`CA`, `CC`, `CP`, `MCP`), association
+(`Cingulum`, `ILF`, `OR`, `SLF`, `UF`, each left and right), projection (`BPS`,
+`ICP`, `SCP`, each left and right) and `Fornix`. The segmentation config reaches
+26 entries because `CC` is scored as four sub-bundles (`CC_temporal`,
+`CC_u_shaped`, `CC_ventro_striatal1`, `CC_ventro_striatal2`) and each `ICP` as
+two parts.
 
-From the user's note:
+Ground-truth streamline counts span two orders of magnitude, which is why a mean
+over bundles is not a mean over streamlines:
 
-> **IMPORTANT**: As of 08.2022, tractograms are loaded through **Dipy's Stateful Tractogram** functions. Previous versions applied automatic **0.5 voxel shifts** when loading TRK files. The new Python3 version **DOES NOT do this anymore**.
+| bundle | streamlines | | bundle | streamlines |
+|---|--:|---|---|--:|
+| MCP | 21008 | | ILF_left | 11164 |
+| Cingulum_right | 20618 | | BPS_left | 11162 |
+| CC | 16550 | | ILF_right | 10630 |
+| BPS_right | 15400 | | OR_right | 9524 |
+| Cingulum_left | 14206 | | OR_left | 7252 |
+| SLF_left | 12483 | | UF_right | 6751 |
+| SLF_right | 11920 | | UF_left | 5899 |
+| ICP_left | 4217 | | Fornix | 3827 |
+| ICP_right | 3224 | | SCP_left | 1795 |
+| SCP_right | 1560 | | CA | 430 |
+| CP | 365 | | | |
 
-### What This Means
+`CP` and `CA` are the smallest and, together with the commissures, the hardest to
+recover.
 
-**Old behavior** (pre-2022):
-```python
-# TrackVis TRK files stored in voxel corner coordinates
-# Old code automatically shifted by 0.5 to get voxel centers
-track_coords_old = raw_trk_coords + 0.5
-```
+---
 
-**New behavior** (2022+):
-```python
-# Dipy StatefulTractogram expects correct space attributes
-# NO automatic shifting - relies on header information
-track_coords_new = raw_trk_coords  # Uses header space/origin
-```
+## The scoring path
 
-### Impact on HINEC Pipeline
+`bin/run_ismrm_scoring.sh <run_dir>` is the single entry point. It performs three
+steps:
 
-**HINEC tractography output** (`nim_tractography_standard.m`):
+1. **Convert.** `scripts/hinec_to_trk.py` turns the newest
+   `<run_dir>/tractography/tracks*.mat` into `scoring/tracks.trk` in RAS world
+   millimetres, using the preprocessed DWI affine from `<run_dir>/intermediate/`
+   for voxel→world placement (falling back to `data/ismrm2015/ismrm2015.nii.gz`)
+   and attaching the scoring `t1.nii.gz` as the saved TRK reference so scilpy's
+   space-compatibility check against the ROI masks passes.
+2. **Score (Renauld 2023).** `scil_tractogram_segment_with_ROI_and_score` runs
+   against `config_file_merged.json` — the segmentation rules and the per-bundle
+   `gt_mask` in one file, produced by
+   `scripts/build_ismrm_scoring_config.py`. Without the merged config the run
+   yields bundle counts but no Dice or overlap. Output:
+   `<run_dir>/scoring/renauld2023/results.json`.
+3. **Cross-check (optional).** If `data/ismrm2015/scoring_data_2015/` and the
+   original challenge scorer are present, the dedicated 2015 scorer is run as
+   well, into `<run_dir>/scoring/dedicated2015/`.
 
-- Tracks stored as **voxel indices** (1-based MATLAB)
+Headline keys in `results.json`:
 
-- Coordinates are in **voxel space**, not world space
+| key | meaning |
+|---|---|
+| `mean_f1` | Dice-style agreement per bundle, averaged over the 26 |
+| `mean_OL` | overlap — fraction of the true bundle covered (recall) |
+| `mean_OR_gt` | overreach — produced volume outside the true bundle |
+| `VB` | valid bundles: how many of the 26 were recovered at all |
 
-- Example: `[47.0, 44.5, 27.9]` = voxel coordinates
+Bundle recognition by shape (RecoBundles) is an alternative the challenge
+tooling supports and the HINEC path does not use; it is more forgiving of ROI
+misalignment and a correspondingly weaker test of anatomical placement.
 
-**ISMRM ground truth**:
+---
 
-- TRK files with **world space coordinates**
+## Coordinate spaces
 
-- Header contains voxel-to-world transform
+Scores collapse to zero on a space mismatch, and a space mismatch looks exactly
+like a tracking failure, so it is worth checking before believing a low score.
 
-- StatefulTractogram handles coordinate conversion
+| | HINEC tracks | ISMRM ground truth |
+|---|---|---|
+| format | `.mat`, cell array of N×3 | `.trk` (TrackVis) |
+| coordinates | voxel indices, 1-based (MATLAB) | RAS world millimetres |
+| grid | DWI, 2 mm, 90×108×90 | T1, 1 mm, 180×216×180 |
+| space attribute | implicit | explicit in the TRK header |
 
-**THE PROBLEM**:
-If you save HINEC tracks as TRK files without proper header setup, the scoring scripts will **misinterpret coordinates**:
+Since August 2022 the challenge scoring code loads tractograms through Dipy's
+`StatefulTractogram` and no longer applies the half-voxel shift that older
+TrackVis-era readers used. Coordinates are taken from the header as given, so a
+TRK written with the wrong reference is silently misinterpreted rather than
+rejected: the ROI gates then match nothing and every bundle scores 0.
 
-- HINEC voxel coords treated as world coords → misalignment
+`hinec_to_trk.py` handles the conversion, and `nim_read_trk` performs the reverse
+mapping (world RAS → DWI voxel space) when ground truth is loaded into MATLAB for
+plotting. Skipping that reverse step draws the ground truth at half scale in a
+corner — which, again, reads as a tracking failure and is a units bug.
 
-- Or: Missing 0.5 shift causes half-voxel offset
-
-- Result: Bundle ROI filtering fails → score = 0
-
-## How to Use ISMRM Scoring with HINEC
-
-### Option 1: Convert HINEC Tracks to TRK Format
-
-**Required**: Set up proper TRK header with space attributes
-
-```matlab
-% In nim_tractography_standard.m or save function:
-
-% Load reference NIfTI to get affine transform
-ref_nii = niftiinfo('reference.nii.gz');
-affine = ref_nii.Transform.T';  % 4x4 voxel-to-world matrix
-
-% Save tracks with proper header
-% Use nibabel in Python:
-% - Set header['voxel_to_rasmm'] = affine
-% - Set space = 'rasmm' (world space)
-% - Set origin = 'nifti' or 'trackvis'
-```
-
-**Critical**: Ensure voxel coordinates are transformed to world space OR header specifies voxel space correctly.
-
-### Option 2: Use Python Scoring Script
-
-**Create MATLAB-to-Python bridge**:
-
-```matlab
-% Save HINEC tracks in compatible format
-function save_for_ismrm(tracks, reference_nii, output_trk)
-    % 1. Extract voxel-to-world transform
-    % 2. Convert track coordinates if needed
-    % 3. Call Python script to create TRK with proper header
-    system(sprintf('python hinec_to_trk.py %s %s %s', ...
-        tracks_mat, reference_nii, output_trk));
-end
-```
-
-### Option 3: Adapt ISMRM Scoring for HINEC Format
-
-**Modify scoring scripts** to accept MATLAB `.mat` files:
+To check alignment directly, compare coordinate ranges and header spaces of the
+two tractograms:
 
 ```python
-# In scoring script:
-if input_file.endswith('.mat'):
-    # Load MATLAB tracks
-    mat_data = scipy.io.loadmat(input_file)
-    tracks = mat_data['tracks']
-    # Convert to StatefulTractogram with reference NIfTI
-    sft = StatefulTractogram(tracks, reference_nii, space='vox')
-else:
-    # Standard TRK loading
-    sft = load_tractogram(input_file, reference_nii)
-```
-
-## Testing Coordinate Alignment
-
-**Diagnostic Script** (recommended):
-
-```python
-#!/usr/bin/env python3
 import nibabel as nib
-from nibabel.streamlines import load, save
 import numpy as np
 
-# Load HINEC tracks (converted to TRK)
-sft_hinec = load('hinec_tracks.trk')
+ours = nib.streamlines.load('tracks.trk')
+gt   = nib.streamlines.load('scoring_data_Renauld2023/bundles/CA.trk')
 
-# Load ISMRM ground truth
-sft_gt = nib.streamlines.load('scoring_data_Renauld2023/bundles/CA.trk')
-
-# Check coordinate ranges
-hinec_coords = np.vstack([s for s in sft_hinec.streamlines])
-gt_coords = np.vstack([s for s in sft_gt.streamlines])
-
-print("HINEC coord range:")
-print(f"  X: [{hinec_coords[:,0].min():.1f}, {hinec_coords[:,0].max():.1f}]")
-print(f"  Y: [{hinec_coords[:,1].min():.1f}, {hinec_coords[:,1].max():.1f}]")
-print(f"  Z: [{hinec_coords[:,2].min():.1f}, {hinec_coords[:,2].max():.1f}]")
-
-print("\nGround truth coord range:")
-print(f"  X: [{gt_coords[:,0].min():.1f}, {gt_coords[:,0].max():.1f}]")
-print(f"  Y: [{gt_coords[:,1].min():.1f}, {gt_coords[:,1].max():.1f}]")
-print(f"  Z: [{gt_coords[:,2].min():.1f}, {gt_coords[:,2].max():.1f}]")
-
-# Check header info
-print("\nHINEC header space:", sft_hinec.space)
-print("Ground truth header space:", sft_gt.space)
-
-# Visual alignment check
-print("\nTo verify alignment:")
-print("1. Load both tractograms in TrackVis or MI-Brain")
-print("2. Overlay with T1.nii.gz from scoring_data")
-print("3. Check if streamlines follow anatomical structures")
+for name, trk in [('ours', ours), ('ground truth', gt)]:
+    pts = np.vstack(list(trk.streamlines))
+    print(name, [f'[{pts[:, i].min():.1f}, {pts[:, i].max():.1f}]' for i in range(3)])
 ```
 
-## Recommendations for HINEC Pipeline
+Both should span the same millimetre range. If they do not, fix the reference
+before reading anything into the scores.
 
-### Immediate Actions
+---
 
-1. **Add TRK export function** with proper header setup
-2. **Implement coordinate space conversion** (voxel → world if needed)
-3. **Create alignment test script** (Python-based)
-4. **Document coordinate system** in HINEC pipeline
+## Limits of this benchmark
 
-### Medium-term Improvements
+- **One phantom, one subject.** Nothing measured here establishes generality.
+- **The ground truth is synthetic.** The bundles are anatomically motivated but
+  simulated; agreement with them is not agreement with a real brain.
+- **ROI-gate sensitivity.** Bundle assignment depends on precise mask alignment,
+  so registration error is charged to the tracker.
+- **Bundle-averaged metrics.** `mean_f1` weights `CP` (365 ground-truth
+  streamlines) as heavily as `MCP` (21008).
 
-1. **Bundle segmentation module** using ISMRM ROI configs
-2. **Automated scoring integration** with ISMRM ground truth
-3. **Coordinate system validator** (detect and fix misalignments)
+For a complementary check with a biological rather than synthetic reference, see
+[IronTract](IRONTRACT_WORKFLOW.md), which scores against tracer injections.
 
-### Long-term Goals
-
-1. **ISMRM benchmark suite** for HINEC validation
-2. **Performance comparison** against 2015 challenge submissions
-3. **Bundle-specific optimization** based on ISMRM metrics
-
-## Key Differences: HINEC vs ISMRM Format
-
-| Aspect | HINEC | ISMRM Ground Truth |
-|--------|-------|-------------------|
-| **File format** | `.mat` (MATLAB) | `.trk` (TrackVis) |
-| **Coordinate system** | Voxel indices (1-based) | World coordinates (RAS+) |
-| **Space attribute** | Implicit (voxel) | Explicit (header) |
-| **Track storage** | Cell array of Nx3 matrices | Binary streamline format |
-| **Metadata** | nim structure | TRK header (affine, dims, etc) |
-| **Compatibility** | MATLAB-specific | Universal (Dipy, TrackVis, DSI Studio) |
-
-## Scoring Accuracy Assessment
-
-**How accurate is ISMRM scoring?**
-
-### Strengths
-
-1. **Anatomical Ground Truth**: Based on actual white matter anatomy, not synthetic
-2. **Multiple Metrics**: Tests different aspects (coverage, validity, connections)
-3. **Standardized**: Used in major challenge, results published
-4. **ROI-based**: Tests anatomical knowledge, not just visual similarity
-
-### Limitations
-
-1. **ROI dependency**: Requires precise anatomical masks (manual work)
-2. **Single dataset**: Based on one brain (may not generalize)
-3. **Coordinate sensitivity**: Alignment errors cause disproportionate penalty
-4. **No ground truth certainty**: Even "gold standard" has anatomical uncertainty
-
-### Validation Against Other Methods
-
-Compare with:
-
-- **IronTract**: Anatomical tracing (more accurate but lower throughput)
-- **Tractometer**: Synthetic phantoms (perfect ground truth but unrealistic)
-- **Clinical consensus**: Expert manual segmentation (subjective but relevant)
-
-**Recommendation**: Use ISMRM as **one of multiple validation methods**:
-
-- ISMRM: Anatomical accuracy
-- IronTract: Biological validation
-- Synthetic: Algorithm verification
-- Clinical: Real-world applicability
-
-## Next Steps
-
-1. ✅ Analyzed ISMRM data structure
-2. ✅ Documented scoring methodology
-3. ⏳ Create HINEC-to-TRK converter
-4. ⏳ Test coordinate alignment
-5. ⏳ Run HINEC tracks through ISMRM scoring
-6. ⏳ Compare results with challenge submissions
+---
 
 ## References
 
 - [ISMRM 2015 Tractography Challenge](http://tractometer.dinf.usherbrooke.ca/ismrm_2015_challenge/)
+- [Renauld 2023 scoring code](https://github.com/scilus/ismrm_2015_tractography_challenge_scoring)
 - [Dipy StatefulTractogram](https://dipy.org/documentation/latest/reference/dipy.io.stateful_tractogram/)
-- [TrackVis format spec](http://trackvis.org/docs/?subsect=fileformat)
-- [Renauld 2023 update](https://github.com/scilus/ismrm_2015_tractography_challenge_scoring)
+- [TrackVis file format](http://trackvis.org/docs/?subsect=fileformat)

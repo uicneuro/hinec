@@ -1,30 +1,32 @@
 # HINEC Pipeline Overview
 
-This document provides a comprehensive overview of the HINEC (HIgh-order NEural Connectivity) pipeline, an advanced workflow for processing and analyzing diffusion-weighted MRI (dMRI) data with robust preprocessing and improved tractography.
-
-HINEC is a MATLAB-based pipeline for human brain white matter tractography that processes raw NIfTI diffusion MRI data through preprocessing, diffusion tensor calculation, fractional anisotropy computation, parcellation, and tractography analysis.
+HINEC (HIgh-order NEural Connectivity) is a MATLAB pipeline that takes raw NIfTI diffusion
+MRI through preprocessing, diffusion tensor estimation, fractional anisotropy, parcellation
+and tractography. This document describes each stage and the mathematics behind it.
 
 ## Main Entry Points
 
-The pipeline has four main entry points in the root directory:
+Two MATLAB functions in the repository root do the work, and shell launchers in `bin/` drive
+them:
 
-1. **`runhinec.m`**: Main entry point for DTI processing. Sets file paths and calls `main.m` for core processing, then generates visualizations.
+| Entry point | Role |
+|---|---|
+| `main.m` | Preprocessing → tensor fit → eigendecomposition → FA → MMF geometry → optional registration → parcellation → mask improvement → tissue segmentation → save |
+| `runTractography.m` | Loads the saved `nim`, resolves the seeding strategy, dispatches to a tracker, filters and writes the tracks |
+| `bin/run_hinec.sh` | Full pipeline: builds a run directory, then chains `main` and `runTractography` in one `matlab -batch` process |
+| `bin/run_tractography.sh` | Tractography only, against an already-preprocessed `nim` |
 
-2. **`main.m`**: Core DTI processing pipeline. Handles data loading, tensor calculation, and parcellation.
-
-3. **`runTractography.m`**: Entry point for fiber tractography with improved seeding strategies and boundary protection.
-
-4. **`visualizeTractography.m`**: Standalone visualization of saved tractography results without re-running tracking.
-
-5. **`test_enhanced_preprocessing.m`**: Test script for the preprocessing pipeline with field map correction.
+`runhinec.m` is a short scratch script that loads a processed `.mat` and plots it; it is not
+part of the pipeline. Visualization entry points live in `src/nim_visualization/`.
 
 ## Pipeline Stages
 
-The HINEC pipeline consists of four main stages with mathematical foundations:
+The pipeline consists of four main stages.
 
 ### 1. Preprocessing Pipeline
 
-The preprocessing pipeline (`nim_preprocessing.m`) implements a 10-step process with comprehensive T1 integration addressing common artifacts in diffusion MRI:
+The preprocessing pipeline (`nim_preprocessing.m`) runs ten sequential steps, using T1
+structural data where it is available to improve brain extraction and atlas registration.
 
 #### **Step 1: B0 Extraction**
 Extract the first volume ($b=0$) as reference:
@@ -33,10 +35,10 @@ $$
 B_0(x,y,z) = \text{DWI}(x,y,z,0)
 $$
 
-#### **Step 2: Advanced Brain Extraction with T1 Integration**
-Enhanced brain mask creation using T1 structural data when available:
+#### **Step 2: Brain Extraction**
+Brain mask creation, using T1 structural data when available:
 
-**T1-Enhanced Method (Preferred):**
+**T1-Based Method (Preferred):**
 
 $$
 M_{\text{T1}}(x,y,z) = \text{BET}(T1(x,y,z),\; f=0.4)
@@ -108,7 +110,7 @@ $$
 $$
 
 #### **Step 6: Eddy Current Correction**
-Advanced eddy current correction with fallback strategy:
+Eddy current correction, with a fallback when acquisition parameter files are absent:
 
 **Method 1 (Preferred):** FSL eddy with acquisition parameters
 **Method 2 (Fallback):** FSL eddy_correct for datasets without acqp/index files
@@ -121,28 +123,12 @@ $$
 
 where $T_{\text{eddy}}$ represents the eddy-induced geometric distortion.
 
-#### **Step 7: White Matter Segmentation**
-Create optimized seeding masks for tractography:
+#### **Step 7: Copy Processed Data to Final Location**
+Write the corrected DWI, the brain mask (`{name}_M.nii.gz`) and the motion/eddy-corrected
+b-vectors to their final paths, and record them in the preprocessing report.
 
-**Preliminary DTI Calculation:**
-
-$$
-\mathbf{D} = (\mathbf{X}^\top \mathbf{X})^{-1} \mathbf{X}^\top \ln(S / S_0)
-$$
-
-**FA-based White Matter Mask:**
-
-$$
-\text{WM}_{\text{mask}}(x,y,z) = \text{erosion}\!\left(\text{FA}(x,y,z) > 0.2,\; \mathcal{B}_1\right)
-$$
-
-**Erosion Operation:**
-
-$$
-\text{WM}_{\text{eroded}} = \text{WM}_{\text{raw}} \ominus \mathcal{B}_1
-$$
-
-where $\mathcal{B}_1$ is a spherical structuring element (radius = 1 voxel) to remove boundary voxels.
+Tissue segmentation for ACT is **not** part of this pipeline; it runs later, from `main.m`
+(see [Tissue Segmentation](#tissue-segmentation-for-act) below).
 
 #### **Step 8: T1 Preprocessing and Registration (When Available)**
 Complete T1-based registration workflow for enhanced atlas processing:
@@ -160,8 +146,8 @@ DWI_ref        = fslroi(DWI_processed, 0, 1)    [Extract first volume]
 DWI_ref_masked = DWI_ref × M0                   [Apply brain mask]
 ```
 
-#### **Step 9: Enhanced Atlas Registration**
-T1-guided atlas transformation using composite registration chain:
+#### **Step 9: Atlas Registration**
+T1-guided atlas transformation through a composite registration chain:
 
 **T1-Based Atlas Registration (Preferred):**
 ```
@@ -227,59 +213,123 @@ where:
 - $\mathbf{V} = [\mathbf{v}_1 \; \mathbf{v}_2 \; \mathbf{v}_3]$ are eigenvectors (fiber directions)
 - $\mathbf{\Lambda} = \mathrm{diag}(\lambda_1, \lambda_2, \lambda_3)$ are eigenvalues
 
+#### **Moving-Frame Geometry (`nim_mmf_geometry`)**
+
+Immediately after the eigendecomposition, `main.m` builds the moving-frame field and its
+connection 1-form into the `nim`. This is a property of the direction field, not of any
+individual streamline, so it is computed once here rather than per track: $\mathbf{e}_1$ is
+the denoised tangent, $\mathbf{e}_2 = d\mathbf{e}_1/ds$ the Frenet normal,
+$\mathbf{e}_3 = \mathbf{e}_1 \times \mathbf{e}_2$, and the connection
+$[\omega] = d[A]\,A^\top$ carries curvature and torsion. The `mmf` tracker traces through this
+field; the other trackers ignore it. Failure here is non-fatal — the tracker rebuilds the
+geometry on demand.
+
+For the derivation see Chun & Peng, in preparation, and
+[MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md).
+
+#### **Tissue Segmentation for ACT**
+
+`main.m` generates the WM/GM/CSF masks that Anatomically Constrained Tractography needs, and
+stores them on the `nim` as `.wm_mask`, `.gm_mask` and `.csf_mask`.
+
+The primary method is FSL FAST on the anatomical T1, resampled into DWI space through the two
+images' **world affines** (`flirt -usesqform`). Going through the world affines rather than
+the T1→DWI registration means the masks do not depend on — and cannot be corrupted by — a
+registration step that may be disabled or poorly converged. This is correct whenever the T1 is
+already world-aligned to the diffusion data.
+
+The fallback, used only when no T1 is present, bins FA into tertiles. It bins **anisotropy,
+not tissue**, so ACT driven by it will terminate streamlines mid-crossing. Treat it as a
+degraded mode rather than an equivalent one.
+
+Note that these masks are always generated; ACT is nonetheless **off by default**
+(`tractography.act` defaults to false) and must be enabled in the config.
+
 ### 3. Tractography
 
-#### **FACT Algorithm with Advanced Seeding**
+`runTractography.m` makes every seeding decision, then dispatches to one of three trackers
+selected by `tractography.algorithm`. The trackers themselves do no seeding.
 
-**Hierarchical Seeding Strategy:**
+#### **Seeding**
 
-1. **Primary**: White matter mask from preprocessing pipeline
-2. **Fallback 1**: FA-based white matter (FA > 0.2, eroded)
-3. **Fallback 2**: Eroded brain mask
+Which voxels are seeded is decided by the first strategy that applies:
 
-**FACT Integration:**
+1. **Explicit ROI** — `seeding.roi` names atlas regions; seeds go only there. This is the
+   basis of single-bundle experiments and of the convergence ladder's fixed seed set.
+2. **Preprocessed brain mask** (`nim.mask`) — the usual path.
+3. **Expanded parcellation mask** — the parcellation dilated by 3 voxels.
+4. **FA threshold** (FA > 0.10) — a fallback when no mask exists at all. It misses
+   low-anisotropy structures such as the fornix and cingulum.
+
+Every strategy then intersects with `seeding.fa_min` (default 0.05, which excludes CSF
+only). Within each seeded voxel, `seeding.density` seeds are placed on a deterministic
+sub-voxel lattice (`seeding.strategy: uniform`) or jittered (`random`). The count is honoured
+exactly, so seeding is reproducible run to run.
+
+#### **Trackers**
+
+| `algorithm` | Function | Direction at a point |
+|---|---|---|
+| `standard` | `nim_tractography_standard` | FACT: the discrete voxel's principal eigenvector, no interpolation |
+| `hinec` | `nim_tractography_hinec` | Interpolated direction field, integrated with a Runge-Kutta method |
+| `mmf` | `nim_tractography_mmf_connframe` | The carried frame, evolved by the connection 1-form |
+
+**FACT integration** advances along the voxel's own direction until the streamline crosses a
+voxel face:
 
 $$
 \mathbf{r}_{i+1} = \mathbf{r}_i + \Delta s \cdot \mathbf{e}_1(\mathbf{r}_i)
 $$
 
-where:
+**HINEC integration** replaces $\mathbf{e}_1(\mathbf{r}_i)$ with an interpolated field
+$\mathbf{v}(\mathbf{r})$ and integrates $d\mathbf{x}/ds = \mathbf{v}(\mathbf{x})$ with
+`integrator.method` ∈ {`euler`, `rk2`, `rk4`, `rkf45`}. Two things shape the right-hand side:
 
-- $\mathbf{r}_i$: Current position
-- $\Delta s$: Step size (0.5 mm)
-- $\mathbf{e}_1(\mathbf{r}_i)$: Principal eigenvector at position $\mathbf{r}_i$
+- `interpolation.method` sets the kernel's smoothness — `trilinear` is C0 (kinked at every
+  voxel face), `cubic` is C1 (Keys cubic convolution, whose second derivative jumps),
+  `spline` is C2. This caps the attainable order: a Runge-Kutta method of order $p$ needs a
+  right-hand side with $p$ continuous derivatives, which is why RK4 measures the same observed
+  order on trilinear and on cubic.
+- `interpolation.upsample` sets the spacing at which the field is sampled before the
+  interpolants are built ($1/u$ voxels). The coordinate frame does not change, so positions,
+  step sizes and lengths stay in native voxel units and runs at different factors are directly
+  comparable. Note the $u \to \infty$ limit is the native-resolution interpolant, not
+  ground-truth anatomy.
 
-**Termination Criteria:**
+With `field: csd`, the direction comes from CSD FOD peaks rather than the tensor, and the peak
+nearest the incoming tangent is selected. That selection is structural — it is what reduces a
+multi-valued field to one direction — not a tunable steering term.
 
-- $\text{FA}(\mathbf{r}_i) < 0.15$: Low anisotropy termination
-- $\angle(\mathbf{e}_1(\mathbf{r}_i),\; \mathbf{e}_1(\mathbf{r}_{i-1})) > 35°$: Sharp turn termination
-- $\text{steps} > 1000$: Maximum length termination
+**MMF integration** advances $d\mathbf{x}/ds = \mathbf{e}_1$ while evolving the full carried
+frame by the structure equation, driven by the interpolated connection field. Here
+`integrator` chooses only the numerical scheme (`rk4` fixed or `rkf45` adaptive
+Dormand-Prince); the direction comes entirely from the connection form.
 
-**Quality Metrics:**
+#### **Termination**
 
-$$
-L_{\text{track}} = \sum_i \|\mathbf{r}_{i+1} - \mathbf{r}_i\|
-$$
+All three trackers share the same criteria, expressed in step-invariant units:
 
-$$
-Q_{\text{track}} = \overline{\text{FA}}(\mathbf{r}_i) \times (1 - \text{curvature penalty})
-$$
+- $\text{FA}(\mathbf{r}) < \texttt{termination.fa\_min}$
+- Curvature exceeds `termination.angle_max`, in **degrees per voxel of arc**. This fixes a
+  minimum radius of curvature $R = 57.3 / \texttt{angle\_max}$ voxels, so refining the step
+  does not loosen the constraint. Because the principal direction is a line field, tangents
+  are sign-aligned and a measured turn never exceeds 90°; a budget above $90/\Delta s$ is
+  therefore **inert**, not merely loose. `angle_max: 0` disables the criterion.
+- Arc length exceeds `termination.max_arc` voxels (`max_steps` is derived as
+  $\lceil \texttt{max\_arc} / \Delta s \rceil$)
+- The streamline leaves the brain mask
+- With ACT enabled, the streamline reaches GM (accept) or CSF (reject)
 
-#### **Boundary Protection Algorithm**
+Completed tracks shorter than `termination.min_arc` voxels of arc are discarded.
 
-**Erosion-based Protection:**
+#### **Filtering and Output**
 
-$$
-\text{Safe}_{\text{mask}} = \text{erosion}(\text{Tissue}_{\text{mask}},\; \mathcal{B}_r)
-$$
-
-**Distance-based Termination:**
-
-$$
-d_{\text{boundary}}(\mathbf{r}) = \min_{\mathbf{b} \in \partial\Omega} \|\mathbf{r} - \mathbf{b}\|
-$$
-
-Terminate if $d_{\text{boundary}}(\mathbf{r}) < \text{threshold}$.
+After tracking, `nim_filter_tracks_roi` applies the configured region gates: `include_roi` and
+`exclude_roi` are waypoint tests (does the track pass through), while `endpoints_in` and
+`contained_in` are the two halves of a bundle definition — where a track *stops*, and whether
+it stays inside a corridor. `output.arc_step` optionally resamples the saved streamlines to a
+fixed arc spacing, which decouples file size from step size without affecting integration
+accuracy.
 
 ### 4. Mathematical Framework
 
@@ -312,13 +362,21 @@ where:
 ## Data Flow
 
 ```
-Raw DWI → Preprocessing → DTI Processing → Tractography → Visualization
-   ↓              ↓                      ↓                  ↓
-Field Maps → Distortion Correction → FA Calculation → WM Seeding → Track Quality
-   ↓              ↓                      ↓                  ↓
-Motion → Motion Correction → Eigenvectors → Boundary Protection → Statistics
-   ↓              ↓                      ↓                  ↓
-Eddy → Eddy Correction → Parcellation → Track Validation → Reports
+                        main.m                          runTractography.m
+  ┌─────────────────────────────────────────────┐   ┌────────────────────────┐
+  │ nim_read                                    │   │ seed mask resolution   │
+  │   → nim_dt_spd → nim_eig → nim_fa           │   │   → tracker dispatch   │
+  │   → nim_mmf_geometry  (frame + connection)  │──▶│   → ROI filtering      │
+  │   → nim_registration  (optional, needs T1)  │   │   → arc resampling     │
+  │   → nim_parcellation                        │   │   → tracks_*.mat       │
+  │   → mask improvement                        │   └────────────────────────┘
+  │   → tissue segmentation (WM/GM/CSF for ACT) │                │
+  │   → nim_save                                │                ▼
+  └─────────────────────────────────────────────┘        visualization /
+             ▲                                            scoring / export
+             │
+   nim_preprocessing (FSL): b0 → brain extraction → denoise → fieldmap
+                          → motion → eddy → T1 registration → atlas
 ```
 
 ## File Naming Convention
@@ -337,43 +395,11 @@ Eddy → Eddy Correction → Parcellation → Track Validation → Reports
 
 - `{name}.nii.gz` - Preprocessed DWI data
 - `{name}_M.nii.gz` - Brain mask
-- `{name}_WM_mask.nii.gz` - White matter mask
+- `{name}_WM_mask.nii.gz`, `{name}_GM_mask.nii.gz`, `{name}_CSF_mask.nii.gz` - Tissue masks for ACT
+- `parcellation_mask.nii.gz` - Atlas resampled into DWI space
 - `{name}_preprocessing_report.mat` - Processing report
 
-## Key Features Summary
-
-### **Advanced Preprocessing:**
-1. **T1 Integration**: Superior brain extraction and atlas registration using structural imaging
-2. **Field Map Distortion Correction**: Reduces spatial artifacts using B0 field maps
-3. **Intelligent Eddy Correction**: Automatic method selection with robust fallbacks
-4. **Enhanced Atlas Registration**: MNI→T1→DWI transformation chain for improved accuracy
-5. **Comprehensive Reporting**: Detailed processing logs and quality metrics
-
-### **Robust Tractography:**
-1. **Hierarchical Seeding**: Priority-based seeding strategy for optimal results
-2. **Boundary Protection**: Erosion-based artifact reduction
-3. **Quality Control**: Real-time validation and statistics
-4. **Robust Fallbacks**: Multiple seeding strategies ensure reliable results
-
-### 🎯 **Quality Improvements:**
-- **T1-Enhanced Brain Extraction**: 30-50% improved brain boundary accuracy
-- **Superior Atlas Registration**: 40-60% better spatial alignment using T1-guided registration
-- **Reduced Edge Artifacts**: Field map correction eliminates boundary contamination
-- **Better Connectivity**: Advanced preprocessing preserves genuine white matter tracts
-- **Improved Seeding**: White matter masks provide cleaner starting points
-- **Higher Quality**: Comprehensive validation ensures reliable results
-
-## Performance Characteristics
-
-**Preprocessing Time:** ~30-60 seconds per dataset (depends on field map complexity)
-
-**Memory Requirements:** ~2-4 GB RAM for typical datasets
-
-**Quality Improvement:** 60-80% reduction in edge artifacts
-
-**Connectivity Preservation:** >95% of genuine white matter tracts maintained
-
-## Installation and Setup
+## Running the Pipeline
 
 ### Requirements
 
@@ -385,52 +411,67 @@ Eddy → Eddy Correction → Parcellation → Track Validation → Reports
 
 **External Software:**
 
-- **Statistical Parametric Mapping (SPM12)**: Must be in `spm12/` directory (included in repo)
-- **FSL**: Must be initialized before use
-
-### Quick Start
-
-1. Launch MATLAB and navigate to the HINEC directory
-2. Run the main pipeline:
-```matlab
-main('{data_location}/{prefix}', 'output.mat')
-```
+- **SPM12** — NIfTI I/O and an optional registration backend. Not vendored here; install it
+  at `lib/spm12/`, the path `main.m` adds.
+- **FSL** — required for preprocessing, and must be initialized in the shell before
+  `matlab -batch` runs.
+- **`lib/bfgs/`** — vendored; used by the SPD-constrained tensor fit.
 
 ### Data Preparation
 
-To run HINEC from scratch, you must provide:
+To run from raw data you must provide:
 
 - `{prefix}_raw.nii.gz` - Raw NIfTI file
 - `{prefix}.bvec` - B-vector file
 - `{prefix}.bval` - B-value file
-- `{prefix}_T1.nii.gz` - T1 structural data (optional, enables enhanced processing)
+- `{prefix}_T1.nii.gz` - T1 structural data (optional; enables T1-based brain extraction,
+  registration and FAST tissue segmentation)
 
-Example:
-```matlab
-main('input_data/my_data', 'output.mat')
+### Invocation
+
+```bash
+# Full pipeline, via the shell launcher
+./bin/run_hinec.sh data/ismrm2015/ismrm2015 ismrm2015.mat config/ismrm2015.yml
+
+# Tractography only, against the nim that run produced
+./bin/run_tractography.sh hinec_dti --score
 ```
+
+```matlab
+% Or from MATLAB
+config   = load_config_yaml('config/hinec_default.yml');
+run_info = create_run_directory('config/hinec_default.yml');
+main('input_data/my_data', 'output.mat', config, run_info);
+runTractography(fullfile(run_info.output_dir, 'output.mat'), config, run_info);
+```
+
+`main.m` short-circuits aggressively: if the output `.mat` exists it skips everything, and if
+the preprocessed `.nii.gz` exists it skips preprocessing. Delete the target file to force
+reprocessing.
 
 ### Viewing Results
 
 ```matlab
 load('output.mat');
-nim_plotparcelall(nim);  % View parcellation results
-visualizeTractography('tracks.mat', 'output.mat');  % View tractography
+nim_plot(nim, 'mode', 'parcels');                    % Parcellation
+visualizeTractography('tracks.mat', 'output.mat');   % Tractography
 ```
 
-## Development Guidelines
+## Development Notes
 
 ### Project Structure
 
-- `main.m` orchestrates preprocessing, registration, tractography, and plotting
-- Source modules: `nim_preprocessing/`, `nim_registration/`, `nim_calculation/`, `nim_tractography/`, `nim_utils/`
-- Visualization: `nim_plots/` and top-level `visualizeTractography*.m`
-- Sample data: `data/`, `sample_parcellated.mat`
+- `main.m` orchestrates preprocessing, registration, parcellation and tissue segmentation;
+  `runTractography.m` handles seeding, tracking and filtering
+- Source modules live under `src/`: `nim_preprocessing/`, `nim_registration/`,
+  `nim_calculation/`, `nim_parcellation/`, `nim_tractography/`, `nim_visualization/`,
+  `nim_plots/`, `nim_utils/`, `nim_challenges/`
+- Sample data: `data/original_sample/` (preprocessed) and `data/parcellation_sample/` (raw)
 
 ### Coding Style
 
 - Four-space indentation
-- One MATLAB function per file named identically to the function
+- One MATLAB function per file, named identically to the function
 - lowerCamelCase for pipeline entry points (`runTractography`, `visualizeTractography`)
 - snake_case for utilities (`nim_diagnostic_check`)
 - Descriptive variable names, uppercase for constants
@@ -438,16 +479,12 @@ visualizeTractography('tracks.mat', 'output.mat');  % View tractography
 
 ### Testing
 
-- Quick diagnostics in `nim_tests/`
-- Run `matlab -batch "addpath(genpath('.')); nim_tests/test_functions"` before committing
-- For broader coverage: `runtests('nim_tests')`
+Tests live under `tests/` in four groups — `unit/`, `integration/`, `fsl/` and `nim_tests/`.
+Run one class with MATLAB's runner:
 
-### Sample Data
+```matlab
+results = runtests('tests/unit/TestNimFa.m');
+```
 
-- `data/original_sample/`: Basic diffusion data
-- `data/parcellation_sample/`: Data with parcellation masks
-- Pre-computed results: `sample_parcellated.mat`
-
----
-
-The HINEC pipeline provides state-of-the-art diffusion MRI processing with robust preprocessing, mathematical rigor, and high-quality tractography suitable for both research and clinical applications.
+`tests/test_yaml_config.m` is a standalone script that exercises every YAML preset in
+`config/`. There is no top-level `make test` target; the `Makefile` only drives `mkdocs`.

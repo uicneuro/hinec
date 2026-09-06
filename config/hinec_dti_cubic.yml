@@ -1,7 +1,7 @@
 # HINEC interpolated DTI tractography — CUBIC interpolation + RKF45 adaptive integration.
 # The high-precision cubic config: interp_method='cubic' drives the direction through a
-# tricubic interpolant (sel_power=0 here). Cubic now composes WITH sel_power too — raise
-# sel_power to combine trajectory-dependent selection with cubic interpolation.
+# tricubic interpolant. The kernel sets how much of the integrator's formal order is
+# reachable: trilinear is C0, cubic is C1, spline is C2 — see docs/CONVERGENCE.md.
 # (Formerly high_precision.yml.)
 # 
 # ./bin/run_tractography.sh hinec_dti_cubic --score

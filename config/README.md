@@ -53,8 +53,10 @@ first two**; the third is a knob with a per-algorithm default.
    to advance)*. This is **not** the direction. `euler` | `rk2` | `rk4` |
    `rkf45`, spelled the same way for every tracker. The old
    `integration_order: 1|2|4|5` is a legacy alias and migrates automatically —
-   it was a method selector wearing a numeric-order name, and its value `5` meant
-   RKF45, a 4(5) embedded pair whose order is 4, not 5.
+   it spelled a method selector as a number. The value `5` selected RKF45, and
+   that was not wrong numerically - the implementation uses Dormand-Prince
+   coefficients and advances on the 5th-order solution, keeping the embedded
+   4th-order one for error control - but a method name belongs in a method key.
 
 > Direction (`field`, `interpolation.method`) and integrator are genuinely
 > independent: you can hold one fixed and sweep the other. Settings that don't apply

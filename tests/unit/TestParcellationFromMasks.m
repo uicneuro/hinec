@@ -110,6 +110,35 @@ classdef TestParcellationFromMasks < matlab.unittest.TestCase
                 'the smaller region was overwritten by the larger one in the label volume');
         end
 
+        function attachBundleRoisKeepsThePreviousParcellation(tc)
+            % The bundle parcellation must be reproducible from the repo. It was
+            % originally built by an ad-hoc script and baked into a gitignored
+            % .mat, so nothing in version control could recreate it - the utility
+            % existed but nothing called it.
+            A = eye(4);
+            big   = false(8,8,8); big(2:7,2:7,2:7) = true;
+            small = false(8,8,8); small(3:5,3:5,3:5) = true;
+            am = fullfile(tc.Tmp, 'all_masks'); mkdir(am);
+            tc.writeMask('big',   big,   A, false, am);
+            tc.writeMask('small', small, A, false, am);
+            ref = tc.writeMask('ref', zeros(8,8,8), A, false, tc.Ref);
+
+            nim = struct('FA', zeros(8,8,8), 'parcellation_mask', ones(8,8,8), ...
+                         'atlas_type', 'jhu', ...
+                         'atlas_labels', struct('map', containers.Map(1,'old')));
+            evalc('out = nim_attach_bundle_rois(nim, tc.Tmp, ref);');
+
+            tc.verifyEqual(double(out.atlas_labels.map.Count), 2, ...
+                'both bundle masks should become labels');
+            tc.verifyTrue(isfield(out, 'parcellation_mask_jhu'), ...
+                'the outgoing atlas parcellation must be preserved, not discarded');
+            tc.verifyTrue(isa(out.roi_masks, 'containers.Map'), ...
+                'the true masks must be attached for ROI selection');
+            m = evalc_mask(@() nim_roi_mask(out, {'big'}, 0));
+            tc.verifyEqual(sum(m(:)), 216, ...
+                'a bundle must resolve to all of itself, not the label-volume remnant');
+        end
+
         function roiMaskPrefersTheTrueMaskOverTheLabelVolume(tc)
             % The consequence of the above for ROI selection: asking for the
             % region that lost the label-volume tie must still return all of it.

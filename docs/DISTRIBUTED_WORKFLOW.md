@@ -2,15 +2,17 @@
 
 ## Overview
 
-This guide explains how to use the Fast Tractography Slice Viewer in a **distributed setup**:
+The Fast Tractography Slice Viewer separates rendering from viewing, so that the
+machine holding the data and MATLAB need not be the machine you browse the results
+on. Three steps:
 
-1. **Server** (high resources) → Generate slice images with MATLAB
-2. **Transfer** → Copy slice cache to local computer
-3. **Local** (no MATLAB needed) → View slices with Python GUI
+1. **Server** (high resources) — render every slice image with MATLAB
+2. **Transfer** — copy the slice cache to the local computer
+3. **Local** (no MATLAB) — browse the slices in the Python GUI
 
 ---
 
-## What is the "Cache"?
+## The cache
 
 The **cache** is a directory containing:
 
@@ -51,8 +53,8 @@ cache/
 ### Run Generation
 
 ```matlab
-% Add nim_visualization to path
-addpath('nim_visualization');
+% Put the HINEC sources on the path
+addpath(genpath('src'));
 
 % Basic usage (default settings)
 cache_dir = generateSlices('tracks.mat', 'nim.mat');
@@ -81,7 +83,7 @@ cache_dir = generateSlices('tracks.mat', 'nim.mat', '/export/slices', options);
 | `alpha` | FA transparency | 0.6 |
 | `parallel_workers` | Number of parallel workers | auto |
 
-### What Happens
+### Generation steps
 1. Loads tractography data from .mat files
 2. Generates slices for all three orientations (axial, sagittal, coronal)
 3. Renders each slice as PNG/JPG image
@@ -139,9 +141,9 @@ slices/
 ## Step 3: View on Local Computer
 
 ### Requirements on Local Computer
-- **NO MATLAB required** ✓
-- Python 3.7+
-- FastTractographyViewer.py
+- **No MATLAB required**
+- Python 3.7+ with `tkinter`
+- `scripts/FastTractographyViewer.py`
 - Python packages: `pillow`, `numpy`
 
 ### Install Python Dependencies
@@ -152,37 +154,38 @@ pip install pillow numpy
 
 ### Launch Viewer
 
-**Method 1: Using provided launcher script**
+**Direct invocation**
 ```bash
-./viewSlices.sh /path/to/slices
+python3 scripts/FastTractographyViewer.py /path/to/slices
 ```
 
-**Method 2: Direct Python invocation**
+**Launcher script** — `bin/viewSlices.sh` checks for Python and the `tkinter`,
+`PIL` and `numpy` packages, installs any that are missing, validates the cache
+directory, and then starts the viewer. Called with no argument it prompts for the
+cache path.
+
 ```bash
-python FastTractographyViewer.py /path/to/slices
+./bin/viewSlices.sh /path/to/slices
 ```
 
-**Method 3: Interactive (will prompt for directory)**
-```bash
-./viewSlices.sh
-# Enter path when prompted
-```
+### The viewer
 
-### What You'll See
+The GUI opens with:
 
-The GUI will open with:
+- Three orthogonal views (axial, sagittal, coronal), each with its own slider
+- Sub-100 ms slice transitions, served from the pre-rendered images
+- A "Synchronize crosshairs" toggle, in the control panel and under the View menu
+- Performance monitoring in the status bar
+- **File → Export Current Views…** to write the three visible slices out
 
-- Three orthogonal views (Axial, Sagittal, Coronal)
-- Interactive sliders for navigation
-- Sub-100ms slice transitions
-- Performance monitoring
-- Export capabilities
+### Keyboard shortcuts
 
-### Keyboard Shortcuts
+Shortcuts act on the focused slice view.
 
-- `←/→` - Navigate one slice
-- `↑/↓` - Navigate 10 slices
-- Enable/disable crosshair synchronization
+| Key | Action |
+|---|---|
+| `←` / `→` | Move one slice |
+| `↓` / `↑` | Move ten slices |
 
 ---
 
@@ -289,8 +292,7 @@ sudo apt-get install python3-tk
 Generate multiple datasets with different parameters:
 
 ```matlab
-% Add nim_visualization to path
-addpath('nim_visualization');
+addpath(genpath('src'));
 
 % High-resolution version
 opts_hires = struct('image_resolution', [2048, 2048]);
@@ -306,8 +308,7 @@ generateSlices('tracks.mat', 'nim.mat', '/export/lores', opts_lores);
 Process multiple datasets:
 
 ```matlab
-% Add nim_visualization to path
-addpath('nim_visualization');
+addpath(genpath('src'));
 
 datasets = {'patient01', 'patient02', 'patient03'};
 
@@ -345,10 +346,10 @@ done
 
 ## Summary
 
-✓ **Server**: `addpath('nim_visualization'); generateSlices('tracks.mat', 'nim.mat', '/export/slices')`
+✓ **Server**: `addpath(genpath('src')); generateSlices('tracks.mat', 'nim.mat', '/export/slices')`
 
 ✓ **Transfer**: `rsync -avz server:/export/slices/ ~/local/slices/`
 
-✓ **Local**: `./viewSlices.sh ~/local/slices/`
+✓ **Local**: `./bin/viewSlices.sh ~/local/slices/`
 
 **Result**: Instant slice navigation with no MATLAB on local computer!

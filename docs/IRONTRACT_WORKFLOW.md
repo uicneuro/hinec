@@ -4,7 +4,7 @@ Complete workflow for processing IronTract challenge data and generating submiss
 
 ## Overview
 
-The HINEC pipeline now supports IronTract challenge data with automatic format detection and specialized submission generation. IronTract data uses a different file format than standard DTI data.
+HINEC reads IronTract challenge data directly: `nim_read` detects its gradient-table layout automatically, and `nim_irontract_submit` packages tractography results as the binary volumes the challenge evaluates. The only difference from a standard DTI dataset is the `.bval`/`.bvec` layout.
 
 ## File Format Differences
 
@@ -41,11 +41,19 @@ The HINEC pipeline now supports IronTract challenge data with automatic format d
 
 ### Step 1: Preprocess IronTract Data
 
-IronTract data is already preprocessed, but needs brain mask and parcellation:
+IronTract data arrives already preprocessed, but still needs a brain mask,
+parcellation and tensor fit:
+
+```bash
+./bin/run_hinec.sh ironTract/sub-MR243 ironTract.mat config/irontract.yml
+```
+
+The MATLAB entry point is equivalent:
 
 ```matlab
-% Process the data (generates brain mask, parcellation, DTI metrics)
-main('ironTract/sub-MR243', 'ironTract.mat');
+config   = load_config_yaml('config/irontract.yml');
+run_info = create_run_directory('config/irontract.yml');
+main('ironTract/sub-MR243', 'ironTract.mat', config, run_info);
 ```
 
 **What happens**:
@@ -68,11 +76,11 @@ main('ironTract/sub-MR243', 'ironTract.mat');
 **Option A: Using Shell Script (Recommended)**
 
 ```bash
-# Standard tractography
-./run_tractography.sh ironTract.mat
+# Tractography only, config-driven
+./bin/run_tractography.sh irontract --source ironTract.mat
 
-# IronTract submission mode
-./run_tractography.sh ironTract.mat IronTract ironTract/injection.nii.gz ironTract_submissions/
+# IronTract submission mode (legacy positional form)
+./bin/run_tractography.sh ironTract.mat IronTract ironTract/injection.nii.gz ironTract_submissions/
 ```
 
 **Option B: Using MATLAB Directly**
@@ -87,26 +95,31 @@ runTractography('ironTract.mat', 'IronTract', 'ironTract/injection.nii.gz', 'iro
 
 **What happens**:
 
-- Loads processed `nim` structure
-- Runs FACT tractography with optimized parameters
-- Saves tracks to `tractography_results/tracks_standard.mat`
-- **If IronTract mode**: Generates submission files with parameter sweep
+- Loads the processed `nim` structure
+- Tracks according to the config (or, in IronTract mode, with `nim_tractography_standard` — FACT)
+- Writes tracks under the run directory's `tractography/`
+- **In IronTract mode**: hands off to `nim_irontract_submit` for the parameter sweep
 
 ### Step 3: IronTract Submission Generation
 
-**Automatic in IronTract Mode**:
-When you run tractography with IronTract arguments, it automatically:
+**Automatic in IronTract mode.** For each angle threshold in the sweep,
+`nim_irontract_submit`:
 
-1. **Filters Tracks**: Only keeps streamlines passing through injection site
-2. **Parameter Sweep**: Generates multiple volumes with varying angle thresholds
-3. **Binary Masks**: Converts tracks to binary voxel masks
-4. **Saves Submissions**: Creates numbered files `submission_001.nii.gz`, `submission_002.nii.gz`, etc.
+1. **Seeds including the injection site** — the brain mask (or, failing that, the
+   parcellation mask, or FA > 0.1) is unioned with the injection mask, so the
+   site is guaranteed to be seeded.
+2. **Tracks** with `nim_tractography_standard` at that angle threshold.
+3. **Filters** to streamlines with at least one point inside the injection site.
+4. **Rasterises** the survivors into a binary voxel mask.
+5. **Writes** `submission_001.nii.gz`, `submission_002.nii.gz`, …
 
-**Parameter Sweep Defaults**:
+**Sweep defaults**:
 
-- Angle thresholds: `[30, 45, 60, 75, 90]` degrees
-- Generates 5 submission volumes for ROC analysis
-- Each volume uses same tracks but different filtering
+- Angle thresholds: `[30, 45, 60, 75, 90]` degrees, giving 5 volumes for ROC
+  analysis.
+- Each volume is a **separate tracking run** at its own angle threshold. Passing
+  `options.tracks_file` short-circuits that: all volumes then reuse the one
+  supplied track set, and the sweep degenerates to a single result repeated.
 
 **Manual Submission Generation** (if needed):
 ```matlab
@@ -126,10 +139,10 @@ nim_irontract_submit('ironTract.mat', 'ironTract/injection.nii.gz', 'submissions
 
 ```bash
 # 1. Process IronTract data
-matlab -batch "addpath(genpath('.')); main('ironTract/sub-MR243', 'ironTract.mat');"
+./bin/run_hinec.sh ironTract/sub-MR243 ironTract.mat config/irontract.yml
 
 # 2. Run tractography and generate submissions
-./run_tractography.sh ironTract.mat IronTract ironTract/injection.nii.gz ironTract_submissions/
+./bin/run_tractography.sh ironTract.mat IronTract ironTract/injection.nii.gz ironTract_submissions/
 
 # 3. Monitor progress
 tail -f tractography_*.log
@@ -139,7 +152,7 @@ tail -f tractography_*.log
 
 ### Standard Tractography
 ```
-tractography_results/
+<run_dir>/tractography/
   tracks_standard.mat         # Complete tractography results
     - tracks: cell array of fiber pathways
     - options: tractography parameters
@@ -165,21 +178,37 @@ Each submission file is:
 
 ## Tractography Parameters
 
-Current FACT parameters (optimized for comprehensive coverage):
+Parameters come from the YAML config, in the canonical nested schema. Only
+non-default keys need to appear; the rest are filled in from
+`nim_config_schema`. `config/irontract.yml` sets:
 
-```matlab
-options.seed_density = 4;           % 4 seeds per voxel
-options.step_size = 0.5;            % 0.5mm Euler steps
-options.fa_threshold = 0.15;        % FA threshold for seeding
-options.termination_fa = 0.15;      % FA stopping criterion
-options.angle_thresh = 35;          % 35° maximum turning angle
-options.max_steps = 1000;           % Maximum steps per track
-options.min_length = 35;            % 35mm minimum track length
-options.order = 1;                  % First-order Euler integration
-options.interp_method = 'none';     % FACT uses nearest neighbor
+```yaml
+tractography:
+  integrator:
+    method: rkf45
+    tolerance: 0.02
+    step_min: 0.02
+    step_max: 0.5
+  termination:
+    angle_max: 225      # degrees per VOXEL OF ARC; 0 disables the criterion
+    max_arc: 600        # voxels of arc, not steps
 ```
 
-**Seeding Strategy**: Brain mask-based comprehensive seeding (not FA-threshold seeding)
+Override any of them per run without a new file:
+
+```bash
+./bin/run_tractography.sh irontract --source ironTract.mat \
+    --set termination.angle_max=175 --set seeding.density=4
+```
+
+Submission mode is different: `nim_irontract_submit` calls
+`nim_tractography_standard` (FACT), which walks voxel-to-voxel with no
+interpolation, so the integrator and interpolation keys do not apply. It sets
+the tracker's internal `angle_thresh` from each entry of the sweep and takes the
+rest of its options from `base_options`.
+
+**Seeding**: the brain mask unioned with the injection site — comprehensive
+rather than FA-thresholded.
 
 ## Implementation Details
 
@@ -205,7 +234,7 @@ if length(first_line_vals) == 3 && length(lines) > 3
     for i = 1:length(lines)
         bvec_all(i, :) = str2num(string(lines(i)));
     end
-elseif length(first_line_vals) > 3 || length(lines) == 3
+elseif length(first_line_vals) > 3 || (length(first_line_vals) >= 1 && length(lines) == 3)
     % Standard format: 3 lines of components
     gx = str2num(string(lines(1)));
     gy = str2num(string(lines(2)));
@@ -253,43 +282,26 @@ end
 
 ## Troubleshooting
 
-### Issue: "Dimension mismatch" errors
-
-**Cause**: Incorrect filtering of bval/bvec arrays
-
-**Solution**: Updated code maintains unfiltered arrays in `nim` structure, downstream functions filter when needed
-
-### Issue: "Compressed NIfTI files are not supported"
-
-**Cause**: SPM doesn't handle .nii.gz directly
-
-**Solution**: Automatic gunzip wrapper added to preprocessing functions
-
-### Issue: "Variable not saved" for large files
-
-**Cause**: Default MAT-file format limited to 2GB
-
-**Solution**: Automatic v7.3 format for files >1900MB
-
-### Issue: Label file not found
-
-**Cause**: Parcellation generates XML labels, not MAT files
-
-**Solution**: Added XML label loading support to `nim_load_labels.m`
+| symptom | cause and resolution |
+|---|---|
+| "Dimension mismatch" | b-value/b-vector arrays filtered inconsistently. `nim` stores the unfiltered arrays; downstream functions filter as needed, so do not pre-filter them yourself. |
+| "Compressed NIfTI files are not supported" | SPM cannot read `.nii.gz` directly. The preprocessing functions gunzip to a temporary file automatically; the error means the wrapper was bypassed. |
+| "Variable not saved" on large volumes | The default MAT format caps at 2 GB. `nim_save` switches to v7.3 above ~1900 MB. |
+| "Label file not found" | Parcellation emits XML labels, not `.mat`. `nim_load_labels` reads both. |
 
 ## References
 
 - Maffei et al. (2022). Insights from the IronTract challenge: Optimal methods for mapping the human corticospinal tract. NeuroImage.
 - IronTract Challenge: https://tractometer.org/irontract/
 
-## File Changes Summary
+## Where the code lives
 
-Modified files for IronTract support:
-
-1. `nim_utils/nim_read.m` - Multi-format detection
-2. `nim_utils/nim_load_labels.m` - XML label support
-3. `nim_utils/nim_save.m` - Large file support (v7.3)
-4. `nim_preprocessing/preproc_mask_improvement.m` - Compressed NIfTI handling
-5. `runTractography.m` - IronTract mode integration, visualization removed
-6. `run_tractography.sh` - IronTract mode shell wrapper
-7. `nim_challenges/nim_irontract_submit.m` - Submission generation (already existed, now integrated)
+| file | role |
+|---|---|
+| `src/nim_utils/nim_read.m` | gradient-table format detection |
+| `src/nim_utils/nim_load_labels.m` | XML atlas label loading |
+| `src/nim_utils/nim_save.m` | v7.3 MAT format for large nims |
+| `src/nim_preprocessing/preproc_mask_improvement.m` | compressed-NIfTI handling |
+| `src/nim_challenges/nim_irontract_submit.m` | submission packaging |
+| `runTractography.m` | dispatch into IronTract mode |
+| `bin/run_tractography.sh` | shell wrapper |

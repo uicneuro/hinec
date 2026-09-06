@@ -1,5 +1,5 @@
 # HINEC interpolated streamline tractography on the DTI principal-eigenvector field,
-# with trajectory-dependent (sel_power) directional interpolation + RK4/RKF45 + ACT.
+# with interpolated direction + RK4/RKF45, optional ACT.
 # 
 # ./bin/run_tractography.sh hinec_dti --score
 # 

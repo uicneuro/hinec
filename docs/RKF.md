@@ -1,3 +1,12 @@
+# Embedded Runge-Kutta (RKF45)
+
+`integrator.method: rkf45` selects an embedded Runge-Kutta pair with adaptive step-size
+control: one set of stages yields two solutions of different order, their difference
+estimates the local error, and the step size is adjusted to hold that error at a
+tolerance. This page derives the scheme; [How HINEC uses it](#7-how-hinec-uses-it)
+records what the tracker actually implements, and [RKF45 Usage](RKF_Usage.md) covers
+configuration.
+
 ## Embedded Runge–Kutta (RKF / Dormand–Prince–type) Method
 
 ### 1. Problem Statement
@@ -68,7 +77,7 @@ Given stages \(k_i\) from above, we form:
 Here \(\hat{b}_i\) and \(b_i\) are the two sets of weights (often called
 “embedded weights”). Both approximations reuse the same \(k_i\).
 
-In Dormand–Prince RK5(4)7M (the main method in the paper), we have:
+In the Dormand–Prince RK5(4)7M pair (Dormand & Prince, 1980), we have:
 
 - \(s = 7\) stages,
 - a 5th-order formula (weights \(\hat{b}_i\)),
@@ -164,3 +173,40 @@ Given \((x_n, y_n)\) and current step size \(h\):
 
 This provides **automatic error control** and **adaptive step size**
 using a single set of stage evaluations per step.
+
+---
+
+### 7. How HINEC uses it
+
+`nim_tractography_hinec` implements the scheme above with the Dormand–Prince tableau, over
+the streamline ODE \( dx/ds = v(x) \) with \( |v| = 1 \):
+
+- **Seven stages**, each an interpolation of the direction field, sign-aligned to the
+  incoming tangent; a stage whose interpolation fails reuses the previous stage's vector.
+- The position is advanced with the **higher-order** member of the pair, and the difference
+  from the lower-order member is the error estimate,
+  \( \text{err} = \lVert \hat{y} - \tilde{y} \rVert \), in voxels.
+- A step is **accepted** when `err <= integrator.tolerance`, and the next step is
+  \( h_{\text{new}} = \text{safety}\cdot h\,(\text{tol}/\text{err})^{1/5} \), clamped to
+  `[integrator.step_min, integrator.step_max]` and to at most \(2h\) growth. A rejected
+  step is retried from the same position with the smaller step.
+- `integrator.step` is the **initial** step. `integrator.adaptive: false` keeps the pair but
+  fixes the step — a genuine third mode, useful when the comparison of interest is the
+  tableau rather than the step control.
+
+!!! note "`rkf45` is a method name, not an order claim"
+    The schema treats the integrator as a method selector rather than an order, because the
+    two are not the same thing here. This implementation uses Dormand–Prince coefficients and
+    advances on the 5th-order solution, keeping the embedded 4th-order one to size the next
+    step — so the pair is 5(4) with local extrapolation, not a 4th-order method. More
+    decisively, the order any scheme can realise on this problem is capped by the smoothness
+    of the interpolated direction field, not by the tableau. See
+    [Solution Verification](CONVERGENCE.md) and
+    [High-Order Tractography](High_Order.md#kernels).
+
+## References
+
+1. **Dormand, J. R., & Prince, P. J.** (1980). A family of embedded Runge-Kutta formulae.
+   *Journal of Computational and Applied Mathematics*, 6(1), 19–26.
+2. **Hairer, E., Nørsett, S. P., & Wanner, G.** (1993). *Solving Ordinary Differential
+   Equations I: Nonstiff Problems* (2nd ed.). Springer.

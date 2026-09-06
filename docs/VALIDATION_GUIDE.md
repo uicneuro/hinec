@@ -1,35 +1,59 @@
 # Validating Tractography Against the ISMRM 2015 Ground Truth
 
-This guide is a step-by-step runbook for **quantitatively testing** a HINEC
-tractography result against a known ground truth. It uses the ISMRM 2015
-Tractography Challenge phantom — a synthetic brain where the true white-matter
-bundles are known — and the Renauld et al. 2023 scoring system (via `scilpy`).
+This is a runbook for scoring a HINEC tractography result against a known ground
+truth. It uses the ISMRM 2015 Tractography Challenge phantom — a synthetic brain
+whose true white-matter bundles are known — and the Renauld et al. 2023 scoring
+system (via `scilpy`). The output is a `results.json` carrying per-bundle Dice,
+overlap and overreach, plus the number of valid bundles recovered.
 
-The end result is a `results.json` with per-bundle **Dice / overlap / overreach**
-scores and the number of **valid bundles** recovered.
+!!! warning "Score a whole-brain tractogram, or the numbers mean nothing"
+    The scorer takes **one whole-brain tractogram** and segments it into 26
+    bundles using ROI gates (head + tail endpoint ROIs and an `all_mask`
+    containment corridor). Its headline metrics are averages over all 26. A
+    tractogram seeded from a single ROI can populate at most one of them, so
+    `VB` caps at 1/26 and `mean_f1` is dominated by the 25 bundles that were
+    never attempted. Such a run is a useful bundle-level diagnostic, but it is
+    **not** a challenge score and must not be compared with published ones. See
+    [ISMRM Scoring](ISMRM_SCORING_ANALYSIS.md) for how a bundle is defined.
 
 ---
 
 ## 0. What you get
 
-For every run you score, you get:
-
 | metric | meaning |
 |---|---|
-| **Dice / F1** | overall agreement with the true bundle (0–1); `2·OL/(OL+OR+1)` |
-| **OL** (overlap) | fraction of the true bundle you covered (recall) |
-| **OR** (overreach) | fraction of your streamlines outside the true bundle |
-| **VB** | how many of the 25 ground-truth bundles you recovered |
+| `mean_f1` | per-bundle Dice, averaged over the 26 bundles |
+| `mean_OL` | overlap: fraction of the true bundle's voxels covered (recall) |
+| `mean_OR_gt` | overreach: produced-but-wrong volume, as a fraction of the true bundle's volume |
+| `VB` | valid bundles: how many of the 26 were recovered at all |
 
-Reference points on this exact scoring (for calibration): best-ever submission
-≈ 0.64 Dice, best 2015 original ≈ 0.58, mean of 96 submissions ≈ 0.41.
+All three are computed on **voxel masks**, not streamline counts. Writing
+$A$ for the ground-truth bundle mask and $B$ for the segmented result:
+
+$$
+\mathrm{OL} = \frac{|A \cap B|}{|A|}, \qquad
+\mathrm{OR_{gt}} = \frac{|B \setminus A|}{|A|}, \qquad
+\mathrm{OR_{vs}} = \frac{|B \setminus A|}{|B|}
+$$
+
+and `f1` is the harmonic mean of recall $\mathrm{OL}$ and precision
+$1 - \mathrm{OR_{vs}}$. Note that `mean_OR_gt`, the reported overreach, is
+normalised by the *ground-truth* volume and can therefore exceed 1, while the
+overreach entering `f1` is normalised by the produced volume and cannot.
+`results.json` also carries `VS`, `VS_ratio` and `IS_ratio` (valid and invalid
+streamline counts and their ratios).
+
+Published reference points for this scorer, for calibration: the best submission
+recorded is ≈ 0.64 Dice, the best of the original 2015 entries ≈ 0.58, and the
+mean over 96 submissions ≈ 0.41. These are whole-brain submissions; only a
+whole-brain run of your own is comparable to them.
 
 ---
 
 ## 1. One-time environment setup
 
-You need these available (install locations are suggestions; scripts default to
-`$HOME/...` and can be overridden):
+Install locations below are suggestions; the scripts default to `$HOME/...` and
+can be overridden (`ISMRM_VENV` for the scoring venv).
 
 | tool | why | notes |
 |---|---|---|
@@ -68,31 +92,44 @@ ln -sf "$src/T1.nii.gz"        ismrm2015_T1.nii.gz
 
 ### Build the scoring config (one-time)
 
-The scorer needs a config that lists each bundle's `gt_mask`. Merge the two
-provided configs into one:
+The scorer needs a config that pairs each bundle's ROI gates with its `gt_mask`.
+Merge the two provided configs into one:
 
 ```bash
 ~/venvs/ismrm/bin/python scripts/build_ismrm_scoring_config.py
 # -> writes data/ismrm2015/scoring_data_Renauld2023/config_file_merged.json
 ```
 
-Without the merged config you get bundle counts but not Dice/overlap.
+Without the merged config you get bundle counts but no Dice or overlap.
 
 ---
 
 ## 3. Run HINEC
+
+Preprocess once:
 
 ```bash
 # <data_prefix> <output.mat> <config>
 ./bin/run_hinec.sh data/ismrm2015/ismrm2015 ismrm2015.mat config/ismrm2015.yml
 ```
 
-Output lands in a timestamped `hinec_runs/run_<TIMESTAMP>_ismrm2015/`:
-- `output/ismrm2015.mat` — the processed `nim` struct
-- `tractography/tracks_hinec_*.mat` — the streamlines (voxel coords)
+This writes the canonical processed `nim` to `data/ismrm2015/ismrm2015.mat` and
+a copy into a timestamped `hinec_runs/run_<TIMESTAMP>_ismrm2015/`, alongside
+`tractography/tracks_hinec_*.mat` (streamlines in voxel coordinates).
 
-`config/ismrm2015.yml` and `config/hinec_dti_cubic_recall.yml` are the two presets tuned
-for this phantom (hinec_dti_cubic_recall scored highest in our tests).
+Then iterate tractography on the processed `nim` without re-preprocessing, each
+config landing in its own scorable run directory:
+
+```bash
+./bin/run_tractography.sh hinec_dti_cubic --score
+./bin/run_tractography.sh hinec_dti_cubic_recall --score
+```
+
+`config/ismrm2015.yml` is the dataset preset for this phantom;
+`config/hinec_dti_cubic_recall.yml` is a variant that deliberately trades
+precision for coverage (denser seeding, looser termination). Which config scores
+best has not been established on a whole-brain submission — see the warning at
+the top of this page.
 
 > **Tip:** on a shared machine, cap the parallel pool with
 > `HINEC_MAX_WORKERS=8` so tracking doesn't oversubscribe cores.
@@ -106,11 +143,16 @@ for this phantom (hinec_dti_cubic_recall scored highest in our tests).
 ```
 
 This does three things:
-1. Converts `tracks_*.mat` → `tracks.trk` in RAS world coordinates
-   (`scripts/hinec_to_trk.py`, using the DWI affine, scoring-T1 reference).
-2. Runs `scil_tractogram_segment_with_ROI_and_score` against the Renauld 2023
-   ground truth.
-3. Writes results under `<run_dir>/scoring/renauld2023/`.
+
+1. Converts the newest `tractography/tracks*.mat` to `scoring/tracks.trk` in RAS
+   world millimetres (`scripts/hinec_to_trk.py`, using the run's preprocessed DWI
+   affine for placement and the scoring T1 as the saved TRK reference).
+2. Runs `scil_tractogram_segment_with_ROI_and_score` against the merged Renauld
+   2023 config, writing `<run_dir>/scoring/renauld2023/results.json`.
+3. If `data/ismrm2015/scoring_data_2015/` and the original challenge scorer are
+   also present, runs the dedicated 2015 scorer into
+   `<run_dir>/scoring/dedicated2015/` as a cross-check. This step is skipped
+   silently when either is missing.
 
 Read the headline numbers:
 
@@ -129,19 +171,25 @@ print('Dice=%.3f  OL=%.3f  OR=%.3f  VB=%.0f'%(r['mean_f1'],r['mean_OL'],r['mean_
     hinec_runs/run_*_ismrm2015 hinec_runs/run_*_hinec_dti_cubic_recall
 ```
 
-Prints a side-by-side table of headline metrics and per-bundle Dice.
+Prints a side-by-side table of headline metrics and per-bundle F1, labelled by
+the config name embedded in each run directory.
 
 ---
 
 ## 6. Interpreting the score
 
 - **Higher Dice is better.** It balances *finding* the bundle (OL) against
-  *staying inside* it (OR) — you can't game it by flooding streamlines.
-- **Low OL, low OR** → under-coverage (too conservative); loosen termination
-  (lower `termination_fa`, raise `angle_thresh`) or seed more densely.
-- **High OL, high OR** → over-production; tighten the same knobs.
-- **VB counts** which bundles you found at all; the small/deep ones
-  (CA, CP, commissures) are the hardest.
+  *staying inside* it (OR), so flooding the brain with streamlines does not
+  raise it.
+- **Low OL, low OR** → under-coverage. Loosen termination (lower
+  `termination.fa_min`, raise `termination.angle_max`) or raise
+  `seeding.density`.
+- **High OL, high OR** → over-production. Tighten the same knobs.
+- **VB counts** which bundles were recovered at all; the small and deep ones
+  (`CA`, `CP`, the commissures) are hardest — `CP` has 365 ground-truth
+  streamlines against `MCP`'s 21008.
+- **Read `VB` first.** A `VB` far below 26 means most bundles contributed a zero
+  to `mean_f1`, and the average says more about coverage than about quality.
 
 ---
 
@@ -150,7 +198,7 @@ Prints a side-by-side table of headline metrics and per-bundle Dice.
 The same flow validates any DWI that has a matching ground truth. Swap the
 `data/ismrm2015/` inputs for your dataset (keeping the
 `<prefix>_raw.nii.gz` / `.bval` / `.bvec` naming), point the scorer at your
-ground-truth bundles/config, and the rest is identical.
+ground-truth bundles and config, and the rest is identical.
 
 ---
 
@@ -158,7 +206,8 @@ ground-truth bundles/config, and the rest is identical.
 
 | symptom | cause / fix |
 |---|---|
-| scorer errors "incompatible headers" | tracks and scoring masks in different spaces — the scoring script attaches the scoring T1 reference; make sure you pass a run dir with an `intermediate/*.nii.gz` DWI |
+| scorer errors "incompatible headers" | tracks and scoring masks are in different spaces — the scoring script attaches the scoring T1 reference, so make sure you pass a run dir with an `intermediate/*.nii.gz` DWI |
 | all bundles score 0 | usually a coordinate/space mismatch, or (for non-HINEC tools) a wrong gradient table — verify with `mrinfo`/`dwigradcheck` before trusting a low score |
 | `results.json` has "No gt_mask" per bundle | you scored with `config_file_segmentation.json`; use the merged config (Step 2) for Dice |
-| very short streamlines / low coverage | check `termination_fa`, `angle_thresh`, `min_length` in the config |
+| `VB` is 1 and `mean_f1` is near zero | the tractogram was seeded from a single ROI — see the warning at the top |
+| very short streamlines / low coverage | check `termination.fa_min`, `termination.angle_max` and `termination.min_arc` in the config |

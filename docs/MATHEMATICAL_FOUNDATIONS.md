@@ -63,7 +63,7 @@ $$
 \text{ADC}(\mathbf{g}) = \mathbf{g}^\top \mathbf{D} \mathbf{g} = \sum_{i=1}^{3} \sum_{j=1}^{3} g_i \, D_{ij} \, g_j
 $$
 
-The ADC is the directional projection of the diffusion tensor --- it measures how fast water diffuses along a specific direction. In white matter, the ADC is large along the fiber direction and small perpendicular to it.
+The ADC is the directional projection of the diffusion tensor — it measures how fast water diffuses along a specific direction. In white matter, the ADC is large along the fiber direction and small perpendicular to it.
 
 ### Log-Linear Formulation
 
@@ -119,7 +119,7 @@ Y(:,:,:,t) = log(nim.img_b0 ./ nim.img_bi(:,:,:,t)) ./ b(t);
 
 ### Ordinary Least Squares Solution
 
-Given the overdetermined system $\mathbf{Y} = \mathbf{H}\mathbf{d}$ (typically $N = 30$--$60$ equations, 6 unknowns), the ordinary least squares (OLS) solution minimizes the sum of squared residuals:
+Given the overdetermined system $\mathbf{Y} = \mathbf{H}\mathbf{d}$ (typically $N = 30$–$60$ equations, 6 unknowns), the ordinary least squares (OLS) solution minimizes the sum of squared residuals:
 
 $$
 \hat{\mathbf{d}} = \arg\min_{\mathbf{d}} \| \mathbf{Y} - \mathbf{H}\mathbf{d} \|^2
@@ -145,7 +145,7 @@ which internally uses QR decomposition for numerical stability rather than expli
 
 ### Weighted Least Squares
 
-In the log-linear model, the noise in $\mathbf{Y}$ is heteroscedastic --- the variance depends on the signal magnitude. A weighted least squares (WLS) formulation accounts for this:
+In the log-linear model, the noise in $\mathbf{Y}$ is heteroscedastic — the variance depends on the signal magnitude. A weighted least squares (WLS) formulation accounts for this:
 
 $$
 \hat{\mathbf{d}}_{\text{WLS}} = (\mathbf{H}^\top \mathbf{W} \mathbf{H})^{-1} \mathbf{H}^\top \mathbf{W} \mathbf{Y}
@@ -155,7 +155,7 @@ where $\mathbf{W} = \text{diag}(S_1^2, S_2^2, \ldots, S_N^2)$ weights each obser
 
 ### The Non-Positive-Definite Problem
 
-The diffusion tensor must be symmetric positive-definite (SPD) --- all eigenvalues must be strictly positive --- because diffusion coefficients are physical quantities that cannot be negative. However, noise in the measured signal can produce tensors with negative eigenvalues via least squares fitting.
+The diffusion tensor must be symmetric positive-definite (SPD) — all eigenvalues must be strictly positive — because diffusion coefficients are physical quantities that cannot be negative. However, noise in the measured signal can produce tensors with negative eigenvalues via least squares fitting.
 
 A tensor $\mathbf{D}$ is SPD if and only if:
 
@@ -278,7 +278,7 @@ I_3 &= \det(\mathbf{D})
 \end{aligned}
 $$
 
-These invariants are rotationally invariant --- they do not change when the coordinate system is rotated. For a real symmetric matrix, all three eigenvalues are guaranteed to be real.
+These invariants are rotationally invariant — they do not change when the coordinate system is rotated. For a real symmetric matrix, all three eigenvalues are guaranteed to be real.
 
 This yields three real eigenvalue-eigenvector pairs: $(\lambda_1, \mathbf{e}_1)$, $(\lambda_2, \mathbf{e}_2)$, $(\lambda_3, \mathbf{e}_3)$.
 
@@ -317,7 +317,7 @@ where $\mathbf{Q} = [\mathbf{e}_1 \; \mathbf{e}_2 \; \mathbf{e}_3]$ and $\mathbf
 
 ### Tensor Geometry
 
-The eigenvalues define the shape of the **diffusion ellipsoid** --- the surface of constant mean squared displacement:
+The eigenvalues define the shape of the **diffusion ellipsoid** — the surface of constant mean squared displacement:
 
 $$
 \mathbf{x}^\top \mathbf{D}^{-1} \mathbf{x} = 6t
@@ -335,9 +335,9 @@ Westin et al. (1997) defined three shape measures that sum to 1, providing a geo
 
 $$
 \begin{aligned}
-C_L &= \frac{\lambda_1 - \lambda_2}{\lambda_1} \quad &\text{(linear anisotropy --- fiber-like)} \\
-C_P &= \frac{\lambda_2 - \lambda_3}{\lambda_1} \quad &\text{(planar anisotropy --- crossing/sheet-like)} \\
-C_S &= \frac{\lambda_3}{\lambda_1} \quad &\text{(spherical isotropy --- ball-like)}
+C_L &= \frac{\lambda_1 - \lambda_2}{\lambda_1} \quad &\text{(linear anisotropy — fiber-like)} \\
+C_P &= \frac{\lambda_2 - \lambda_3}{\lambda_1} \quad &\text{(planar anisotropy — crossing/sheet-like)} \\
+C_S &= \frac{\lambda_3}{\lambda_1} \quad &\text{(spherical isotropy — ball-like)}
 \end{aligned}
 $$
 
@@ -399,7 +399,7 @@ $$
 \text{MD} = \frac{\lambda_1 + \lambda_2 + \lambda_3}{3} = \frac{\text{tr}(\mathbf{D})}{3}
 $$
 
-MD equals one-third of the trace, which is rotationally invariant. Typical values: $\sim 0.7$--$1.0 \times 10^{-3}$ mm$^2$/s in healthy white matter, $\sim 3.0 \times 10^{-3}$ mm$^2$/s in CSF.
+MD equals one-third of the trace, which is rotationally invariant. Typical values: $\sim 0.7$–$1.0 \times 10^{-3}$ mm$^2$/s in healthy white matter, $\sim 3.0 \times 10^{-3}$ mm$^2$/s in CSF.
 
 ### Axial Diffusivity (AD) and Radial Diffusivity (RD)
 
@@ -487,13 +487,47 @@ $$
 
 ### Angular Stopping Criterion
 
-The angle $\theta$ between consecutive directions is checked against a threshold $\theta_\max$:
+The turn between consecutive tangents is measured as
 
 $$
 \cos\theta = \frac{|\mathbf{d}_{\text{new}} \cdot \mathbf{d}_{\text{prev}}|}{|\mathbf{d}_{\text{new}}| \, |\mathbf{d}_{\text{prev}}|}
 $$
 
-If $\theta > \theta_\max$ (typically 25--60 degrees), the streamline is terminated. Pre-computing $\cos\theta_\max$ avoids the expensive $\arccos$ operation at every step.
+and compared against a budget. The budget is **not** a fixed angle per step. The
+configured `termination.angle_max` is a turning **rate**, in degrees per voxel of
+arc, and the allowance for one step of nominal arc $h$ is
+
+$$
+\theta_{\max}(h) = \texttt{angle\_max} \cdot h, \qquad
+R_{\min} = \frac{180/\pi}{\texttt{angle\_max}} \ \text{voxels.}
+$$
+
+A rate is what makes the criterion step-invariant: halving $h$ halves the
+allowance, so the same bound on the radius of curvature is enforced at every step
+size, and refining the step cannot silently loosen the stopping rule. The budget
+is evaluated on the **nominal** step arc, never the realised chord. For
+$d\mathbf{x}/ds = \mathbf{v}$ with $|\mathbf{v}| = 1$ a step advances exactly $h$ of
+arc by construction; the chord is shorter, mostly because the Runge-Kutta stage
+vectors disagree with one another rather than because less arc was covered.
+Scaling by the chord would therefore tighten the criterion precisely where the
+direction field is ambiguous, and would make it method-dependent — Euler and RK2
+advance by $h$ times a unit vector, so their chord is exactly $h$, while RK4
+averages four stage vectors and its chord falls as low as $0.25h$ on this data.
+
+Two limits follow, and both matter in practice.
+
+- **90 degrees is a ceiling, not a safety margin.** $\mathbf{e}_1$ is a *line*
+  field, so each tangent is sign-aligned to its predecessor before the turn is
+  measured and the measured turn is confined to $[0°, 90°]$. Any budget with
+  $\texttt{angle\_max} \cdot h \geq 90$ can never be exceeded: the criterion is
+  absent, not merely permissive. `nim_config_to_options` warns when a
+  configuration lands there.
+- **`angle_max: 0` disables the criterion** outright, which is what a controlled
+  experiment should use — a stopping rule whose budget scales with the refinement
+  parameter is not part of a fixed problem to converge to.
+
+`nim_angle_limit` computes $\theta_{\max}(h)$ and its cosine once per step;
+comparing cosines avoids an $\arccos$ in the inner loop.
 
 ### Bidirectional Tracking
 
@@ -511,7 +545,11 @@ $$
 L = \sum_{i=1}^{N-1} \|\mathbf{r}_{i+1} - \mathbf{r}_i\|_2
 $$
 
-Tracks shorter than a minimum length (typically 10--30 mm) are filtered out as likely spurious.
+Tracks shorter than `termination.min_arc` (an arc length in voxels, default 15)
+are discarded as likely spurious. The companion cap `termination.max_arc` bounds
+$L$ from above; the step budget handed to the tracker is derived from it as
+$\lceil \texttt{max\_arc}/h \rceil$, so refining the step cannot truncate a
+track that a coarser run completed.
 
 ---
 
@@ -523,7 +561,7 @@ $$
 \frac{d\mathbf{y}}{ds} = \mathbf{f}(\mathbf{y}), \qquad \mathbf{y} = [x, y, z], \quad s = \text{arc length}, \quad \mathbf{f} = \text{interpolated direction field}
 $$
 
-### Euler Method (Order 1, `integration_order = 1`)
+### Euler Method (order 1, `integrator.method: euler`)
 
 The simplest explicit method:
 
@@ -532,11 +570,11 @@ $$
 $$
 
 - Local truncation error: $O(h^2)$
-- Global error: $O(h)$ --- first-order accuracy
+- Global error: $O(h)$ — first-order accuracy
 - One function evaluation per step
 - Fast but least accurate; equivalent to standard step-based tracking
 
-### RK2 Midpoint Method (Order 2, `integration_order = 2`)
+### RK2 Midpoint Method (order 2, `integrator.method: rk2`)
 
 Uses a trial step to the midpoint for better accuracy:
 
@@ -549,10 +587,10 @@ $$
 $$
 
 - Local truncation error: $O(h^3)$
-- Global error: $O(h^2)$ --- second-order accuracy
+- Global error: $O(h^2)$ — second-order accuracy
 - Two function evaluations per step
 
-### RK4 Classical Method (Order 4, `integration_order = 4`)
+### RK4 Classical Method (order 4, `integrator.method: rk4`)
 
 The standard fourth-order Runge-Kutta method:
 
@@ -567,13 +605,16 @@ $$
 $$
 
 - Local truncation error: $O(h^5)$
-- Global error: $O(h^4)$ --- fourth-order accuracy
+- Global error: $O(h^4)$ — fourth-order accuracy
 - Four function evaluations per step
 - Excellent accuracy-to-cost ratio; the default HINEC method
 
-### RKF45 Adaptive Method (Order 4-5, `integration_order = 5`)
+### RKF45 Adaptive Method (Dormand–Prince, `integrator.method: rkf45`)
 
-The Dormand-Prince embedded pair provides automatic step size control by computing both a 4th-order and 5th-order solution using shared function evaluations.
+The Dormand-Prince embedded pair provides automatic step size control by
+computing both a 4th-order and a 5th-order solution from shared function
+evaluations. The name is a method selector, not an order: the propagated solution
+is 4th order, with the 5th-order companion used only to estimate the local error.
 
 **Stage evaluations** (7 stages, $i = 1, \ldots, 7$):
 
@@ -611,7 +652,10 @@ $$
 If $\text{err} \leq \text{tol}$: accept step, use $\hat{\mathbf{y}}_{n+1}$, adjust $h$ for next step.
 If $\text{err} > \text{tol}$: reject step, reduce $h$, retry.
 
-**HINEC defaults**: $\text{tol} = 0.01$ voxels, $\text{safety} = 0.9$, $h_\min = 0.01$, $h_\max = 1.0$.
+**HINEC defaults** (`integrator.tolerance`, `.safety`, `.step_min`, `.step_max`):
+$\text{tol} = 0.01$ voxels, $\text{safety} = 0.9$, $h_\min = 0.01$, $h_\max = 1.0$.
+Setting `integrator.adaptive: false` alongside `rkf45` runs the same tableau at
+fixed step, which is what order verification requires.
 
 For the complete Dormand-Prince coefficients and derivation, see [RKF.md](RKF.md). For usage examples and parameter guidelines, see [RKF_Usage.md](RKF_Usage.md).
 
@@ -633,18 +677,68 @@ This explains why the global accuracy order equals $p$, one less than the local 
 
 ### Comparison of Methods
 
-| Method | Order | Evaluations/Step | Relative Cost | Relative Accuracy | Best For |
-|---|---|---|---|---|---|
-| Euler | 1 | 1 | $1\times$ | Low | Quick exploration |
-| RK2 | 2 | 2 | $2\times$ | Moderate | Fast, reasonable accuracy |
-| RK4 | 4 | 4 | $4\times$ | High | Default, good cost/accuracy |
-| RKF45 | 4-5 | 6-7 | $6$--$7\times$ | Highest (adaptive) | Publication quality |
+| `integrator.method` | Formal order | Evaluations/step | Relative cost | Step control |
+|---|:--:|:--:|:--:|---|
+| `euler` | 1 | 1 | $1\times$ | fixed |
+| `rk2` | 2 | 2 | $2\times$ | fixed |
+| `rk4` | 4 | 4 | $4\times$ | fixed (default) |
+| `rkf45` | 4, with an embedded 5 for error control | 6–7 | $6$–$7\times$ | adaptive |
 
-Higher-order methods are especially valuable in regions of high fiber curvature, where lower-order methods accumulate significant tracking error.
+Higher-order methods pay off in regions of high fiber curvature, where lower-order
+methods accumulate tracking error fastest. The *formal* order in this table is a
+property of the tableau alone, and is an upper bound on what is actually observed
+— see below.
+
+### Observed Order Is Capped by the Interpolant
+
+The formal order of a Runge-Kutta method is only attained when the right-hand
+side is smooth enough to support it: an order-$p$ method requires
+$\mathbf{f} \in C^{p}$ along the trajectory. Here $\mathbf{f}$ is an *interpolant*
+of a sampled field, so its smoothness is a modeling choice, and it is the choice
+that governs the order actually measured.
+
+Refining the step over nine levels from $h = 0.5$ to $h = 0.03125$ voxels, against
+a reference at $h = 0.0078125$, gives:
+
+| Method | Interpolant | Smoothness | Formal order | Observed order |
+|---|---|:--:|:--:|:--:|
+| Euler | — | — | 1 | 0.99 |
+| RK2 | — | — | 2 | 2.01 |
+| RK4 | `trilinear` | $C^0$ | 4 | **2.00** |
+| RK4 | `cubic` | $C^1$ | 4 | **3.06** |
+| RK4 | `spline` | $C^2$ | 4 | **4.00** |
+
+The three RK4 rows differ only in the interpolation kernel, and the observed order
+rises by roughly one per continuous derivative until the tableau's formal order is
+reached. Euler and RK2 land on their known orders and therefore act as a control
+on the measurement itself: a metric that returns 0.99 and 2.01 for methods of
+order 1 and 2 is measuring the integrator rather than an artifact of its own
+construction.
+
+The practical consequence is that a high-order integrator on a $C^0$ interpolant
+is not high order. Pairing `rk4` with `trilinear` buys second-order accuracy at
+four times the cost of RK2.
+
+Refining the *spatial* sampling of the field instead (`interpolation.upsample`,
+below) converges at order $\approx 2.25$, and on this data the spatial
+discretization is the binding constraint: past a moderately coarse step, little is
+left to gain from refining $h$ alone. Full method and data:
+[Solution Verification](CONVERGENCE.md).
 
 ---
 
 ## 7. Interpolation Methods
+
+The direction field passed to the integrator is built once per run by
+`nim_tractography_hinec`, as a set of `griddedInterpolant` objects over the voxel
+grid. Three kernels are available through `interpolation.method`, and they differ
+in *smoothness*, which is what caps the observed order of the integrator above.
+
+| `interpolation.method` | MATLAB kernel | Continuity | Support (1D) |
+|---|---|:--:|:--:|
+| `trilinear` | `'linear'` | $C^0$ | 2 points |
+| `cubic` | `'cubic'` | $C^1$ | 4 points |
+| `spline` | `'spline'` | $C^2$ | global |
 
 ### Trilinear Interpolation
 
@@ -673,70 +767,121 @@ V(x,y,z) =\; & V_{000}(1-x_d)(1-y_d)(1-z_d) + V_{100} \, x_d(1-y_d)(1-z_d) \\
 \end{aligned}
 $$
 
-**Implementation**: HINEC uses MATLAB's `griddedInterpolant` with `'linear'` method for 2--5$\times$ faster interpolation compared to `interp3` (`nim_tractography_hinec.m:239-242`):
+Trilinear interpolation is continuous everywhere but its gradient jumps across
+every voxel face, so the interpolated field is $C^0$ and no more. The kinks are at
+fixed positions in space, which is why they do not average out under step
+refinement.
 
-```matlab
-nim.FA_interp = griddedInterpolant(grid_vectors, nim.FA, 'linear', 'none');
-nim.v1_x_interp = griddedInterpolant(grid_vectors, nim.v1_x, 'linear', 'none');
-nim.v1_y_interp = griddedInterpolant(grid_vectors, nim.v1_y, 'linear', 'none');
-nim.v1_z_interp = griddedInterpolant(grid_vectors, nim.v1_z, 'linear', 'none');
-```
+**Implementation**: HINEC builds `griddedInterpolant` objects once per run with
+the `'linear'` method, which is 2–5$\times$ faster than repeated `interp3` calls
+on the same grid, and `'none'` extrapolation so that queries outside the volume
+return `NaN` and terminate the streamline rather than silently returning a value.
 
-Each eigenvector component is interpolated independently, and the result is renormalized to unit length.
+### Cubic Convolution (`cubic`)
 
-### Cubic Spline Interpolation
-
-Available via `interp_method = 'cubic'`. Uses cubic B-splines for $C^2$-continuous interpolation, providing smoother direction fields at the cost of additional computation. The cubic B-spline basis function is:
+MATLAB's `'cubic'` is Keys cubic convolution, **not** a spline. It is an explicit
+4-point convolution with the kernel ($a = -1/2$)
 
 $$
-B_3(t) = \frac{1}{6} \begin{cases}
-(2-|t|)^3 & 1 \leq |t| < 2 \\
-4 - 6t^2 + 3|t|^3 & |t| < 1 \\
+u(t) = \begin{cases}
+(a+2)|t|^3 - (a+3)|t|^2 + 1 & |t| < 1 \\
+a\,|t|^3 - 5a\,|t|^2 + 8a\,|t| - 4a & 1 \leq |t| < 2 \\
 0 & |t| \geq 2
 \end{cases}
 $$
 
-Uses the same `griddedInterpolant` framework with `'cubic'` method.
+applied as a tensor product in three dimensions. The kernel is chosen so that
+$u$ and $u'$ are continuous and the scheme is third-order accurate on smooth data;
+$u''$ is discontinuous at the knots, so the interpolated field is $C^1$. That is
+one continuous derivative more than trilinear, and, as the table above shows,
+exactly one order more for RK4.
 
-### High-Order Spectral Interpolation
+### Cubic Spline (`spline`)
 
-The `nim_interp.m` utility implements spectral element interpolation using **Gauss-Lobatto-Legendre** (GLL) quadrature nodes:
+MATLAB's `'spline'` is a genuine interpolating cubic spline: the piecewise cubic
+whose first *and* second derivatives are continuous at every knot, obtained by
+solving a global tridiagonal system rather than by local convolution. It is the
+only kernel of the three that is $C^2$, and therefore the only one that lets RK4
+reach its formal order. Cost is a one-off setup per run plus a slightly more
+expensive evaluation; the coefficients are precomputed when the interpolant is
+built, so the inner loop remains a lookup.
 
-1. Expand eigenvectors from cell centers to vertices
-2. Place $(p+1)^3$ interpolation nodes per voxel using GLL quadrature
-3. Perform 3D spline interpolation within each voxel
+### Interpolating a Line Field: the Dyadic
 
-GLL nodes are the roots of:
+The principal eigenvector $\mathbf{v}_1$ is a **line field**, not a vector field:
+$\mathbf{v}_1$ and $-\mathbf{v}_1$ describe the same fiber orientation, and which
+of the two a voxel stores is an arbitrary output of the eigensolver. Interpolating
+the signed components across two voxels that happen to disagree on sign computes a
+*difference* rather than an average — the result collapses toward zero and its
+direction is meaningless. This is an artifact of the storage, not of the anatomy,
+and it does not disappear under refinement.
 
-$$
-(1 - \xi^2) P_N'(\xi) = 0
-$$
-
-where $P_N'$ is the derivative of the $N$-th Legendre polynomial. These nodes include the endpoints $\xi = \pm 1$ and cluster near element boundaries, providing optimal interpolation accuracy with minimal Runge phenomenon.
-
-The Lagrange interpolant through GLL nodes $\xi_0, \ldots, \xi_N$ is:
-
-$$
-f(\xi) \approx \sum_{j=0}^{N} f(\xi_j) \, \ell_j(\xi), \qquad \ell_j(\xi) = \prod_{\substack{k=0 \\ k \neq j}}^{N} \frac{\xi - \xi_k}{\xi_j - \xi_k}
-$$
-
-Uniform nodes from `zwuni.m` provide an alternative with equally-spaced points.
-
-### Direction Field Normalization
-
-After interpolation, the direction vector must be renormalized because linear interpolation of unit vectors does not produce unit vectors:
-
-$$
-\mathbf{d}_{\text{interp}} = \text{interpolate}(\mathbf{e}_1, \mathbf{r}), \qquad \hat{\mathbf{d}} = \frac{\mathbf{d}_{\text{interp}}}{\|\mathbf{d}_{\text{interp}}\|}
-$$
-
-The interpolation error in the direction (angular deviation) is bounded by:
+The fix is to interpolate a quantity invariant under $\mathbf{v} \to -\mathbf{v}$.
+HINEC interpolates the six unique components of the outer product (the dyadic)
 
 $$
-\theta_{\text{error}} \leq \arcsin\!\left(\frac{\|\nabla \mathbf{e}_1\| \, \Delta x}{2}\right)
+\mathbf{T}(\mathbf{r}) = \mathbf{v}_1(\mathbf{r}) \, \mathbf{v}_1(\mathbf{r})^\top,
+\qquad \mathbf{T} = (-\mathbf{v}_1)(-\mathbf{v}_1)^\top,
 $$
 
-where $\Delta x$ is the voxel size. This is why trilinear interpolation works well: for smoothly varying fiber directions, the angular error per voxel is small.
+and recovers the local direction as the principal eigenvector of the interpolated
+$\mathbf{T}$. Averaging dyadics averages *orientations*; averaging signed
+components does not. The sign of the recovered eigenvector is itself arbitrary and
+is fixed by the caller, by aligning it with the incoming tangent.
+
+`nim_principal_dir` performs the recovery in closed form — Cardano's trigonometric
+solution applied to the deviatoric part, then the null space of
+$\mathbf{T} - \lambda_1 \mathbf{I}$ taken as the largest cross product of its rows,
+which stays well conditioned when one row is near zero. Closed form rather than
+`eig` because this runs once per Runge-Kutta stage per step, four times a step for
+RK4, so a refined reference solution makes millions of calls; the result is
+normalized to unit length, since the recovered eigenvector inherits no scale from
+the interpolated dyadic.
+
+The CSD path keeps the raw component interpolants for its initial reference
+direction only, where a single lookup involves no averaging across a sign
+boundary.
+
+### Sub-Voxel Element Interpolation (`nim_interp`)
+
+`nim_interp.m` is a standalone utility, separate from the tracking interpolants
+above. It builds an element-wise representation of the eigenvector field:
+
+1. Expand the eigenvectors from cell centers to voxel vertices (`InterpCtoV3D`).
+2. Place $(p+1)^3$ nodes inside each voxel, from `zwuni` — **uniformly spaced**
+   nodes on $[-1, 1]$, mapped to $[0, 1]$ within the voxel.
+3. Evaluate at those nodes with `interp3(..., 'spline')`.
+4. Write the resulting nodal grids to `nim_interp.mat`.
+
+The nodal representation is a Lagrange interpolant through the nodes
+$\xi_0, \ldots, \xi_N$:
+
+$$
+f(\xi) \approx \sum_{j=0}^{N} f(\xi_j) \, \ell_j(\xi), \qquad
+\ell_j(\xi) = \prod_{\substack{k=0 \\ k \neq j}}^{N} \frac{\xi - \xi_k}{\xi_j - \xi_k}
+$$
+
+`zwgll.m` computes the alternative Gauss-Lobatto-Legendre nodes — the roots of
+$(1 - \xi^2) P_N'(\xi) = 0$, which include the endpoints, cluster toward them, and
+suppress the Runge phenomenon that equally-spaced nodes suffer at high $p$. It is
+provided but not currently called by `nim_interp`, which uses the uniform nodes.
+
+### Spatial Refinement (`interpolation.upsample`)
+
+`interpolation.upsample` controls how densely the direction field is sampled
+before the interpolants are built. A factor $u$ resamples onto a grid of spacing
+$1/u$ voxels: $u > 1$ refines, $u = 1$ is the acquisition grid, $u < 1$ coarsens
+by discarding spatial information. The coordinate frame is untouched, so seeds,
+masks, step sizes and reported lengths stay in native voxel units and runs at
+different factors are directly comparable.
+
+This is the spatial axis of a convergence study, and the limit it converges to
+must be stated precisely: as $u \to \infty$ the result approaches the
+*native-resolution interpolant* — the continuous field implied by the measured
+samples — not ground-truth anatomy. Refining $u$ therefore answers a verification
+question (how much does the answer depend on the spatial sampling?) and cannot
+answer whether 2 mm data resolves the anatomy, which is validation. Measured order
+under spatial refinement is $\approx 2.25$.
 
 ---
 
@@ -770,7 +915,9 @@ $$
 
 where $Y$ is the target image, $X$ is the source partitioned into $k$ bins, $n_k$ is the count in bin $k$, $\sigma_k^2$ is the variance of $Y$ within bin $k$, and $\sigma_Y^2$ is the total variance.
 
-**Normalized Mutual Information** (quality assessment in `registration_utils.m`):
+**Normalized Mutual Information** (quality assessment in
+`compute_normalized_mutual_information.m`, driven by
+`compute_registration_quality.m`):
 
 $$
 \text{NMI} = \frac{H(A) + H(B)}{H(A, B)}
@@ -844,7 +991,7 @@ $$
 \text{WM} \cup \text{GM} \cup \text{CSF} \subseteq \mathcal{M}_{\text{brain}}
 $$
 
-Expected tissue proportions: WM $\sim$40--45%, GM $\sim$40--45%, CSF $\sim$10--20% of brain volume.
+Expected tissue proportions: WM $\sim$40–45%, GM $\sim$40–45%, CSF $\sim$10–20% of brain volume.
 
 ---
 
@@ -876,9 +1023,12 @@ The resulting matrix $\mathbf{C} \in \mathbb{R}^{N \times N}$ represents the str
 
 ## Cross-References
 
+- Measured convergence rates and how they were obtained: [CONVERGENCE.md](CONVERGENCE.md)
 - RKF45 complete derivation and coefficients: [RKF.md](RKF.md)
 - RKF45 usage guide and parameter selection: [RKF_Usage.md](RKF_Usage.md)
 - High-order methods implementation details: [High_Order.md](High_Order.md)
+- Moving-frame and connection-form tracking: [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)
 - Scientific context for these methods: [SCIENCE.md](SCIENCE.md)
 - Architecture and data flow: [ARCHITECTURE.md](ARCHITECTURE.md)
+- Configuration parameter reference: [YAML_CONFIG.md](YAML_CONFIG.md)
 - Complete function reference: [API_REFERENCE.md](API_REFERENCE.md)

@@ -35,7 +35,10 @@ fi
 echo "✓ Python: $($PYTHON_CMD --version)"
 
 # Check if viewer script exists
-VIEWER_PATH="$SCRIPT_DIR/$VIEWER_SCRIPT"
+# The viewer lives in scripts/, not beside this launcher in bin/. Resolving it
+# against SCRIPT_DIR made this script always fail with "not found".
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+VIEWER_PATH="$REPO_ROOT/scripts/$VIEWER_SCRIPT"
 if [ ! -f "$VIEWER_PATH" ]; then
     echo "✗ ERROR: $VIEWER_SCRIPT not found"
     echo "  Expected location: $VIEWER_PATH"

@@ -55,7 +55,7 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `method` | string | `rk4` | hinec, mmf | Numerical stepping scheme. NOTE: this is a method name, not an order - RKF45 is a 4(5) embedded pair. |
+| `method` | string | `rk4` | hinec, mmf | Numerical stepping scheme. NOTE: this is a method NAME, not an order claim. rkf45 here is Dormand-Prince: it advances on the 5th-order solution and uses the embedded 4th-order one only to size the next step. |
 | `step` | numeric | `0.2` | all | Integration step in voxels. Fixed step, or the initial step for rkf45. |
 | `tolerance` | numeric | `0.01` | hinec, mmf | Adaptive error tolerance in voxels. rkf45 ONLY. |
 | `step_min` | numeric | `0.01` | hinec, mmf | Minimum adaptive step. rkf45 ONLY. |
@@ -67,7 +67,7 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `method` | string | `trilinear` | hinec, mmf | Spatial interpolation kernel for the direction field. These differ in SMOOTHNESS, which caps how much of an integrator formal order is reachable: a Runge-Kutta method of order p needs a right-hand side with p continuous derivatives. trilinear is C0 (kinked at every voxel face), cubic is C1 (Keys cubic convolution, NOT a spline - its second derivative jumps), spline is C2 (a genuine cubic spline). Measured here: RK4 reaches 2.02 on trilinear and 2.02 on cubic, identical, which is what a cap below C2 predicts. |
+| `method` | string | `trilinear` | hinec, mmf | Spatial interpolation kernel for the direction field. These differ in SMOOTHNESS, which caps how much of an integrator formal order is reachable: a Runge-Kutta method of order p needs a right-hand side with p continuous derivatives. trilinear is C0 (kinked at every voxel face), cubic is C1 (Keys cubic convolution, NOT a spline - its second derivative jumps), spline is C2 (a genuine cubic spline). Measured here: RK4 reaches observed order 2.00 on trilinear, 3.06 on cubic and 4.00 on spline - one order per continuous derivative, on an unchanged tableau. |
 | `upsample` | numeric | `1` | hinec, mmf | Spatial sampling factor for the direction field: the field is sampled on a grid of spacing 1/upsample voxels before the interpolants are built. 1 = the acquisition grid. Above 1 refines toward the continuous field the samples imply; BELOW 1 coarsens, discarding spatial information, which is how the space axis of a convergence study is swept. The coordinate frame is unchanged, so positions, step sizes and lengths stay in native voxel units and runs at different factors are directly comparable. Note the u -> infinity limit is the native-resolution interpolant, not ground-truth anatomy. |
 
 #### `tractography.seeding`
@@ -170,8 +170,11 @@ naming its replacement.
 | `max_steps` | `termination.max_arc` (converted as `max_steps x step`) |
 
 `integration_order` was a **method selector wearing a numeric-order name**:
-the value `5` meant RKF45, which is a 4(5) embedded pair whose order is 4,
-not 5. `integrator.method` names the method instead.
+the value `5` selected RKF45. That value was not wrong numerically - the
+implementation uses Dormand-Prince coefficients and advances on the 5th-order
+solution, using the embedded 4th-order one only for error control - but a
+method selector should not be spelled as a number. `integrator.method` names
+the method instead.
 
 `max_steps` counted integration steps, so halving the step size silently
 halved how far a track could travel. `termination.max_arc` is an arc length

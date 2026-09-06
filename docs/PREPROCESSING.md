@@ -1,12 +1,20 @@
 # HINEC Preprocessing Pipeline
 
-This document provides a comprehensive overview of the HINEC preprocessing pipeline, including the workflow steps, fallback mechanisms, and error conditions.
+This document covers the HINEC preprocessing pipeline: its workflow steps, the fallback path
+taken when a step's preferred tool is unavailable, and the error conditions each step can
+raise.
 
 ## Overview
 
-The HINEC preprocessing pipeline is a modular system that prepares raw diffusion-weighted MRI (dMRI) data for tensor calculation and tractography analysis. The pipeline automatically detects whether data requires preprocessing and applies appropriate corrections using FSL tools.
+`nim_preprocessing.m` prepares raw diffusion-weighted MRI for tensor estimation and
+tractography. It runs ten sequential steps, from raw NIfTI through to an atlas resampled into
+DWI space, using FSL throughout. `main.m` decides whether it needs to run at all, based on
+which files are present.
 
-**Pipeline Structure:** The current implementation consists of 10 sequential steps that handle data preprocessing from raw NIfTI files through final data organization and atlas processing. The pipeline includes comprehensive T1 integration for superior brain extraction and atlas registration using proper MNI→T1→DWI transformation chains. White matter masking has been removed to preserve parcellation region integrity.
+Where a T1 anatomical image is available, the pipeline uses it for brain extraction and for
+atlas registration through an MNI→T1→DWI transformation chain rather than a direct MNI→DWI
+registration. The pipeline itself produces no white matter mask; tissue segmentation for ACT
+happens later, in `main.m` (see [Tissue Segmentation for ACT](#tissue-segmentation-for-act)).
 
 ## Architecture
 
@@ -53,17 +61,17 @@ fslroi {input_dwi} {b0_output} 0 1
 
 **Error condition:** DWI file unreadable or empty
 
-#### Step 2: Advanced Brain Extraction
+#### Step 2: Brain Extraction
 
 **Function:** `preproc_t1_brain_extraction.m` (when T1 available) or `preproc_brain_extraction.m`
 
-**Purpose:** Create superior brain mask using T1 structural data when available
+**Purpose:** Create the brain mask, using T1 structural data when available
 
-**T1-Enhanced Processing (Preferred):**
+**T1-Based Processing (Preferred):**
 
 1. T1 brain extraction using FSL BET with T1-optimized parameters (`-f 0.4`)
 2. Boundary-based registration of T1 brain mask to DWI space using FSL epi_reg
-3. Transfer T1-derived brain mask to DWI space for superior accuracy
+3. Transfer the T1-derived brain mask into DWI space
 
 ```bash
 # T1 brain extraction
@@ -81,9 +89,10 @@ flirt -in {T1_brain_mask} -ref {b0_volume} -applyxfm -init {T1_to_dwi.mat} -inte
 bet {b0_volume} {brain_extracted} -m -f 0.3
 ```
 
-**T1 Detection:** Automatic detection of `{name}_T1.nii.gz` file in same directory
+**T1 Detection:** Automatic detection of `{name}_T1.nii.gz` in the same directory
 
-**Benefits:** 30-50% improved brain boundary accuracy, better tissue contrast
+**Rationale:** T1 gives sharper tissue contrast at the brain boundary than a b0 volume, so the
+mask follows the actual boundary more closely.
 
 **Fallback:** DWI-based BET if T1 unavailable or T1 processing fails
 
@@ -176,7 +185,7 @@ options.run_motion_correction = true;
 - Rotation warning: >3 degrees
 - RMS displacement warning: >1mm
 
-#### Step 6: Enhanced Eddy Current Correction (Optional)
+#### Step 6: Eddy Current Correction (Optional)
 
 **Function:** `preproc_eddy_correction.m`
 
@@ -185,13 +194,13 @@ options.run_motion_correction = true;
 **Automatic Method Selection:**
 ```matlab
 if exist(acqp_file) && exist(index_file)
-    method = 'eddy';  % Advanced FSL eddy
+    method = 'eddy';  % Full FSL eddy
 else
     method = 'eddy_correct';  % Basic correction
 end
 ```
 
-**Advanced Eddy (Preferred):**
+**Full `eddy` (Preferred):**
 ```bash
 eddy --imain={dwi} --mask={mask} --bvecs={bvec} --bvals={bval}
      --out={output} --acqp={acqp} --index={index}
@@ -213,8 +222,8 @@ options.eddy_index_vector = [];  % Auto-generate if empty
 
 **Fallback hierarchy:**
 
-1. Use advanced eddy with existing parameter files
-2. Generate parameter files from options → use advanced eddy
+1. Use full `eddy` with existing parameter files
+2. Generate parameter files from options, then use full `eddy`
 3. Use basic eddy_correct
 4. Skip eddy correction (with warning)
 
@@ -264,16 +273,19 @@ fnirt --in={T1_file} --aff={T1_to_MNI_linear.mat} --cout={T1_to_MNI_warp} --conf
 invwarp -w {T1_to_MNI_warp} -r {T1_file} -o {MNI_to_T1_warp}
 ```
 
-**Benefits:**
+**Rationale:** T1-to-MNI registration is a same-contrast, undistorted problem and converges
+far better than a direct MNI-to-DWI registration, which must cope with EPI distortion and
+diffusion contrast at once. Routing the atlas through T1 inherits that better alignment.
 
-- Improved atlas registration accuracy using proper MNI→T1→DWI transformation chain
-- Eliminates spatial misalignment issues from direct MNI-DWI registration
-- Leverages superior T1-MNI registration quality for atlas mapping
+**Configuration.** Both keys are derived, not chosen: when `main.m` calls preprocessing it
+sets `t1_available` and `use_t1_registration` from whether `{name}_T1.nii.gz` actually exists,
+overriding whatever the config carried. To take the direct path, call `nim_preprocessing`
+yourself with the keys left unset (absent means off).
 
-**Configuration:**
 ```matlab
-options.use_t1_registration = true;  % Enable T1-based processing
-options.t1_available = true;  % Automatically detected when T1 file found
+options.use_t1_registration = true;
+options.t1_available = true;
+options.t1_file = '/path/to/subject_T1.nii.gz';
 ```
 
 **Fallback:** Skip T1 registration if T1 data unavailable or T1 processing fails
@@ -286,7 +298,7 @@ options.t1_available = true;  % Automatically detected when T1 file found
 
 **Purpose:** Resample atlas to DWI space for parcellation using optimal registration method
 
-**Enhanced T1-Based Atlas Registration (When T1 Available):**
+**T1-Based Atlas Registration (When T1 Available):**
 Uses the complete MNI→T1→DWI transformation chain created in Step 8:
 ```bash
 # Apply composite transformation
@@ -301,9 +313,12 @@ flirt -in {atlas_MNI} -ref {dwi_ref} -out {atlas_dwi} -interp nearestneighbour
 
 **Supported atlases:**
 
-- HarvardOxford (default)
-- JHU (JHU-ICBM-labels-1mm)
-- JHU-tract (JHU-ICBM-tracts-maxprob-thr0-1mm)
+- `HarvardOxford` (HarvardOxford-cort-maxprob-thr0-1mm) — the default in `nim_preprocessing`,
+  and the fallback for an unrecognised name
+- `JHU` (JHU-ICBM-labels-1mm)
+- `JHU-tract` (JHU-ICBM-tracts-maxprob-thr0-1mm)
+
+All three are read from `$FSLDIR/data/atlases/`.
 
 **Configuration:**
 ```matlab
@@ -311,17 +326,19 @@ options.atlas_type = 'HarvardOxford';
 options.use_t1_registration = true;  % Enables T1-guided atlas registration
 ```
 
+Note the two layers disagree on the default: `nim_preprocessing`'s own default is
+`HarvardOxford`, while the YAML schema's `preprocessing.atlas_type` defaults to `jhu`. A run
+launched from a config therefore gets JHU unless it says otherwise.
+
 **Atlas Quality Validation:**
 
 - Label value range checking (ensures integer labels preserved)
 - Voxel coverage assessment (validates successful registration)
 - Spatial consistency verification
 
-**Benefits of T1-Based Registration:**
-
-- 40-60% improvement in atlas-DWI spatial alignment accuracy
-- Preserves atlas label integrity using nearest-neighbor interpolation
-- Eliminates problematic direct MNI-DWI registration artifacts
+**Why the T1 route:** it avoids registering an MNI template directly onto distorted,
+diffusion-contrast data, and it preserves label integrity by resampling with nearest-neighbour
+interpolation throughout.
 
 **Fallback:** Use direct FLIRT registration if T1-based method unavailable
 
@@ -344,6 +361,9 @@ options.use_t1_registration = true;  % Enables T1-guided atlas registration
 ## Configuration Options
 
 ### Default Configuration
+
+These are `nim_preprocessing.m`'s own defaults, applied to any key the caller omits:
+
 ```matlab
 default_options = struct(...
     'run_denoising', true, ...
@@ -358,46 +378,42 @@ default_options = struct(...
     'run_eddy', true, ...
     'improve_mask', true, ...
     'atlas_type', 'HarvardOxford', ...
-    'use_t1_registration', true, ...  % Enable T1-based processing when available
-    't1_available', false, ...        % Automatically detected
-    't1_file', '', ...                % Automatically set when T1 detected
     'phase_encoding_direction', "", ...
     'total_readout_time', [], ...
     'eddy_index_vector', [] ...
 );
 ```
 
-### T1 Integration Configuration
+The T1 keys (`t1_available`, `use_t1_registration`, `t1_file`) are deliberately absent from
+this struct: an unset key means the T1 path is off, and `main.m` sets all three from whether
+`{name}_T1.nii.gz` exists.
 
-**Automatic T1 Detection:**
-The pipeline automatically detects T1 structural data using the naming convention `{name}_T1.nii.gz` and enables T1-enhanced processing when available.
+The YAML surface is narrower than this struct and is documented separately. The `preprocessing`
+section of a config exposes `run_denoising`, `denoise_method`, `run_motion_correction`,
+`run_eddy`, `improve_mask`, `atlas_type`, `t1_available`, `use_t1_registration` and
+`register_to_mni`; `src/nim_utils/nim_config_schema.m` is the single source of truth for it,
+and [YAML_CONFIG.md](YAML_CONFIG.md) is generated from that file.
 
-**T1 Configuration Options:**
-```matlab
-% T1-specific options (automatically configured)
-options.use_t1_registration = true;  % Enable T1-based registration workflow
-options.t1_available = true;         % Set automatically when T1 file found
-options.t1_file = 'sample_T1.nii.gz'; % Set automatically to detected T1 file
+### T1 Integration
 
-% Manual T1 configuration (if needed)
-options.use_t1_registration = false; % Force disable T1 processing
-```
-
-**T1 Processing Benefits:**
-
-- **Brain Extraction:** 30-50% improved accuracy using T1 structural contrast
-- **Atlas Registration:** 40-60% better spatial alignment using MNI→T1→DWI chain
-- **Quality Assurance:** Enhanced tissue contrast for better boundary definition
+The pipeline detects T1 structural data by the naming convention `{name}_T1.nii.gz` in the
+same directory as the DWI, and turns on the T1 path when it is found. A T1 changes three
+things: brain extraction runs on structural contrast rather than a b0 volume; the atlas
+reaches DWI space through MNI→T1→DWI instead of directly; and tissue segmentation for ACT can
+use FSL FAST instead of the FA-tertile fallback.
 
 ### Legacy Support
-The pipeline maintains backward compatibility:
-```matlab
-% New usage
-nim_preprocessing(file_prefix, options);
 
-% Legacy usage
-nim_preprocessing(file_prefix, run_eddy, atlas_type);
+Two positional forms are still accepted for backward compatibility:
+
+```matlab
+nim_preprocessing(file_prefix, options);                   % current
+nim_preprocessing(file_prefix, run_eddy);                  % legacy
+nim_preprocessing(file_prefix, run_eddy, atlas_type);      % legacy
 ```
+
+Both legacy forms force `run_denoising`, `run_motion_correction` and `improve_mask` on, and
+`denoise_method` to `dwidenoise`.
 
 ## Error Handling and Recovery
 
@@ -539,64 +555,58 @@ source ${FSLDIR}/etc/fslconf/fsl.sh
 3. Consider excluding high-motion volumes
 4. Use more robust reference volume selection
 
-## Quick Start: Enhanced Preprocessing
+## Tissue Segmentation for ACT
 
-### Problem Solved
-The enhanced preprocessing with field map correction addresses:
+Tissue masks are produced by `main.m`, not by `nim_preprocessing`, and are stored on the `nim`
+as `.wm_mask`, `.gm_mask` and `.csf_mask` (with the corresponding NIfTI paths in
+`.wm_mask_file` and friends).
 
-- ❌ **Edge artifacts**: Random short tracks at brain boundaries
-- ❌ **Missing connections**: Gaps in major white matter tracts (corpus callosum)
-- ❌ **Poor data quality**: Corrupted tensor estimation from preprocessing issues
+**Primary method** (`preproc_tissue_segmentation.m`): FSL FAST on the anatomical T1, resampled
+into DWI space through the two images' **world affines** (`flirt -usesqform`). Deliberately no
+registration step is involved, so the masks cannot be corrupted by a T1→DWI registration that
+is disabled or has converged poorly. This is the right approach whenever the T1 is already
+world-aligned to the diffusion data.
 
-### Root Cause Analysis
+**Fallback** (no usable T1): FA-tertile binning. This bins **anisotropy, not tissue**, so ACT
+driven by it terminates streamlines mid-crossing. It exists for DWI-only datasets and should
+be read as a degraded mode, not an equivalent one.
 
-1. **Missing eddy current correction** → Volume misalignment → Corrupted tensors
-2. **No susceptibility correction** → Spatial distortions → Edge artifacts
-3. **Poor seeding strategy** → Boundary contamination → Spurious tracks
+Output files are `{name}_WM_mask.nii.gz`, `{name}_GM_mask.nii.gz` and
+`{name}_CSF_mask.nii.gz`. Note that these masks are generated on every run, but ACT itself is
+off unless `tractography.act` is set true.
 
-### Quick Setup Example
+## Field Map Correction Reference
+
+### Setup Example
+
 ```matlab
-% Configure enhanced preprocessing
 options = struct();
 options.run_fieldmap_correction = true;
-options.fieldmap_file = 'ISMRM/ISMRM_fmap_Hz.nii.gz';  % Your field map
-options.phase_encoding_dir = 'y';  % Adjust for your acquisition
-options.dwell_time = 0.00058;      % Adjust for your scanner
-options.eddy_method = 'eddy_correct';  % Fallback method
-options.create_wm_mask = true;
+options.fieldmap_file = 'subject_fmap_Hz.nii.gz';
+options.phase_encoding_dir = 'y';      % acquisition-dependent
+options.dwell_time = 0.00058;          % scanner-dependent, seconds
+options.eddy_method = 'eddy_correct';  % force the basic method
 
-% Run enhanced preprocessing
-nim_preprocessing('ISMRM/ISMRM', options);
-
-% Run DTI analysis with enhanced data
-main('ISMRM/ISMRM', 'ISMRM_enhanced.mat');
-
-% Run tractography with improved seeding
-runTractography('ISMRM_enhanced.mat');
+nim_preprocessing('path/to/subject', options);
+main('path/to/subject', 'subject.mat');
+runTractography('subject.mat');
 ```
 
-### Common Dwell Time Values by Scanner
+### Typical Dwell Times by Vendor
 
-- **Siemens**: ~0.00058s (typical)
-- **GE**: ~0.000476s (typical)
-- **Philips**: ~0.000694s (typical)
+| Vendor | Effective echo spacing |
+|---|---|
+| Siemens | ~0.00058 s |
+| GE | ~0.000476 s |
+| Philips | ~0.000694 s |
 
-### Quality Improvements
-
-- **T1-Enhanced Brain Extraction**: 30-50% improved brain boundary accuracy
-- **Superior Atlas Registration**: 40-60% better spatial alignment using T1-guided registration
-- **Reduced Edge Artifacts**: Field map correction eliminates boundary contamination
-- **Better Connectivity**: Advanced preprocessing preserves genuine white matter tracts
-- **Improved Seeding**: White matter masks provide cleaner starting points
-- **Higher Quality**: Comprehensive validation ensures reliable results
+These are representative values only; read the actual figure from your sequence protocol.
 
 ## T1-Based Registration Implementation Details
 
-### Overview
-The T1-based atlas registration chain (MNI→T1→DWI) provides significantly improved parcellation accuracy compared to direct DWI-MNI registration.
-
-### Implementation Strategy
-Replace problematic direct atlas resampling with proper registration chain that preserves label integrity:
+The atlas reaches DWI space through an MNI→T1→DWI chain rather than a direct MNI→DWI
+registration, because the direct route must absorb EPI distortion and diffusion contrast at
+once. The chain is assembled from four steps:
 
 1. **T1 Brain Extraction** (`preproc_t1_brain_extraction.m`):
 
@@ -625,24 +635,18 @@ Replace problematic direct atlas resampling with proper registration chain that 
 - **Voxel vs World**: All internal processing in voxel coordinates
 - **Label Preservation**: Use nearest neighbor interpolation for atlases
 
-## Future Enhancements
+## Known Limitations
 
-### Planned Improvements
-
-1. GPU acceleration for eddy correction
-2. Deep learning denoising methods
-3. Automatic quality assessment scoring
-4. Integration with BIDS data organization
-5. Real-time processing monitoring
-6. Automatic parameter optimization
-
-### Research Features
-
-1. Advanced distortion correction methods
-2. Slice-to-volume motion correction
-3. Multi-shell optimization
-4. Cardiac/respiratory noise removal
+- Motion correction is volume-to-volume; there is no slice-to-volume correction, so
+  within-volume motion is not recovered.
+- The FA-tertile tissue fallback is not a tissue segmentation and should not be used to drive
+  ACT on data where a T1 is available.
+- Eddy correction is not GPU-accelerated here; on a large dataset the full `eddy` path
+  dominates the wall-clock time.
+- There is no automatic BIDS ingestion; inputs follow the `{name}_*` prefix convention
+  described above.
 
 ---
 
-*This documentation reflects the current state of the HINEC preprocessing pipeline. For the latest updates and detailed API documentation, consult the individual function files in the `nim_preprocessing/` directory.*
+For behaviour not covered here, the function files under `src/nim_preprocessing/` are the
+authority.

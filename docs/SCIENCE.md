@@ -8,7 +8,7 @@ This document explains the scientific foundations behind HINEC for researchers a
 
 ### Neurons and Axons
 
-The brain contains approximately 86 billion neurons. Each neuron communicates with others through electrical signals transmitted along axons --- long, thin projections that can extend centimeters across the brain. While neuronal cell bodies (gray matter) perform computation, axons bundled together form white matter tracts that serve as the brain's communication highways.
+The brain contains approximately 86 billion neurons. Each neuron communicates with others through electrical signals transmitted along axons — long, thin projections that can extend centimeters across the brain. While neuronal cell bodies (gray matter) perform computation, axons bundled together form white matter tracts that serve as the brain's communication highways.
 
 White matter appears white in dissected brain tissue because axons are wrapped in myelin, a fatty insulating sheath produced by oligodendrocytes. Myelin dramatically increases the speed of electrical signal conduction (from $\sim$1 m/s unmyelinated to $\sim$100 m/s myelinated).
 
@@ -22,7 +22,7 @@ Axons traveling between the same brain regions tend to bundle together into cohe
 - **Cingulum**: Connects limbic structures for emotion and memory
 - **Uncinate fasciculus**: Connects temporal and frontal lobes
 
-The pattern of these connections --- the brain's structural connectome --- fundamentally shapes how information flows and is processed.
+The pattern of these connections — the brain's structural connectome — fundamentally shapes how information flows and is processed.
 
 ### Why Mapping Connectivity Matters
 
@@ -60,7 +60,7 @@ $$
 \sqrt{\langle r^2 \rangle} = \sqrt{6 D \Delta} \approx \sqrt{6 \times 3.0 \times 10^{-3} \times 0.04} \approx 0.027 \text{ mm} = 27 \; \mu\text{m}
 $$
 
-This length scale is comparable to the diameter of axons ($1$--$20 \; \mu\text{m}$) and the spacing between them, which is exactly why diffusion MRI is sensitive to microstructure.
+This length scale is comparable to the diameter of axons ($1$–$20 \; \mu\text{m}$) and the spacing between them, which is exactly why diffusion MRI is sensitive to microstructure.
 
 ### Anisotropic Diffusion in Tissue
 
@@ -79,7 +79,7 @@ Standard MRI creates images based on water proton density and relaxation times. 
 The Stejskal-Tanner pulsed gradient spin-echo sequence works as follows:
 
 1. A 90-degree RF pulse excites protons, aligning their magnetic moments
-2. A magnetic field gradient pulse is applied in direction $\mathbf{g}$ with strength $G$, causing protons at different positions to precess at different frequencies --- encoding their positions in their phase
+2. A magnetic field gradient pulse is applied in direction $\mathbf{g}$ with strength $G$, causing protons at different positions to precess at different frequencies — encoding their positions in their phase
 3. After a diffusion time $\Delta$, a second gradient pulse of equal magnitude is applied
 4. Stationary molecules experience equal and opposite phase shifts that cancel perfectly, preserving signal
 5. Molecules that moved along the gradient direction accumulate a net phase $\phi$:
@@ -102,7 +102,7 @@ $$
 
 - $b = 0$: No diffusion weighting (reference image, "b0")
 - $b = 1000$: Standard clinical DTI
-- $b = 2000$--$3000$: Higher angular resolution, better for crossing fibers
+- $b = 2000$–$3000$: Higher angular resolution, better for crossing fibers
 
 **Signal-to-noise trade-off**: Higher $b$-values provide stronger diffusion contrast but lower SNR because the signal decays exponentially:
 
@@ -110,9 +110,9 @@ $$
 \text{SNR}(b) \propto \frac{S_0 \exp(-b \cdot \text{ADC})}{\sigma_{\text{noise}}}
 $$
 
-**Gradient directions** (b-vectors): Each diffusion-weighted volume applies the gradient in a specific 3D direction. A minimum of 6 non-collinear directions is needed to fit the diffusion tensor (6 unknowns), but 30--60+ directions are typical for quality DTI, providing better angular coverage and noise averaging.
+**Gradient directions** (b-vectors): Each diffusion-weighted volume applies the gradient in a specific 3D direction. A minimum of 6 non-collinear directions is needed to fit the diffusion tensor (6 unknowns), but 30–60+ directions are typical for quality DTI, providing better angular coverage and noise averaging.
 
-In the HINEC pipeline, b-values are stored in `.bval` files and gradient directions in `.bvec` files, read by `nim_read.m`. Volumes with $b \leq 50$ s/mm$^2$ are classified as b0 references.
+In the HINEC pipeline, b-values are stored in `.bval` files and gradient directions in `.bvec` files, read by `nim_read.m`. Volumes below the `B0Threshold` option (default 5 s/mm$^2$) are classified as b0 references and averaged into `nim.img_b0`.
 
 ---
 
@@ -165,7 +165,7 @@ $$
 
 **Physical interpretation**:
 
-- $\lambda_1$ (largest eigenvalue): Magnitude of diffusion along the primary direction. In coherent white matter, this is the **axial diffusivity** --- diffusion parallel to fibers.
+- $\lambda_1$ (largest eigenvalue): Magnitude of diffusion along the primary direction. In coherent white matter, this is the **axial diffusivity** — diffusion parallel to fibers.
 - $\mathbf{e}_1$ (primary eigenvector): Points along the direction of maximum diffusion. In white matter, this estimates the **local fiber direction**.
 - $\lambda_2, \lambda_3$: Diffusion magnitudes in the two perpendicular directions. Their average $(\lambda_2 + \lambda_3)/2$ is the **radial diffusivity**.
 
@@ -177,11 +177,11 @@ In HINEC, eigendecomposition is computed by `nim_eig.m`, which sorts eigenvalues
 
 DTI assumes a single fiber population per voxel. This model breaks down in regions with:
 
-- **Crossing fibers**: Two or more tracts intersecting (estimated in 60--90% of white matter voxels)
+- **Crossing fibers**: Two or more tracts intersecting (estimated in 60–90% of white matter voxels)
 - **Kissing fibers**: Tracts running parallel then diverging
 - **Fanning fibers**: A single tract splaying into multiple branches
 
-In these regions, the tensor becomes oblate (pancake-shaped) rather than prolate (cigar-shaped). The primary eigenvector no longer reliably indicates any single fiber direction --- instead it points between the true fiber directions. Mathematically, for two crossing fibers with directions $\mathbf{v}_1$ and $\mathbf{v}_2$, the observed tensor is approximately:
+In these regions, the tensor becomes oblate (pancake-shaped) rather than prolate (cigar-shaped). The primary eigenvector no longer reliably indicates any single fiber direction — instead it points between the true fiber directions. Mathematically, for two crossing fibers with directions $\mathbf{v}_1$ and $\mathbf{v}_2$, the observed tensor is approximately:
 
 $$
 \mathbf{D}_{\text{observed}} \approx f_1 \mathbf{D}_1 + f_2 \mathbf{D}_2
@@ -205,13 +205,13 @@ $$
 
 | FA Range | Tissue Type | Interpretation |
 |---|---|---|
-| 0.0 -- 0.1 | CSF, background | Free isotropic diffusion or noise |
-| 0.1 -- 0.25 | Gray matter | Low anisotropy, complex cellular architecture |
-| 0.25 -- 0.5 | Mixed/crossing WM | Moderate anisotropy, possible fiber crossings |
-| 0.5 -- 0.8 | Coherent white matter | High anisotropy, well-organized fiber bundles |
-| 0.8 -- 1.0 | Highly coherent WM | Very high anisotropy (e.g., corpus callosum) |
+| 0.0–0.1 | CSF, background | Free isotropic diffusion or noise |
+| 0.1–0.25 | Gray matter | Low anisotropy, complex cellular architecture |
+| 0.25–0.5 | Mixed/crossing WM | Moderate anisotropy, possible fiber crossings |
+| 0.5–0.8 | Coherent white matter | High anisotropy, well-organized fiber bundles |
+| 0.8–1.0 | Highly coherent WM | Very high anisotropy (e.g., corpus callosum) |
 
-FA is sensitive to white matter pathology: demyelination, axonal loss, edema, and inflammation all tend to reduce FA. However, FA is non-specific --- it cannot distinguish between different types of pathology.
+FA is sensitive to white matter pathology: demyelination, axonal loss, edema, and inflammation all tend to reduce FA. However, FA is non-specific — it cannot distinguish between different types of pathology.
 
 In HINEC, FA is computed by `nim_fa.m` and serves as a key input for tractography (seed placement, stopping criteria) and tissue segmentation.
 
@@ -290,26 +290,53 @@ where $t_{\text{exit}}$ is the parametric distance to the voxel boundary. This m
 
 ### High-Order Methods (HINEC Tractography)
 
-HINEC's high-order tractography (`nim_tractography_hinec.m`) improves upon FACT with two enhancements:
+HINEC's interpolated tracker (`nim_tractography_hinec.m`) improves on FACT in two
+independent ways: it replaces the piecewise-constant direction field with a
+continuous interpolant, and it replaces boundary-jumping with a Runge-Kutta
+integrator. The two are orthogonal knobs, and both bear on accuracy.
 
-**Interpolation**: Instead of using discrete voxel directions, trilinear interpolation creates a continuous direction field. At any sub-voxel position, the local direction is a weighted average of the 8 surrounding voxel centers. This produces smoother, more accurate trajectories.
+**Interpolation** (`interpolation.method`) gives a direction at any sub-voxel
+position rather than only at voxel centers. Three kernels are available, differing
+in smoothness: `trilinear` ($C^0$), `cubic` (Keys cubic convolution, $C^1$) and
+`spline` (a genuine cubic spline, $C^2$).
 
-**Numerical integration**: Instead of simple stepping, numerical ODE integration methods propagate the streamline with controlled accuracy:
+What is interpolated is not the eigenvector itself but the **dyadic**
+$\mathbf{v}_1 \mathbf{v}_1^\top$. The principal eigenvector is a line field — the
+sign stored in each voxel is an arbitrary output of the eigensolver — so
+interpolating the signed components between two voxels that disagree on sign
+computes a difference rather than an average, and the result collapses toward
+zero. The outer product is invariant under $\mathbf{v} \to -\mathbf{v}$, so
+averaging dyadics averages orientations; the direction is then recovered as the
+principal eigenvector of the interpolated dyadic.
 
-| Method | Order | Description | Global Error |
-|---|---|---|---|
-| Euler | 1 | Simple forward step | $O(h)$ |
-| RK2 | 2 | Midpoint method | $O(h^2)$ |
-| RK4 | 4 | Classical Runge-Kutta | $O(h^4)$ |
-| RKF45 | 4-5 | Adaptive Dormand-Prince | Adaptive error control |
+**Numerical integration** (`integrator.method`) propagates the streamline with a
+known order of accuracy:
 
-RKF45 uses an embedded pair of 4th and 5th order methods to estimate local error and automatically adjust the step size:
+| `integrator.method` | Formal order | Description | Global error |
+|---|:--:|---|---|
+| `euler` | 1 | Simple forward step | $O(h)$ |
+| `rk2` | 2 | Midpoint method | $O(h^2)$ |
+| `rk4` | 4 | Classical Runge-Kutta | $O(h^4)$ |
+| `rkf45` | 4 | Dormand-Prince, embedded 5 for error control | adaptive |
+
+`rkf45` estimates the local error from the difference between the 4th- and
+5th-order solutions and rescales the step,
 
 $$
-h_{\text{new}} = 0.9 \cdot h \left(\frac{\text{tol}}{\text{err}}\right)^{1/5}
+h_{\text{new}} = 0.9 \cdot h \left(\frac{\text{tol}}{\text{err}}\right)^{1/5},
 $$
 
-using smaller steps in regions of high curvature and larger steps in straight regions. See [MATHEMATICAL_FOUNDATIONS.md](MATHEMATICAL_FOUNDATIONS.md) for the complete numerical methods, and [RKF.md](RKF.md) for the full RKF45 derivation.
+taking smaller steps where curvature is high and larger ones through straight
+regions.
+
+The formal order in the table is an upper bound. A Runge-Kutta method of order $p$
+needs a right-hand side with $p$ continuous derivatives, and here the right-hand
+side is the interpolant — so the interpolation kernel caps the order actually
+attained. Measured on this data, RK4 converges at order 2.00 on `trilinear`, 3.06
+on `cubic` and 4.00 on `spline`. High-order integration on a $C^0$ field is not
+high order. See [CONVERGENCE.md](CONVERGENCE.md) for the measurement,
+[MATHEMATICAL_FOUNDATIONS.md](MATHEMATICAL_FOUNDATIONS.md) for the numerical
+methods, and [RKF.md](RKF.md) for the full RKF45 derivation.
 
 ### Seeding Strategies
 
@@ -317,26 +344,64 @@ Where tractography begins dramatically affects the results:
 
 **FA-based seeding**: Place seeds only where FA exceeds a threshold. This concentrates seeds in well-organized white matter but misses regions with crossing fibers or partial volume effects.
 
-**Uniform grid seeding** (preferred): Place seeds on a regular 3D grid throughout the brain mask, regardless of local FA. This ensures uniform spatial coverage. The seed density parameter controls the number of seeds per voxel dimension (e.g., density=4 means $4 \times 4 \times 4 = 64$ seeds per voxel).
+**Uniform grid seeding** (the default): Place seeds on a deterministic sub-voxel
+lattice throughout the seed mask, regardless of local FA. This gives uniform
+spatial coverage and, being free of any RNG, is reproducible — which is what makes
+per-streamline comparison across a refinement ladder possible.
+`seeding.density` is the number of seeds **per voxel**, honored exactly: a
+perfect cube uses the full lattice, and any other count takes a deterministic
+farthest-point subset of the next-larger lattice so the seeds stay spread through
+the voxel rather than clustering in one corner.
 
-In HINEC, `runTractography.m` implements a 3-tier seeding priority system that prefers the brain mask, falls back to expanded parcellation, and uses FA-threshold as last resort.
+**ROI seeding**: `seeding.roi` restricts seeding to named or numbered atlas
+regions, optionally dilated by `seeding.roi_dilate`. This is the cheapest way to
+interrogate a single bundle, and it is how a fixed seed set is held constant
+across a convergence ladder.
+
+`runTractography.m` selects the seed mask by a four-tier priority: an explicit
+`seeding.roi` if given, then the preprocessed brain mask, then a dilated
+parcellation mask, and finally an FA threshold as a last resort. Whichever tier
+applies, the mask is then intersected with `seeding.fa_min` (default 0.05, which
+excludes CSF only).
 
 ### Stopping Criteria
 
 Tractography terminates a streamline when any condition is met:
 
-1. **FA threshold**: $\text{FA}(\mathbf{r}) < \text{FA}_\min$ (typically 0.1--0.2), indicating the streamline has left organized white matter
-2. **Angle threshold**: The angle between consecutive steps exceeds $\theta_\max$ (typically 25--60 degrees): $\arccos(|\mathbf{d}_n \cdot \mathbf{d}_{n-1}|) > \theta_\max$
-3. **Brain mask boundary**: The streamline exits the brain
-4. **Maximum steps**: Safety limit to prevent infinite loops
+1. **FA floor** (`termination.fa_min`, default 0.10): tracking stops below this
+   FA, taken as having left organized white matter.
+2. **Curvature limit** (`termination.angle_max`, default 225): a maximum turn in
+   **degrees per voxel of arc**, so the allowance for one step is
+   `angle_max` $\times$ step. Expressing it as a rate rather than a fixed angle per
+   step makes it step-invariant — it is a minimum radius of curvature,
+   $R = 57.3/\texttt{angle\_max}$ voxels, enforced identically at every step size.
+   Two edge cases are worth knowing: tangents are sign-aligned before the turn is
+   measured, so a measured turn never exceeds 90°, and any budget at or above that
+   is *inert* rather than merely loose; and `angle_max: 0` disables the criterion
+   deliberately, which is what a controlled experiment wants.
+3. **Brain mask boundary**: the streamline leaves the volume or the mask.
+4. **Arc-length cap** (`termination.max_arc`, default 400 voxels): the step budget
+   is derived as $\lceil \texttt{max\_arc}/\text{step} \rceil$, so refining the
+   step cannot silently truncate a track.
+
+After tracking, streamlines shorter than `termination.min_arc` (default 15 voxels
+of arc) are discarded.
 
 ---
 
 ## 6. Anatomically Constrained Tractography (ACT)
 
-Standard stopping criteria based solely on FA and angle can produce anatomically implausible results --- streamlines that terminate in white matter (biologically, fibers should end in gray matter) or enter CSF (where no fibers exist).
+Stopping criteria based solely on FA and angle can produce anatomically
+implausible results — streamlines that terminate in white matter (biologically,
+fibers should end in gray matter) or enter CSF (where no fibers exist).
 
-ACT, implemented in `nim_tractography_hinec.m`, uses tissue segmentation to enforce anatomical plausibility:
+ACT, implemented in `nim_tractography_hinec.m`, uses tissue segmentation to
+enforce anatomical plausibility. It is **opt-in**: `tractography.act` defaults to
+`false`, and it additionally requires the WM/GM/CSF masks that
+`preproc_tissue_segmentation.m` writes into the nim during `main.m`. With the
+option off, or the masks absent, tracking falls back to FA-based termination
+alone; `runTractography.m` reports which of the two applies, since the remedies
+differ.
 
 ### Tissue Classification
 
@@ -346,13 +411,13 @@ HINEC segments brain tissue using FA values (computed in `preproc_tissue_segment
 |---|---|---|
 | White matter (WM) | $\text{FA} > 0.2$ | Continue tracking |
 | Gray matter (GM) | $0.05 < \text{FA} \leq 0.2$ | Valid termination |
-| CSF | $\text{FA} \leq 0.05$ | Invalid --- reject track |
+| CSF | $\text{FA} \leq 0.05$ | Invalid — reject track |
 
 ### ACT Rules
 
 1. **Continue tracking** while the streamline remains in white matter
-2. **Accept termination** if the streamline enters gray matter (biologically valid --- axons synapse in gray matter)
-3. **Reject the streamline** if it enters CSF (biologically invalid --- no fibers in fluid)
+2. **Accept termination** if the streamline enters gray matter (biologically valid — axons synapse in gray matter)
+3. **Reject the streamline** if it enters CSF (biologically invalid — no fibers in fluid)
 4. Standard FA and angle criteria still apply as additional constraints
 
 ACT significantly improves the anatomical plausibility of tractography results by reducing false positive connections through non-neural tissue.
@@ -386,7 +451,7 @@ $$
 C_{ij} = \#\{t \in \mathcal{T} : \text{start}(t) \in R_i, \; \text{end}(t) \in R_j\}
 $$
 
-The resulting matrix represents the **structural connectome** --- a complete map of white matter connections between brain regions. This is computed by `nim_plot_connectivity_matrix.m`.
+The resulting matrix represents the **structural connectome** — a complete map of white matter connections between brain regions. This is computed by `nim_plot_connectivity_matrix.m`.
 
 ### Network Neuroscience Applications
 
@@ -405,7 +470,7 @@ Each preprocessing step in HINEC addresses a specific source of artifact. Uncorr
 
 ### Motion Correction
 
-**Problem**: Head motion during the $\sim$20-minute scan causes misalignment between diffusion volumes. Even 1--2 mm of motion can corrupt tensor estimation.
+**Problem**: Head motion during the $\sim$20-minute scan causes misalignment between diffusion volumes. Even 1–2 mm of motion can corrupt tensor estimation.
 
 **Solution**: `preproc_motion_correction.m` uses FSL's MCFLIRT to rigidly align each volume to a reference b0 image. The b-vectors are rotated to match the corrected orientations:
 
@@ -463,31 +528,31 @@ This enables Anatomically Constrained Tractography (Section 6).
 
 ### Foundational DTI and Tractography
 
-- Basser PJ, Mattiello J, LeBihan D. (1994). "MR diffusion tensor spectroscopy and imaging." *Biophysical Journal*, 66(1):259-267. --- Original diffusion tensor formulation.
+- Basser PJ, Mattiello J, LeBihan D. (1994). "MR diffusion tensor spectroscopy and imaging." *Biophysical Journal*, 66(1):259-267. — Original diffusion tensor formulation.
 
-- Basser PJ, Pierpaoli C. (1996). "Microstructural and physiological features of tissues elucidated by quantitative-diffusion-tensor MRI." *Journal of Magnetic Resonance, Series B*, 111(3):209-219. --- FA and other scalar metrics.
+- Basser PJ, Pierpaoli C. (1996). "Microstructural and physiological features of tissues elucidated by quantitative-diffusion-tensor MRI." *Journal of Magnetic Resonance, Series B*, 111(3):209-219. — FA and other scalar metrics.
 
-- Mori S, Crain BJ, Chacko VP, van Zijl PCM. (1999). "Three-dimensional tracking of axonal projections in the brain by magnetic resonance imaging." *Annals of Neurology*, 45(2):265-269. --- FACT algorithm.
+- Mori S, Crain BJ, Chacko VP, van Zijl PCM. (1999). "Three-dimensional tracking of axonal projections in the brain by magnetic resonance imaging." *Annals of Neurology*, 45(2):265-269. — FACT algorithm.
 
-- Westin CF, Maier SE, Mamata H, Nabavi A, Jolesz FA, Kikinis R. (2002). "Processing and visualization for diffusion tensor MRI." *Medical Image Analysis*, 6(2):93-108. --- Tensor shape measures ($C_L$, $C_P$, $C_S$).
+- Westin CF, Maier SE, Mamata H, Nabavi A, Jolesz FA, Kikinis R. (2002). "Processing and visualization for diffusion tensor MRI." *Medical Image Analysis*, 6(2):93-108. — Tensor shape measures ($C_L$, $C_P$, $C_S$).
 
 ### Advanced Tractography
 
-- Behrens TEJ, et al. (2003). "Characterization and propagation of uncertainty in diffusion-weighted MR imaging." *Magnetic Resonance in Medicine*, 50(5):1077-1088. --- Probabilistic tractography.
+- Behrens TEJ, et al. (2003). "Characterization and propagation of uncertainty in diffusion-weighted MR imaging." *Magnetic Resonance in Medicine*, 50(5):1077-1088. — Probabilistic tractography.
 
-- Smith RE, Tournier J-D, Calamante F, Connelly A. (2012). "Anatomically-constrained tractography: Improved diffusion MRI streamlines tractography through effective use of anatomical information." *NeuroImage*, 62(3):1924-1938. --- ACT framework.
+- Smith RE, Tournier J-D, Calamante F, Connelly A. (2012). "Anatomically-constrained tractography: Improved diffusion MRI streamlines tractography through effective use of anatomical information." *NeuroImage*, 62(3):1924-1938. — ACT framework.
 
 ### Preprocessing
 
-- Andersson JLR, Sotiropoulos SN. (2016). "An integrated approach to correction for off-resonance effects and subject movement in diffusion MR imaging." *NeuroImage*, 125:1063-1078. --- FSL eddy.
+- Andersson JLR, Sotiropoulos SN. (2016). "An integrated approach to correction for off-resonance effects and subject movement in diffusion MR imaging." *NeuroImage*, 125:1063-1078. — FSL eddy.
 
-- Jenkinson M, Beckmann CF, Behrens TEJ, Woolrich MW, Smith SM. (2012). "FSL." *NeuroImage*, 62(2):782-790. --- FSL software suite.
+- Jenkinson M, Beckmann CF, Behrens TEJ, Woolrich MW, Smith SM. (2012). "FSL." *NeuroImage*, 62(2):782-790. — FSL software suite.
 
 ### Brain Atlases
 
-- Mori S, et al. (2008). "Stereotaxic white matter atlas based on diffusion tensor imaging in an ICBM template." *NeuroImage*, 40(2):570-582. --- JHU atlas.
+- Mori S, et al. (2008). "Stereotaxic white matter atlas based on diffusion tensor imaging in an ICBM template." *NeuroImage*, 40(2):570-582. — JHU atlas.
 
-- Desikan RS, et al. (2006). "An automated labeling system for subdividing the human cerebral cortex on MRI scans into gyral based regions of interest." *NeuroImage*, 31(3):968-980. --- Atlas-based parcellation framework.
+- Desikan RS, et al. (2006). "An automated labeling system for subdividing the human cerebral cortex on MRI scans into gyral based regions of interest." *NeuroImage*, 31(3):968-980. — Atlas-based parcellation framework.
 
 ---
 

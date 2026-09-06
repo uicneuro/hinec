@@ -1,189 +1,152 @@
-# HINEC Seeding Strategy Architecture
+# Seeding Strategy
 
-## Design Principle
-
-**Centralized seeding** - All seeding decisions happen in `runTractography.m`, not in the tractography algorithm itself.
-
-## Architecture
+Seeding is **centralized in `runTractography.m`**. It selects the seed mask, and the
+trackers only consume it: `nim_tractography_standard` and `nim_tractography_hinec` validate
+that `options.seed_mask` is present and error out if it is not, rather than falling back to a
+mask of their own. Policy (what to seed) and mechanism (how to track) stay separated, which
+is what lets challenge-specific code and ROI experiments change the seeds without touching a
+tracker.
 
 ```
-runTractography.m                    nim_tractography_standard.m
-     │                                        │
-     ├─ Loads nim data                        │
-     ├─ Configures seeding strategy           │
-     ├─ Creates seed_mask                     │
-     ├─ Sets options.seed_mask                │
-     │                                        │
-     └─► Calls nim_tractography_standard()    │
-                                              │
-                                              ├─ Validates seed_mask exists
-                                              ├─ Calls generate_seed_points_fact()
-                                              └─ Executes tracking algorithm
+runTractography.m                         nim_tractography_*.m
+     │                                             │
+     ├─ load the nim                               │
+     ├─ pick a seeding strategy                    │
+     ├─ build seed_mask, set options.seed_mask ────┼─► validate seed_mask is non-empty
+     │                                             ├─► place sub-voxel seeds (nim_seed_offsets)
+     └─ dispatch on algorithm ────────────────────►└─► track bidirectionally from each seed
 ```
 
-## Rationale
+---
 
-### Why Centralize Seeding?
+## Strategy hierarchy
 
-1. **Separation of Concerns**
-    - `runTractography.m` = **Policy** (what to seed)
-    - `nim_tractography_standard.m` = **Mechanism** (how to track)
+`runTractography` tries these in order and reports which one it used.
 
-2. **Flexibility**
-    - Different pipelines can use different seeding strategies
-    - IronTract can modify seeds without changing algorithm
-    - Easy to test different seeding approaches
+### 0. Explicit ROI — `seeding.roi`
 
-3. **Maintainability**
-    - Single source of truth for seeding decisions
-    - No duplicate fallback logic
-    - Clear error messages when seed mask missing
+Highest priority. Seeds go only in the named atlas regions, resolved by
+`nim_roi_mask` from JHU indices and/or names (freely mixed), optionally dilated by
+`seeding.roi_dilate` voxels.
 
-## Seeding Strategy Hierarchy
+```yaml
+tractography:
+  seeding:
+    roi: [SLF_L, SLF_R]
+    roi_dilate: 1
+```
 
-`runTractography.m` implements a priority hierarchy:
+The ROI is then intersected with the brain mask and the FA floor exactly as the other
+strategies are, so switching to ROI seeding changes *where* seeds go and nothing else. An
+ROI that survives none of those intersections is an error, reported with the voxel count
+after each stage so it is clear which one emptied it.
 
-### Strategy 1: Preprocessed Brain Mask (BEST)
+This is the cheapest way to interrogate a single bundle, and it is what bundle-specific
+reconstructions and fixed-seed convergence ladders use.
+
+### 1. Preprocessed brain mask
+
+Used when `nim.mask` is present and non-empty: `nim.mask > 0.5`, refined by the FA floor.
+Whole-brain coverage with clean boundaries — the normal path after `main.m`.
+
+### 2. Expanded parcellation mask
+
+Used when there is no brain mask but `nim.parcellation_mask` exists: the labelled regions
+dilated by a 3-voxel spherical structuring element to pick up the surrounding white matter,
+then constrained to `FA > 0.05`.
+
+### 3. FA-threshold fallback
+
+Used only when neither mask exists: `FA > 0.10`. The run warns, because this covers the
+white-matter core and misses low-anisotropy structures such as the fornix and cingulum.
+
+### The FA floor
+
+`seeding.fa_min` (default `0.05`) sets the minimum FA for a voxel to be seeded. The default
+excludes CSF and little else. Raising it to ~0.2 gives white-matter-only seeding, which is
+what a matched WM-seeding comparison needs.
+
+---
+
+## Seed placement within a voxel
+
+`seeding.density` (default `8`) seeds per seeded voxel, placed by `nim_seed_offsets` on a
+deterministic sub-voxel lattice in \([-0.5, +0.5]^3\):
+
+- a **perfect cube** (1, 8, 27, 64, …) gives the full `per_axis³` lattice;
+- any other count gives a deterministic farthest-point subset of the next larger lattice, so
+  the seeds stay spread through the voxel instead of clumping in a corner.
+
+The count is honoured **exactly**. An earlier implementation rounded up to the next perfect
+cube, so `density: 4` silently placed 8 seeds per voxel. There is no RNG in the `uniform`
+strategy, so runs are reproducible and streamlines can be compared one-to-one across a
+parameter ladder. `seeding.strategy: random` jitters the placement instead.
+
+Tracking is bidirectional from each seed, so the upper bound on tracks is
+`2 × density × seed voxels`, before any track is discarded by `termination.min_arc` or the
+ROI filters.
+
+---
+
+## Where a track may go is not where it may start
+
+The **propagation mask** is derived independently of the seed mask, in both the `hinec` and
+`standard` trackers:
+
+```
+prop_mask = (FA > termination.fa_min) & (brain mask)
+```
+
+dilated by one voxel for the boundary test, and overridable through
+`options.propagation_mask`. It used to be `imdilate(seed_mask, ...)`, which confined every
+streamline to a one-voxel skin around the seed region. With whole-brain seeding the two
+coincide and nothing looks wrong; with ROI seeding the propagation domain collapsed onto the
+ROI and tracks died almost immediately. Keep the two distinct when modifying either tracker.
+
+---
+
+## Special case: IronTract
+
+The IronTract Challenge seeds from an injection site that may lie outside the brain mask.
+This is handled downstream in `src/nim_challenges/nim_irontract_submit.m`, which unions the
+injection mask into the seed mask, rather than by adding a strategy to `runTractography`.
+
+---
+
+## Checking what a run actually seeded
+
+The seeding block prints the chosen strategy, the seed-voxel count and its share of the
+volume, the seeds-per-voxel figure actually realised, and the approximate inter-seed
+spacing. To compare strategies, remove the brain mask from a copy of the nim and re-run:
+
 ```matlab
-if isfield(nim, 'mask') && ~isempty(nim.mask)
-    brain_mask = nim.mask > 0.5;
-    brain_mask = brain_mask & (nim.FA > 0.05);  % Exclude CSF
-```
-
-- **Source**: FSL brain extraction or manual mask
-- **Coverage**: Complete brain with clean boundaries
-- **Quality**: Best anatomical accuracy
-
-### Strategy 2: Expanded Parcellation Mask
-```matlab
-elseif isfield(nim, 'parcellation_mask')
-    parcel_mask = nim.parcellation_mask > 0;
-    brain_mask = imdilate(parcel_mask, strel('sphere', 3));
-    brain_mask = brain_mask & (nim.FA > 0.05);
-```
-
-- **Source**: Atlas-based parcellation
-- **Coverage**: Labeled regions + surrounding tissue
-- **Quality**: Good for known anatomical structures
-
-### Strategy 3: FA Threshold Fallback (CONSERVATIVE)
-```matlab
-else
-    brain_mask = nim.FA > 0.10;
-```
-
-- **Source**: Fractional anisotropy map
-- **Coverage**: White matter core only
-- **Quality**: Misses low-anisotropy regions (fornix, cingulum)
-- **WARNING**: This was causing the ISMRM validation failure
-
-## Implementation Details
-
-### runTractography.m
-```matlab
-% Lines 76-138: Seeding strategy configuration
-%% CENTRALIZED SEEDING STRATEGY
-fprintf('\n=== Configuring Seeding Strategy ===\n');
-
-% Try strategies in priority order
-if isfield(nim, 'mask') ...
-    % Strategy 1
-elseif isfield(nim, 'parcellation_mask') ...
-    % Strategy 2
-else
-    % Strategy 3
-end
-
-% Quality check
-if sum(seed_mask(:)) == 0
-    error('Seed mask is empty!');
-end
-
-options.seed_mask = seed_mask;
-```
-
-### nim_tractography_standard.m
-```matlab
-% Lines 152-159: Validation only (no fallback)
-if isempty(options.seed_mask)
-    error('No seed mask provided. Configure in runTractography.m');
-end
-options.seed_mask = logical(options.seed_mask > 0);
-```
-
-## Special Cases
-
-### IronTract Challenge
-IronTract requires seeding from injection sites, which may be outside brain mask.
-
-**Handled by**: `nim_irontract_submit.m` (lines 102-128)
-```matlab
-% Add injection site to seed mask
-seed_mask = seed_mask | (injection_mask > 0);
-```
-
-This doesn't modify `runTractography.m` seeding - it happens downstream in challenge-specific code.
-
-## Testing Seeding Strategies
-
-### Check Current Strategy
-```matlab
-runTractography('data.mat');
-% Look for output: "Strategy: brain_mask" or "expanded_parcellation" or "fa_threshold"
-```
-
-### Force Specific Strategy
-```matlab
-% Force FA-threshold (for comparison)
-nim = load('data.mat');
-nim.mask = []; % Remove brain mask
-save('data_no_mask.mat', 'nim');
+S = load('data.mat');
+S.nim.mask = [];              % force the FA-threshold fallback
+save('data_no_mask.mat', '-struct', 'S');
 runTractography('data_no_mask.mat');
 ```
 
-## Performance Impact
+A brain-mask seeding run and an FA-threshold run differ in both the number and the
+distribution of seed voxels; the FA floor is the reason low-anisotropy bundles drop out of
+the fallback. Compare the two the same way as any other experiment — one scorable run
+directory each, compared by `scoring/renauld2023/results.json`. See
+[Tractography Methods](TRACTOGRAPHY_METHODS.md#config-driven-experiment-workflow).
 
-### Brain Mask vs FA Threshold
+---
 
-| Metric | Brain Mask | FA Threshold | Improvement |
-|--------|------------|--------------|-------------|
-| Seed voxels | ~50,000 | ~30,000 | +67% |
-| Coverage | Whole brain | WM core only | Complete |
-| Bundle detection | All bundles | WM only | Fornix, cingulum detected |
-| False positives | Low | Very low | Slight increase |
+## Common issues
 
-### Seed Density
+| Symptom | Cause | Fix |
+|---|---|---|
+| `No seed mask provided` | a tracker was called directly, without `options.seed_mask` | go through `runTractography` |
+| `ROI seed mask is empty after masking` | the ROI vanished under the brain mask or the FA floor | raise `seeding.roi_dilate`, lower `seeding.fa_min`, or check the region names |
+| Low-anisotropy bundles missing | the FA-threshold fallback was used | make sure `nim.mask` is present in the nim |
+| Fewer or more tracks than expected | `seeding.density` is per **seeded voxel**, and tracking is bidirectional | check the printed seed-voxel count |
 
-Current setting: **4 seeds/voxel**
-- 50,000 voxels × 4 = **200,000 seeds**
-- Bidirectional tracking = **400,000 potential tracks**
+---
 
-## Common Issues
+## See also
 
-### "No seed mask provided" Error
-**Cause**: Called `nim_tractography_standard()` directly without setting `options.seed_mask`
-
-**Solution**: Always use `runTractography()` wrapper, not direct call
-
-### ISMRM Validation Shows 0% Coverage
-**Cause**: FA-threshold seeding misses low-anisotropy bundles
-
-**Solution**: Ensure brain mask exists (check `nim.mask` field)
-
-### IronTract Seeds Not Covering Injection Site
-**Cause**: Injection site outside brain mask
-
-**Solution**: Already handled by `nim_irontract_submit.m` - it adds injection voxels
-
-## Future Improvements
-
-1. **Adaptive seeding density** based on local FA
-2. **Multi-resolution seeding** (coarse in uniform regions, dense in complex areas)
-3. **Anatomically-informed seeding** using known bundle endpoints
-4. **Probabilistic seeding** with importance sampling
-
-## References
-
-- ISMRM Tractography Challenge: Whole-brain seeding required for full bundle coverage
-- IronTract Challenge: Injection-site seeding for anatomical accuracy
-- HINEC validation: Low FA seeding caused failure to detect 25/26 bundles
+- [Tractography Methods](TRACTOGRAPHY_METHODS.md) — the trackers and the experiment workflow.
+- [YAML Config](YAML_CONFIG.md) — `seeding.*` and `filter.*` in full.
+- [IronTract Workflow](IRONTRACT_WORKFLOW.md) — injection-site seeding end to end.

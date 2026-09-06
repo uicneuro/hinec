@@ -19,7 +19,7 @@ the rate of each.
     Validation asks whether the answer corresponds to anatomy. This page is the
     former only, and no claim about anatomical accuracy follows from anything
     below. The ISMRM ground-truth bundles appear here solely to define a seed
-    region; for what the streamlines are actually worth against them, see
+    region; for how the streamlines actually measure against them, see
     [ISMRM Scoring](ISMRM_SCORING_ANALYSIS.md), where between 28% and 62% of
     produced streamline length leaves the bundle it was seeded in.
 
@@ -97,7 +97,7 @@ finest rung, and inflates Euler's observed order from 0.99 to 1.24.
 
 ## Refinement in time
 
-Nine step sizes, refined by $\sqrt{2}$ from 0.5 to 0.03125 voxels; reference RK4
+Nine step sizes, refined in ratios of $\sqrt{2}$ from 0.5 to 0.03125 voxels; reference RK4
 at $h = 0.0078125$; fixed population $n \approx 1300$.
 
 | method | field | formal | $h=0.5$ | $h=0.031$ | **observed** |
@@ -169,9 +169,10 @@ space. **Resolution is the binding constraint.** Beyond a moderately coarse step
 there is little to gain from refining time; effort is better spent on the
 spatial representation of the direction field.
 
-Practically: use `interpolation.method: spline`, which at $h = 0.5$ is 162×
-more accurate than RK2 and 6285× more accurate than Euler, and take the larger
-step that fourth-order accuracy affords.
+Practically: pair `interpolation.method: spline` with `integrator.method: rk4`.
+At $h = 0.5$ that combination is 162× more accurate than RK2 and 6300× more
+accurate than Euler, so the larger step fourth-order accuracy affords can be
+taken without giving the accuracy back.
 
 ---
 
@@ -182,7 +183,7 @@ results constrain what the numbers above can mean.
 
 | tested | result |
 |---|---|
-| **Field noise** — rigid-rotation fields with each voxel's direction rotated by a random angle $\sigma$, swept 0–20° against the real field's measured median of 4.84° between adjacent voxels, with random per-voxel sign flips | RK4 stayed above order 2.5 and 2–756× ahead of RK2 throughout |
+| **Field noise** — a field whose every voxel direction is rotated through a random angle $\sigma$, swept 0–20° against the real field's measured median of 4.84° between adjacent voxels, with random per-voxel sign flips | RK4 stayed above order 2.5 and 2–756× ahead of RK2 throughout |
 | **Coherent discontinuities** — a surface across which the principal direction jumps by up to 60°, crossed mid-integration (the shape a fibre crossing takes) | RK4 still finished near order 4 and 9× ahead of RK2 |
 | **Stage fallbacks** — `rk4_integration_step` substitutes the previous stage when interpolation refuses a probe below the FA floor | 0.80% of probes, independent of $h$ — present, but far too small to govern the observed order |
 

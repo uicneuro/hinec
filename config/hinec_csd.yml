@@ -1,5 +1,5 @@
 # HINEC interpolated streamline tractography on the CSD FOD field.
-# HINEC supports FOD peaks: trajectory-dependent (sel_power) peak selection resolves
+# HINEC supports FOD peaks: nearest-peak selection by incoming tangent resolves
 # crossings by approach direction, integrated with RK4/RKF45 + ACT. runTractography
 # computes/loads the FOD peaks (nim_csd) before tracking, cached as <source>_csd.mat.
 # 

@@ -1,932 +1,292 @@
-# TRACTOGRAPHY.md
+# Standard Tractography: the FACT Tracker
 
-# HINEC Standard Tractography: Complete Technical Documentation
+`nim_tractography_standard` implements FACT (Fiber Assignment by Continuous
+Tracking, Mori et al. 1999): deterministic streamline tracking on the discrete
+voxel tensor field, with **no interpolation**. Direction is read from the
+principal eigenvector of the voxel the streamline is currently in, and the
+streamline advances by intersecting the voxel boundary rather than by taking a
+fixed step. It is the baseline tracker in HINEC — the reference against which
+the interpolated trackers (`nim_tractography_hinec`,
+`nim_tractography_mmf_connframe`) are compared.
 
-## Overview
+Selected with `algorithm: standard` in the config. FACT is DTI-only by
+construction: `field: csd` has no meaning here, because there is no
+interpolation stage in which to resolve multiple peaks.
 
-The HINEC standard tractography implementation provides deterministic fiber tracking for diffusion-weighted MRI data. It uses the primary eigenvector of the diffusion tensor to reconstruct white matter pathways through 3D space, following the direction of maximum water diffusion at each voxel.
+| | |
+|---|---|
+| Source | `src/nim_tractography/nim_tractography_standard.m` |
+| Driver | `runTractography.m` (seeding, masks, filtering, saving) |
+| Config | `config/standard_dti.yml` |
+| Interpolated alternatives | [High-Order Methods](High_Order.md), [MMF Connection-Form](MMF_TRACTOGRAPHY.md) |
 
-## Workflow Architecture
+## Algorithm
 
-### 1. Entry Points
-
-- **`runTractography('data.mat')`** - Simple entry point with default parameters
-- **`nim_tractography_standard(nim, options)`** - Core algorithm with custom options
-- **Direct integration** - Called from main HINEC pipeline after DTI processing
-
-### 2. Processing Pipeline
+FACT does not step by a fixed increment. From the current position it finds
+where the ray along the current direction leaves the current voxel, jumps to
+that exit point, and reads a new direction from the voxel it has entered. Step
+length therefore varies: it depends on where in the voxel the streamline
+entered and how obliquely it is travelling.
 
 ```
-Input Data (nim structure) 
-    ↓
-Parameter Setup & Validation
-    ↓
-Eigenvector Pre-computation (Optimization)
-    ↓
-Seed Mask Generation
-    ↓
-Seed Point Distribution
-    ↓
-Bidirectional Fiber Tracking
-    ↓
-Track Validation & Filtering
-    ↓
-Results Output & Visualization
+place seed anywhere inside a seeded voxel
+direction <- principal eigenvector of the seed voxel, signed by +1 / -1
+loop:
+    stop if FA at the current voxel < termination.fa_min
+    stop if the turn from the previous segment exceeds the angle budget
+    stop if the crossing count reaches max_steps
+    exit_point <- intersection of the ray with the current voxel boundary
+    stop if there is no forward intersection, or the exit point leaves the volume
+    stop if the exit voxel is outside the propagation mask
+    append exit_point; move there
+    direction <- principal eigenvector of the new voxel, sign-aligned to the old
 ```
 
-## Core Algorithm: `nim_tractography_standard`
+Two passes are run from every seed, one with the initial direction negated. The
+backward pass is reversed and concatenated with the forward pass, so **one seed
+yields at most one track**, spanning the seed in both directions.
 
-### Function Signature
+Implementation notes:
+
+- The exit point is nudged `1e-4` along the direction before being stored.
+  Without it, `round()` maps a boundary coordinate of the form `n.5` back to
+  the voxel just left (MATLAB rounds half away from zero) and the streamline
+  stalls.
+- Voxel membership is `round(position)` throughout, so a voxel is the unit cube
+  centred on its integer index.
+- Direction is sign-aligned to the previous direction at every crossing
+  (`dot < 0` flips it), because `v1` is a line field defined only up to sign.
+
+## Inputs
+
+Required fields on the `nim` struct:
+
+| Field | Shape | Use |
+|---|---|---|
+| `nim.evec` | `[x y z 3 3]` | principal eigenvector `evec(:,:,:,:,1)` is the direction field |
+| `nim.FA` | `[x y z]` | seeding, propagation and termination |
+| `nim.eval` | `[x y z 3]` | optional; used only for a sanity warning at the centre voxel |
+| `nim.mask` | `[x y z]` | optional; intersected into the propagation mask |
+
+The eigenvector array is validated to be `3 x 3` in its last two dimensions,
+and the eigenvalue ordering is checked at the centre voxel: if `eval(1)` is not
+the largest, a warning is issued that the principal eigenvector may not
+correspond to the largest eigenvalue.
+
+## Seeding
+
+**Seeding is decided in `runTractography.m`, not in the tracker.** The tracker
+errors out if `options.seed_mask` is empty — it executes a seeding decision, it
+does not make one. `runTractography` picks a mask by priority:
+
+1. `seeding.roi` — explicit atlas regions, optionally dilated, then intersected
+   with the brain mask and `FA > seeding.fa_min`.
+2. `nim.mask` refined by `FA > seeding.fa_min`.
+3. `nim.parcellation_mask` dilated by 3 voxels, then `FA > 0.05`.
+4. `FA > 0.10` as a last resort, with a warning that low-anisotropy structures
+   (fornix, cingulum) will be missed.
+
+Within each seeded voxel, `seeding.density` seeds are placed by
+`nim_seed_offsets`:
+
+- `strategy: uniform` (default) — a deterministic sub-voxel lattice. The count
+  is honoured **exactly**: a perfect cube gives the full `n x n x n` lattice,
+  and any other count gives a deterministic farthest-point subset of the next
+  larger lattice, so seeds stay spread rather than clustering in one corner. No
+  RNG is involved, so runs are reproducible and streamlines can be matched
+  one-to-one across a parameter sweep.
+- `strategy: random` — uniform jitter within the voxel. Not reproducible.
+
+See [Seeding Strategy](SEEDING_STRATEGY.md) for the full account.
+
+## The propagation mask
+
+Where a track may **go** is not where it may **start**. The propagation domain
+is derived from the data:
+
 ```matlab
-function tracks = nim_tractography_standard(data_path, options)
-```
-
-**Input:**
-
-- `data_path`: Path to .mat file or nim structure directly
-- `options`: Configuration structure (optional)
-
-**Output:**
-
-- `tracks`: Cell array where each cell contains an Nx3 matrix of track coordinates
-
-### Processing Stages
-
-#### Stage 1: Data Loading and Validation
-
-**Location**: `nim_tractography_standard.m:59-75`
-
-```matlab
-% Load data if path is provided
-if ischar(data_path) || isstring(data_path)
-    fprintf('Loading data from %s...\n', data_path);
-    data = load(data_path);
-    nim = data.nim;
-else
-    nim = data_path;
+prop_mask = nim.FA > options.termination_fa;
+if isfield(nim, 'mask') && ~isempty(nim.mask)
+    prop_mask = prop_mask & (nim.mask > 0.5);
 end
-
-% Verify required fields
-if ~isfield(nim, 'evec')
-    error('Eigenvectors not found in nim structure. Please run nim_eig() first.');
-end
-if ~isfield(nim, 'FA')
-    error('FA values not found in nim structure. Please run nim_fa() first.');
-end
+nim.dilated_brain_mask = imdilate(prop_mask, ones(3,3,3));
 ```
 
-**Required NIM Structure Fields:**
+This was previously a dilation of the *seed* mask. With whole-brain seeding the
+two coincide and nothing looks wrong; with ROI seeding the propagation domain
+collapsed to a one-voxel skin around the ROI and streamlines died almost
+immediately. The same bug had been fixed in `nim_tractography_hinec` earlier and
+the fix was not carried across. A caller may still override the domain by
+passing `options.propagation_mask` directly.
 
-- `nim.evec`: 5D array [x,y,z,component,eigenvector] - Diffusion tensor eigenvectors
-- `nim.FA`: 3D array [x,y,z] - Fractional anisotropy values
-- `nim.eval`: 3D array [x,y,z,eigenvalue] - Eigenvalues (for validation)
-- `nim.mask`: 3D array [x,y,z] - Brain mask (optional but recommended)
+## Termination
 
-#### Stage 2: Performance Optimizations
+| Criterion | Config key | Reason string |
+|---|---|---|
+| FA at the seed voxel below floor | `termination.fa_min` | `initial_fa` |
+| FA at the current voxel below floor | `termination.fa_min` | `fa` |
+| Turn exceeds the angle budget | `termination.angle_max` | `angle` |
+| Crossing count reached | derived from `termination.max_arc` | `max_steps` |
+| No forward boundary intersection | — | `no_exit` |
+| Exit voxel outside the propagation mask | — | `brain_mask` |
+| No valid eigenvector in the new voxel | — | `no_direction` |
 
-**Location**: `nim_tractography_standard.m:83-106`
+Counts per reason are printed at the end of the run when
+`tractography.diagnostics` is true.
 
-**Critical Optimization**: Pre-computation of eigenvector components
-```matlab
-% Pre-compute eigenvector components for faster interpolation
-fprintf('Pre-computing eigenvector components...\n');
-nim.v1_x = squeeze(nim.evec(:,:,:,1,1));  % X component of primary eigenvector
-nim.v1_y = squeeze(nim.evec(:,:,:,2,1));  % Y component of primary eigenvector  
-nim.v1_z = squeeze(nim.evec(:,:,:,3,1));  % Z component of primary eigenvector
-```
+After tracking, a track is kept only if its arc length — the sum of segment
+lengths of the combined forward+backward polyline, in **voxels** — is at least
+`termination.min_arc`. This filter was previously defaulted at the top of the
+file and then never read; the tracker carried a comment stating it applied "no
+filters at all", which was literally true. A schema-validated key that every
+config sets was honoured by exactly one of the three trackers.
 
-**Performance Impact**: Eliminates 5D array indexing during tracking, providing ~40% speedup.
+### The angle budget
 
-#### Stage 3: Seed Mask Creation
-**Location**: `nim_tractography_standard.m:108-138`
+`termination.angle_max` is in **degrees of turning per voxel of arc**, not per
+step. All three trackers convert it through `nim_utils/nim_angle_limit.m`. It is
+a minimum radius of curvature in disguise: `R = 57.3 / angle_max` voxels.
 
-**Hierarchical Masking Strategy:**
+**FACT is budgeted per voxel transition.** Direction is piecewise constant
+within a voxel and changes only at boundaries, so one transition is charged as
+one voxel of arc — `nim_angle_limit(angle_thresh, 1)`. This is deliberately
+*not* the length of the segment just travelled: a streamline that clips a voxel
+corner covers a tiny arc, but the turn waiting for it at the boundary is a
+property of the data, not of how much of the voxel it happened to cross.
+Budgeting by the clipped length would terminate a streamline for the geometry
+of the intersection.
 
-1. **Base FA threshold**: `nim.FA > options.fa_threshold`
-2. **Brain mask priority**:
-    - Primary: `nim.mask` (from preprocessing)
-    - Fallback: `nim.parcellation_mask` (from atlas registration)
-3. **Artifact exclusion**: Remove bottom 10% of slices to avoid susceptibility artifacts
+**The 90 degree ceiling.** `v1` is a line field, defined only up to sign, so
+every tangent is sign-aligned to its predecessor before the turn between them is
+measured. That confines the measured turn to `[0, 90]` degrees. A budget above
+90 degrees can never be exceeded, so the criterion there is not loose — it is
+**absent**. `nim_config_to_options` warns when a config lands in that regime.
 
-```matlab
-% Create seed mask with hierarchical brain boundaries
-options.seed_mask = nim.FA > options.fa_threshold;
+`angle_max: 0` disables the criterion outright. Use that for a control run
+rather than setting a very large value: a large value is a silently inert
+criterion, which looks exactly like a satisfied one.
 
-if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
-    brain_mask = nim.mask > 0.5;
-    fprintf('Using preprocessed brain mask from nim.mask\n');
-elseif isfield(nim, 'parcellation_mask')
-    brain_mask = nim.parcellation_mask > 0;
-    fprintf('Using parcellation mask as brain mask (fallback)\n');
-end
+For the interpolated trackers the budget for one step is `angle_max x step`, so
+refining the step tightens the budget in proportion and the same physical
+curvature bound is enforced at every step size. The budget is always taken from
+the *nominal* step, never the realised chord — chord-based budgeting is
+method-dependent, since Euler and RK2 advance by `h x (unit vector)` and have a
+chord of exactly `h`, while RK4 averages four stage vectors and its chord is
+shorter. `config/standard_dti.yml` sets `angle_max: 45`, the classic FACT
+turning angle, evaluated per voxel transition.
 
-if ~isempty(brain_mask)
-    % Exclude bottom slices to avoid inferior brain artifacts
-    z_exclude = max(1, round(dims(3) * 0.1));
-    brain_mask(:, :, 1:z_exclude) = 0;
-    options.seed_mask = options.seed_mask & brain_mask;
-end
-```
+## Configuration
 
-#### Stage 4: Seed Point Generation
-**Location**: `nim_tractography_standard.m:278-300`
+Only the keys FACT actually reads are listed. The full surface, with defaults,
+is in the generated [YAML Configuration Reference](YAML_CONFIG.md); the mapping
+from canonical config path to the flat option names the tracker reads lives in
+`src/nim_utils/nim_config_to_options.m`.
 
-**Algorithm**: `generate_seed_points_standard_optimized`
-```matlab
-function seed_points = generate_seed_points_standard_optimized(seed_mask, density, dims)
-[x, y, z] = ind2sub(dims, find(seed_mask));
-base_seeds = [x, y, z];
+| Config path | Tracker option | Effect on FACT |
+|---|---|---|
+| `tractography.algorithm: standard` | — | selects this tracker |
+| `tractography.seeding.density` | `seed_density` | seeds per seeded voxel |
+| `tractography.seeding.strategy` | `seed_strategy` | `uniform` lattice or `random` jitter |
+| `tractography.seeding.fa_min` | `seed_fa_threshold` | seed mask FA floor (applied in `runTractography`) |
+| `tractography.seeding.roi` / `roi_dilate` | `seed_roi` / `seed_roi_dilate` | restrict seeding to atlas regions |
+| `tractography.termination.fa_min` | `termination_fa` | termination and propagation-mask FA floor |
+| `tractography.termination.angle_max` | `angle_thresh` | turn budget per voxel transition |
+| `tractography.termination.max_arc` | `max_steps` (derived) | see the caveat below |
+| `tractography.termination.min_arc` | `min_length` | discard shorter tracks, in voxels |
+| `tractography.filter.*` | — | applied by `runTractography` after tracking |
+| `tractography.output.arc_step` | `output_arc_step` | resample saved polylines |
+| `tractography.diagnostics` | `enable_diagnostics` | timing and failure reports |
 
-if density <= 1
-    seed_points = base_seeds;
-else
-    % Multiple seeds per voxel with random offset
-    n_total = size(base_seeds, 1) * density;
-    seed_points = zeros(n_total, 3);
-    
-    idx = 1;
-    for i = 1:size(base_seeds, 1)
-        for j = 1:density
-            offset = (rand(1, 3) - 0.5) * 0.8;  % Random offset within voxel
-            seed_points(idx, :) = base_seeds(i, :) + offset;
-            idx = idx + 1;
-        end
-    end
-end
-```
+Keys FACT ignores by design: `integrator.method` and the RKF45 group (there is
+no numerical integrator here — steps are exact boundary intersections),
+`interpolation.*` (no interpolation), `csd.*` and `field`, `mmf.*`, and
+`tractography.act` (ACT is read only by `nim_tractography_hinec`; the schema
+marks it `hinec`).
 
-**Seed Density Impact:**
+**`integrator.step` caveat.** FACT's geometry does not use a step size, but the
+step is not inert: `nim_config_to_options` derives `max_steps =
+ceil(max_arc / step)` for every tracker, and FACT compares that number against
+its **crossing count**. So under FACT `max_arc` and `step` together set a cap on
+the number of voxel boundaries crossed, not on arc length in voxels; the two
+coincide only if each crossing happens to advance exactly `step` of arc. With
+`config/standard_dti.yml` (`max_arc: 2500`, `step: 0.5`) the cap is 5000
+crossings.
 
-- `density = 1`: One seed per voxel center
-- `density = 5`: Five randomly distributed seeds per voxel (default)
-- Higher density increases track count but also computation time
+## Output
 
-#### Stage 5: Bidirectional Fiber Tracking
-**Location**: `nim_tractography_standard.m:176-216`
+`nim_tractography_standard` returns `tracks` and writes nothing itself. Saving,
+ROI filtering and decimation are `runTractography`'s job, in that order:
 
-**Core Loop Structure:**
-```matlab
-for i = 1:size(seed_points, 1)
-    seed = seed_points(i, :);
-    
-    % Track in both directions from seed point
-    for direction = [-1, 1]
-        track = track_fiber_standard_optimized(nim, seed, direction, options, cos_angle_thresh);
-        
-        % Validate track length
-        if size(track, 1) > 1
-            track_length_mm = sum(vecnorm(diff(track), 2, 2));
-            if track_length_mm >= options.min_length
-                track_count = track_count + 1;
-                tracks{track_count} = track;
-            end
-        end
-    end
-end
-```
+1. `nim_filter_tracks_roi` applies `filter.include_roi`, `filter.exclude_roi`,
+   `filter.endpoints_in` (one end in each of two regions) and
+   `filter.contained_in` (every point inside a corridor). Filtering runs on the
+   full-resolution polyline, because it tests which voxels a track visits.
+2. `nim_resample_track_arc` decimates to `output.arc_step` voxels of spacing, if
+   set. This decouples file size from step size and does not affect the tracking
+   itself.
+3. The result is saved to `<run_dir>/tractography/tracks_standard_<timestamp>.mat`
+   (or `tractography_results/` without a run directory), containing `tracks`,
+   `options`, `elapsed_time`, `algorithm` and `track_meta`.
 
-## Core Tracking Algorithm: `track_fiber_standard_optimized`
-
-### Function Signature
-```matlab
-function [track, step_timing] = track_fiber_standard_optimized(nim, seed, direction, options, cos_angle_thresh)
-```
-
-### Tracking Steps
-
-#### Step 1: Initialization
-**Location**: `nim_tractography_standard.m:302-324`
+### Track data structure
 
 ```matlab
-track = seed;                    % Initialize track with seed point
-current_pos = seed;              % Current tracking position
-prev_direction = [];             % Previous step direction for curvature check
-
-% Get initial direction from diffusion tensor
-initial_dir = get_initial_direction_optimized(nim, seed, options);
-if isempty(initial_dir)
-    return;  % Cannot track from this seed
-end
-
-% Apply directional flip for bidirectional tracking
-initial_dir = initial_dir * direction;  % direction is -1 or +1
-prev_direction = initial_dir;
+tracks = cell(N, 1);
+tracks{i} = [x1, y1, z1;    % complete trajectory, not just endpoints
+             x2, y2, z2;
+             ...
+             xN, yN, zN];   % voxel-space coordinates
 ```
 
-#### Step 2: Iterative Step Integration
-**Location**: `nim_tractography_standard.m:330-390`
-
-**Main Tracking Loop:**
-```matlab
-for step = 1:options.max_steps
-    % 1. Get interpolated direction at current position
-    [dir_vec, fa_val] = interpolate_direction_standard_optimized(nim, current_pos, options);
-    
-    % 2. Termination criteria check
-    if isempty(dir_vec) || fa_val < options.termination_fa
-        break;  % Stop tracking
-    end
-    
-    % 3. Direction consistency (avoid 180° flips)
-    if ~isempty(prev_direction)
-        if dot(dir_vec, prev_direction) < 0
-            dir_vec = -dir_vec;  % Flip to maintain consistency
-        end
-        
-        % 4. Curvature constraint (angle threshold)
-        if dot(dir_vec, prev_direction) < cos_angle_thresh
-            break;  % Track too curved, terminate
-        end
-    end
-    
-    % 5. Step integration - move along direction
-    current_pos = current_pos + dir_vec * options.step_size;
-    
-    % 6. Boundary checking
-    if any(current_pos < 1.5) || any(current_pos > dims - 0.5)
-        break;  % Outside image bounds
-    end
-    
-    % 7. Brain tissue verification (if mask available)
-    if has_parcellation
-        pos_int = round(current_pos);
-        if all(pos_int >= 1) && all(pos_int <= dims)
-            if ~nim.dilated_brain_mask(pos_int(1), pos_int(2), pos_int(3))
-                break;  % Outside brain tissue
-            end
-        end
-    end
-    
-    % 8. Add point to track
-    track = [track; current_pos];
-    prev_direction = dir_vec;
-end
-```
-
-#### Step 3: Direction Interpolation
-**Location**: `nim_tractography_standard.m:400-440`
-
-**Critical Function**: `interpolate_direction_standard_optimized`
-```matlab
-function [direction, fa_value] = interpolate_direction_standard_optimized(nim, pos, options)
-% Check bounds first
-dims = size(nim.FA);
-if any(pos < 1.1) || any(pos > dims - 0.1)
-    direction = []; fa_value = 0;
-    return;
-end
-
-% Get FA value using trilinear interpolation
-fa_value = interp3(nim.FA, pos(2), pos(1), pos(3), 'linear', 0);
-if fa_value < options.termination_fa
-    direction = []; 
-    return;
-end
-
-% Use pre-computed eigenvector components (KEY OPTIMIZATION)
-x_comp = interp3(nim.v1_x, pos(2), pos(1), pos(3), 'linear', 0);
-y_comp = interp3(nim.v1_y, pos(2), pos(1), pos(3), 'linear', 0);
-z_comp = interp3(nim.v1_z, pos(2), pos(1), pos(3), 'linear', 0);
-
-direction = [x_comp, y_comp, z_comp];
-
-% Normalize direction vector
-dir_norm = norm(direction);
-if dir_norm > 1e-6 && ~any(isnan(direction)) && ~any(isinf(direction))
-    direction = direction / dir_norm;
-else
-    direction = [];
-end
-```
-
-**Interpolation Details:**
-
-- Uses MATLAB's `interp3` with linear interpolation
-- Pre-computed components eliminate 5D array indexing
-- Coordinate system: MATLAB convention (Y,X,Z for interp3)
-- Boundary padding with zeros for out-of-bounds queries
-
-## Parameter Configuration
-
-### Default Parameters
-**Location**: `nim_tractography_standard.m:18-51` and `runTractography.m:32-44`
-
-```matlab
-options.seed_density = 5;           % Number of seeds per voxel
-options.step_size = 0.2;            % Step size in voxels
-options.fa_threshold = 0.25;        % FA threshold for seed placement
-options.termination_fa = 0.1;       % FA threshold for track termination
-options.angle_thresh = 25;          % Maximum turning angle in degrees
-options.max_steps = 2000;           % Maximum steps per track
-options.min_length = 20;            % Minimum track length in mm
-```
-
-### Parameter Impact Analysis
-
-#### Seed Density (`seed_density`)
-- **Range**: 1-10 (typical)
-- **Impact**: Linear increase in track count and computation time
-- **Quality Trade-off**: Higher density provides better coverage but may introduce redundant tracks
-
-#### Step Size (`step_size`)
-- **Range**: 0.1-0.5 voxels (typical)
-- **Impact**: Smaller steps = smoother tracks but slower computation
-- **Optimal**: 0.2 voxels balances smoothness and speed
-
-#### FA Thresholds
-- **`fa_threshold` (0.25)**: Higher values restrict seeding to high-anisotropy regions
-- **`termination_fa` (0.1)**: Lower values allow tracking into gray matter transitions
-
-#### Angle Threshold (`termination.angle_max`, tracker option `angle_thresh`)
-
-**Units: degrees of turning per VOXEL OF ARC, not per step.** The budget for one
-step is `angle_max x step`, so refining the step tightens the budget in proportion
-and the same physical curvature bound is enforced at every step size. It is a
-minimum radius of curvature in disguise: `R = 57.3 / angle_max` voxels.
-
-- **Default 225**: this is the classic 45 deg/step evaluated at the default step
-  of 0.2. It is not an unusually permissive setting at that step.
-- **Typical**: 175-300 (35-60 deg/step at step 0.2).
-- **Impact**: lower values create straighter, more conservative tracks.
-- **`0` disables the criterion outright.** Use this for a control run rather than
-  setting a very large value - see the ceiling below for why those differ.
-
-**The 90 degree ceiling.** `v1` is a *line* field: it is defined only up to sign,
-so every tangent is sign-aligned to its predecessor before the turn between them
-is measured. That confines the measured turn to `[0, 90]` degrees. **A budget
-above 90 degrees can never be exceeded, so the criterion is not loose there - it
-is absent.** At `angle_max: 225` this happens for every step at or above 0.4
-voxels. `load_config_yaml` warns when a config lands in that regime.
-
-This matters most for a step-size ladder, where `step` is swept deliberately: at
-225 deg/voxel the budget runs from 112 deg at step 0.5 (inert) down to 0.45 deg at
-step 0.002 (cuts nearly everything). The criterion is not held fixed across such a
-ladder in any useful sense, which is why `config/reference.yml` sets
-`angle_max: 0`.
-
-**The budget comes from the nominal step, never the realised chord.** For
-`dx/ds = v(x)` with `|v| = 1` a step advances `step` of arc by construction; the
-straight-line chord between its endpoints is shorter. Genuine curvature shortens
-it by `O(h^3)` (negligible), but disagreement among the RK stage vectors shortens
-it a great deal, and that is a discretisation artefact rather than a statement
-that less arc was covered. Budgeting by the chord is therefore *method-dependent*:
-Euler and RK2 advance by `h x (unit vector)` so their chord is identically `h`,
-while RK4 averages four stage vectors and its chord was measured as low as
-`0.25 h` on ISMRM 2015 data - a 4x tighter angle limit for RK4 alone, at the same
-nominal step. All three trackers now budget through `nim_angle_limit`.
-
-**FACT is budgeted per voxel transition.** `nim_tractography_standard` is
-piecewise constant within a voxel and turns only at voxel boundaries, so one
-transition is charged as one voxel of arc. Deliberately not the length of the
-segment travelled: a streamline that clips a voxel corner covers a tiny arc, but
-the turn waiting at the boundary is a property of the data, not of how much of
-the voxel it happened to cross.
-
-#### Track Length (`min_length`)
-- **Purpose**: Filter out spurious short tracks
-- **Typical**: 10-30mm based on expected fiber lengths
-
-## Data Structures and Memory Management
-
-### Track Storage Format
-```matlab
-tracks = cell(N, 1);           % Cell array of tracks
-tracks{i} = [x1, y1, z1;       % Each track is Nx3 matrix
-             x2, y2, z2;       % Each row is a 3D coordinate
-             ...               % Coordinates in voxel space
-             xN, yN, zN];
-```
-
-### Memory Optimization Strategies
-
-#### Pre-allocation
-**Location**: `nim_tractography_standard.m:161-163`
-```matlab
-% Pre-allocate tracks array (2x seeds for bidirectional tracking)
-tracks = cell(size(seed_points, 1) * 2, 1);
-track_count = 0;  % Actual track counter
-```
-
-#### Dynamic Trimming
-**Location**: `nim_tractography_standard.m:218-219`
-```matlab
-% Remove unused cells to save memory
-tracks = tracks(1:track_count);
-```
-
-#### Eigenvector Caching
-```matlab
-% Pre-compute components once (major memory trade-off)
-nim.v1_x = squeeze(nim.evec(:,:,:,1,1));  % Cache X components
-nim.v1_y = squeeze(nim.evec(:,:,:,2,1));  % Cache Y components  
-nim.v1_z = squeeze(nim.evec(:,:,:,3,1));  % Cache Z components
-```
-
-**Memory Impact**: Increases memory usage by ~3x eigenvector size but eliminates repeated 5D indexing
-
-## Performance Analysis and Optimization
-
-### Timing Diagnostics
-**Location**: `nim_tractography_standard.m:53-57, 222-237`
-
-The algorithm provides comprehensive timing analysis:
-```matlab
-=== TIMING REPORT ===
-Total time: 45.2 seconds
-Pre-computation: 2.1 seconds (4.6%)
-Seed generation: 0.8 seconds (1.8%)
-Tracking: 42.3 seconds (93.6%)
-  - Interpolation: 28.5 seconds (67.4% of tracking)
-  - Boundary checks: 8.2 seconds (19.4% of tracking)
-Total steps processed: 125,420
-Average steps per track: 45.2
-Steps per second: 2,965
-```
-
-### Performance Bottlenecks
-
-#### 1. Interpolation Operations (67% of time)
-- **Cause**: `interp3` calls for each tracking step
-- **Optimization**: Pre-computed eigenvector components
-- **Alternative**: Could implement custom trilinear interpolation
-
-#### 2. Boundary Checking (19% of time)  
-- **Cause**: Brain mask verification at each step
-- **Optimization**: Pre-computed dilated brain mask
-- **Alternative**: Less frequent boundary checks
-
-#### 3. Memory Access Patterns
-- **Issue**: Random memory access during interpolation
-- **Impact**: Cache misses reduce performance
-- **Future**: Block-based processing could improve cache efficiency
-
-### Scaling Characteristics
-
-**Computational Complexity**: O(S × L × I)
-
-- S = Number of seeds
-- L = Average track length (steps)  
-- I = Interpolation operations per step (~4)
-
-**Typical Performance**: 
-
-- Dataset: 128×128×60 volume, ~10,000 seeds
-- Processing Time: 30-60 seconds on modern hardware
-- Track Generation Rate: 50-200 tracks/second
-- Memory Usage: 2-8 GB peak (depending on eigenvector caching)
-
-## Quality Assurance and Validation
-
-### Automatic Quality Checks
-**Location**: `nim_tractography_standard.m:94-101`
-
-#### Eigenvector Validation
-```matlab
-% Verify eigenvector extraction at center voxel
-center_idx = round(dims/2);
-if isfield(nim, 'eval')
-    center_eigenvals = squeeze(nim.eval(center_idx(1), center_idx(2), center_idx(3), :));
-    if center_eigenvals(1) < center_eigenvals(2) || center_eigenvals(1) < center_eigenvals(3)
-        warning('Primary eigenvector may not correspond to largest eigenvalue!');
-    end
-end
-```
-
-### Track Statistics
-**Location**: `nim_tractography_standard.m:252-270`
-
-```matlab
-track_stats = struct();
-track_stats.num_tracks = track_count;
-track_stats.mean_length = mean(track_lengths);
-track_stats.median_length = median(track_lengths);
-track_stats.max_length = max(track_lengths);
-track_stats.min_length = min(track_lengths);
-track_stats.total_length = sum(track_lengths);
-```
-
-### Expected Quality Metrics
-- **Track Count**: 1,000-10,000 (depending on seed density)
-- **Mean Length**: 30-80mm (varies by brain region)
-- **Success Rate**: 40-80% of seeds generate valid tracks
-- **Spatial Coverage**: Should represent major white matter tracts
-
-## Output and Visualization
-
-### Automatic Output Generation
-**Location**: `nim_tractography_standard.m:241-274`
-
-All results are automatically saved with timestamp:
-```matlab
-output_dir = 'tractography_results';
-timestamp = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
-output_file = fullfile(output_dir, sprintf('tracks_%s.mat', timestamp));
-
-save(output_file, 'tracks', 'options', 'track_stats', 'track_lengths', 'dims');
-```
-
-### Visualization Pipeline
-**Entry Point**: `runTractography.m:84-121`
-
-#### Multi-Panel Visualization
-1. **3D Tracks with FA Background** (`subplot(2,2,1)`)
-    - Semi-transparent FA slices as anatomical reference
-    - Direction-colored tracks (RGB = XYZ components)
-    - Limited to 800 tracks for performance
-
-2. **Direction-Colored Tracks Only** (`subplot(2,2,2)`)
-    - Pure track visualization without anatomy
-    - Color legend: Red=L-R, Green=A-P, Blue=S-I
-    - Up to 1,500 tracks displayed
-
-3. **FA Map Cross-Section** (`subplot(2,2,3)`)
-    - Grayscale FA map at mid-brain slice
-    - Shows tissue contrast and quality
-
-4. **Seed Point Distribution** (`subplot(2,2,4)`)
-    - 3D scatter plot of seed locations
-    - Demonstrates spatial sampling strategy
-
-### Advanced Visualization: `visualizeTractography.m`
-
-The **`visualizeTractography.m`** function is a comprehensive, unified solution for tractography visualization that consolidates all visualization functionality into one powerful interface.
-
-#### Key Features
-- ✅ **4 Visualization Modes**: Whole brain, single region, grid layout, sequential
-- ✅ **Advanced Track Filtering**: Multiple filtering strategies with overlap control
-- ✅ **Multiple Color Schemes**: Direction-based, FA-based, uniform, and region-based coloring
-- ✅ **Automatic Image Export**: PNG, PDF, EPS, FIG formats with organized directory structure
-- ✅ **Performance Optimization**: Configurable track limits and smart rendering
-- ✅ **Legacy Compatibility**: Supports all parameters from previous functions
-
-#### Visualization Modes
-
-##### 1. Whole Brain Mode (`mode='whole'`)
-Comprehensive overview of all tractography tracks with detailed analytics.
-
-**Usage:**
-```matlab
-% Basic whole brain visualization
-visualizeTractography('tracks.mat', 'sample_parcellated.mat')
-
-% With custom settings
-visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
-    'color_mode', 'fa', 'max_tracks', 5000, 'export_dir', 'figures/')
-```
-
-**Output:**
-
-- 2x3 subplot layout with main 3D view
-- Track length histogram
-- Seed point distribution analysis
-- Performance statistics
-
-##### 2. Single Region Mode (`mode='region'` or `'region', ID`)
-Detailed analysis of tractography for a specific brain region.
-
-**Usage:**
-```matlab
-% Single region visualization
-visualizeTractography('tracks.mat', 'sample_parcellated.mat', 'region', 5)
-
-% With advanced filtering
-visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
-    'region', 5, 'filter_mode', 'start_in', 'min_overlap', 0.2)
-```
-
-**Features:**
-
-- Region-specific track filtering
-- Region overlay visualization
-- Multiple filtering strategies
-- Comprehensive track analysis
-
-##### 3. Grid Layout Mode (`mode='grid'`)
-Overview of all brain regions in an organized grid layout.
-
-**Usage:**
-```matlab
-% Grid layout for all regions
-visualizeTractography('tracks.mat', 'sample_parcellated.mat', 'mode', 'grid')
-
-% Custom grid configuration
-visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
-    'mode', 'grid', 'grid_cols', 6, 'max_tracks_per_region', 50)
-```
-
-##### 4. Sequential Mode (`mode='sequential'`)
-Step through regions one by one with detailed visualization.
-
-**Usage:**
-```matlab
-% Sequential viewing with auto-advance
-visualizeTractography('tracks.mat', 'sample_parcellated.mat', ...
-    'mode', 'sequential', 'auto_advance', true, 'pause_time', 3)
-```
-
-#### Configuration Options
-
-**Display Parameters:**
-
-- `color_mode`: 'direction' (default), 'fa', 'uniform', 'region'
-- `show_axis_labels`: Display X/Y/Z axis labels (default: true)
-- `show_grid`: Display grid lines (default: false)
-- `show_title`: Display figure title (default: true)
-- `show_info`: Display information text (default: true)
-
-**Track Filtering:**
-
-- `filter_mode`: 'all', 'passing_through', 'ending_in', 'start_in', 'contained'
-- `min_length`: Minimum track length in mm (default: 10)
-- `max_tracks`: Maximum tracks to display (default: 1000)
-- `min_overlap`: Minimum region overlap fraction (default: 0.1)
-
-**Export Settings:**
-
-- `export_dir`: Directory for saving images (default: 'tractography_figures/')
-- `export_format`: 'png' (default), 'pdf', 'eps', 'fig'
-- `export_dpi`: Resolution for raster formats (default: 150)
-
-### Slice-Based Visualization: `visualizeTractographySlices.m`
-
-An interactive 2D slice viewer for examining tractography results in orthogonal planes.
-
-#### Quick Start
-
-**MATLAB Command Line:**
-```matlab
-% Basic usage - display slice at position x=64, y=64, z=32
-visualizeTractographySlices('tracks.mat', 'sample_parcellated.mat', 64, 64, 32)
-
-% Save to PNG file
-visualizeTractographySlices('tracks.mat', 'sample_parcellated.mat', 64, 64, 32, ...
-    'save', 'my_slice.png')
-
-% With additional options
-visualizeTractographySlices('tracks.mat', 'nim.mat', 80, 90, 45, ...
-    'tolerance', 3, ...
-    'show_crosshairs', false, ...
-    'show_anatomy', true, ...
-    'color_mode', 'direction', ...
-    'alpha', 0.7)
-```
-
-**Python GUI (Optional):**
-```bash
-# Run the interactive Python GUI
-python tractography_slice_gui.py
-```
-
-#### Parameters
-
-**Required Arguments:**
-
-- `tracks_file`: Path to tracks .mat file
-- `nim_file`: Path to nim structure .mat file
-- `x`, `y`, `z`: Slice positions in voxel coordinates
-
-**Optional Parameters:**
-
-- `'save'`: Output PNG filename (if not specified, just displays)
-- `'tolerance'`: Slice thickness in voxels (default: 2)
-- `'show_crosshairs'`: Show slice intersections (default: true)
-- `'show_anatomy'`: Show FA background (default: true)
-- `'color_mode'`: 'direction' or 'uniform' (default: 'direction')
-- `'alpha'`: FA background transparency 0-1 (default: 0.6)
-
-#### Output Format
-The viewer shows three orthogonal slice views:
-
-1. **Axial (Z)**: Top-down view (X-Y plane)
-2. **Sagittal (X)**: Side view (Y-Z plane)
-3. **Coronal (Y)**: Front view (X-Z plane)
-4. **Info Panel**: Track statistics and settings
-
-### Track Data Structure
-
-Each track in the `tracks` cell array represents a complete fiber pathway:
-```matlab
-track = [x1, y1, z1;    % First point (start)
-         x2, y2, z2;    % Second point
-         ...             % Intermediate points along fiber
-         xN, yN, zN];   % Final point (end)
-```
-
-**Important Notes:**
-
-- **Not just endpoints**: Each track contains the complete 3D trajectory
-- **Variable length**: Tracks contain 10-1000+ points depending on fiber length
-- **Coordinate system**: Voxel space coordinates (X, Y, Z)
-
-### Performance Optimization
-
-- Fast command-line execution without UI overhead
-- Pre-computed track lookup tables for efficiency
-- Smart rendering with configurable track limits
-- Automatic downsampling for large datasets
-
-## Integration with HINEC Pipeline
-
-### Pipeline Position
-The tractography step occurs after complete DTI processing:
-
-```
-Raw dMRI Data
-    ↓
-Preprocessing (motion correction, eddy correction, denoising)
-    ↓
-Diffusion Tensor Estimation (nim_dt_spd)
-    ↓
-Eigenvalue/Eigenvector Decomposition (nim_eig)
-    ↓
-Fractional Anisotropy Calculation (nim_fa)
-    ↓
-Brain Parcellation (nim_parcellation)
-    ↓
-**TRACTOGRAPHY** ← We are here
-```
-
-### Data Dependencies
-**Required Pipeline Steps:**
-
-1. `nim_dt_spd`: Provides diffusion tensors
-2. `nim_eig`: Provides eigenvectors and eigenvalues  
-3. `nim_fa`: Provides anisotropy maps for seeding and termination
-4. `nim_parcellation` (optional): Provides brain masks
-
-### Usage Patterns
-
-#### Simple Usage
-```matlab
-% After running main HINEC pipeline
-runTractography('sample_parcellated.mat');
-```
-
-#### Advanced Usage  
-```matlab
-% Custom parameters
-options = struct();
-options.seed_density = 10;        % Denser seeding
-options.fa_threshold = 0.3;       % Higher quality seeds
-options.angle_thresh = 20;        % More conservative tracking
-options.step_size = 0.15;         % Higher resolution
-
-tracks = nim_tractography_standard('data.mat', options);
-```
-
-#### Programmatic Integration
-```matlab
-% Direct integration in processing pipeline
-main('sample_data', 'output.mat');           % Run main pipeline
-tracks = nim_tractography_standard('output.mat');  % Add tractography
-```
-
-## Technical Limitations and Considerations
-
-### Current Limitations
-
-#### 1. Deterministic Only
-- **Issue**: No probabilistic tracking option
-- **Impact**: May miss low-probability pathways
-- **Future**: Could add probabilistic tracking method
-
-#### 2. Single Tensor Model
-- **Issue**: Cannot handle crossing fibers optimally
-- **Impact**: May terminate prematurely at crossings
-- **Alternative**: High-order tractography available (`nim_tractography_highorder`)
-
-#### 3. Isotropic Step Size
-- **Issue**: Fixed step size in all directions
-- **Impact**: May oversample in some orientations
-- **Enhancement**: Adaptive step size based on local curvature
-
-#### 4. Linear Interpolation Only
-- **Issue**: Only supports linear interpolation
-- **Impact**: Potential smoothing artifacts
-- **Future**: Cubic interpolation option exists but unused
-
-### Coordinate System Considerations
-
-#### MATLAB vs. Medical Image Conventions
-```matlab
-% MATLAB interp3 uses (Y,X,Z) indexing
-fa_value = interp3(nim.FA, pos(2), pos(1), pos(3), 'linear', 0);
-
-% But track coordinates stored as (X,Y,Z)  
-track = [x, y, z];
-```
-
-#### Voxel vs. World Coordinates
-- **Internal**: All processing in voxel coordinates
-- **Output**: Tracks remain in voxel space
-- **Conversion**: Would require affine transform for world coordinates
-
-### Memory Scalability
-
-#### Memory Requirements (Typical 128³ Volume)
-- **Base NIM Structure**: ~500MB
-- **Eigenvector Cache**: ~1.5GB  
-- **Track Storage**: ~100-500MB (depends on track count)
-- **Peak Usage**: ~3-5GB total
-
-#### Large Dataset Considerations
-- **4D Volumes**: May exceed memory limits
-- **High Resolution**: Cubic scaling of memory requirements
-- **Solution**: Block-based processing or streaming implementation
-
-### Numerical Precision
-
-#### Floating Point Considerations
-```matlab
-% Normalization threshold to avoid division by zero
-if dir_norm > 1e-6 && ~any(isnan(direction)) && ~any(isinf(direction))
-    direction = direction / dir_norm;
-```
-
-#### Interpolation Artifacts
-- **Boundary Effects**: Zero-padding at volume boundaries
-- **Smoothing**: Linear interpolation creates artificial smoothing
-- **Precision Loss**: Repeated interpolation accumulates errors
-
-## Future Enhancements and Research Directions
-
-### Short-term Improvements
-
-#### 1. Adaptive Step Size
-```matlab
-% Proposed: Adapt step size based on local curvature
-adaptive_step = base_step_size * (1 + curvature_factor);
-current_pos = current_pos + dir_vec * adaptive_step;
-```
-
-#### 2. Probabilistic Seeding
-```matlab
-% Proposed: FA-weighted random seeding
-seed_probability = (nim.FA - min_fa) / (max_fa - min_fa);
-if rand() < seed_probability(voxel)
-    % Generate seed
-end
-```
-
-#### 3. Track Clustering
-```matlab
-% Proposed: Group similar tracks for analysis
-track_clusters = cluster_tracks_by_similarity(tracks, similarity_threshold);
-```
-
-### Long-term Research Directions
-
-#### 1. Multi-Shell Integration
-- Support for multiple b-value acquisitions
-- Advanced diffusion models (NODDI, CHARMED)
-- Microstructural parameter mapping
-
-#### 2. Machine Learning Integration
-- AI-guided seed placement
-- Deep learning track classification
-- Automated quality assessment
-
-#### 3. Real-time Processing
-- GPU acceleration for interpolation
-- Parallel tracking algorithms
-- Streaming data processing
-
-### Code Modularity Improvements
-
-#### Proposed Refactoring
-```matlab
-% Separate concerns for better maintainability
-tracker = TractographyTracker(nim, options);
-seeds = SeedGenerator(tracker.get_seed_mask(), options);
-tracks = tracker.track_all_seeds(seeds);
-visualizer = TrackVisualizer(tracks, nim);
-```
-
-## Conclusion
-
-The HINEC standard tractography implementation provides a robust, optimized solution for deterministic fiber tracking in diffusion MRI data. Key strengths include:
-
-**Technical Excellence:**
-
-- Comprehensive parameter validation and error handling
-- Performance optimizations achieving 2,000+ tracking steps per second
-- Automatic quality assessment and detailed timing diagnostics
-- Memory-efficient track storage and processing
-
-**Usability Features:**
-
-- Simple entry points for common use cases
-- Extensive visualization capabilities  
-- Automatic result saving with metadata
-- Integration with the complete HINEC pipeline
-
-**Scientific Validity:**
-
-- Biologically plausible tracking constraints
-- Proper handling of anisotropy-based termination
-- Support for brain mask boundaries
-- Statistical validation of results
-
-The implementation balances computational efficiency with tracking quality, making it suitable for both research applications and clinical workflows. While focused on deterministic tracking, the modular design allows for future extensions to probabilistic methods and advanced diffusion models.
-
-For most applications, the default parameters provide excellent results. Advanced users can fine-tune parameters based on their specific research requirements and data characteristics. The comprehensive diagnostic output enables optimization for specific datasets and quality assessment of tracking results.
+Every track is the full polyline; row counts vary per track. Coordinates stay in
+voxel space throughout — conversion to world/RAS coordinates happens only at
+export, in `scripts/hinec_to_trk.py`, using the DWI affine.
+
+## Diagnostics
+
+With `tractography.diagnostics: true` the tracker prints, after the run:
+
+- a timing report — total, eigenvector verification, seed generation, tracking,
+  boundary-check time, total voxel steps, average voxels per track, voxels per
+  second;
+- a failure analysis — seeds with no initial direction, successful tracks,
+  failures during generation;
+- the termination-reason breakdown tabulated above, sorted by frequency;
+- a warning when the success rate falls below 10%, which usually means the FA
+  floor or the seed mask is wrong.
+
+`runTractography` additionally writes `track_statistics.txt` into the run
+directory's diagnostics folder.
+
+## Limitations
+
+- **Single tensor model.** One principal eigenvector per voxel cannot represent
+  crossing fibres, and streamlines terminate or take the dominant branch at a
+  crossing. Use `algorithm: hinec` with `field: csd` for multi-peak direction
+  resolution.
+- **No interpolation.** Direction is piecewise constant, so tracks are visibly
+  faceted and turn only at voxel boundaries. This is FACT's definition, not a
+  gap; it is also why FACT has no meaningful order of accuracy to verify — see
+  [Solution Verification](CONVERGENCE.md), which covers the interpolated
+  trackers.
+- **Deterministic only.** There is no probabilistic variant; low-probability
+  pathways are not sampled.
+- **Voxel-space output.** Anything requiring physical units (millimetre lengths,
+  world-space overlays) must apply the affine downstream.
+
+## See also
+
+- [Methods Overview](TRACTOGRAPHY_METHODS.md) — how the three trackers relate
+- [High-Order Methods](High_Order.md) — the interpolated tracker
+- [MMF Connection-Form](MMF_TRACTOGRAPHY.md) — moving-frame tracking
+- [Seeding Strategy](SEEDING_STRATEGY.md)
+- [YAML Configuration Reference](YAML_CONFIG.md) and its
+  [changelog](CHANGELOG_YAML.md)
+- [Visualization Guide](VISUALIZATION_GUIDE.md) — `visualizeTractography`,
+  `visualizeTractographySlices` and the slice-cache viewer
+
+## Reference
+
+Mori, S., Crain, B. J., Chacko, V. P., & van Zijl, P. C. (1999).
+Three-dimensional tracking of axonal projections in the brain by magnetic
+resonance imaging. *Annals of Neurology*, 45(2), 265-269.

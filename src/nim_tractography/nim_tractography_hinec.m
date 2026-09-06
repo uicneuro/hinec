@@ -32,8 +32,10 @@ function [tracks, meta] = nim_tractography_hinec(data_path, varargin)
 %
 % HIGH-ORDER TRACTOGRAPHY PARAMETERS:
 %   step_size - Fixed integration step size in voxel units (default: 0.2)
-%   interp_method - Interpolation method: 'trilinear' or 'none' (default: 'trilinear')
-%   integration_order - 1=Euler, 2=RK2, 4=RK4, 5=RKF45 (default: 4)
+%   interp_method - Spatial kernel: 'trilinear' (C0) | 'cubic' (C1) | 'spline' (C2)
+%                   (default: 'trilinear'). The smoothness caps the reachable order.
+%   integration_order - 1=Euler, 2=RK2, 4=RK4, 5=RKF45 (default: 4). Configs spell
+%                   this integrator.method; this is the internal numeric form.
 %   adaptive_step - Enable RKF adaptive step sizing (default: false)
 %   rkf_tolerance - Error tolerance for RKF in voxel units (default: 0.01)
 %   rkf_safety - Safety factor for step adjustment (default: 0.9)
@@ -45,7 +47,10 @@ function [tracks, meta] = nim_tractography_hinec(data_path, varargin)
 %   seed_density - Seeds per voxel with flexible positioning (default: 1)
 %
 % ACT PARAMETERS:
-%   act_enabled - Enable anatomically constrained tracking (default: true)
+%   act_enabled - Anatomically constrained tracking. Defaults true HERE, but the
+%                 config schema defaults tractography.act to FALSE, and
+%                 runTractography passes empty masks when it is off - so ACT is
+%                 off unless a config asks for it.
 %   wm_mask - White matter mask for seeding and propagation
 %   gm_mask - Gray matter mask for valid termination points
 %   csf_mask - CSF mask for invalid termination (avoid CSF entry)
@@ -240,10 +245,11 @@ fprintf('HINEC: Creating griddedInterpolant objects for fast interpolation...\n'
 %                first derivative is continuous and its second is not.
 %   spline    -> MATLAB 'spline', C2: a genuine cubic spline
 %
-% The C1/C2 distinction is the point of having 'spline' at all: measured on this
-% data, RK4 reaches order 2.02 on trilinear and 2.02 on cubic - identical, which
-% is what a cap below C2 predicts, since C0 and C1 are both short of what order 3
-% would require.
+% The smoothness sets the reachable order directly: measured on this data, RK4
+% reaches observed order 2.00 on trilinear, 3.06 on cubic and 4.00 on spline -
+% one order per continuous derivative, on an unchanged tableau. An earlier
+% measurement put trilinear and cubic level at 2.02 and concluded the kernel did
+% not matter; that was two O(h^2) artefacts in the error metric, not the field.
 switch lower(char(string(options.interp_method)))
     case 'cubic',  interp_method = 'cubic';
     case 'spline', interp_method = 'spline';
@@ -1065,7 +1071,8 @@ end
 
 
 function [new_pos, error_est, success] = rkf45_integration_step(nim, pos, dir_vec, options)
-% HINEC: Runge-Kutta-Fehlberg 4(5) adaptive integration step
+% HINEC: Dormand-Prince adaptive integration step (spelled rkf45 in the config).
+% Advances on the 5th-order solution; the embedded 4th-order one sizes the step.
 %
 % RKF45 (Dormand-Prince) EMBEDDED RK PAIR:
 % - 7 stages with shared k_i evaluations

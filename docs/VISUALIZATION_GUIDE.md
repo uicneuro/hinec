@@ -8,15 +8,18 @@ Unified guide to all visualization capabilities in HINEC. Covers DTI visualizati
 
 HINEC provides multiple visualization tools optimized for different tasks:
 
-| Tool | Type | Speed | Use Case |
-|---|---|---|---|
-| `nim_plot` | DTI eigenvectors | Instant | Quick DTI quality check |
-| `visualizeTractography` | 3D tractography | 5-30s | Comprehensive 3D exploration |
-| `visualizeTractographySlices` | 2D slices | 5-30s/slice | Detailed slice-by-slice inspection |
-| `generateSlices` + `FastTractographyViewer.py` | Pre-computed 2D | <100ms/slice | Fast daily navigation |
-| `nim_plot_tractography` | Basic 3D | 2-10s | Quick track visualization |
-| `nim_plot_connectivity_matrix` | 2D heatmap | 1-5s | Connectivity analysis |
-| `nim_plot_vector_field` | 2D quiver | 1-2s | Direction field inspection |
+| Tool | Type | Use case |
+|---|---|---|
+| `nim_plot` | DTI eigenvectors | DTI quality check |
+| `visualizeTractography` | 3D tractography | whole-brain and per-region exploration |
+| `visualizeTractographyAngles` | 3D, batch export | headless figure export from 8 anatomical views |
+| `visualizeTractographySlices` | 2D slices | slice-by-slice inspection |
+| `generateSlices` + `FastTractographyViewer.py` | pre-computed 2D | fast slice navigation without MATLAB |
+| `nim_plot_bundles` | 3D streamline sets | comparing bundles in one shared frame |
+| `nim_plot_vs_groundtruth` | 3D overlay | ours against an ISMRM ground-truth bundle |
+| `nim_plot_tractography` | basic 3D | quick look at a track set |
+| `nim_plot_connectivity_matrix` | 2D heatmap | connectivity analysis |
+| `nim_plot_vector_field` | 2D quiver | direction-field inspection |
 
 ### Decision Tree: Which Tool to Use
 
@@ -27,11 +30,13 @@ What do you need?
 ├── Specific brain region analysis → visualizeTractography('mode', 'region')
 ├── All regions at once → visualizeTractography('mode', 'grid')
 ├── Step through regions one by one → visualizeTractography('mode', 'sequential')
-├── Slice-by-slice inspection (interactive) → visualizeTractographySlices
-├── Fast daily slice navigation → generateSlices + FastTractographyViewer.py
+├── Slice-by-slice inspection → visualizeTractographySlices
+├── Fast slice navigation → generateSlices + FastTractographyViewer.py
+├── One or more bundles side by side → nim_plot_bundles
+├── Ours vs ISMRM ground truth → nim_plot_vs_groundtruth
 ├── Connectivity between regions → nim_plot_connectivity_matrix
 ├── Direction field on a slice → nim_plot_vector_field
-└── Publication figures → visualizeTractography with 'export' option
+└── Publication figures → visualizeTractography with 'export_dir'
 ```
 
 ---
@@ -62,7 +67,7 @@ Shows eigenvectors for a single region or the whole volume.
 
 **Single parcel**:
 ```matlab
-nim_plot(nim, 'mode', 'parcel', 'region_id', 5);
+nim_plot(nim, 'mode', 'parcel', 'parcel_id', 5);
 ```
 Shows eigenvectors within a specific parcellation region.
 
@@ -74,18 +79,24 @@ Creates one figure per parcellation region. Useful for surveying all regions.
 
 ### Performance
 
-For large datasets, use downsampling:
+For large datasets, downsample:
 ```matlab
-nim_plot(nim, 'mode', 'single', 'downsample', 3);  % Show every 3rd voxel
+nim_plot(nim, 'mode', 'single', 'downsample_factor', 3);  % every 3rd voxel
 ```
+
+`indx`/`indy`/`indz` restrict `mode: single` to an explicit voxel index range;
+`figindex`, `show_figure` and `show_progress` control figure handling.
 
 ---
 
 ## 3. 3D Tractography Visualization (`visualizeTractography`)
 
-**File**: `src/nim_visualization/visualizeTractography.m` (1609 lines)
+**File**: `src/nim_visualization/visualizeTractography.m`
 
-The primary tool for comprehensive 3D tractography visualization. Supports 4 modes, multiple color schemes, track filtering, run directory auto-detection, and export.
+The primary tool for 3D tractography visualization. It supersedes the older
+`visualizeTractographyRegion`, `visualizeTractographyAllRegions` and
+`nim_plot_tractography_region` entry points, and supports four modes, several
+colour schemes, track filtering, run-directory auto-detection and export.
 
 ### Input Flexibility
 
@@ -93,8 +104,8 @@ The primary tool for comprehensive 3D tractography visualization. Supports 4 mod
 % Direct file paths
 visualizeTractography('path/to/tracks.mat', 'path/to/nim.mat');
 
-% From run directory (auto-detects latest tracks)
-visualizeTractography('hinec_runs/run_2025-01-15/', 'path/to/nim.mat');
+% From a run directory (auto-detects nim + latest tracks; wildcards allowed)
+visualizeTractography('hinec_runs/run_<TIMESTAMP>_<config>/');
 
 % Wildcard support
 visualizeTractography('tractography_results/tracks_hinec_*.mat', 'output/*.mat');
@@ -110,7 +121,7 @@ visualizeTractography('tracks.mat', 'nim.mat', 'mode', 'whole');
 % With custom settings
 visualizeTractography('tracks.mat', 'nim.mat', ...
     'mode', 'whole', ...
-    'max_tracks', 10000, ...
+    'max_tracts', 10000, ...
     'color_mode', 'direction');
 ```
 
@@ -122,13 +133,16 @@ Focused view of tracks associated with specific brain regions.
 % Single region
 visualizeTractography('tracks.mat', 'nim.mat', ...
     'mode', 'region', ...
-    'regions', [5]);
+    'region', 5);
 
 % Multiple regions
 visualizeTractography('tracks.mat', 'nim.mat', ...
     'mode', 'region', ...
-    'regions', [5, 10, 15]);
+    'region', [5, 10, 15]);
 ```
+
+The parameter is `region` (singular). `visualizeTractographySlices` uses
+`regions` for the same idea, so check which function you are calling.
 
 ### Mode: Grid
 
@@ -174,7 +188,7 @@ Control which tracks are displayed based on their relationship to brain regions:
 ```matlab
 visualizeTractography('tracks.mat', 'nim.mat', ...
     'mode', 'region', ...
-    'regions', [5], ...
+    'region', 5, ...
     'filter_mode', 'start_in');
 ```
 
@@ -182,71 +196,79 @@ See [REGION_VISUALIZATION_EXAMPLES.md](REGION_VISUALIZATION_EXAMPLES.md) for det
 
 ### Export
 
+Export takes a *directory* plus a format, not a filename: `export_dir`,
+`export_format` (`png`, `pdf`, `eps`, `fig`) and `export_dpi`. Subdirectories are
+created automatically, and figures are not displayed while exporting unless
+`silent_export` is set false.
+
 ```matlab
-% PNG (raster, best for presentations)
-visualizeTractography('tracks.mat', 'nim.mat', 'export', 'figures/brain.png');
+% PNG (raster, for presentations)
+visualizeTractography('tracks.mat', 'nim.mat', 'export_dir', 'figures/');
 
-% PDF (vector, best for publications)
-visualizeTractography('tracks.mat', 'nim.mat', 'export', 'figures/brain.pdf');
+% PDF (vector, for publications)
+visualizeTractography('tracks.mat', 'nim.mat', ...
+    'export_dir', 'figures/', 'export_format', 'pdf');
 
-% EPS (vector, for LaTeX)
-visualizeTractography('tracks.mat', 'nim.mat', 'export', 'figures/brain.eps');
-
-% MATLAB figure (for later editing)
-visualizeTractography('tracks.mat', 'nim.mat', 'export', 'figures/brain.fig');
+% MATLAB figure, for later editing
+visualizeTractography('tracks.mat', 'nim.mat', ...
+    'export_dir', 'figures/', 'export_format', 'fig');
 ```
 
 ---
 
-## 4. Interactive Slice Viewer (`visualizeTractographySlices`)
+## 4. Orthogonal Slice Viewer (`visualizeTractographySlices`)
 
-**File**: `src/nim_visualization/visualizeTractographySlices.m` (536 lines)
+**File**: `src/nim_visualization/visualizeTractographySlices.m`
 
-Displays tractography on three orthogonal anatomical slices: axial (top-down), sagittal (side), and coronal (front).
+Displays tractography on three orthogonal anatomical slices: sagittal, coronal
+and axial. The three slice positions are **required positional arguments**, in
+`x, y, z` order.
 
 ### Basic Usage
 
 ```matlab
-visualizeTractographySlices('tracks.mat', 'nim.mat');
+% x = sagittal, y = coronal, z = axial
+visualizeTractographySlices('tracks.mat', 'nim.mat', 60, 50, 45);
 ```
 
 ### Parameters
 
 ```matlab
-visualizeTractographySlices('tracks.mat', 'nim.mat', ...
-    'slice_axial', 45, ...       % Specific axial slice
-    'slice_sagittal', 60, ...    % Specific sagittal slice
-    'slice_coronal', 50, ...     % Specific coronal slice
-    'tolerance', 2.0, ...        % Slice thickness (mm) for track inclusion
-    'regions', [5, 10]);         % Filter by regions
+visualizeTractographySlices('tracks.mat', 'nim.mat', 60, 50, 45, ...
+    'tolerance', 2.0, ...          % slice thickness in voxels for track inclusion
+    'regions', [5, 10], ...        % filter by parcellation region
+    'region_filter', 'start_in', ...% 'pass_through' | 'start_in' | 'end_in'
+    'min_overlap', 0.1, ...        % minimum track-region overlap
+    'color_mode', 'direction', ... % 'direction' | 'uniform'
+    'show_anatomy', true, ...      % FA background
+    'alpha', 0.6, ...              % FA background transparency
+    'show_crosshairs', true, ...   % draw the slice intersections
+    'save', 'figures/slices.png'); % write a PNG instead of only displaying
 ```
 
 ### Features
 
-- **Three synchronized views**: Axial, sagittal, and coronal planes
-- **Crosshair synchronization**: Click in one view to update the others
-- **FA background**: Anatomy overlay showing tissue structure
-- **Region filtering**: Display only tracks through specific brain regions
-- **Batch export**: Save all slices as PNG images
+- **Three views**: sagittal, coronal and axial planes at the requested positions
+- **Crosshairs**: the slice intersections drawn on each panel
+- **FA background**: anatomy overlay showing tissue structure
+- **Region filtering**: display only tracks related to given parcellation regions
+- **PNG export**: via `save`
 
 ### Performance
 
-Each slice update takes 5-30 seconds due to real-time computation of track-slice intersections. For faster navigation, use the distributed workflow below.
-
-### Batch Export
-
-```matlab
-visualizeTractographySlices('tracks.mat', 'nim.mat', ...
-    'export_dir', 'figures/slices/');
-```
+Each render recomputes track–slice intersections, so stepping through many slice
+positions interactively is slow. For that, pre-compute a cache and use the
+distributed workflow below.
 
 ---
 
 ## 5. Fast Distributed Viewer Workflow
 
-For sub-100ms slice navigation, pre-compute all slice images on a server and view them locally with a lightweight Python GUI.
+Pre-compute every slice image once on a server, then page through them locally with a lightweight Python GUI. Navigation cost drops to an image load, and the local machine needs no MATLAB.
 
 ### Step 1: Generate Cache (Server, MATLAB)
+
+Options are passed as a **struct**, not name-value pairs.
 
 ```matlab
 % Basic generation
@@ -254,27 +276,31 @@ addpath('src/nim_visualization');
 generateSlices('tracks.mat', 'nim.mat', '/export/slices');
 
 % With custom settings
-generateSlices('tracks.mat', 'nim.mat', '/export/slices', ...
-    'resolution', [1024, 768], ...
-    'format', 'png', ...
-    'parallel', true);
+opts.image_resolution = [1024, 768];
+opts.image_format     = 'png';       % 'png' | 'jpg'
+opts.tolerance        = 2;           % slice thickness in voxels
+opts.regions          = [];          % [] = all regions
+generateSlices('tracks.mat', 'nim.mat', '/export/slices', opts);
 ```
 
-This creates a cache directory structure:
+The cache is keyed by dataset and by rendering parameters, so several parameter
+sets can coexist under one output directory:
+
 ```
 /export/slices/
-├── metadata.json          # Dataset info, parameters
-├── axial/                 # Axial slice images
-│   ├── slice_001.png
-│   ├── slice_002.png
-│   └── ...
-├── sagittal/              # Sagittal slice images
-│   └── ...
-└── coronal/               # Coronal slice images
-    └── ...
+└── datasets/
+    └── <dataset_hash>/
+        ├── metadata.json
+        └── parameters/
+            └── <param_hash>/
+                ├── config.json
+                ├── axial/*.png
+                ├── sagittal/*.png
+                └── coronal/*.png
 ```
 
-Generation time depends on brain dimensions and number of tracks. Parallel processing is used when available.
+Generation time depends on brain dimensions and track count. Workers are used
+when the Parallel Computing Toolbox is available (`opts.parallel_workers`).
 
 ### Step 2: Transfer (rsync/scp)
 
@@ -300,7 +326,7 @@ python scripts/FastTractographyViewer.py ~/local/slices/
 
 - **Three synchronized panels**: Axial, sagittal, coronal views
 - **Keyboard navigation**: Arrow keys to scroll through slices
-- **Sub-100ms transitions**: Pre-computed images load instantly
+- **Fast transitions**: slices are pre-rendered, so paging is an image load
 - **Image caching**: In-memory cache for smooth scrolling
 - **Performance monitoring**: Real-time display of load times
 - **Export**: Save current view or batch export
@@ -343,8 +369,8 @@ Creates a 4-panel figure:
 ### Options
 
 ```matlab
-options.min_track_length = 15;   % Only count tracks with 15+ points
-options.normalize = true;        % Normalize to [0, 1]
+options.min_track_length = 15;   % only count tracks with 15+ points (default 10)
+options.normalize = true;        % normalise to [0, 1]
 options.symmetric = true;        % C(i,j) = C(j,i)
 C = nim_plot_connectivity_matrix(tracks, nim, options);
 ```
@@ -357,17 +383,92 @@ C = nim_plot_connectivity_matrix(tracks, nim, options);
 
 Displays the primary eigenvector direction field on a 2D anatomical slice. Useful for verifying DTI direction estimates and understanding local fiber architecture.
 
+Options are passed as a struct.
+
 ```matlab
-nim_plot_vector_field(nim);                                  % Default: axial, middle slice
-nim_plot_vector_field(nim, 'axis_view', 'sagittal');          % Sagittal view
-nim_plot_vector_field(nim, 'slice', 30, 'downsample', 3);    % Specific slice, sparser
+nim_plot_vector_field(nim);                    % default: axial, middle slice
+
+opts.axis_view = 'sagittal';
+nim_plot_vector_field(nim, opts);
+
+opts = struct('slice', 30, 'downsample', 3);   % specific slice, sparser quiver
+nim_plot_vector_field(nim, opts);
 ```
 
-Vectors are masked by FA > 0.2 (only shown in white matter) and overlaid on an FA background image.
+Vectors are masked at FA > 0.2, so only white matter is drawn, and overlaid on an
+FA background image.
 
 ---
 
-## 8. Presentation and Publication Figures
+## 8. Bundle Rendering (`nim_plot_bundles`, `nim_plot_vs_groundtruth`)
+
+**Files**: `src/nim_visualization/nim_plot_bundles.m`,
+`src/nim_visualization/nim_plot_vs_groundtruth.m`
+
+These two render *streamline sets* rather than a whole tractogram, in a shared
+voxel frame with fixed limits across panels, and they are what produced the
+bundle figures in [ISMRM Scoring](ISMRM_SCORING_ANALYSIS.md).
+
+### `nim_plot_bundles`
+
+Takes a struct array of items, one per streamline set, and draws each across four
+views (sagittal, coronal, axial, oblique) by default.
+
+```matlab
+items(1).tracks = gt_tracks;              % cell array of Nx3 voxel polylines
+items(1).name   = 'ground truth';
+items(1).color  = [0.62 0.63 0.66];       % flat grey
+items(1).alpha  = 0.2;
+
+items(2).tracks = our_tracks;
+items(2).name   = 'ours';
+items(2).color  = [];                     % [] = colour each segment by direction
+items(2).clip   = bundle_mask;            % optional: trim to a corridor
+
+opts = struct('title', 'UF right', 'save', 'docs/img/bundle_uf_right', 'dpi', 150);
+fig = nim_plot_bundles(items, opts);
+```
+
+Per item: `tracks`, `name`, `color` (`[]` for direction encoding — |dx| red, |dy|
+green, |dz| blue, applied per segment), `alpha`, `width`, and `clip`. Per figure:
+`views`, `title`, `subtitle`, `save` (a path stem; `.png` is appended), `dpi`,
+`maxper` (streamlines drawn per item, default 900).
+
+!!! note "`clip` trims, it does not reject"
+    With `clip` set, each streamline is reduced to its longest contiguous run
+    inside the mask, and the fraction of length that fell outside is returned in
+    `items(i).frac_outside`. This is deliberately *not* the scorer's rule, which
+    discards a streamline entirely if any point leaves the corridor — that rule
+    makes an overshooting streamline vanish, so the figure shows a bundle
+    stopping short when it in fact reached too far. Rejection lives in
+    `nim_filter_tracks_roi` and is what scoring uses.
+
+### `nim_plot_vs_groundtruth`
+
+Overlays our streamlines (orange) on an ISMRM ground-truth bundle (grey) across
+the same four views.
+
+```matlab
+opts = struct('max_gt', 700, 'max_ours', 700, ...
+              'title', 'UF right', 'save', 'figures/uf_right');
+nim_plot_vs_groundtruth(run_dir_or_tracks_mat, gt_trk, ref_nii, opts);
+```
+
+The ground truth arrives on the 1 mm 180×216×180 scoring grid and is mapped
+through world RAS into the DWI's 2 mm 90×108×90 voxel space by `nim_read_trk`.
+Skipping that step draws the ground truth at half scale in a corner, which looks
+like a tracking failure and is a units bug.
+
+### Figures in the docs
+
+`docs/img/` holds the rendered outputs used across this documentation:
+`tractogram_whole_brain.png`, `tractogram_bundles.png`, and one `bundle_*.png`
+per bundle (`bundle_bps_right`, `bundle_cc_u_shaped`, `bundle_cingulum_right`,
+`bundle_ilf_right`, `bundle_slf_right`, `bundle_uf_right`).
+
+---
+
+## 9. Presentation and Publication Figures
 
 ### Method Comparison Visualizations
 
@@ -389,28 +490,25 @@ visualize_tractography_slice;
 
 ### Export Settings for Publications
 
-For publication-quality figures:
-
 ```matlab
 % High-resolution PNG
 visualizeTractography('tracks.mat', 'nim.mat', ...
     'mode', 'whole', ...
-    'max_tracks', 20000, ...
-    'export', 'figures/fig1_whole_brain.png');
+    'max_tracts', 20000, ...
+    'export_dir', 'figures/', 'export_dpi', 600);
 
 % Vector format for LaTeX
 visualizeTractography('tracks.mat', 'nim.mat', ...
-    'mode', 'region', ...
-    'regions', [5], ...
-    'export', 'figures/fig2_region.eps');
+    'mode', 'region', 'region', 5, ...
+    'export_dir', 'figures/', 'export_format', 'eps');
 
-% MATLAB figure for further customization
+% MATLAB figure for further customisation
 visualizeTractography('tracks.mat', 'nim.mat', ...
     'mode', 'whole', ...
-    'export', 'figures/fig1.fig');
-% Then open and customize:
-openfig('figures/fig1.fig');
-set(gcf, 'PaperSize', [8 6]);  % Adjust paper size
+    'export_dir', 'figures/', 'export_format', 'fig');
+% Then open and adjust:
+openfig('figures/tractography_whole.fig');
+set(gcf, 'PaperSize', [8 6]);
 print('-dpdf', '-r300', 'figures/fig1_final.pdf');
 ```
 
@@ -427,57 +525,67 @@ print('-dpdf', '-r300', 'figures/fig1_final.pdf');
 
 ## CLI Export with Shell Script
 
-Export tractography figures from the command line without an interactive MATLAB session. The script wraps `visualizeTractography()` with `export_dir` set and runs in the background.
+Export tractography figures from the command line without an interactive MATLAB
+session. The script wraps `visualizeTractographyAngles()`, which renders the same
+track set from eight standard anatomical viewpoints, and runs MATLAB in the
+background.
 
 ### Usage
 
 ```bash
-# From a run directory (auto-detects tracks + nim)
-./bin/run_visualization.sh <run_dir> [output_dir] [mode] [format] [region] [dpi]
+# From a run directory (auto-detects tracks + nim; figures go to <run_dir>/figures/)
+./bin/run_visualization.sh <run_dir> [format] [region] [dpi]
 
-# With explicit file paths
-./bin/run_visualization.sh <tracks_file> <nim_file> [output_dir] [mode] [format] [region] [dpi]
+# With explicit file paths (output_dir is required in this form)
+./bin/run_visualization.sh <tracks_file> <nim_file> <output_dir> [format] [region] [dpi]
 ```
+
+There is no mode argument: the script always generates all eight views
+(superior, inferior, anterior, posterior, left, right, oblique_left,
+oblique_right).
 
 ### Arguments
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `output_dir` | `<run_dir>/figures/` | Where to save exported images |
-| `mode` | `whole` | `whole`, `region`, `grid`, `sequential` |
+| `output_dir` | `<run_dir>/figures/` in run-dir form; required in explicit form | where to save exported images |
 | `format` | `png` | `png`, `pdf`, `eps` |
-| `region` | — | Region ID(s) for region mode (e.g., `5` or `5,10,15`) |
-| `dpi` | `300` | Export resolution |
+| `region` | — | region ID(s) to filter by, e.g. `5` or `5,10,15`; omitted means all tracks |
+| `dpi` | `300` | export resolution |
 
 ### Examples
 
 ```bash
-# Whole brain 3D view (default)
-./bin/run_visualization.sh hinec_runs/run_20260330_124146_standard_dti/
+# Whole brain, all eight views
+./bin/run_visualization.sh hinec_runs/run_<TIMESTAMP>_standard_dti/
 
-# Grid layout of all regions as PDF
-./bin/run_visualization.sh hinec_runs/run_20260330_*/ '' grid pdf
+# PDF at high DPI
+./bin/run_visualization.sh hinec_runs/run_<TIMESTAMP>_standard_dti/ pdf '' 600
 
-# Specific regions at high resolution
-./bin/run_visualization.sh hinec_runs/run_20260330_*/ '' region png '5,10,15' 600
+# Specific regions
+./bin/run_visualization.sh hinec_runs/run_<TIMESTAMP>_standard_dti/ png '5,10,15'
 
-# Custom output directory with explicit files
-./bin/run_visualization.sh tracks.mat nim.mat publication_figures/ whole pdf '' 600
+# Explicit files and output directory
+./bin/run_visualization.sh tracks.mat nim.mat publication_figures/ pdf '' 600
 ```
 
-### Output Structure
+### Output
+
+Files land flat in the output directory, one per view:
 
 ```
 <output_dir>/
-├── whole/              tractography_whole.png
-├── region/             tractography_region-05.png
-├── grid/               tractography_grid.png
-├── sequential/         sequential_region-01.png, ...
-└── metadata/
-    └── export_log.txt  (reproducibility metadata)
+├── tractography_superior.png
+├── tractography_inferior.png
+├── tractography_anterior.png
+├── ...
+└── tractography_oblique_right.png
 ```
 
-Logs are saved to `<run_dir>/logs/visualization_<timestamp>.log`. Monitor with `tail -f`.
+With a region filter the names carry a region suffix. In run-directory form logs
+go to `<run_dir>/logs/visualization_<timestamp>.log`; otherwise
+`visualization_<timestamp>.log` in the working directory. Monitor with
+`tail -f`.
 
 ---
 

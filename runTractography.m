@@ -271,7 +271,11 @@ if act_enabled && isfield(nim, 'wm_mask') && isfield(nim, 'gm_mask') && isfield(
             gm_voxels, 100 * gm_voxels / numel(nim.FA));
     fprintf('  CSF mask: %d voxels (%.1f%% of volume)\n', ...
             csf_voxels, 100 * csf_voxels / numel(nim.FA));
-    fprintf('  ACT will constrain seeding to WM and terminate at GM/CSF boundaries\n');
+    % Only the termination half of ACT is implemented: check_tissue_type stops a
+    % streamline at GM (kept) or CSF (discarded). Nothing intersects the seed mask
+    % with wm_mask, so seeding is NOT WM-constrained - say so rather than claiming it.
+    fprintf('  ACT will terminate at GM (valid) and CSF (discarded) boundaries\n');
+    fprintf('  Note: seeding is NOT constrained to WM; that half of ACT is not implemented\n');
 else
     % ACT off. Hand the tracker empty masks either way - it decides whether ACT
     % is active purely from whether it received them - but say WHICH of the two

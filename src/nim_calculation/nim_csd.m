@@ -20,8 +20,8 @@ function nim = nim_csd(nim, options)
 %       .fod_lambda    non-negativity regularization weight (1.0)
 %       .fod_thresh    FOD amplitude treated as "negative" (0.1 * mean)
 %       .n_iter        CSD iterations (50)
-%       .peak_thresh   min peak amplitude, fraction of max FOD (0.1)
-%       .peak_min_sep  min angular peak separation, degrees (25)
+%       .peak_thresh   min peak amplitude, fraction of max FOD (0.5)
+%       .peak_min_sep  min angular peak separation, degrees (45)
 %       .max_peaks     max peaks kept per voxel (3)
 %       .response      [optional] precomputed zonal response r_l (row) to skip est.
 %
@@ -32,8 +32,8 @@ o = @(f,d) getdef(options,f,d);
 sf_fa      = o('sf_fa',0.7);
 fod_lambda = o('fod_lambda',1.0);
 n_iter     = o('n_iter',50);
-peak_thresh= o('peak_thresh',0.1);
-peak_sep   = o('peak_min_sep',25);
+peak_thresh= o('peak_thresh',0.5);
+peak_sep   = o('peak_min_sep',45);
 max_peaks  = o('max_peaks',3);
 
 dims = size(nim.FA);

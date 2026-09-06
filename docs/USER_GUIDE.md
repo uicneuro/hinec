@@ -12,7 +12,7 @@ Practical guide for installing, configuring, running the HINEC pipeline, and int
 - **Required Toolboxes**:
   - Image Processing Toolbox
   - Statistics and Machine Learning Toolbox
-  - Tools for NIfTI and ANALYZE image (included in `lib/spm12/`)
+  - Tools for NIfTI and ANALYZE image (MATLAB File Exchange)
 
 Verify toolboxes:
 ```matlab
@@ -36,14 +36,18 @@ export PATH=$FSLDIR/bin:$PATH
 
 ### SPM12
 
-Included in the repository at `lib/spm12/`. No separate installation needed — `main.m` automatically adds it to the MATLAB path.
+Used for NIfTI I/O and as an optional registration backend. SPM12 is **not** vendored in this
+repository: install it at `lib/spm12/`, which is the path `main.m` adds with
+`addpath(genpath('lib/spm12'))`.
 
 ### Python (Optional)
 
-Required only for the fast distributed slice viewer:
+Not needed for the MATLAB pipeline. Required for the fast distributed slice viewer, for TRK
+export, and for the ISMRM scoring tooling:
+
 - Python 3.7+
-- `pip install Pillow numpy`
-- tkinter (usually included with Python)
+- `pip install -r requirements.txt`
+- tkinter for the viewer's GUI (usually included with Python)
 
 ---
 
@@ -76,7 +80,7 @@ cd /path/to/hinec
 ./bin/run_hinec.sh data/parcellation_sample/sample sample.mat
 
 # Export visualization figures (after pipeline completes)
-./bin/run_visualization.sh hinec_runs/run_*_hinec_default/ figures/sample
+./bin/run_visualization.sh hinec_runs/latest/
 ```
 
 The first argument is a **data prefix** — this is the shared path and name that all your input files have in common, without any suffix or extension. For example, given these files:
@@ -86,7 +90,7 @@ data/parcellation_sample/
 ├── sample_raw.nii.gz    ← raw diffusion data
 ├── sample.bval          ← b-values
 ├── sample.bvec          ← b-vectors
-└── sample_T1.nii.gz     ← T1 anatomical (optional)
+└── sample_T1.nii.gz     ← T1 anatomical (optional; not shipped with this sample)
 ```
 
 The data prefix is `data/parcellation_sample/sample` — HINEC appends `_raw.nii.gz`, `.bval`, `.bvec`, etc. automatically.
@@ -117,28 +121,27 @@ load('output/sample.mat');
 nim_plot(nim, 'mode', 'single');
 ```
 
-Or use the pre-computed sample:
-
-```matlab
-load('data/parcellation_sample/sample_motion_corrected.mat');
-nim_plot(nim, 'mode', 'parcels');
-```
-
 ### Expected Output
 
-After `main()` completes, the output .mat file contains a `nim` struct with:
+After `main()` completes, the output `.mat` file contains a `nim` struct with:
+
 - `.img` — Original image data
 - `.DT` — Diffusion tensors (6 components per voxel)
 - `.evec` — Eigenvectors (fiber directions)
 - `.eval` — Eigenvalues (diffusion magnitudes)
 - `.FA` — Fractional anisotropy map
+- `.wm_mask`, `.gm_mask`, `.csf_mask` — Tissue masks for ACT
 - `.parcellation_mask` — Brain region labels
 - `.labels` — Region names
 
-After `runTractography()`, a tracks file appears in `tractography_results/` containing:
+After `runTractography()`, a tracks file is written to the run directory's `tractography/`
+(or to `tractography_results/` when no run directory is in use), containing:
+
 - `tracks` — Cell array of fiber pathways (each track is an Nx3 matrix)
-- `options` — Parameters used
+- `options` — Flat option struct actually passed to the tracker
+- `algorithm` — Tracker that produced the tracks
 - `elapsed_time` — Processing time
+- `track_meta` — Per-track metadata
 
 ---
 
@@ -146,49 +149,82 @@ After `runTractography()`, a tracks file appears in `tractography_results/` cont
 
 ### Option A: MATLAB Direct
 
+`main` and `runTractography` take **positional** optional arguments, not name-value pairs;
+the argument's type selects its meaning (see the parsing block at the top of each file).
+
 ```matlab
 % Basic usage (preprocessed data)
 main('path/to/data/subject', 'output/subject.mat');
 
-% With T1 for registration-enhanced parcellation
+% With T1 for registration-enhanced parcellation (3rd argument = T1 path)
 main('path/to/data/subject_raw', 'output/subject.mat', ...
-     't1_file', 'path/to/data/subject_t1.nii.gz');
+     'path/to/data/subject_T1.nii.gz');
 
-% With YAML configuration
+% With YAML configuration (3rd argument = config struct)
 config = load_config_yaml('config/hinec_dti_cubic.yml');
-main('path/to/data/subject', 'output/subject.mat', 'config', config);
+main('path/to/data/subject', 'output/subject.mat', config);
 
-% With run directory organization
-config = load_config_yaml('config/hinec_default.yml');
+% With run directory organization (4th argument = run_info struct)
+config   = load_config_yaml('config/hinec_default.yml');
 run_info = create_run_directory('config/hinec_default.yml', ...
     'description', 'First processing run');
-main('path/to/data/subject', 'output/subject.mat', ...
-     'config', config, 'run_info', run_info);
+main('path/to/data/subject', 'output/subject.mat', config, run_info);
+runTractography(fullfile(run_info.output_dir, 'subject.mat'), config, run_info);
 ```
 
 ### Option B: Shell Script
 
 ```bash
-# Usage: ./bin/run_hinec.sh <data_prefix> <output_mat> [config_file]
+# Usage: ./bin/run_hinec.sh <data_prefix> <output_mat> [config_file] [--set key=value ...]
 
-# Default config (HINEC RK4 + cubic interpolation)
+# Default config (cubic interpolation + RK4 + ACT)
 ./bin/run_hinec.sh path/to/data/subject subject.mat
 
 # Standard FACT for comparison
 ./bin/run_hinec.sh path/to/data/subject subject.mat config/standard_dti.yml
 
-# High precision (publication quality)
+# Cubic interpolation with adaptive RKF45
 ./bin/run_hinec.sh path/to/data/subject subject.mat config/hinec_dti_cubic.yml
 
-# The script:
-# 1. Validates input files exist (<prefix>_raw.nii.gz, .bval, .bvec)
-# 2. Creates a timestamped run directory in hinec_runs/
-# 3. Runs preprocessing + DTI calculation (Phase 1)
-# 4. Runs tractography (Phase 2)
-# 5. Logs everything to <run_dir>/logs/pipeline.log
+# Override any config parameter on the command line
+./bin/run_hinec.sh path/to/data/subject subject.mat config/ismrm2015.yml \
+    --set seeding.density=8 --set integrator.method=rk4
 ```
 
-Note: `<data_prefix>` is the shared path without `_raw.nii.gz` — see [Quick Start](#3-quick-start) for examples.
+The script validates the input files (`<prefix>_raw.nii.gz`, `.bval`, `.bvec`), creates a
+timestamped run directory under `hinec_runs/`, then runs preprocessing plus DTI calculation
+followed by tractography in a single background `matlab -batch` process, logging to
+`<run_dir>/logs/pipeline.log`.
+
+`<data_prefix>` is the shared path without `_raw.nii.gz` — see [Quick Start](#3-quick-start)
+for examples.
+
+### Option C: Preprocess Once, Iterate Tractography
+
+Preprocessing is the expensive stage, and it does not change when you vary tracking
+parameters. `bin/run_tractography.sh` runs tractography **only**, against an
+already-preprocessed `nim`:
+
+```bash
+# 1. Preprocess once. main.m writes the canonical nim next to the input data.
+./bin/run_hinec.sh data/ismrm2015/ismrm2015 ismrm2015.mat config/ismrm2015.yml
+
+# 2. Run any number of tractography configs against it — no re-preprocessing.
+./bin/run_tractography.sh hinec_csd --score
+
+# 3. Sweep a parameter without writing new YAML files.
+for d in 2 4 8; do
+    ./bin/run_tractography.sh hinec_dti --set seeding.density=$d
+done
+```
+
+`<config>` accepts `config/<name>.yml` or the bare `<name>`. Each invocation produces its own
+run directory, tagged with any `--set` overrides and recording them in `overrides.txt`.
+`--source <nim|dir>` selects a different preprocessed source; `--score` runs
+`bin/run_ismrm_scoring.sh` on the finished run directory.
+
+Keep the processed `nim`, the preprocessed references and the CSD cache in the data directory;
+run directories hold tractography **outputs** only.
 
 ### Input Data Requirements
 
@@ -201,8 +237,13 @@ Note: `<data_prefix>` is the shared path without `_raw.nii.gz` — see [Quick St
 | `{name}_raw.nii.gz` | Alt | NIfTI-1 | Raw data (triggers preprocessing) |
 | `{name}_acqp.txt` | No | Text | Acquisition parameters (for eddy correction) |
 | `{name}_index.txt` | No | Text | Volume index (for eddy correction) |
+| `{name}_T1.nii.gz` | No | NIfTI-1 | T1 anatomical; enables T1-based brain extraction, registration and FAST tissue segmentation |
+| `{name}_fmap_Hz.nii.gz` | No | NIfTI-1 | Field map in Hz, for susceptibility distortion correction |
 
-**Raw vs preprocessed**: If the filename contains `_raw`, HINEC automatically runs FSL preprocessing. Otherwise, it assumes data is already preprocessed.
+**Raw vs preprocessed**: if the filename contains `_raw`, HINEC runs FSL preprocessing.
+Otherwise it assumes the data is already preprocessed. `main.m` short-circuits aggressively:
+an existing output `.mat` skips everything, and an existing preprocessed `.nii.gz` skips
+preprocessing. To force reprocessing, delete the target file.
 
 ---
 
@@ -210,35 +251,65 @@ Note: `<data_prefix>` is the shared path without `_raw.nii.gz` — see [Quick St
 
 ### Using YAML Presets
 
-HINEC provides 5 configuration presets in `config/`:
+Configs in `config/` fall into two families, distinguished by which launcher consumes them.
 
-| Preset | File | Algorithm | Integration | Best For |
+**Tracker configs** — `<algorithm>_<field>[_<variant>].yml`, for `bin/run_tractography.sh`:
+
+| File | Algorithm | Field | Integrator | Interpolation |
 |---|---|---|---|---|
-| Default | `hinec_default.yml` | hinec | RK4 | General use |
-| High Precision | `hinec_dti_cubic.yml` | hinec | RKF45 adaptive | Publication figures |
-| Fast Exploration | `hinec_dti_fast.yml` | hinec | RK2 | Quick parameter testing |
-| Standard FACT | `standard_dti.yml` | standard | Euler | Baseline comparison |
-| IronTract | `irontract.yml` | hinec | RK4 | IronTract challenge |
+| `standard_dti.yml` | standard (FACT) | dti | euler | none (discrete voxel) |
+| `hinec_dti.yml` | hinec | dti | rkf45 | trilinear |
+| `hinec_csd.yml` | hinec | csd | rkf45 | trilinear |
+| `hinec_dti_cubic.yml` | hinec | dti | rkf45 | cubic |
+| `hinec_dti_cubic_recall.yml` | hinec | dti | rkf45 | cubic (recall-tuned termination) |
+| `hinec_dti_fast.yml` | hinec | dti | rk2 | trilinear |
+| `hinec_dti_euler.yml` | hinec | dti | euler | trilinear |
+| `mmf_dti.yml` | mmf | dti | rk4 | trilinear |
+| `mmf_csd.yml` | mmf | csd | rk4 | trilinear |
+
+**Dataset configs** — `<dataset>[_variant].yml`, for `bin/run_hinec.sh`: `ismrm2015.yml` and
+`irontract.yml`. `hinec_default.yml` is the generic full-pipeline fallback and is the only
+config pairing a full preprocessing block with a general-purpose tractography block.
+`reference.yml` is a template for step-size convergence ladders, driven entirely from
+`--set`.
 
 ```matlab
-% Load a preset
+% Load a preset and pass it positionally
 config = load_config_yaml('config/hinec_dti_cubic.yml');
-
-% Use it
-main('data/subject', 'output/subject.mat', 'config', config);
-runTractography('output/subject.mat', 'config', config);
+main('data/subject', 'output/subject.mat', config);
+runTractography('output/subject.mat', config);
 ```
 
 ### Key Tractography Parameters
 
-| Parameter | Range | Default | Impact |
+Configuration nests exactly two levels below a section (`section` → `group` → `key`); a third
+level is a parse error. Defaults come from the schema, so a working config is usually short.
+
+| Parameter | Range | Default | Effect |
 |---|---|---|---|
-| `step_size` | 0.1 – 1.0 | 0.2 (HINEC), 0.5 (FACT) | Smaller = smoother, slower |
-| `fa_threshold` | 0.05 – 0.3 | 0.1 | Lower = more tracks, more noise |
-| `termination_fa` | 0.01 – 0.2 | 0.05 | Lower = longer tracks |
-| `angle_threshold` | 20 – 90 | 60 | Higher = allows sharper turns |
-| `seed_density` | 1 – 10 | 4 | Higher = denser coverage, slower |
-| `integration_order` | 1, 2, 4, 5 | 4 | Higher = more accurate |
+| `integrator.method` | euler, rk2, rk4, rkf45 | rk4 | Stepping scheme — a method name, not an order |
+| `integrator.step` | 1e-6 – 10 | 0.2 | Step in voxels; the initial step for rkf45 |
+| `interpolation.method` | trilinear, cubic, spline | trilinear | Kernel smoothness: C0, C1 (Keys convolution), C2 (true spline) |
+| `interpolation.upsample` | 0.05 – 8 | 1 | Field sampling factor: >1 refines, <1 coarsens |
+| `seeding.density` | 1 – 1000 | 8 | Seeds per seeded voxel, honoured exactly |
+| `seeding.fa_min` | 0 – 1 | 0.05 | Minimum FA for a voxel to be seeded |
+| `termination.fa_min` | 0 – 1 | 0.10 | Stop tracking below this FA |
+| `termination.angle_max` | 0 – 3600 | 225 | Maximum turn in **degrees per voxel of arc**; `0` disables |
+| `termination.max_arc` | 1 – 100000 | 400 | Maximum arc length in voxels |
+| `termination.min_arc` | 0 – 100000 | 15 | Discard tracks shorter than this arc length |
+| `act` | true/false | **false** | Anatomically constrained tracking |
+
+Two of these behave in ways worth stating explicitly.
+
+`termination.angle_max` is a curvature budget, not a per-step limit: it fixes a minimum radius
+of curvature `R = 57.3 / angle_max` voxels, so refining the step does not loosen the
+constraint. Because the principal direction is a line field, tangents are sign-aligned and a
+measured turn never exceeds 90 degrees — any budget above `90 / step` is **inert**, not merely
+loose. Set `angle_max: 0` when you want the criterion off deliberately.
+
+`act` defaults to false. `main.m` always generates the WM/GM/CSF tissue masks and stores them
+on the `nim`, so ACT being off is a configuration choice rather than a missing input;
+`runTractography` prints which of the two reasons applies for a given run.
 
 ### Creating Custom Configurations
 
@@ -249,68 +320,86 @@ cp config/hinec_default.yml config/my_config.yml
 # Edit my_config.yml with your parameters
 ```
 
-See [YAML_CONFIG.md](YAML_CONFIG.md) for complete parameter documentation.
+For a one-off sweep, prefer `--set key=value` over a new file. Any parameter is reachable by
+its canonical path (`tractography.integrator.step`), by its group and key
+(`integrator.step` — the `tractography.` prefix is assumed), or by a bare leaf name when that
+name is unique across the schema.
+
+`src/nim_utils/nim_config_schema.m` is the single source of truth for every parameter, its
+default, and its permitted values. [YAML_CONFIG.md](YAML_CONFIG.md) is generated from it, so
+the reference cannot drift from the code.
 
 ---
 
 ## 6. Running Tractography
 
-### Standard FACT
+`runTractography`'s optional third argument is either a tracker name or a config struct.
+When a config is given, `tractography.algorithm` selects the tracker.
+
+### By Tracker Name
 
 ```matlab
-% Basic FACT tractography
+% Standard FACT (the default when no argument is given)
 runTractography('output/subject.mat');
+runTractography('output/subject.mat', 'standard');
 
-% Or explicitly
-runTractography('output/subject.mat', 'algorithm', 'standard');
+% HINEC interpolated streamlines
+runTractography('output/subject.mat', 'hinec');
 ```
 
-### HINEC High-Order
+### By Configuration
 
 ```matlab
-% RK4 with trilinear interpolation (default HINEC)
-runTractography('output/subject.mat', 'algorithm', 'hinec');
-
-% RKF45 adaptive stepping (highest accuracy)
+% Cubic interpolation with adaptive RKF45
 config = load_config_yaml('config/hinec_dti_cubic.yml');
-runTractography('output/subject.mat', 'algorithm', 'hinec', 'config', config);
+runTractography('output/subject.mat', config);
+
+% Connection-form Method of Moving Frames
+config = load_config_yaml('config/mmf_dti.yml');
+runTractography('output/subject.mat', config);
 ```
 
 ### Direct Function Calls (Advanced)
 
-For more control, call tractography functions directly:
+The trackers themselves still read a **flat** option struct with legacy names.
+`nim_config_to_options` is the single translation point from the nested config surface to
+those names; call it rather than hand-assembling a struct, so a direct call stays consistent
+with what the launchers do.
 
 ```matlab
-% Load processed data
 data = load('output/subject.mat');
-nim = data.nim;
+nim  = data.nim;
 
-% Configure options
-options = struct();
-options.step_size = 0.2;
-options.integration_order = 4;
-options.fa_threshold = 0.15;
-options.angle_thresh = 45;
-options.seed_density = 3;
-options.act_enabled = true;
-options.wm_mask = nim.wm_mask;
-options.gm_mask = nim.gm_mask;
-options.csf_mask = nim.csf_mask;
+config  = load_config_yaml('config/hinec_dti_cubic.yml');
+options = nim_config_to_options(config);
 
-% Run
+% A seed mask is required — the trackers do no seeding decisions of their own
+options.seed_mask = nim.mask > 0.5 & nim.FA >= options.seed_fa_threshold;
+
+% ACT is opt-in: the tracker decides purely from whether it received tissue masks
+if options.act_enabled
+    options.wm_mask  = nim.wm_mask;
+    options.gm_mask  = nim.gm_mask;
+    options.csf_mask = nim.csf_mask;
+end
+
 tracks = nim_tractography_hinec(nim, options);
 ```
 
+Note that `options.integration_order` in the flat struct is a **method selector**
+(1/2/4/5 → euler/rk2/rk4/rkf45) despite its name, and `options.max_steps` is derived as
+`ceil(max_arc / step)`.
+
 ### Understanding Track Output
 
-Each track is an Nx3 matrix representing a complete fiber pathway:
+`tracks` is a cell array. Each cell is an Nx3 matrix of **voxel-space** coordinates holding
+the complete trajectory, not just the endpoints; N varies per fiber.
 
 ```matlab
-% Load tracks
 data = load('tractography_results/tracks_hinec_2025-01-15_14_30_00.mat');
 tracks = data.tracks;
 
-fprintf('Total tracks: %d\n', length(tracks));
+fprintf('Total tracks: %d\n', numel(tracks));
 
 % Examine a single track
 track = tracks{1};
@@ -318,11 +407,16 @@ fprintf('Points in track: %d\n', size(track, 1));
 fprintf('Start: [%.1f, %.1f, %.1f]\n', track(1,:));
 fprintf('End:   [%.1f, %.1f, %.1f]\n', track(end,:));
 
-% Track statistics
-lengths = cellfun(@(t) size(t, 1), tracks);
-fprintf('Mean length: %.1f points\n', mean(lengths));
-fprintf('Max length:  %d points\n', max(lengths));
+% Arc lengths in voxels. Point counts are not comparable across runs when
+% output.arc_step or an adaptive integrator changes the point spacing.
+arclen = cellfun(@(t) sum(vecnorm(diff(t, 1, 1), 2, 2)), tracks);
+fprintf('Mean arc length: %.1f voxels\n', mean(arclen));
+fprintf('Max arc length:  %.1f voxels\n', max(arclen));
 ```
+
+Scoring tools expect RAS world coordinates in millimetres. `bin/run_ismrm_scoring.sh` converts
+a run's tracks to TRK using the DWI affine from the run's `intermediate/` directory before
+handing them to the scorer.
 
 ---
 
@@ -335,9 +429,9 @@ fprintf('Max length:  %d points\n', max(lengths));
 load('output/subject.mat');
 
 % Eigenvector visualization
-nim_plot(nim, 'mode', 'single');        % Single region
-nim_plot(nim, 'mode', 'parcel', 'region_id', 5);  % Specific region
-nim_plot(nim, 'mode', 'parcels');       % All regions (separate figures)
+nim_plot(nim, 'mode', 'single');                  % Voxel-indexed view (default)
+nim_plot(nim, 'mode', 'parcel', 'parcel_id', 5);  % One specific parcel
+nim_plot(nim, 'mode', 'parcels');                 % All parcels (separate figures)
 ```
 
 ### Tractography Visualization
@@ -346,15 +440,19 @@ nim_plot(nim, 'mode', 'parcels');       % All regions (separate figures)
 % Whole brain
 visualizeTractography('tracks.mat', 'nim.mat', 'mode', 'whole');
 
-% Single region
-visualizeTractography('tracks.mat', 'nim.mat', 'mode', 'region', 'regions', [5]);
+% Single region, or several
+visualizeTractography('tracks.mat', 'nim.mat', 'mode', 'region', 'region', 5);
+visualizeTractography('tracks.mat', 'nim.mat', 'mode', 'region', 'region', [5 10 15]);
 
 % All regions in grid
 visualizeTractography('tracks.mat', 'nim.mat', 'mode', 'grid');
 
-% Export for publication
+% Auto-detect tracks and nim from a run directory
+visualizeTractography('hinec_runs/latest');
+
+% Export
 visualizeTractography('tracks.mat', 'nim.mat', 'mode', 'whole', ...
-    'export', 'figures/whole_brain.png');
+    'export_dir', 'figures/', 'export_format', 'png', 'export_dpi', 600);
 ```
 
 ### CLI Visualization Export (Shell Script)
@@ -363,27 +461,34 @@ Export figures headlessly without an interactive MATLAB session:
 
 ```bash
 # From a run directory (auto-detects tracks + nim files)
-./bin/run_visualization.sh hinec_runs/run_20260330_*/
+./bin/run_visualization.sh hinec_runs/latest/
 
-# Specify mode and format
-./bin/run_visualization.sh hinec_runs/run_20260330_*/ '' grid png
+# Restrict to specific regions
+./bin/run_visualization.sh hinec_runs/latest/ png '23,24,25,26'
 
-# Export specific region as PDF
-./bin/run_visualization.sh hinec_runs/run_20260330_*/ '' region pdf 5
+# PDF at high DPI
+./bin/run_visualization.sh hinec_runs/latest/ pdf '' 600
 
-# With explicit file paths and custom output directory
-./bin/run_visualization.sh tracks.mat nim.mat figures/ whole png '' 600
+# Explicit file paths and output directory
+./bin/run_visualization.sh tracks.mat nim.mat figures/euler png
 ```
 
-Arguments: `<run_dir|tracks_file> [nim_file] [output_dir] [mode] [format] [region] [dpi]`
+Two argument forms:
+
+```
+./bin/run_visualization.sh <run_dir>                     [format] [region] [dpi]
+./bin/run_visualization.sh <tracks_file> <nim_file> <output_dir> [format] [region] [dpi]
+```
 
 | Argument | Default | Options |
 |----------|---------|---------|
-| mode | `whole` | `whole`, `region`, `grid`, `sequential` |
 | format | `png` | `png`, `pdf`, `eps` |
+| region | all tracks | Region ID or comma-separated list, e.g. `'5,10,15'` |
 | dpi | `300` | Any positive integer |
 
-Output is saved to `<run_dir>/figures/<mode>/` by default.
+The script renders all eight anatomical viewing angles (superior, inferior, anterior,
+posterior, left, right, oblique left, oblique right). In run-directory mode, output goes to
+`<run_dir>/figures/`.
 
 ### Interactive Slice Viewer
 
@@ -393,15 +498,19 @@ visualizeTractographySlices('tracks.mat', 'nim.mat');
 
 ### Fast Distributed Viewer
 
-For instant navigation (sub-100ms), pre-generate slices:
+Slice images can be pre-rendered on the machine that holds the data, then browsed locally
+without MATLAB.
 
 ```matlab
-% On server (MATLAB): generate cache
+% On the server, in MATLAB: generate the cache
 generateSlices('tracks.mat', 'nim.mat', '/path/to/cache');
 ```
 
 ```bash
-# Transfer cache to local machine
+# Or from the shell, as a background batch job
+./bin/run_generateSlices.sh tracks.mat nim.mat /path/to/cache
+
+# Transfer the cache to the local machine
 rsync -avz server:/path/to/cache/ ~/local/cache/
 
 # View locally (Python only, no MATLAB needed)
@@ -446,19 +555,22 @@ fprintf('Connections: %d\n', nnz(C));
 
 ### Comparing Runs
 
+Because tractography-only runs share one preprocessed `nim`, comparing two tracking
+configurations means comparing their track files:
+
 ```matlab
-% Load two runs
-run1 = load('hinec_runs/run_2025-01-15/output/subject.mat');
-run2 = load('hinec_runs/run_2025-01-16/output/subject.mat');
+runs = dir('hinec_runs/run_*');
+a = load(fullfile('hinec_runs', runs(1).name, 'tractography', 'tracks.mat'));
+b = load(fullfile('hinec_runs', runs(2).name, 'tractography', 'tracks.mat'));
+fprintf('Tracks: %d vs %d\n', numel(a.tracks), numel(b.tracks));
+```
 
-% Compare FA maps
-fa_diff = run2.nim.FA - run1.nim.FA;
-fprintf('Mean FA difference: %.4f\n', mean(fa_diff(:), 'omitnan'));
+Their exact parameters are recorded in each run directory's `config.yml` and, for `--set`
+sweeps, `overrides.txt`:
 
-% Compare track counts
-t1 = load('hinec_runs/run_2025-01-15/tractography/tracks.mat');
-t2 = load('hinec_runs/run_2025-01-16/tractography/tracks.mat');
-fprintf('Run 1 tracks: %d, Run 2 tracks: %d\n', length(t1.tracks), length(t2.tracks));
+```bash
+diff hinec_runs/run_A/config.yml hinec_runs/run_B/config.yml
+cat hinec_runs/run_*/overrides.txt
 ```
 
 ---
@@ -494,11 +606,16 @@ end
 **Symptom**: MATLAB crashes or reports `Out of memory`
 
 **Solutions**:
-1. Process smaller regions: use parcellation to focus on specific areas
-2. Reduce seed density: `options.seed_density = 2` instead of 4
-3. Use v7.3 MAT files: `nim_save` automatically uses v7.3 for large files
+
+1. Restrict seeding to specific regions with `seeding.roi`
+2. Reduce seeding density: `--set seeding.density=2`
+3. Increase `output.arc_step` to resample saved streamlines — this shrinks the track file
+   without affecting integration accuracy
 4. Close other applications to free RAM
-5. Use the `hinec_dti_fast.yml` preset for initial testing
+5. Use the `hinec_dti_fast.yml` preset for initial screening
+
+`nim_save` switches to the v7.3 MAT format automatically for large `nim` structs, so the
+2 GB per-variable limit of the older format is not what you are hitting.
 
 ### String vs Char Array Errors
 
@@ -519,10 +636,20 @@ post-mortem; it is a development note and is not part of this site.
 **Symptom**: `runTractography` produces 0 tracks
 
 **Possible causes**:
-1. **FA threshold too high**: Try lowering `fa_threshold` to 0.1 or 0.05
-2. **No valid seed mask**: Check that brain mask or parcellation mask exists
-3. **Data quality**: Verify FA map has reasonable values (max > 0.3)
-4. **Preprocessing issues**: Check that eigenvectors are computed correctly
+
+1. **Termination FA too high**: lower `termination.fa_min` (the seeding threshold,
+   `seeding.fa_min`, is a separate knob — they are not interchangeable)
+2. **`min_arc` discarding everything**: `termination.min_arc` is an arc length in voxels and
+   is enforced; a value above the tracks your parameters actually produce silently empties
+   the output
+3. **Empty seed mask**: check that the brain mask, or the `seeding.roi` regions you named,
+   resolve to a non-empty set of voxels
+4. **Data quality**: verify the FA map has reasonable values (max > 0.3)
+5. **Preprocessing issues**: check that eigenvectors were computed correctly
+
+The retired key `fa_threshold` no longer does anything. If a config still carries it, the
+loader warns and drops it rather than migrating it, because it was never equivalent to either
+of the two thresholds that replaced it.
 
 **Diagnostic**:
 ```matlab
@@ -532,11 +659,26 @@ fprintf('Mask voxels: %d\n', sum(data.nim.mask(:)));
 fprintf('Has eigenvectors: %d\n', isfield(data.nim, 'evec'));
 ```
 
+### ACT Reported as Disabled
+
+**Symptom**: `runTractography` prints `ACT disabled`
+
+There are two distinct reasons, and the log line says which one applies:
+
+- `ACT disabled by config (tractography.act: false)` — `act` defaults to false. The tissue
+  masks are present on the `nim`, and the line reports their voxel counts. Set `act: true`
+  under `tractography:` to enable it.
+- `ACT disabled: tissue masks not present in the nim` — the `nim` predates tissue
+  segmentation, or segmentation failed. Re-run `main()` to generate the masks.
+
+Regenerating masks you already have will not fix the first case.
+
 ### Preprocessing Fails
 
 **Symptom**: Error during `nim_preprocessing`
 
 **Common issues**:
+
 1. **Missing FSL tools**: Ensure all required FSL tools are installed (mcflirt, bet, flirt, fnirt)
 2. **Missing input files**: Verify `.bval` and `.bvec` files exist alongside the NIfTI
 3. **Permission errors**: Check write permissions in the output directory
@@ -547,6 +689,7 @@ fprintf('Has eigenvectors: %d\n', isfield(data.nim, 'evec'));
 **Symptom**: Parcellation regions appear misaligned
 
 **Solutions**:
+
 1. Check registration quality metrics (NMI scores)
 2. Provide a T1 image for better registration accuracy
 3. Verify T1 and DWI are from the same subject/session

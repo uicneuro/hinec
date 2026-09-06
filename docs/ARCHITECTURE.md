@@ -14,27 +14,29 @@ Input (NIfTI)
     v
 +------------------+     +------------------+     +------------------+
 |  Preprocessing   | --> | DTI Calculation  | --> |   Registration   |
-|  (FSL-based)     |     | (Tensor + FA)    |     |  (DWI/T1/MNI)   |
+|  (FSL-based)     |     | (Tensor + FA)    |     |  (DWI/T1/MNI)    |
 +------------------+     +------------------+     +------------------+
                                                          |
     +----------------------------------------------------+
     |
     v
-+------------------+     +------------------+     +------------------+
-|  Parcellation    | --> |  Tractography    | --> |  Visualization   |
-|  (Atlas-based)   |     | (FACT / HINEC)   |     | (3D/Slice/Fast)  |
-+------------------+     +------------------+     +------------------+
++------------------+     +---------------------+  +------------------+
+|  Parcellation    | --> |    Tractography     |->|  Visualization   |
+|  (Atlas-based)   |     | (FACT/HINEC/MMF)    |  | (3D/Slice/Fast)  |
++------------------+     +---------------------+  +------------------+
 ```
 
 ### Entry Points
 
 | Entry Point | Purpose | Typical Use |
 |---|---|---|
-| `main.m` | Core pipeline: preprocessing through parcellation | Process raw or preprocessed dMRI data |
-| `runTractography.m` | Tractography execution with algorithm selection | Run fiber tracking on processed data |
-| `runhinec.m` | Quick demo script | Load sample data and visualize |
-| `bin/run_hinec.sh` | Shell wrapper for full pipeline | Batch processing with YAML config |
-| `bin/run_tractography.sh` | Shell wrapper for tractography | Launch tractography jobs |
+| `main.m` | Core pipeline: preprocessing through tissue segmentation | Process raw or preprocessed dMRI data |
+| `runTractography.m` | Seeding, tracker dispatch, ROI filtering | Run fiber tracking on a processed `nim` |
+| `runhinec.m` | Scratch script | Load a processed `.mat` and plot it |
+| `bin/run_hinec.sh` | Full pipeline launcher | Preprocess and track in one background job |
+| `bin/run_tractography.sh` | Tractography-only launcher | Iterate tracking configs on a built `nim` |
+| `bin/run_ismrm_scoring.sh` | Scoring | Convert tracks to TRK and run the scilpy scorer |
+| `bin/run_visualization.sh` | Headless figure export | Render figures into `<run_dir>/figures/` |
 
 ---
 
@@ -44,28 +46,41 @@ Input (NIfTI)
 hinec/
 ├── main.m                          # Core pipeline entry point
 ├── runTractography.m               # Tractography entry point
-├── runhinec.m                      # Demo/quick-start script
-├── CLAUDE.md                       # Project context for Claude Code
+├── runhinec.m                      # Scratch plotting script
 ├── README.md                       # Project overview
-├── requirements.txt                # Python dependencies (fast viewer)
+├── mkdocs.yml                      # Documentation site configuration
+├── requirements.txt                # Python dependencies (viewer, scoring, TRK export)
 │
 ├── config/                         # YAML configuration presets
-│   ├── hinec_default.yml           #   Default balanced parameters
-│   ├── hinec_dti_cubic.yml          #   RKF45 adaptive, publication quality
-│   ├── hinec_dti_fast.yml        #   RK2, quick testing
-│   ├── standard_dti.yml           #   Baseline FACT algorithm
-│   └── irontract.yml              #   IronTract challenge preset
+│   ├── README.md                   #   Naming conventions
+│   ├── hinec_default.yml           #   Generic full-pipeline fallback
+│   ├── standard_dti.yml            #   FACT baseline
+│   ├── hinec_dti.yml               #   Interpolated streamlines, DTI field
+│   ├── hinec_csd.yml               #   Interpolated streamlines, CSD field
+│   ├── hinec_dti_cubic.yml         #   Cubic interpolation + RKF45
+│   ├── hinec_dti_cubic_recall.yml  #   Cubic, recall-tuned termination
+│   ├── hinec_dti_fast.yml          #   RK2, quick screening
+│   ├── hinec_dti_euler.yml         #   Euler, lowest-order comparison point
+│   ├── mmf_dti.yml                 #   Connection-form MMF, DTI field
+│   ├── mmf_csd.yml                 #   Connection-form MMF, CSD field
+│   ├── ismrm2015.yml               #   ISMRM 2015 challenge dataset
+│   ├── irontract.yml               #   IronTract challenge dataset
+│   └── reference.yml               #   Convergence-ladder template
 │
 ├── src/                            # Source code modules
-│   ├── nim_calculation/            #   DTI tensor, eigendecomposition, FA
+│   ├── nim_calculation/            #   Tensor, eigendecomposition, FA, CSD, MMF geometry
 │   │   ├── nim_dt_spd.m            #     Diffusion tensor (SPD-constrained)
 │   │   ├── nim_dt.m                #     Diffusion tensor (basic LSF)
 │   │   ├── nim_eig.m               #     Eigenvalue/eigenvector decomposition
-│   │   └── nim_fa.m                #     Fractional anisotropy
+│   │   ├── nim_fa.m                #     Fractional anisotropy
+│   │   ├── nim_csd.m               #     Constrained spherical deconvolution + FOD peaks
+│   │   ├── nim_build_frames.m      #     Moving-frame construction
+│   │   ├── nim_connection_form.m   #     Connection 1-form (curvature, torsion)
+│   │   └── nim_mmf_geometry.m      #     Frame field + connection baked into the nim
 │   │
-│   ├── nim_preprocessing/          #   FSL-based preprocessing (16 files)
+│   ├── nim_preprocessing/          #   FSL-based preprocessing
 │   │   ├── nim_preprocessing.m     #     Orchestrator (10-step pipeline)
-│   │   ├── preproc_denoising.m     #     MP-PCA / SUSAN / Gaussian
+│   │   ├── preproc_denoising.m     #     dwidenoise / nlmeans / Gaussian
 │   │   ├── preproc_extract_b0.m    #     B0 reference extraction
 │   │   ├── preproc_motion_correction.m   #  MCFLIRT motion correction
 │   │   ├── preproc_eddy_correction.m     #  Eddy current correction
@@ -73,9 +88,9 @@ hinec/
 │   │   ├── preproc_t1_brain_extraction.m #  BET brain extraction (T1)
 │   │   ├── preproc_fieldmap_correction.m #  FUGUE distortion correction
 │   │   ├── preproc_mask_improvement.m    #  FA-based mask refinement
-│   │   ├── preproc_tissue_segmentation.m #  WM/GM/CSF segmentation
+│   │   ├── preproc_tissue_segmentation.m #  WM/GM/CSF via FAST-on-T1, FA fallback
 │   │   ├── preproc_create_dwi_reference.m #  DWI reference volume
-│   │   ├── preproc_t1_dwi_registration.m #  EPI_REG T1-DWI alignment
+│   │   ├── preproc_t1_dwi_registration.m #  epi_reg T1-DWI alignment
 │   │   ├── preproc_t1_mni_registration.m #  FLIRT+FNIRT T1-MNI alignment
 │   │   ├── preproc_atlas_resampling.m    #  Atlas to DWI space
 │   │   ├── preproc_cleanup.m       #     Intermediate file removal
@@ -86,36 +101,50 @@ hinec/
 │   │   ├── register_dti_to_t1.m    #     DTI-to-T1 (FLIRT/SPM)
 │   │   ├── register_t1_to_mni.m    #     T1-to-MNI (FLIRT+FNIRT/SPM)
 │   │   ├── nim_apply_transforms.m  #     Transform chain application
-│   │   └── registration_utils.m    #     Quality metrics, reporting
+│   │   ├── extract_reference_volumes.m    # Reference volume extraction
+│   │   ├── compute_registration_quality.m # Quality assessment
+│   │   ├── compute_normalized_mutual_information.m # NMI metric
+│   │   ├── generate_registration_report.m # Reporting
+│   │   └── save_registration_data.m       # Persistence
 │   │
 │   ├── nim_parcellation/           #   Brain region segmentation
 │   │   ├── nim_parcellation.m      #     Basic parcellation (atlas/mask file)
 │   │   └── nim_parcellation_registered.m  # Registration-enhanced parcellation
 │   │
-│   ├── nim_tractography/           #   Fiber tractography algorithms
-│   │   ├── nim_tractography_standard.m    # FACT algorithm
-│   │   ├── nim_tractography_hinec.m       # HINEC high-order tractography
+│   ├── nim_tractography/           #   Fiber tractography
+│   │   ├── nim_tractography_standard.m    # FACT
+│   │   ├── nim_tractography_hinec.m       # Interpolated streamlines
+│   │   ├── nim_tractography_mmf_connframe.m # Connection-form MMF
 │   │   ├── nim_tractography_highorder.m   # Legacy high-order methods
+│   │   ├── mmf_bishop_update.m            # Bishop frame update
+│   │   ├── mmf_gram_schmidt.m             # Frame reorthonormalization
+│   │   ├── mmf_reference_axis_frame.m     # Reference-axis frame
+│   │   ├── nim_seed_offsets.m             # Sub-voxel seed lattice
+│   │   ├── nim_filter_tracks_roi.m        # Waypoint / endpoint / containment gates
+│   │   ├── nim_resample_track_arc.m       # Arc-length resampling
+│   │   ├── nim_sift.m                     # Track filtering
 │   │   ├── nim_plot_tractography.m        # 3D track visualization
 │   │   ├── nim_plot_tractography_region.m # Region-filtered visualization
 │   │   ├── nim_plot_connectivity_matrix.m # Connectivity matrix
 │   │   ├── nim_plot_vector_field.m        # Eigenvector field display
 │   │   └── nim_excitation_time_map.m      # Excitation propagation
 │   │
-│   ├── nim_visualization/          #   Advanced tractography viewers
+│   ├── nim_visualization/          #   Tractography viewers and slice cache
 │   │   ├── visualizeTractography.m        # Unified 3D viewer (4 modes)
 │   │   ├── visualizeTractographySlices.m  # Interactive 2D slice viewer
 │   │   ├── visualizeTractographyAngles.m  # Angle-based visualization
+│   │   ├── nim_plot_bundles.m             # Per-bundle rendering
+│   │   ├── nim_plot_vs_groundtruth.m      # Tracks against ground truth
 │   │   ├── generateSlices.m               # Server-side slice generation
 │   │   ├── generateTractographySliceCache.m # Cache generation pipeline
 │   │   ├── TractographyCacheManager.m     # Cache metadata management
 │   │   ├── buildOptimizedTrackSliceLookup.m # Vectorized slice lookup
-│   │   ├── optimizedSliceRenderer.m       # High-performance renderer
+│   │   ├── optimizedSliceRenderer.m       # Slice renderer
 │   │   ├── launchFastViewer.m             # MATLAB-to-Python bridge
-│   │   └── testFastViewer.m              # Fast viewer test suite
+│   │   └── testFastViewer.m               # Fast viewer test suite
 │   │
 │   ├── nim_plots/                  #   General plotting
-│   │   └── nim_plot.m              #     DTI eigenvector visualization
+│   │   └── nim_plot.m              #     Consolidated eigenvector/parcel plotter
 │   │
 │   ├── nim_presentation/           #   Research figure generation
 │   │   ├── visualize_tractography_example.m
@@ -123,13 +152,28 @@ hinec/
 │   │   ├── visualize_interpolation_methods.m
 │   │   └── visualize_tractography_slice.m
 │   │
-│   ├── nim_utils/                  #   Utility functions (18 files)
+│   ├── nim_utils/                  #   Utilities
 │   │   ├── nim_read.m              #     NIfTI file reader
-│   │   ├── nim_save.m              #     MAT file writer
-│   │   ├── nim_load_nim.m          #     NIM structure loader
+│   │   ├── nim_save.m              #     MAT file writer (v7.3 for large structs)
+│   │   ├── nim_load_nim.m          #     nim structure loader
 │   │   ├── nim_load_labels.m       #     Parcellation label loader
 │   │   ├── nim_load_atlas_labels.m #     FSL atlas XML parser
-│   │   ├── load_config_yaml.m      #     YAML configuration parser
+│   │   ├── nim_atlas_label_map.m   #     Label index <-> name mapping
+│   │   ├── nim_parcellation_from_masks.m # Parcellation from binary mask volumes
+│   │   ├── nim_roi_mask.m          #     Resolve ROI names/indices to a mask
+│   │   ├── nim_nifti_affine.m      #     sform/qform affine extraction
+│   │   ├── nim_read_trk.m          #     TRK reader
+│   │   ├── nim_config_schema.m     #     SINGLE SOURCE OF TRUTH for all parameters
+│   │   ├── nim_yaml_parse.m        #     YAML parser (two-level nesting)
+│   │   ├── load_config_yaml.m      #     Defaults, validation, legacy migration
+│   │   ├── nim_config_to_options.m #     Nested config -> flat tracker options
+│   │   ├── nim_config_apply_overrides.m # CLI --set resolution
+│   │   ├── nim_config_write.m      #     Config serialization
+│   │   ├── nim_config_docs.m       #     Generates docs/YAML_CONFIG.md from the schema
+│   │   ├── nim_config_retired.m    #     Keys that are accepted and dropped
+│   │   ├── nim_angle_limit.m       #     Curvature budget from angle_max and step
+│   │   ├── nim_principal_dir.m     #     Principal direction extraction
+│   │   ├── nim_convergence_error.m #     Track-to-reference error metrics
 │   │   ├── create_run_directory.m  #     Timestamped run organization
 │   │   ├── nim_interp.m            #     High-order interpolation
 │   │   ├── nim_reshape_d.m         #     6-vector to 3x3 tensor
@@ -148,49 +192,52 @@ hinec/
 │
 ├── bin/                            # Executable shell scripts
 │   ├── run_hinec.sh                #   Full pipeline launcher
-│   ├── run_tractography.sh         #   Tractography launcher
+│   ├── run_tractography.sh         #   Tractography-only launcher
+│   ├── run_ismrm_scoring.sh        #   TRK conversion + scilpy scorer
+│   ├── run_visualization.sh        #   Headless figure export
 │   ├── run_generateSlices.sh       #   Slice cache generator
+│   ├── run_sift.sh                 #   Track filtering
 │   ├── viewSlices.sh               #   Fast Python viewer launcher
 │   └── download.sh                 #   Sample data download
 │
 ├── scripts/                        # Auxiliary scripts
 │   ├── FastTractographyViewer.py   #   Python fast slice viewer GUI
-│   ├── hinec_to_trk.py             #   HINEC-to-TRK format converter
 │   ├── tractography_slice_gui.py   #   Slice viewer GUI (Python)
+│   ├── hinec_to_trk.py             #   HINEC-to-TRK format converter
 │   ├── validate_ismrm_tractography.py  # ISMRM validation
+│   ├── build_ismrm_scoring_config.py   # Scorer configuration
+│   ├── compare_ismrm_results.py    #   Cross-run score comparison
+│   ├── run_pft_dipy.py             #   DIPY PFT reference tracking
 │   ├── diagnose_irontract.m        #   IronTract diagnostics
 │   └── generate_presentation_figures.m # Presentation figures
 │
 ├── tests/                          # Test suites
-│   ├── test_yaml_config.m          #   YAML config validation
-│   ├── test_irontract_submissions.m #  IronTract format tests
-│   └── nim_tests/
-│       ├── test_functions.m        #   Core function tests
-│       ├── nim_diagnostic_check.m  #   Diagnostic checks
-│       └── nim_test_corpus_callosum.m # Corpus callosum validation
+│   ├── unit/                       #   Unit tests (config schema, angle limit,
+│   │                               #   frames, interpolation, seeding, resampling...)
+│   ├── integration/                #   TestFullPipeline.m
+│   ├── fsl/                        #   TestFSLPreprocessing.m
+│   ├── nim_tests/                  #   Quick diagnostics
+│   ├── fixtures/                   #   Synthetic phantom and nim builders
+│   ├── test_yaml_config.m          #   Exercises every YAML preset
+│   └── test_irontract_submissions.m #  IronTract format tests
 │
-├── data/                           # Sample datasets
-│   ├── original_sample/            #   Basic diffusion data
-│   └── parcellation_sample/        #   Data with parcellation masks
+├── data/                           # Datasets (large binaries are gitignored)
+│   ├── original_sample/            #   Preprocessed diffusion sample
+│   ├── parcellation_sample/        #   Raw diffusion sample
+│   ├── ismrm2015/                  #   ISMRM 2015 challenge data + canonical nim
+│   ├── irontract/                  #   IronTract challenge data
+│   └── covid/                      #   COVID neuroimaging data
 │
-├── docs/                           # Documentation (19 existing files)
+├── docs/                           # MkDocs documentation source
 │
-├── lib/                            # External libraries
-│   ├── spm12/                      #   SPM12 toolbox (large)
-│   └── bfgs/                       #   BFGS optimization
-│       ├── bfgs_loop.m             #     Optimization loop
-│       ├── bfgs_test.m             #     Optimization tests
-│       └── vox_dt_bfgs.m           #     Voxel-wise tensor optimization
+├── hinec_runs/                     # Timestamped run outputs (gitignored)
 │
-└── experiments/                    # Research outputs
-    ├── hinec_runs/                 #   Pipeline run results
-    ├── hinec_figures/              #   Generated figures
-    ├── tractography_results/       #   Tractography outputs
-    ├── tractography_figures/       #   Algorithm comparisons
-    ├── validation_results/         #   Validation test results
-    ├── ISMRM_data/                 #   ISMRM benchmark data
-    ├── ironTract_data/             #   IronTract challenge data
-    └── CovidNeuro_data/            #   COVID neuroimaging data
+└── lib/                            # External libraries
+    ├── spm12/                      #   SPM12 — install here; not vendored
+    └── bfgs/                       #   BFGS optimization (vendored)
+        ├── bfgs_loop.m             #     Optimization loop
+        ├── bfgs_test.m             #     Optimization tests
+        └── vox_dt_bfgs.m           #     Voxel-wise tensor optimization
 ```
 
 ---
@@ -217,8 +264,10 @@ The `nim` struct is the central data container that flows through the entire pip
 | Field | Type | Dimensions | Description | Populated By |
 |---|---|---|---|---|
 | `.img` | double | [X, Y, Z, N] | 4D diffusion-weighted images (all volumes) | `nim_read` |
-| `.img_b0` | double | [X, Y, Z, B0] | B0 (non-diffusion-weighted) volumes | `nim_read` |
+| `.img_b0` | double | [X, Y, Z] | Mean of the b0 (non-diffusion-weighted) volumes | `nim_read` |
 | `.img_bi` | double | [X, Y, Z, Bi] | Diffusion-weighted volumes only | `nim_read` |
+| `.size_b0`, `.size_bi` | int | scalar | Volume counts either side of the b0 threshold | `nim_read` |
+| `.thrsh_b0` | double | scalar | b-value below which a volume counts as b0 (default 5) | `nim_read` |
 
 #### Acquisition Fields
 
@@ -232,9 +281,15 @@ The `nim` struct is the central data container that flows through the entire pip
 | Field | Type | Dimensions | Description | Populated By |
 |---|---|---|---|---|
 | `.mask` | logical | [X, Y, Z] | Brain mask (binary) | `nim_read` / preprocessing |
-| `.wm_mask` | logical | [X, Y, Z] | White matter mask (FA > 0.2) | `preproc_tissue_segmentation` |
-| `.gm_mask` | logical | [X, Y, Z] | Gray matter mask (0.05 < FA <= 0.2) | `preproc_tissue_segmentation` |
-| `.csf_mask` | logical | [X, Y, Z] | CSF mask (FA <= 0.05) | `preproc_tissue_segmentation` |
+| `.wm_mask` | double | [X, Y, Z] | White matter mask for ACT | `preproc_tissue_segmentation` |
+| `.gm_mask` | double | [X, Y, Z] | Gray matter mask for ACT | `preproc_tissue_segmentation` |
+| `.csf_mask` | double | [X, Y, Z] | CSF mask for ACT | `preproc_tissue_segmentation` |
+| `.wm_mask_file`, `.gm_mask_file`, `.csf_mask_file` | char | — | Paths to the mask NIfTIs | `main.m` |
+
+The tissue masks are always generated. They come from FSL FAST on the anatomical T1 where one
+is available, and from FA-tertile binning otherwise; the fallback bins anisotropy rather than
+tissue and should be treated as degraded. ACT is nonetheless off unless `tractography.act` is
+set true.
 
 #### DTI Fields
 
@@ -245,6 +300,29 @@ The `nim` struct is the central data container that flows through the entire pip
 | `.eval` | double | [X, Y, Z, 3] | Eigenvalues (descending: lambda1 >= lambda2 >= lambda3) | `nim_eig` |
 | `.FA` | double | [X, Y, Z] | Fractional anisotropy (0 to 1) | `nim_fa` |
 
+#### CSD Fields (`field: csd` only)
+
+| Field | Type | Dimensions | Description | Populated By |
+|---|---|---|---|---|
+| `.peaks` | double | [X, Y, Z, P, 3] | Unit FOD peak directions | `nim_csd` |
+| `.npeaks` | double | [X, Y, Z] | Number of accepted peaks per voxel | `nim_csd` |
+| `.peak_w` | double | [X, Y, Z, P] | Peak amplitudes | `nim_csd` |
+| `.fod_sh` | double | — | Spherical harmonic FOD coefficients | `nim_csd` |
+| `.response` | — | — | Estimated response function | `nim_csd` |
+
+These are computed by `runTractography` on demand and cached as `<source>_csd.mat`.
+
+#### Moving-Frame Fields (`algorithm: mmf`)
+
+| Field | Type | Dimensions | Description | Populated By |
+|---|---|---|---|---|
+| `.mmf_frames` | double | [X, Y, Z, 3, 3] | Frame field {e1, e2, e3} | `nim_mmf_geometry` |
+| `.mmf_kappa` | double | [X, Y, Z, 3] | Curvature vector de1/ds | `nim_mmf_geometry` |
+| `.mmf_tau` | double | [X, Y, Z] | Torsion, omega_23(e1) | `nim_mmf_geometry` |
+| `.mmf_field` | char | — | Which field the geometry was built from (`dti` or `csd`) | `nim_mmf_geometry` |
+| `.mmf_built` | logical | — | Geometry present | `nim_mmf_geometry` |
+| `.mmf_peakdirs`, `.mmf_kappa_p`, `.mmf_npeaks`, `.mmf_multi` | — | — | Per-peak variants, CSD field only | `nim_mmf_geometry` |
+
 #### Parcellation Fields
 
 | Field | Type | Dimensions | Description | Populated By |
@@ -254,6 +332,14 @@ The `nim` struct is the central data container that flows through the entire pip
 | `.labels` | cell array | {N x 1} | Anatomical region names | `nim_load_labels` |
 | `.atlas_labels` | containers.Map | — | Index-to-name label mapping | `nim_load_labels` |
 | `.parcellation_info` | struct | — | Parcellation metadata and quality metrics | `nim_parcellation_registered` |
+| `.roi_masks` | containers.Map | — | Region name -> logical volume, overlaps intact | `nim_parcellation_from_masks` |
+
+`.parcellation_mask` is an integer label volume, so every voxel has exactly one owner. That
+representation cannot express genuinely overlapping structures — a temporal-stem voxel belongs
+to the uncinate, the inferior longitudinal fasciculus and, near midline, the corpus callosum
+at once. `.roi_masks`, where present, holds the regions as separate binary volumes with their
+overlaps intact, and `nim_roi_mask` prefers it when resolving ROI names for seeding and
+filtering.
 
 #### Registration Fields
 
@@ -261,26 +347,32 @@ The `nim` struct is the central data container that flows through the entire pip
 |---|---|---|---|---|
 | `.registration` | struct | — | Multi-modal registration data | `nim_registration` |
 | `.registration.transforms` | struct | — | Transformation matrices (DTI/T1/MNI) | `register_dti_to_t1`, `register_t1_to_mni` |
-| `.registration.quality_metrics` | struct | — | NMI scores and quality assessment | `registration_utils` |
+| `.registration.quality_metrics` | struct | — | NMI scores and quality assessment | `compute_registration_quality` |
 
 ### How the Structure Grows
 
 ```
-nim_read           → .img, .img_b0, .img_bi, .bval, .bvec, .hdr, .mask, dimensions
+nim_read            → .img, .img_b0, .img_bi, .bval, .bvec, .hdr, .mask, dimensions
     |
-nim_dt_spd         → .DT (6-element tensor per voxel)
+nim_dt_spd          → .DT (6-element tensor per voxel)
     |
-nim_eig            → .evec (eigenvectors), .eval (eigenvalues)
+nim_eig             → .evec (eigenvectors), .eval (eigenvalues)
     |
-nim_fa             → .FA (fractional anisotropy map)
+nim_fa              → .FA (fractional anisotropy map)
     |
-nim_registration   → .registration (transforms, quality metrics)
+nim_mmf_geometry    → .mmf_frames, .mmf_kappa, .mmf_tau, .mmf_built
     |
-nim_parcellation   → .parcellation_mask, .labels, .atlas_labels
+nim_registration    → .registration (transforms, quality metrics)   [optional]
     |
-tissue_segmentation → .wm_mask, .gm_mask, .csf_mask
+nim_parcellation    → .parcellation_mask, .labels, .atlas_labels
     |
-[Saved as .mat]    → Input to tractography
+mask improvement    → .mask (refined using FA)
+    |
+tissue segmentation → .wm_mask, .gm_mask, .csf_mask
+    |
+[Saved as .mat]     → Input to tractography
+    |
+nim_csd             → .peaks, .npeaks, .peak_w   [on demand, field: csd]
 ```
 
 ---
@@ -294,12 +386,12 @@ nim_read
     |
     +---> nim_preprocessing (optional, if raw data)
     |         |
-    |         +---> preproc_denoising
     |         +---> preproc_extract_b0
-    |         +---> preproc_motion_correction
-    |         +---> preproc_brain_extraction
+    |         +---> preproc_brain_extraction  |  preproc_t1_brain_extraction (if T1)
+    |         +---> preproc_denoising (optional)
     |         +---> preproc_fieldmap_correction (optional, if fieldmap available)
-    |         +---> preproc_t1_brain_extraction (optional, if T1 available)
+    |         +---> preproc_motion_correction (optional)
+    |         +---> preproc_eddy_correction (optional)
     |         +---> preproc_t1_dwi_registration (optional, if T1 available)
     |         +---> preproc_t1_mni_registration (optional, if T1 available)
     |         +---> preproc_atlas_resampling
@@ -310,6 +402,8 @@ nim_read
               +---> nim_eig (requires: .DT)
                         |
                         +---> nim_fa (requires: .eval)
+                                  |
+                                  +---> nim_mmf_geometry (requires: .evec or .peaks)
                                   |
     +-----------------------------+
     |
@@ -329,9 +423,19 @@ nim_read
     |
     +---> [nim saved to .mat]
               |
-              +---> nim_tractography_standard (requires: .evec, .FA, .mask)
-              |         OR
-              +---> nim_tractography_hinec (requires: .evec, .FA, .mask, optional: tissue masks)
+              +---> runTractography (resolves the seed mask, then dispatches)
+              |         |
+              |         +---> nim_csd (if field: csd; cached as <source>_csd.mat)
+              |         |
+              |         +---> nim_tractography_standard (requires: .evec, .FA, .mask)
+              |         |         OR
+              |         +---> nim_tractography_hinec  (requires: .evec or .peaks, .FA,
+              |         |                              .mask; optional: tissue masks)
+              |         |         OR
+              |         +---> nim_tractography_mmf_connframe (requires: mmf geometry)
+              |         |
+              |         +---> nim_filter_tracks_roi (requires: .parcellation_mask or .roi_masks)
+              |         +---> nim_resample_track_arc (if output.arc_step > 0)
               |
               +---> visualizeTractography (requires: tracks, nim)
               +---> nim_plot_connectivity_matrix (requires: tracks, nim with parcellation)
@@ -350,11 +454,14 @@ Reads NIfTI-1 format diffusion MRI data with associated acquisition parameters.
 
 **Processing**:
 
-1. Load NIfTI image using SPM12's `load_nii()`
+1. Load the image and header with MATLAB's `niftiread` / `niftiinfo`
 2. Extract header metadata (dimensions, voxel sizes)
-3. Load b-values from `.bval` file and b-vectors from `.bvec` file
-4. Separate b0 volumes (bval <= 50) from diffusion-weighted volumes
-5. Load brain mask if provided (`.nii.gz` with `_M` suffix)
+3. Load b-values from the `.bval` file and b-vectors from the `.bvec` file, accepting both the
+   one-line and one-value-per-line layouts
+4. Split volumes at the b0 threshold (`B0Threshold`, default 5), averaging the b0 volumes into
+   `.img_b0`. `.bval` and `.bvec` are kept unfiltered; downstream code filters using
+   `.thrsh_b0`
+5. Load the brain mask if present (`.nii.gz` with the `_M` suffix)
 
 **Output**: Initialized `nim` struct with image data, acquisition parameters, and metadata.
 
@@ -362,22 +469,24 @@ Reads NIfTI-1 format diffusion MRI data with associated acquisition parameters.
 
 Orchestrates a configurable 10-step FSL-based preprocessing pipeline. Automatically detects raw data (filename contains `_raw`) and triggers preprocessing.
 
-**Steps** (each independently toggleable via config):
+**Steps**, in execution order. The optional ones are toggled by config:
 
 | Step | Function | FSL Tool | Purpose |
 |---|---|---|---|
-| 1 | `preproc_denoising` | dwidenoise/SUSAN | Remove thermal noise |
-| 2 | `preproc_extract_b0` | fslroi | Extract b0 reference volume |
-| 3 | `preproc_motion_correction` | mcflirt | Correct head motion artifacts |
-| 4 | `preproc_eddy_correction` | eddy | Correct eddy current distortions |
-| 5 | `preproc_brain_extraction` | BET | Generate brain mask |
-| 6 | `preproc_fieldmap_correction` | FUGUE | Correct B0 field inhomogeneity |
-| 7 | `preproc_t1_brain_extraction` | BET | Extract T1 brain (if T1 provided) |
-| 8 | `preproc_t1_dwi_registration` | epi_reg | Register T1 to DWI space |
-| 9 | `preproc_t1_mni_registration` | FLIRT+FNIRT | Register T1 to MNI space |
-| 10 | `preproc_atlas_resampling` | applywarp/flirt | Resample atlas to DWI space |
+| 1 | `preproc_extract_b0` | fslroi | Extract the b0 reference volume |
+| 2 | `preproc_brain_extraction` / `preproc_t1_brain_extraction` | BET (+ epi_reg) | Generate the brain mask, from T1 when available |
+| 3 | `preproc_denoising` (optional) | dwidenoise / nlmeans / Gaussian | Remove thermal noise |
+| 4 | `preproc_fieldmap_correction` (optional) | FUGUE | Correct B0 field inhomogeneity |
+| 5 | `preproc_motion_correction` (optional) | mcflirt | Correct head motion, rotating b-vectors to match |
+| 6 | `preproc_eddy_correction` (optional) | eddy / eddy_correct | Correct eddy current distortions |
+| 7 | — | — | Copy processed data, mask and b-vectors to their final paths |
+| 8 | `preproc_t1_dwi_registration`, `preproc_t1_mni_registration` (if T1) | epi_reg, FLIRT+FNIRT, invwarp | Build the MNI→T1→DWI chain |
+| 9 | `preproc_atlas_resampling` | applywarp / flirt | Resample the atlas into DWI space |
+| 10 | `preproc_cleanup` | — | Finalize outputs, remove temporaries |
 
 **Output**: Preprocessed NIfTI file, brain mask, and parcellation mask in DWI space.
+
+Tissue segmentation is *not* part of this pipeline; it runs from `main.m` (Stage 6).
 
 ### Stage 3: DTI Calculation
 
@@ -408,19 +517,34 @@ Atlas-based brain region segmentation. Two pathways:
 1. **Basic**: Loads a provided parcellation mask file or generates one using direct atlas registration
 2. **Registration-enhanced** (`nim_parcellation_registered.m`): Transforms MNI atlas through T1 to DWI space using the registration chain, producing more accurate parcellation
 
-**Supported Atlases**: JHU white matter labels, JHU white matter tracts, HarvardOxford cortical, AAL.
+**Supported Atlases**: `jhu` (JHU-ICBM-labels-1mm), `jhu-tract`
+(JHU-ICBM-tracts-maxprob-thr0-1mm) and `harvardoxford` (HarvardOxford-cort-maxprob-thr0-1mm),
+all read from `$FSLDIR/data/atlases/`. An unrecognised name warns and falls back to
+HarvardOxford.
+
+A third pathway exists for datasets that ship their own region definitions:
+`nim_parcellation_from_masks` builds a parcellation from a directory of binary mask volumes,
+resampling nearest-neighbour through the two sforms so the masks need not be on the DWI grid.
+It returns both an integer label volume (overlaps resolved smallest-region-wins, so a large
+structure cannot swallow the small specific bundle crossing it) and the untouched per-region
+masks, which is what ROI selection should use.
 
 ### Stage 6: Tissue Segmentation (`preproc_tissue_segmentation.m`)
 
-FA-based tissue classification for Anatomically Constrained Tractography (ACT):
+Produces the WM/GM/CSF masks that Anatomically Constrained Tractography needs. Called from
+`main.m`, not from the preprocessing pipeline.
 
-| Tissue | FA Criterion | Post-processing |
-|---|---|---|
-| White matter (WM) | FA > 0.2 | Eroded (remove boundary voxels) |
-| Gray matter (GM) | 0.05 < FA <= 0.2 | None |
-| CSF | FA <= 0.05 | None |
+**Primary**: FSL FAST on the anatomical T1, resampled into DWI space through the two images'
+world affines (`flirt -usesqform`). No registration step is involved, so the masks cannot be
+corrupted by a T1→DWI registration that is disabled or poorly converged — correct whenever the
+T1 is already world-aligned to the diffusion data.
 
-Validates mutual exclusivity and expected tissue proportions (WM ~40-45%, GM ~40-45%, CSF ~10-20%).
+**Fallback** (no usable T1): FA-tertile binning. This bins anisotropy, not tissue, so ACT
+driven by it terminates streamlines mid-crossing. It exists for DWI-only data.
+
+The masks are written as `{name}_WM_mask.nii.gz`, `{name}_GM_mask.nii.gz` and
+`{name}_CSF_mask.nii.gz`, and loaded onto the `nim`. Failure is non-fatal: tractography
+proceeds without ACT.
 
 ### Stage 7: Tractography
 
@@ -433,27 +557,52 @@ Two primary algorithms are available:
 - Bidirectional tracking from seed points
 - Seeding: uniform lattice with optional random jitter
 
-**HINEC High-Order** (`nim_tractography_hinec.m`):
+**HINEC interpolated streamlines** (`nim_tractography_hinec.m`):
 
-- Trilinear interpolation via pre-computed `griddedInterpolant` objects
-- Multiple integration methods: Euler, RK2, RK4, RKF45 (adaptive)
-- Anatomically Constrained Tractography (ACT) with tissue-type termination
+- Interpolated direction field via pre-computed `griddedInterpolant` objects; the kernel is
+  `trilinear` (C0), `cubic` (C1 Keys convolution) or `spline` (C2)
+- `interpolation.upsample` refines or coarsens the sampling grid without changing the
+  coordinate frame, which is how the spatial axis of a convergence study is swept
+- Integration methods: Euler, RK2, RK4, RKF45 (adaptive Dormand-Prince)
+- Direction from the DTI principal eigenvector or, with `field: csd`, the FOD peak nearest the
+  incoming tangent
+- Anatomically Constrained Tractography (ACT) with tissue-type termination, off by default
 - Parallel processing support (`parfor` with `DataQueue` progress)
 
-Both algorithms share these stopping criteria:
+**MMF connection-form** (`nim_tractography_mmf_connframe.m`):
 
-- FA below threshold (typically 0.1-0.2)
-- Angle between consecutive steps exceeds threshold (typically 35-60 degrees)
-- Track exits brain mask
-- Maximum step count reached
+- Advances `dx/ds = e1` while evolving the carried frame by the structure equation, driven by
+  the interpolated connection field built in `nim_mmf_geometry`
+- `integrator` (`rk4` fixed or `rkf45` adaptive) chooses only the numerical scheme; the
+  direction comes entirely from the connection form
+- With `field: csd`, the geometry is built per FOD peak, giving multiple pathways
 
-**Seeding strategy** (3-tier priority):
+All three trackers share these stopping criteria:
 
-1. Preprocessed brain mask (best)
-2. Expanded parcellation mask (dilated regions)
-3. FA-threshold fallback (FA > 0.10)
+- FA below `termination.fa_min`
+- Curvature exceeds `termination.angle_max`, measured in degrees per voxel of arc rather than
+  per step. Because the principal direction is a line field, tangents are sign-aligned and a
+  measured turn never exceeds 90°, so a budget above `90 / step` is inert rather than loose;
+  `0` disables the criterion
+- Arc length exceeds `termination.max_arc` voxels (`max_steps` is derived from it)
+- Track exits the brain mask
+- With ACT on, the track reaches GM (accept) or CSF (reject)
 
-**Output**: Cell array of tracks (each track is Nx3 matrix of 3D coordinates), options struct, timing, and statistics.
+Tracks shorter than `termination.min_arc` voxels of arc are discarded.
+
+**Seeding strategy**, resolved in `runTractography` (4-tier priority):
+
+1. Explicit ROI (`seeding.roi`) — named atlas regions, optionally dilated
+2. Preprocessed brain mask
+3. Expanded parcellation mask (dilated 3 voxels)
+4. FA-threshold fallback (FA > 0.10)
+
+Every tier then intersects with `seeding.fa_min`. Within a seeded voxel, `seeding.density`
+seeds are placed on a deterministic sub-voxel lattice (`uniform`) or jittered (`random`).
+
+**Output**: cell array of tracks (each an Nx3 matrix of voxel-space coordinates spanning the
+complete trajectory), plus the flat options struct, the algorithm name, elapsed time and
+per-track metadata.
 
 ### Stage 8: Visualization
 
@@ -461,9 +610,9 @@ Three tiers of visualization capability:
 
 1. **MATLAB 3D** (`visualizeTractography.m`): Unified viewer with whole-brain, region, grid, and sequential modes. Supports direction/FA/region coloring and export.
 
-2. **MATLAB 2D Slices** (`visualizeTractographySlices.m`): Interactive orthogonal slice viewer with crosshair synchronization. 5-30 second latency per slice update.
+2. **MATLAB 2D Slices** (`visualizeTractographySlices.m`): interactive orthogonal slice viewer with crosshair synchronization. Each slice update re-renders from the track data, so navigation is slow on large tractograms.
 
-3. **Fast Distributed Viewer**: Pre-generate slice cache on server (`generateSlices.m`), transfer, view locally with Python GUI (`FastTractographyViewer.py`). Sub-100ms slice transitions.
+3. **Fast Distributed Viewer**: pre-generate a slice cache on the machine holding the data (`generateSlices.m`), transfer it, and browse locally with the Python GUI (`FastTractographyViewer.py`). Navigation reads pre-rendered images, so no MATLAB is needed locally.
 
 See [VISUALIZATION_GUIDE.md](VISUALIZATION_GUIDE.md) for complete details.
 
@@ -475,42 +624,100 @@ HINEC uses YAML configuration files for reproducible parameter management.
 
 ### Configuration Structure
 
+Configuration nests exactly two levels below a section (`section` → `group` → `key`); a third
+level is a parse error. Every key is optional and falls back to the schema default, so a
+working config can be three lines.
+
 ```yaml
 preprocessing:
-  denoising: true/false
-  motion_correction: true/false
-  eddy_correction: true/false
-  brain_extraction: true/false
-  fieldmap_correction: true/false
+  run_denoising: true|false
+  denoise_method: dwidenoise | nlmeans | gaussian
+  run_motion_correction: true|false
+  run_eddy: true|false
+  improve_mask: true|false
+  atlas_type: jhu | harvardoxford | jhu-tract
+  t1_available: true|false
+  use_t1_registration: true|false
+  register_to_mni: true|false
 
 tractography:
-  algorithm: hinec | standard | mmf
+  algorithm: hinec | standard | mmf       # which tracker
+  field: dti | csd                        # where the local direction comes from
+  act: true|false                         # default FALSE
   integrator:
     method: euler | rk2 | rk4 | rkf45     # a METHOD name, not an order
-    step: 0.01 - 1.0                      # voxel units
+    step: 0.2                             # voxel units; initial step for rkf45
+    tolerance, step_min, step_max, safety, adaptive   # rkf45 only
   interpolation:
-    method: trilinear | cubic
+    method: trilinear | cubic | spline    # C0 | C1 | C2
+    upsample: 1                           # >1 refines, <1 coarsens
+  seeding:
+    density, strategy, fa_min, roi, roi_dilate
   termination:
-    angle_max: 20 - 90                    # degrees
-    fa_min: 0.05 - 0.3
-    max_arc: arc length in voxels         # max_steps is derived from this
-  seed_density: 1 - 10 (seeds per voxel dimension)
-  adaptive_step: true/false (RKF45 only)
-  adaptive_tolerance: 0.001 - 0.1
-  act_enabled: true/false
+    fa_min: 0.10
+    angle_max: 225                        # DEGREES PER VOXEL OF ARC; 0 disables
+    max_arc: 400                          # voxels; max_steps derived from it
+    min_arc: 15                           # voxels
+  filter:
+    include_roi, exclude_roi, mode, roi_dilate, endpoints_in, contained_in
+  output:
+    arc_step: 0                           # resample saved streamlines
+  csd:
+    lmax, max_peaks, peak_thresh, peak_min_sep, n_iter
+  mmf:
+    anchor, frame_sel_power
+  diagnostics: true|false
 ```
+
+`src/nim_utils/nim_config_schema.m` declares every parameter exactly once — its canonical
+path, default, type, permitted values, legacy aliases, the algorithms that actually read it,
+and a one-line description. Everything else derives from it: `load_config_yaml` takes its
+defaults, validation, unknown-key rejection and legacy migration from the schema;
+`nim_config_to_options` flattens to the legacy option names the trackers still read; and
+[YAML_CONFIG.md](YAML_CONFIG.md) is generated by `nim_config_docs`, so the reference cannot
+drift from the code.
+
+Two categories of legacy key are handled differently. **Migrated** keys are transformed:
+`integration_order` (1/2/4/5) becomes `integrator.method`, and `max_steps` becomes
+`max_arc = max_steps × step`. **Retired** keys are warned about and dropped rather than
+remapped, because remapping them would change behaviour — `fa_threshold` was functionally dead
+and is not equivalent to either `termination.fa_min` or `seeding.fa_min`, and `sel_power` has
+been removed from HINEC entirely.
+
+Any parameter can be overridden on the command line with `--set key=value`, resolved against
+the schema by canonical path, by `group.key`, or by a bare leaf name when unique.
 
 ### Available Presets
 
-| Preset | Algorithm | Integration | Step Size | Seed Density | Use Case |
-|---|---|---|---|---|---|
-| `hinec_default.yml` | hinec | RK4 | 0.2 | 4 | Balanced default |
-| `hinec_dti_cubic.yml` | hinec | RKF45 | 0.2 | 4 | Publication quality |
-| `hinec_dti_fast.yml` | hinec | RK2 | 0.3 | 2 | Quick testing |
-| `standard_dti.yml` | standard | Euler | 0.5 | 4 | Baseline FACT |
-| `irontract.yml` | hinec | RK4 | 0.2 | 4 | IronTract challenge |
+Configs come in two families, and the family determines which launcher consumes them.
+**Tracker** configs are named `<algorithm>_<field>[_<variant>].yml` and drive
+`bin/run_tractography.sh`; **dataset** configs are named `<dataset>[_variant].yml` and drive
+`bin/run_hinec.sh`.
 
-See [YAML_CONFIG.md](YAML_CONFIG.md) for complete configuration reference.
+| Preset | Family | Algorithm | Field | Integrator | Interpolation | Step |
+|---|---|---|---|---|---|---|
+| `standard_dti.yml` | tracker | standard | dti | euler | — | 0.5 |
+| `hinec_dti.yml` | tracker | hinec | dti | rkf45 | trilinear | 0.2 |
+| `hinec_csd.yml` | tracker | hinec | csd | rkf45 | trilinear | 0.2 |
+| `hinec_dti_cubic.yml` | tracker | hinec | dti | rkf45 | cubic | 0.2 |
+| `hinec_dti_cubic_recall.yml` | tracker | hinec | dti | rkf45 | cubic | 0.2 |
+| `hinec_dti_fast.yml` | tracker | hinec | dti | rk2 | trilinear | 0.3 |
+| `hinec_dti_euler.yml` | tracker | hinec | dti | euler | trilinear | 0.5 |
+| `mmf_dti.yml` | tracker | mmf | dti | rk4 | trilinear | 0.2 |
+| `mmf_csd.yml` | tracker | mmf | csd | rk4 | trilinear | 0.2 |
+| `ismrm2015.yml` | dataset | hinec | dti | rkf45 | trilinear | 0.2 |
+| `irontract.yml` | dataset | hinec | dti | rkf45 | trilinear | 0.2 |
+| `hinec_default.yml` | fallback | hinec | dti | rk4 | cubic | 0.2 |
+| `reference.yml` | template | — | — | fixed step, set on the CLI | — | — |
+
+Presets carry only their non-default values; everything else comes from the schema. There are
+three orthogonal axes — `algorithm` (which tracker), `field` (`dti` or `csd`) and the
+integrator — and, for hinec, direction is further shaped by two composable factors:
+`interpolation.method` (spatial kernel) and `interpolation.upsample` (sampling density).
+Settings irrelevant to a chosen combination are ignored by design.
+
+See [YAML_CONFIG.md](YAML_CONFIG.md) for the complete parameter reference and
+`config/README.md` for the naming rules.
 
 ---
 
@@ -520,17 +727,23 @@ Each pipeline execution creates a timestamped directory for reproducibility:
 
 ```
 hinec_runs/
-└── run_YYYY-MM-DD_HH-MM-SS/
+└── run_YYYYMMDD_HHMMSS_<config>/
     ├── run_info.txt              # Metadata (git hash, timestamp, description)
     ├── config.yml                # Copied configuration file
-    ├── logs/                     # Execution logs
-    ├── intermediate/             # Intermediate processing files
-    ├── output/                   # Final processed nim.mat
-    ├── tractography/             # Track results
-    └── diagnostics/              # Quality reports
+    ├── overrides.txt             # --set overrides, when any were given
+    ├── logs/pipeline.log         # Live execution log
+    ├── intermediate/             # Preprocessing artifacts
+    ├── output/                   # Copy of the processed nim
+    └── tractography/             # Track results
+        └── diagnostics/          # Quality reports
 ```
 
-A `latest` symlink points to the most recent run. See [RUN_DIRECTORY_SYSTEM.md](RUN_DIRECTORY_SYSTEM.md) for details.
+A `latest` symlink points to the most recent run (a text file containing the path, on
+Windows).
+
+Note the division of layers: the canonical processed `nim`, the preprocessed references and
+the CSD cache live in the **data directory** next to the input; run directories hold
+tractography outputs. See [RUN_DIRECTORY_SYSTEM.md](RUN_DIRECTORY_SYSTEM.md) for details.
 
 ---
 
@@ -557,7 +770,8 @@ Required for all preprocessing operations. Must be installed and initialized (`F
 
 ### SPM12
 
-Included in `lib/spm12/`. Used for:
+Expected at `lib/spm12/`, which `main.m` adds with `addpath(genpath('lib/spm12'))`. It is
+**not** vendored in this repository — install it there. Used for:
 
 - NIfTI file I/O (`load_nii`, `save_nii`)
 - Optional registration method (alternative to FSL)
@@ -577,12 +791,11 @@ Included in `lib/bfgs/`. Used by `nim_dt_spd.m` for enforcing positive-definiten
 
 ### Python (Optional)
 
-Required only for the fast distributed slice viewer:
-
-- Python 3.7+
-- tkinter (GUI framework)
-- Pillow (image loading)
-- numpy (array operations)
+Not needed for the MATLAB pipeline itself. Required for the fast distributed slice viewer
+(`scripts/FastTractographyViewer.py`, `scripts/tractography_slice_gui.py`) and for the TRK
+export and validation tooling (`scripts/hinec_to_trk.py`,
+`scripts/validate_ismrm_tractography.py`). `requirements.txt` covers all of them; the viewer
+additionally needs tkinter, which normally ships with Python.
 
 ---
 
@@ -599,12 +812,16 @@ Required only for the fast distributed slice viewer:
 | `{name}_acqp.txt` | Acquisition parameters (for eddy) | `sample_acqp.txt` |
 | `{name}_index.txt` | Volume index file (for eddy) | `sample_index.txt` |
 | `{name}_M.nii.gz` | Brain mask | `sample_M.nii.gz` |
+| `{name}_T1.nii.gz` | T1 anatomical (optional) | `sample_T1.nii.gz` |
+| `{name}_fmap_Hz.nii.gz` | Field map in Hz (optional) | `sample_fmap_Hz.nii.gz` |
 
 ### Output Files
 
 | Pattern | Description | Example |
 |---|---|---|
-| `{name}.mat` | Processed nim structure | `sample_parcellated.mat` |
+| `{name}.mat` | Processed nim structure | `ismrm2015.mat` |
+| `{name}_csd.mat` | Cached CSD FOD peaks | `ismrm2015_csd.mat` |
+| `{name}_WM_mask.nii.gz` and friends | Tissue masks for ACT | `sample_GM_mask.nii.gz` |
 | `tracks_{algo}_{timestamp}.mat` | Tractography results | `tracks_hinec_2025-01-15_14_30_00.mat` |
 
 ### Intermediate Files (cleaned up after preprocessing)
@@ -623,7 +840,9 @@ Required only for the fast distributed slice viewer:
 - Configuration details: [YAML_CONFIG.md](YAML_CONFIG.md)
 - Run directory system: [RUN_DIRECTORY_SYSTEM.md](RUN_DIRECTORY_SYSTEM.md)
 - Preprocessing details: [PREPROCESSING.md](PREPROCESSING.md)
-- Tractography algorithms: [TRACTOGRAPHY.md](TRACTOGRAPHY.md)
+- Tractography methods overview: [TRACTOGRAPHY_METHODS.md](TRACTOGRAPHY_METHODS.md)
+- Standard FACT: [TRACTOGRAPHY.md](TRACTOGRAPHY.md)
+- MMF connection-form tractography: [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)
 - Scientific foundations: [SCIENCE.md](SCIENCE.md)
 - Mathematical methods: [MATHEMATICAL_FOUNDATIONS.md](MATHEMATICAL_FOUNDATIONS.md)
 - Complete function reference: [API_REFERENCE.md](API_REFERENCE.md)

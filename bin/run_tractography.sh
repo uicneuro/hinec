@@ -16,8 +16,10 @@
 #     --score           after tracking, run bin/run_ismrm_scoring.sh on the run dir.
 #     --source <s>      the preprocessed source: a run_hinec run dir (uses its
 #                       output/*.mat + intermediate/) or a processed .mat.
-#                       DEFAULT (no --source): the newest hinec_runs/run_* that has
-#                       an output/*.mat — i.e. your most recent preprocessing run.
+#                       DEFAULT (no --source): data/ismrm2015/ismrm2015.mat, the
+#                       canonical nim in the DATA dir. Run dirs hold tractography
+#                       OUTPUT; the preprocessed nim is a stable input and is not
+#                       read from inside one.
 #
 # Examples:
 #   ./bin/run_tractography.sh hinec_csd --score
