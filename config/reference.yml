@@ -1,0 +1,82 @@
+# reference — template for producing a REFERENCE SOLUTION (a highly-refined run
+# standing in for the unavailable exact solution) and for driving the step-size
+# convergence ladder.
+#
+# This is a TEMPLATE, not a fixed experiment. Refinement is driven entirely from
+# the command line, so one config covers every level of the ladder:
+#
+#   # reference solution on one bundle
+#   ./bin/run_tractography.sh reference --set seeding.roi=[41,42] --set integrator.step=0.002
+#
+#   # the ladder: only integrator.step moves. Refining by sqrt(2) rather than 2
+#   # doubles the number of points per decade, which is what makes an observed
+#   # order a fitted TREND over many levels instead of three ratios of four runs.
+#   for h in 0.5 0.353553 0.25 0.176777 0.125 0.0883883 0.0625 0.0441942 0.03125; do
+#     ./bin/run_tractography.sh reference --set seeding.roi=[41,42] --set integrator.step=$h
+#   done
+#   # reference: 4x finer than the finest ladder level, so its own error does not
+#   # contaminate the differences being fitted.
+#   ./bin/run_tractography.sh reference --set seeding.roi=[41,42] --set integrator.step=0.0078125
+#
+#   # order verification: same ladder at Euler / RK2 / RK4
+#   ./bin/run_tractography.sh reference --set integrator.method=euler --set integrator.step=$h
+#
+# WHY FIXED STEP, NOT RKF45: an adaptive controller changes the effective step
+# per step, which is precisely the quantity whose scaling we are trying to
+# measure. Order verification requires a fixed step.
+#
+# WHAT MUST NOT VARY WITHIN A LADDER: termination.*, seeding.*, interpolation.*
+# and the ROI define the PROBLEM. Only integrator.step (discretisation) moves.
+# Changing a termination criterion mid-ladder changes the solution being
+# converged to, and the observed order becomes meaningless.
+#
+# max_arc, not max_steps: track length is capped by ARC LENGTH in voxels, and
+# max_steps is derived as ceil(max_arc/step). This is what stops a refined run
+# from silently truncating tracks, which would make the error appear to GROW
+# under refinement.
+
+tractography:
+  algorithm: hinec
+  field: dti
+
+  integrator:
+    method: rk4          # euler | rk2 | rk4 — fixed step. Not rkf45; see above.
+    step: 0.002          # the reference step; --set this for each ladder level
+
+  interpolation:
+    method: cubic        # highest available spatial order for the reference
+    upsample: 1          # raise for the spatial (grid) refinement axis
+
+  termination:
+    fa_min: 0.10
+
+    # ANGLE CRITERION OFF FOR ORDER VERIFICATION.
+    #
+    # angle_max is a rate in degrees per voxel of ARC, so the budget for one step
+    # is angle_max * step - and a step ladder sweeps `step` by two orders of
+    # magnitude. At 225 deg/voxel that budget runs from 112 deg at step 0.5, which
+    # is above the 90 deg ceiling and therefore CANNOT FIRE, down to 0.45 deg at
+    # step 0.002, which cuts almost everything. The criterion is not held fixed
+    # across the ladder in any useful sense: it is absent at the top and crushing
+    # at the bottom, so any error trend it produces is its own, not the
+    # integrator's. It is also a TERMINATION rule, and termination is exactly what
+    # the seed-anchored prefix metric exists to keep out of the measurement.
+    #
+    # 0 disables it outright. That is a real setting, not a large number chosen to
+    # stop binding - see nim_angle_limit for why those differ.
+    angle_max: 0
+
+    max_arc: 400         # voxels; raise freely if tracks are being capped
+    min_arc: 15
+
+  seeding:
+    density: 8           # SAMPLING, not discretisation — hold fixed across a ladder
+    fa_min: 0.05
+    roi: []              # set per experiment, e.g. --set seeding.roi=[41,42]
+    roi_dilate: 1
+
+  output:
+    arc_step: 0.5        # store a point every 0.5 voxels regardless of step, so
+                         # file size does not scale as 1/step. Integration still
+                         # runs at full resolution; only the saved polyline is
+                         # coarsened. Set to 0 to keep every integration step.
