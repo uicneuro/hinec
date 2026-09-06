@@ -18,7 +18,7 @@ o=@(f,d) getdef(options,f,d);
 options.field=char(string(o('field','dti')));
 options.step_size=o('step_size',0.2); options.step_min=o('step_min',0.02); options.step_max=o('step_max',0.5);
 options.max_steps=o('max_steps',3000);
-options.angle_thresh=o('angle_thresh',45); options.min_length=o('min_length',15);
+options.angle_thresh=o('angle_thresh',60); options.min_length=o('min_length',15);
 options.fa_threshold=o('fa_threshold',0.1); options.termination_fa=o('termination_fa',0.05);
 options.bishop_eps=o('bishop_eps',1e-6);
 options.mmf_anchor=o('mmf_anchor',0);   % 0 = pure Eq.10-11 (faithful); >0 re-anchors e1 to the field
@@ -91,7 +91,10 @@ nim.prop_mask=imdilate(prop,ones(3,3,3));
 
 seeds=build_seeds(nim,options,dims,is_csd);
 fprintf('MMF [%s]: %d seeds\n', options.field, size(seeds,1));
-cos_thresh=cos(deg2rad(options.angle_thresh));
+% Degrees of turning per VOXEL OF ARC (nim_angle_limit), the same units the
+% other two trackers use. MMF advances dx/ds=e1 at a fixed step, so the arc a
+% step covers is the nominal step size.
+[~,cos_thresh]=nim_angle_limit(options.angle_thresh, options.step_size);
 ns=size(seeds,1); allt=cell(ns,1); valid=false(ns,1);
 
 use_par=~isempty(ver('parallel'));
@@ -116,8 +119,9 @@ end
 % ---------------------------------------------------------------------------
 function seeds=build_seeds(nim,options,dims,is_csd)
 idx=find(options.seed_mask); [x,y,z]=ind2sub(dims,idx);
-per=max(1,ceil(max(1,options.seed_density)^(1/3)));
-e=linspace(-0.5,0.5,per+1); o1=(e(1:end-1)+e(2:end))/2; [ox,oy,oz]=ndgrid(o1,o1,o1); off=[ox(:),oy(:),oz(:)]; no=size(off,1);
+% exactly seed_density offsets (see nim_seed_offsets); the old inline lattice
+% rounded up to the next perfect cube.
+off=nim_seed_offsets(options.seed_density); no=size(off,1);
 if is_csd, maxK=size(nim.PK,4); else, maxK=1; end
 seeds=zeros(numel(idx)*no*maxK,6); r=0;
 for i=1:numel(idx)

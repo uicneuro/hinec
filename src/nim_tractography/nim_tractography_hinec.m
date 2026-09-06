@@ -1,4 +1,4 @@
-function tracks = nim_tractography_hinec(data_path, varargin)
+function [tracks, meta] = nim_tractography_hinec(data_path, varargin)
 % nim_tractography_hinec: High-Order Deterministic Tractography with ACT
 %
 % HIGH-ORDER TRACTOGRAPHY IMPLEMENTATION:
@@ -40,7 +40,7 @@ function tracks = nim_tractography_hinec(data_path, varargin)
 %   step_min - Minimum step size for RKF (default: 0.01 voxels)
 %   step_max - Maximum step size for RKF (default: 1.0 voxels)
 %   termination_fa - FA threshold for termination (default: 0.05)
-%   angle_thresh - Maximum angle change between directions (default: 60°)
+%   angle_thresh - Maximum turn in DEGREES PER VOXEL OF ARC (default: 60)
 %   max_steps - Maximum integration steps (default: 5000)
 %   seed_density - Seeds per voxel with flexible positioning (default: 1)
 %
@@ -111,9 +111,6 @@ if ~isfield(options, 'interp_method')
 end
 if ~isfield(options, 'field') || isempty(options.field)
     options.field = 'dti';   % 'dti' (principal eigenvector) | 'csd' (FOD peaks)
-end
-if ~isfield(options, 'sel_power') || isempty(options.sel_power)
-    options.sel_power = 0;   % 0 = plain trilinear; >0 = trajectory-dependent (aligned-voxel) interp
 end
 if ~isfield(options, 'integration_order')
     options.integration_order = 4;  % HINEC: RK4 integration by default
@@ -230,37 +227,114 @@ fprintf('HINEC: Extracted v1_x, v1_y, v1_z components (size: %dx%dx%d)\n', dims(
 % griddedInterpolant is 2-5x faster than interp3 for repeated queries on the same grid
 fprintf('HINEC: Creating griddedInterpolant objects for fast interpolation...\n');
 
-% Determine interpolation method
-if strcmp(options.interp_method, 'cubic')
-    interp_method = 'cubic';
-else
-    interp_method = 'linear';  % Default for 'trilinear' or any other
+% Determine interpolation method.
+%
+% The three kernels differ in SMOOTHNESS, which is the property that decides how
+% much of an integrator's formal order it can actually reach. A Runge-Kutta
+% method of order p needs its right-hand side to have p continuous derivatives;
+% supply less and the observed order is capped regardless of how many stages the
+% tableau has.
+%
+%   trilinear -> MATLAB 'linear', C0: continuous, kinked at every voxel face
+%   cubic     -> MATLAB 'cubic',  C1: Keys cubic CONVOLUTION, not a spline. Its
+%                first derivative is continuous and its second is not.
+%   spline    -> MATLAB 'spline', C2: a genuine cubic spline
+%
+% The C1/C2 distinction is the point of having 'spline' at all: measured on this
+% data, RK4 reaches order 2.02 on trilinear and 2.02 on cubic - identical, which
+% is what a cap below C2 predicts, since C0 and C1 are both short of what order 3
+% would require.
+switch lower(char(string(options.interp_method)))
+    case 'cubic',  interp_method = 'cubic';
+    case 'spline', interp_method = 'spline';
+    otherwise,     interp_method = 'linear';   % 'trilinear' or anything else
 end
 fprintf('HINEC: Interpolation method: %s\n', interp_method);
 
 % Create grid vectors for griddedInterpolant
 grid_vectors = {1:dims(1), 1:dims(2), 1:dims(3)};
 
+% SPATIAL REFINEMENT (upsample). This is the space axis of a convergence study,
+% the companion to refining the integration step in time.
+%
+% It changes only HOW DENSELY the direction field is sampled before the
+% interpolants are built - the coordinate frame is untouched, so positions,
+% seeds, masks, step sizes and every reported length stay in native voxel units
+% and results at different upsample factors are directly comparable. A factor u
+% samples the field on a grid of spacing 1/u voxels:
+%
+%   u > 1   finer than the acquisition   (refines toward the continuous field)
+%   u = 1   the acquisition grid itself  (the samples as measured)
+%   u < 1   coarser than the acquisition (discards spatial information)
+%
+% WHAT THE LIMIT IS. Sampling more densely and re-interpolating converges to the
+% native-resolution interpolant, so u -> infinity is the continuous field implied
+% by the measured samples - NOT ground-truth anatomy. This axis therefore
+% measures how the result depends on the spatial sampling of the field, which is
+% a verification question. It cannot tell you whether 2mm data resolves the
+% anatomy; that is validation and needs a different experiment.
+upsample = 1;
+if isfield(options, 'upsample') && ~isempty(options.upsample) && options.upsample > 0
+    upsample = double(options.upsample);
+end
+
+Dxx = nim.v1_x .* nim.v1_x;  Dyy = nim.v1_y .* nim.v1_y;  Dzz = nim.v1_z .* nim.v1_z;
+Dxy = nim.v1_x .* nim.v1_y;  Dxz = nim.v1_x .* nim.v1_z;  Dyz = nim.v1_y .* nim.v1_z;
+FA_grid = nim.FA;
+
+if abs(upsample - 1) > 1e-9
+    ng = max(2, round((dims - 1) * upsample) + 1);
+    gnew = {linspace(1, dims(1), ng(1)), linspace(1, dims(2), ng(2)), linspace(1, dims(3), ng(3))};
+    [GX, GY, GZ] = ndgrid(gnew{1}, gnew{2}, gnew{3});
+    src = {FA_grid, Dxx, Dyy, Dzz, Dxy, Dxz, Dyz};
+    for q = 1:numel(src)
+        gi = griddedInterpolant(grid_vectors, src{q}, interp_method, 'none');
+        src{q} = gi(GX, GY, GZ);
+    end
+    [FA_grid, Dxx, Dyy, Dzz, Dxy, Dxz, Dyz] = src{:};
+    grid_vectors = gnew;
+    fprintf('HINEC: upsample %.4g -> field sampled at %.4g voxel spacing (%d x %d x %d)\n', ...
+        upsample, (dims(1)-1)/(ng(1)-1), ng(1), ng(2), ng(3));
+end
+
 % Pre-create interpolant objects (much faster than repeated interp3 calls)
-nim.FA_interp = griddedInterpolant(grid_vectors, nim.FA, interp_method, 'none');
-nim.v1_x_interp = griddedInterpolant(grid_vectors, nim.v1_x, interp_method, 'none');
-nim.v1_y_interp = griddedInterpolant(grid_vectors, nim.v1_y, interp_method, 'none');
-nim.v1_z_interp = griddedInterpolant(grid_vectors, nim.v1_z, interp_method, 'none');
+nim.FA_interp = griddedInterpolant(grid_vectors, FA_grid, interp_method, 'none');
+native_gv = {1:dims(1), 1:dims(2), 1:dims(3)};
+nim.v1_x_interp = griddedInterpolant(native_gv, nim.v1_x, interp_method, 'none');
+nim.v1_y_interp = griddedInterpolant(native_gv, nim.v1_y, interp_method, 'none');
+nim.v1_z_interp = griddedInterpolant(native_gv, nim.v1_z, interp_method, 'none');
+
+% DYADIC interpolants: the six unique components of v1*v1'. These, not the raw
+% signed components above, are what DTI tracking interpolates.
+%
+% v1 is a LINE field - the eigensolver's sign for each voxel is arbitrary. Two
+% adjacent voxels can describe the same fibre orientation with opposite signs,
+% and interpolating the signed components between them computes a DIFFERENCE:
+% the result shrinks toward zero and its direction is meaningless. That is a
+% property of the storage, not of the anatomy. The outer product is invariant
+% under v -> -v, so interpolating it and extracting the principal eigenvector
+% afterwards averages ORIENTATIONS instead of vectors.
+%
+% The raw component interpolants are kept because the CSD path still uses them
+% for its initial reference direction, where a single lookup with no averaging
+% across a sign boundary is harmless.
+nim.D_xx_interp = griddedInterpolant(grid_vectors, Dxx, interp_method, 'none');
+nim.D_yy_interp = griddedInterpolant(grid_vectors, Dyy, interp_method, 'none');
+nim.D_zz_interp = griddedInterpolant(grid_vectors, Dzz, interp_method, 'none');
+nim.D_xy_interp = griddedInterpolant(grid_vectors, Dxy, interp_method, 'none');
+nim.D_xz_interp = griddedInterpolant(grid_vectors, Dxz, interp_method, 'none');
+nim.D_yz_interp = griddedInterpolant(grid_vectors, Dyz, interp_method, 'none');
 
 fprintf('HINEC: griddedInterpolant objects created successfully\n');
 
-% CSD / sel_power support: raw principal-eigenvector array (for trajectory-dependent
-% DTI interpolation) and FOD peak field (for CSD tracking).
+% FOD peak field, needed only for CSD tracking.
 options.field = lower(char(string(options.field)));
-nim.E1arr = cat(4, nim.v1_x, nim.v1_y, nim.v1_z);   % [D1 D2 D3 3]
 if strcmp(options.field, 'csd')
     if ~isfield(nim,'peaks') || ~isfield(nim,'npeaks')
         error('HINEC field=csd needs nim.peaks/npeaks (run nim_csd).');
     end
     nim.PK = nim.peaks; nim.NP = nim.npeaks;
-    fprintf('HINEC: CSD FOD-peak tracking (sel_power=%g)\n', options.sel_power);
-elseif options.sel_power > 0
-    fprintf('HINEC: trajectory-dependent DTI interpolation (sel_power=%g)\n', options.sel_power);
+    fprintf('HINEC: CSD FOD-peak tracking\n');
 end
 
 if options.enable_diagnostics
@@ -279,7 +353,23 @@ options.seed_mask = logical(options.seed_mask > 0);
 
 options.seed_mask = logical(options.seed_mask);
 fprintf('Pre-computing dilated brain mask for boundary checking...\n');
-nim.dilated_brain_mask = imdilate(options.seed_mask, ones(3,3,3));
+% Where tracks may PROPAGATE - a different question from where they may be
+% SEEDED. This used to be imdilate(seed_mask, ones(3,3,3)), which confined
+% tracking to one voxel beyond the seed mask. Harmless for whole-brain seeding,
+% but it made ROI seeding useless: a track seeded in a bundle could not leave
+% the ROI, so lengths were capped by the ROI's extent rather than by anatomy.
+% Same convention the MMF tracker already used (nim_tractography_mmf_connframe:89).
+if isfield(options, 'propagation_mask') && ~isempty(options.propagation_mask)
+    prop_mask = logical(options.propagation_mask > 0);
+else
+    prop_mask = nim.FA > options.termination_fa;
+    if isfield(nim, 'mask') && ~isempty(nim.mask)
+        prop_mask = prop_mask & (nim.mask > 0.5);
+    end
+end
+nim.dilated_brain_mask = imdilate(prop_mask, ones(3,3,3));
+fprintf('HINEC: propagation domain %d voxels (seed mask %d voxels)\n', ...
+    sum(nim.dilated_brain_mask(:)), sum(options.seed_mask(:)));
 
 % Generate seed points
 if options.enable_diagnostics
@@ -313,7 +403,13 @@ tracks = cell(size(seed_points, 1) * 2, 1);
 track_count = 0;
 
 % Convert angle threshold to cosine for efficiency
-cos_angle_thresh = cos(deg2rad(options.angle_thresh));
+% angle_thresh is degrees per VOXEL OF ARC, not per step. The allowed turn for a
+% given step is therefore angle_thresh * (length of that step), evaluated inside
+% the tracker so it also works with adaptive stepping. Previously this was a
+% fixed per-step cosine, which made the constraint scale as 1/step: refining the
+% step loosened it until it stopped binding, and tracks hairpinned near their
+% ends instead of terminating. Same class of defect as the old max_steps.
+angle_rate_deg_per_voxel = options.angle_thresh;
 
 % Initialize timing for tracking
 if options.enable_diagnostics
@@ -373,8 +469,8 @@ if use_parfor
         seed = seed_points(i, :);
 
         % Track in both directions
-        [track_forward, step_timing_fwd, term_fwd] = track_fiber_hinec(nim, seed, +1, options, cos_angle_thresh);
-        [track_backward, step_timing_bwd, term_bwd] = track_fiber_hinec(nim, seed, -1, options, cos_angle_thresh);
+        [track_forward, step_timing_fwd, term_fwd] = track_fiber_hinec(nim, seed, +1, options, angle_rate_deg_per_voxel);
+        [track_backward, step_timing_bwd, term_bwd] = track_fiber_hinec(nim, seed, -1, options, angle_rate_deg_per_voxel);
 
         % Store termination reasons
         term_fwd_all{i} = term_fwd;
@@ -405,7 +501,12 @@ if use_parfor
             % Combine into one continuous track
             combined_track = [track_backward; seed; track_forward];
 
-            if size(combined_track, 1) > 1
+            % min_arc is an ARC LENGTH in voxels, not a point count. It used to
+            % be defaulted here and then never read, so a schema-validated key
+            % that every config sets was honoured by exactly one of the three
+            % trackers - the same defect class as the angle criterion's units.
+            if size(combined_track, 1) > 1 && ...
+               sum(sqrt(sum(diff(combined_track,1,1).^2, 2))) >= options.min_length
                 all_tracks{i} = combined_track;
                 track_valid(i) = true;
             else
@@ -432,8 +533,8 @@ else
         seed = seed_points(i, :);
 
         % Track in both directions
-        [track_forward, step_timing_fwd, term_fwd] = track_fiber_hinec(nim, seed, +1, options, cos_angle_thresh);
-        [track_backward, step_timing_bwd, term_bwd] = track_fiber_hinec(nim, seed, -1, options, cos_angle_thresh);
+        [track_forward, step_timing_fwd, term_fwd] = track_fiber_hinec(nim, seed, +1, options, angle_rate_deg_per_voxel);
+        [track_backward, step_timing_bwd, term_bwd] = track_fiber_hinec(nim, seed, -1, options, angle_rate_deg_per_voxel);
 
         % Store termination reasons
         term_fwd_all{i} = term_fwd;
@@ -464,7 +565,12 @@ else
             % Combine into one continuous track
             combined_track = [track_backward; seed; track_forward];
 
-            if size(combined_track, 1) > 1
+            % min_arc is an ARC LENGTH in voxels, not a point count. It used to
+            % be defaulted here and then never read, so a schema-validated key
+            % that every config sets was honoured by exactly one of the three
+            % trackers - the same defect class as the angle criterion's units.
+            if size(combined_track, 1) > 1 && ...
+               sum(sqrt(sum(diff(combined_track,1,1).^2, 2))) >= options.min_length
                 all_tracks{i} = combined_track;
                 track_valid(i) = true;
             else
@@ -481,6 +587,16 @@ fprintf('\nParallel tracking completed.\n');
 % Extract valid tracks
 tracks = all_tracks(track_valid);
 track_count = sum(track_valid);
+
+% Which SEED produced each surviving track. Compaction above drops failed seeds,
+% so track index != seed index: without this, comparing "streamline i" across two
+% runs silently compares different fibres whenever a seed succeeds in one run and
+% fails in the other. Required for convergence analysis, and for harvesting the
+% seeds whose tracks reach a region.
+meta = struct();
+meta.seed_index  = find(track_valid(:))';        % seed id per surviving track
+meta.seed_points = seed_points(track_valid, :);  % and its sub-voxel position
+meta.n_seeds     = num_seeds;
 
 % Count termination reasons (aggregate from all workers)
 failure_reasons = struct();
@@ -639,13 +755,12 @@ if strcmp(strategy, "random")
     return;
 end
 
-% Deterministic lattice seeding inside each voxel
-per_axis = max(1, ceil(density^(1/3)));
-axis_edges = linspace(-0.5, 0.5, per_axis + 1);
-axis_offsets = (axis_edges(1:end-1) + axis_edges(2:end)) / 2;
-[ox, oy, oz] = ndgrid(axis_offsets, axis_offsets, axis_offsets);
-offsets = [ox(:), oy(:), oz(:)];
+% Deterministic sub-voxel seeding. nim_seed_offsets returns EXACTLY `density`
+% offsets; the old inline lattice rounded up to the next perfect cube, so
+% seed_density: 4 silently placed 8 seeds per voxel.
+[offsets, off_info] = nim_seed_offsets(density);
 num_offsets = size(offsets, 1);
+per_axis = off_info.per_axis;
 
 seed_points = zeros(num_voxels * num_offsets, 3);
 idx = 1;
@@ -665,7 +780,7 @@ seed_info = struct('description', description, ...
                    'voxel_spacing', voxel_spacing);
 end
 
-function [track, step_timing, termination_reason] = track_fiber_hinec(nim, seed, direction, options, cos_angle_thresh)
+function [track, step_timing, termination_reason] = track_fiber_hinec(nim, seed, direction, options, angle_rate)
 % HINEC: High-order deterministic tractography with interpolation, RK4, and ACT
 %
 % HINEC ALGORITHM ENHANCEMENTS:
@@ -679,7 +794,7 @@ function [track, step_timing, termination_reason] = track_fiber_hinec(nim, seed,
 %   seed - Starting position
 %   direction - Initial tracking direction (+1 or -1)
 %   options - HINEC tracking parameters
-%   cos_angle_thresh - Cosine of maximum angle change
+%   angle_rate - Maximum turn in DEGREES PER VOXEL OF ARC (step-invariant)
 %
 % Returns:
 %   track - Array of positions along fiber track
@@ -718,6 +833,14 @@ end
 % Apply direction flip for bidirectional tracking
 dir_vec = dir_vec * direction;
 
+% Tangent history for the angle criterion. prev_dir is the tangent BEFORE the
+% most recent step and last_step_arc is the arc that step was asked to cover -
+% the nominal step size, which is the only quantity that is method-independent
+% and, for RKF45, is the step actually accepted rather than the one proposed.
+have_prev_dir = false;
+prev_dir      = dir_vec;
+last_step_arc = options.step_size;
+
 % Pre-compute frequently used values
 dims = size(nim.FA);
 has_parcellation = isfield(nim, 'dilated_brain_mask');
@@ -736,18 +859,31 @@ while true
         break;
     end
 
-    % Check angle constraint (only after first step)
-    if track_length > 1
-        prev_pos = track(track_length-1, :);
-        current_step = track(track_length, :) - prev_pos;
-        if norm(current_step) > 1e-6
-            current_step = current_step / norm(current_step);
-            if dot(dir_vec, current_step) < cos_angle_thresh
-                if nargout > 2
-                    termination_reason = 'angle';
-                end
-                break;
+    % Check angle constraint (only once two tangents exist)
+    %
+    % TANGENT vs TANGENT, and budgeted by the NOMINAL step arc. Both halves of
+    % that matter, and both were previously wrong:
+    %
+    %   * The turn being bounded is the rotation of the DIRECTION FIELD along the
+    %     curve. Measuring it against the realized step CHORD instead folds the
+    %     RK stage-averaging artefact into the geometry - the chord of an RK4
+    %     step is a weighted mean of four stage vectors and points somewhere none
+    %     of them do when they disagree.
+    %
+    %   * The budget must come from the arc the step was ASKED to cover, not the
+    %     chord it happened to produce. See nim_angle_limit: Euler and RK2 have
+    %     |chord| == h identically while RK4's fell to 0.25*h on this data, so a
+    %     chord-scaled budget quietly enforced a 4x tighter limit on RK4 alone.
+    %
+    % Both tangents are sign-aligned (v1 is a line field), so the measured turn
+    % lies in [0, 90] degrees and a budget above 90 is inert - see the helper.
+    if have_prev_dir
+        [~, cos_allowed] = nim_angle_limit(angle_rate, last_step_arc);
+        if dot(prev_dir, dir_vec) < cos_allowed
+            if nargout > 2
+                termination_reason = 'angle';
             end
+            break;
         end
     end
 
@@ -766,6 +902,9 @@ while true
     step_accepted = false;
 
     while ~step_accepted && retry_count < max_retries
+        % The arc this call is asked to cover. Captured per attempt so that after
+        % an RKF45 rejection it reflects the step that was finally ACCEPTED.
+        h_used = options.step_size;
         [next_pos, step_accepted, new_step_size] = advance_position(nim, current_pos, dir_vec, options);
 
         if ~step_accepted
@@ -882,11 +1021,17 @@ while true
         break;
     end
 
-    % Ensure new direction is oriented consistently with current direction
+    % Ensure new direction is oriented consistently with current direction.
+    % v1 is a line field, so this alignment is what makes the turn between
+    % consecutive tangents well defined - and it is why that turn can never
+    % exceed 90 degrees.
     if dot(dir_vec, new_dir) < 0
         new_dir = -new_dir;
     end
-    dir_vec = new_dir;
+    prev_dir      = dir_vec;
+    last_step_arc = h_used;
+    have_prev_dir = true;
+    dir_vec       = new_dir;
 end
 
 % Trim track array to actual length
@@ -1180,7 +1325,7 @@ end
 
 function [direction, fa_value] = interpolate_direction_trilinear(nim, pos, options, ref_dir)
 % HINEC: Fast interpolation of direction and FA using pre-created griddedInterpolant.
-% field='csd' -> trajectory-dependent FOD-peak selection; sel_power>0 -> aligned-voxel
+% field='csd' -> nearest-peak selection then plain spatial interpolation; dti -> plain
 % weighted DTI interpolation; else plain trilinear of the principal eigenvector.
 % ref_dir (optional) = the incoming tangent, used to select the peak / weight the blend.
 if nargin < 4, ref_dir = []; end
@@ -1209,8 +1354,8 @@ dims = size(nim.FA);
 % Boundary check: need buffer for interpolation
 % griddedInterpolant with 'none' extrapolation returns NaN outside bounds
 % Use slightly tighter bounds for cubic interpolation
-if strcmp(options.interp_method, 'cubic')
-    margin = 1.5;  % Cubic needs more margin
+if any(strcmpi(char(string(options.interp_method)), {'cubic','spline'}))
+    margin = 1.5;  % Wider stencils need more margin
 else
     margin = 1.1;  % Linear needs less margin
 end
@@ -1234,45 +1379,48 @@ if isnan(fa_value) || fa_value < options.termination_fa
     return;
 end
 
-% --- trajectory-dependent direction: CSD FOD peaks OR sel_power-weighted DTI ---
+% Direction source. DTI is PURE INTERPOLATION of the principal eigenvector - it
+% falls through to the griddedInterpolant path below. CSD must first reduce a
+% multi-valued field (several FOD peaks per voxel) to a single direction, which
+% is done by taking the peak closest to the incoming tangent; that is structural,
+% not a tunable steering term.
 fld = 'dti'; if isfield(options,'field')&&~isempty(options.field), fld = lower(char(string(options.field))); end
-selp = 0;   if isfield(options,'sel_power')&&~isempty(options.sel_power), selp = options.sel_power; end
-% interp_method also drives the SPATIAL kernel of the sel_power blend: 'cubic' -> tricubic
-% (4x4x4) stencil, else trilinear (2x2x2). So cubic composes WITH sel_power, not either/or.
+% interp_method drives the SPATIAL kernel of the CSD peak blend: 'cubic' -> tricubic
+% (4x4x4) stencil, else trilinear (2x2x2).
 cub = false; if isfield(options,'interp_method')&&~isempty(options.interp_method), cub = strcmpi(char(string(options.interp_method)),'cubic'); end
 if strcmp(fld,'csd')
     if isempty(ref_dir), ref_dir = dominant_peak_h(nim,pos,dims); end
     if isempty(ref_dir), return; end
-    [direction, okd] = interp_peak_traj_h(nim.PK, nim.NP, pos, ref_dir, selp, dims, cub);
-    if ~okd, direction = []; end
-    return;
-elseif selp > 0
-    if isempty(ref_dir), ref_dir = plain_v1_h(nim,pos); end
-    if isempty(ref_dir), return; end
-    [direction, okd] = interp_e1_traj_h(nim.E1arr, pos, ref_dir, selp, dims, cub);
+    [direction, okd] = interp_peak_traj_h(nim.PK, nim.NP, pos, ref_dir, dims, cub);
     if ~okd, direction = []; end
     return;
 end
 
-% Interpolate primary eigenvector components using pre-created interpolants
+% Interpolate the DYADIC v1*v1' and take its principal eigenvector. Interpolating
+% the signed components directly would average across the arbitrary per-voxel
+% sign of a line field; see the interpolant setup for why that is not a
+% direction average at all. The dyadic is sign-invariant, so this is.
 try
-    v_x = nim.v1_x_interp(pos(1), pos(2), pos(3));
-    v_y = nim.v1_y_interp(pos(1), pos(2), pos(3));
-    v_z = nim.v1_z_interp(pos(1), pos(2), pos(3));
+    Dxx = nim.D_xx_interp(pos(1), pos(2), pos(3));
+    Dyy = nim.D_yy_interp(pos(1), pos(2), pos(3));
+    Dzz = nim.D_zz_interp(pos(1), pos(2), pos(3));
+    Dxy = nim.D_xy_interp(pos(1), pos(2), pos(3));
+    Dxz = nim.D_xz_interp(pos(1), pos(2), pos(3));
+    Dyz = nim.D_yz_interp(pos(1), pos(2), pos(3));
 
-    % Check for NaN values (outside interpolation domain)
-    if isnan(v_x) || isnan(v_y) || isnan(v_z)
+    % NaN means outside the interpolation domain.
+    if isnan(Dxx) || isnan(Dyy) || isnan(Dzz) || isnan(Dxy) || isnan(Dxz) || isnan(Dyz)
         return;
     end
 
-    direction = [v_x, v_y, v_z];
+    direction = nim_principal_dir(Dxx, Dyy, Dzz, Dxy, Dxz, Dyz);
 
-    % Validate and normalize
-    dir_norm = norm(direction);
-    if dir_norm > 1e-6 && ~any(isinf(direction))
-        direction = direction / dir_norm;
-    else
-        direction = [];
+    % The eigenvector's sign is arbitrary - it names a line. Pick the
+    % representative pointing along the incoming tangent when there is one. This
+    % is a choice of representative, NOT a modification of the field: the
+    % direction returned is still a pure function of position.
+    if ~isempty(direction) && ~isempty(ref_dir) && dot(direction, ref_dir) < 0
+        direction = -direction;
     end
 catch
     % Interpolation failed - return empty
@@ -1344,8 +1492,10 @@ end
 
 end
 
-% ==== trajectory-dependent interpolation (CSD peaks / sel_power DTI) ==================
-% Ported so HINEC supports CSD FOD-peak tracking and sel_power directional interpolation.
+% ==== CSD FOD-peak interpolation ======================================================
+% Only needed for field='csd', where each voxel carries several peaks and one must be
+% chosen. DTI needs none of this: it has a single eigenvector per voxel and is
+% interpolated directly by griddedInterpolant.
 
 % Per-axis interpolation stencil: cubic -> Catmull-Rom 4-tap (offsets -1..2), else
 % trilinear 2-tap (offsets 0..1). Weights sum to 1 in both cases; cubic weights may be
@@ -1366,36 +1516,11 @@ end
 % DTI: aligned-voxel weighted interpolation of the principal-eigenvector array E [D D D 3].
 % cub=true -> tricubic (4x4x4) spatial stencil; false -> trilinear (identical to the
 % pre-cubic behavior). Alignment weighting (al^sel) is applied per neighbor either way.
-function [d,ok]=interp_e1_traj_h(E,x,v,sel,dims,cub)
-d=[0 0 0]; ok=false;
-if nargin<6, cub=false; end
-if any(x<1)||x(1)>dims(1)||x(2)>dims(2)||x(3)>dims(3), return; end
-x0=floor(x); fr=x-x0; ix=x0(1); iy=x0(2); iz=x0(3);
-if ix<1||iy<1||iz<1||ix>=dims(1)||iy>=dims(2)||iz>=dims(3), return; end
-[ox,wgx]=stencil_h(fr(1),cub); [oy,wgy]=stencil_h(fr(2),cub); [oz,wgz]=stencil_h(fr(3),cub);
-% near a face the wider cubic stencil would read out of bounds -> fall back to trilinear
-if ix+min(ox)<1||ix+max(ox)>dims(1)||iy+min(oy)<1||iy+max(oy)>dims(2)||iz+min(oz)<1||iz+max(oz)>dims(3)
-  [ox,wgx]=stencil_h(fr(1),false); [oy,wgy]=stencil_h(fr(2),false); [oz,wgz]=stencil_h(fr(3),false);
-end
-v=v/max(norm(v),1e-9); acc=[0 0 0]; wsum=0;
-for a=1:numel(ox)
- for b=1:numel(oy)
-  for c=1:numel(oz)
-   sp=wgx(a)*wgy(b)*wgz(c);
-   e=[E(ix+ox(a),iy+oy(b),iz+oz(c),1),E(ix+ox(a),iy+oy(b),iz+oz(c),2),E(ix+ox(a),iy+oy(b),iz+oz(c),3)];
-   ne=norm(e); if ne<1e-9, continue; end; e=e/ne; if e*v'<0, e=-e; end
-   al=max(0,e*v'); w=sp*(al^sel); acc=acc+w*e; wsum=wsum+abs(w);
-  end
- end
-end
-na=norm(acc); if wsum>1e-9 && na>1e-6, d=acc/na; ok=true; end
-end
-
 % CSD: at each stencil voxel select the FOD peak nearest v, then aligned-voxel weighted blend.
 % cub=true -> tricubic (4x4x4) spatial stencil; false -> trilinear (identical to prior behavior).
-function [d,ok]=interp_peak_traj_h(P,NP,x,v,sel,dims,cub)
+function [d,ok]=interp_peak_traj_h(P,NP,x,v,dims,cub)
 d=[0 0 0]; ok=false;
-if nargin<7, cub=false; end
+if nargin<6, cub=false; end
 if any(x<1)||x(1)>dims(1)||x(2)>dims(2)||x(3)>dims(3), return; end
 x0=floor(x); fr=x-x0; ix=x0(1); iy=x0(2); iz=x0(3);
 if ix<1||iy<1||iz<1||ix>=dims(1)||iy>=dims(2)||iz>=dims(3), return; end
@@ -1416,7 +1541,7 @@ for a=1:numel(ox)
      if al>bestal, bestal=al; bestpk=pk; end
    end
    if bestal<0, continue; end
-   w=sp*(max(0,bestal)^sel); acc=acc+w*bestpk; wsum=wsum+abs(w);
+   w=sp; acc=acc+w*bestpk; wsum=wsum+abs(w);   % plain spatial weight - no alignment exponent
   end
  end
 end

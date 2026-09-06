@@ -25,7 +25,7 @@ function tracks = nim_tractography_standard(data_path, varargin)
 %
 % FACT BOUNDARY INTERSECTION PARAMETERS:
 %   termination_fa - FA threshold for termination (default: 0.05)
-%   angle_thresh - Maximum angle change between directions (default: 60°)
+%   angle_thresh - Maximum turn in DEGREES PER VOXEL OF ARC (default: 60)
 %   max_steps - Maximum voxel boundary crossings (default: 5000)
 %   step_size - Not used (exact boundary calculation)
 %   seed_density - Seeds per voxel with flexible positioning (default: 1)
@@ -60,7 +60,7 @@ if ~isfield(options, 'fa_threshold')
     options.fa_threshold = 0.1;
 end
 if ~isfield(options, 'angle_thresh')
-    options.angle_thresh = 60;
+    options.angle_thresh = 60;   % deg per voxel of arc; matches the schema default
 end
 if ~isfield(options, 'max_steps')
     options.max_steps = 5000;
@@ -116,7 +116,7 @@ if ~isfield(nim, 'FA')
 end
 
 fprintf('Starting TRUE FACT tractography...\n');
-fprintf('FACT Parameters: step=%.2f (voxel units), FA_thresh=%.2f, angle_thresh=%.1f\u00b0\n', ...
+fprintf('FACT Parameters: step=%.2f (voxel units), FA_thresh=%.2f, angle_thresh=%.1f\u00b0/voxel\n', ...
     options.step_size, options.fa_threshold, options.angle_thresh);
 fprintf('FACT Mode: Discrete voxel tensors, no interpolation\n');
 
@@ -159,8 +159,25 @@ end
 options.seed_mask = logical(options.seed_mask > 0);
 
 options.seed_mask = logical(options.seed_mask);
-fprintf('Pre-computing dilated brain mask for boundary checking...\n');
-nim.dilated_brain_mask = imdilate(options.seed_mask, ones(3,3,3));
+fprintf('Pre-computing propagation mask for boundary checking...\n');
+% WHERE A TRACK MAY GO IS NOT WHERE IT MAY START. This was
+% imdilate(options.seed_mask, ...), which confined every streamline to a
+% one-voxel skin around the seed region. With whole-brain seeding the two
+% coincide and nothing looks wrong; with ROI seeding the propagation domain
+% collapses to the ROI and tracks die almost immediately - a 24-voxel seed ROI
+% gave tracks barely one voxel long. The identical bug was fixed in
+% nim_tractography_hinec earlier and the fix was never carried across to FACT.
+if isfield(options, 'propagation_mask') && ~isempty(options.propagation_mask)
+    prop_mask = logical(options.propagation_mask > 0);
+else
+    prop_mask = nim.FA > options.termination_fa;
+    if isfield(nim, 'mask') && ~isempty(nim.mask)
+        prop_mask = prop_mask & (nim.mask > 0.5);
+    end
+end
+nim.dilated_brain_mask = imdilate(prop_mask, ones(3,3,3));
+fprintf('  propagation domain: %d voxels (seed mask: %d)\n', ...
+    sum(nim.dilated_brain_mask(:)), sum(options.seed_mask(:)));
 
 % Generate seed points
 if options.enable_diagnostics
@@ -204,8 +221,15 @@ failure_reasons.successful = 0;
 % Termination reason counters
 term_reasons = containers.Map('KeyType', 'char', 'ValueType', 'int64');
 
-% Convert angle threshold to cosine for efficiency
-cos_angle_thresh = cos(deg2rad(options.angle_thresh));
+% Angle budget, in the SAME units as every other tracker: degrees of turning per
+% VOXEL OF ARC (see nim_angle_limit). FACT's natural discretisation unit is the
+% voxel - direction is piecewise constant and changes only at voxel boundaries -
+% so one transition is budgeted as one voxel of arc. Deliberately NOT the length
+% of the segment just travelled: a streamline that clips a voxel corner covers a
+% tiny arc, but the turn waiting for it at the boundary is a property of the
+% data, not of how much of the voxel it happened to cross, and budgeting by the
+% clipped length would terminate it for the geometry of the intersection.
+[~, cos_angle_thresh] = nim_angle_limit(options.angle_thresh, 1);
 
 % Initialize timing for tracking. tracking_start is always set so progress
 % reporting works even when diagnostics are disabled.
@@ -277,8 +301,12 @@ for i = 1:size(seed_points, 1)
     % Combine into one continuous track
     combined_track = [track_backward; seed; track_forward];
 
-    % Save ALL generated tracks - no filters at all
-    if size(combined_track, 1) > 1
+    % min_arc is an ARC LENGTH in voxels. It used to be defaulted at the top of
+    % this file and then never read - the "no filters at all" comment below was
+    % literally true, and a schema-validated key that every config sets was
+    % honoured by exactly one of the three trackers.
+    if size(combined_track, 1) > 1 && ...
+       sum(sqrt(sum(diff(combined_track,1,1).^2, 2))) >= options.min_length
         track_count = track_count + 1;
         tracks{track_count} = combined_track;
         failure_reasons.successful = failure_reasons.successful + 1;
@@ -387,12 +415,11 @@ if strcmp(strategy, "random")
 end
 
 % Deterministic lattice seeding inside each voxel
-per_axis = max(1, ceil(density^(1/3)));
-axis_edges = linspace(-0.5, 0.5, per_axis + 1);
-axis_offsets = (axis_edges(1:end-1) + axis_edges(2:end)) / 2;
-[ox, oy, oz] = ndgrid(axis_offsets, axis_offsets, axis_offsets);
-offsets = [ox(:), oy(:), oz(:)];
+% Deterministic sub-voxel seeding - see nim_seed_offsets. Returns exactly
+% `density` offsets rather than rounding up to the next perfect cube.
+[offsets, off_info] = nim_seed_offsets(density);
 num_offsets = size(offsets, 1);
+per_axis = off_info.per_axis;
 
 seed_points = zeros(num_voxels * num_offsets, 3);
 idx = 1;
