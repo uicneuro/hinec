@@ -292,23 +292,34 @@ The tracker is too conservative. Lower `termination.fa_min`, raise
 `seeding.density`, loosen `termination.angle_max`, and check that seeding covers
 the regions of interest (`seeding.roi`, `seeding.roi_dilate`).
 
-## Known limitations of this script
+## Coordinate handling
 
-These are properties of `validate_ismrm_tractography.py` as written, and are the
-reason its output is a diagnostic rather than a score.
+Streamlines are mapped into the ROI masks through **world (RAS) coordinates**,
+using each file's own affine — the DWI reference's to leave voxel space, and the
+mask's to enter it. Pass `--dwi-ref <dwi.nii.gz>` to name the grid the tracks are
+stored on; if omitted the script looks for a sibling `*_dwi_ref.nii.gz` beside
+`--nim-file` and fails loudly if it finds none.
 
-- **The DWI→T1 mapping is a hardcoded factor of 2.** Track coordinates are
-  multiplied by 2 to index the 1 mm ROI masks. That is correct only when the two
-  grids are axis-aligned and share an origin; it ignores both affines. The
-  scoring path (`hinec_to_trk.py`) instead maps through world RAS.
-- **Length constraints are compared in the wrong units.** The `length`,
-  `length_x`, `length_y` and `length_x_abs` bounds in the config are
-  millimetres, but the script evaluates them on track coordinates in 2 mm voxel
-  units, so every geometric gate is effectively applied at half its intended
-  threshold. Four bundles carry such gates (`CC_u_shaped`, `Cingulum_left`,
-  `Cingulum_right`, `MCP`).
-- **Metrics depend on streamline density** on both sides, as noted above.
-- **`--nim-file` is required but unused** except as a label in the report.
+Length constraints (`length`, `length_x`, `length_y`, `length_x_abs`) are
+specified in millimetres in `config_file_segmentation.json` and are evaluated on
+those world coordinates.
+
+!!! note "Both of these were wrong until recently"
+    The script used to multiply track coordinates by a hardcoded 2.0 to index the
+    1 mm masks. On the ISMRM data that happens to agree with the correct mapping
+    — the DWI is 2 mm at zero offset, the masks are 1 mm at a half-voxel offset,
+    and rounding absorbs the difference — so it produced no visible error. It was
+    still wrong for any other pair of grids.
+
+    The length bug was not harmless. Bounds in millimetres were compared against
+    lengths measured in 2 mm voxel units, so every geometric gate fired at half
+    its threshold: a 70 mm minimum rejected any streamline shorter than 140 mm.
+    This affected the four bundles that carry length constraints — `CC_u_shaped`,
+    `Cingulum_left`, `Cingulum_right` and `MCP`.
+
+This script remains a **diagnostic**. `bin/run_ismrm_scoring.sh` is authoritative
+for scores.
+
 
 ## References
 

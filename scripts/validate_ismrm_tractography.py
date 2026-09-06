@@ -72,8 +72,13 @@ else:
 class ISMRMValidator:
     """ISMRM Tractography Validation Engine"""
 
-    def __init__(self, scoring_dir, output_dir):
+    def __init__(self, scoring_dir, output_dir, dwi_ref=None):
         self.scoring_dir = Path(scoring_dir)
+        # Affine of the grid the streamlines are stored on. Without it the only
+        # option is to guess the DWI->mask mapping, which is what the previous
+        # hardcoded 2.0 scale did.
+        self.dwi_ref = Path(dwi_ref) if dwi_ref else None
+        self.dwi_affine = None
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -303,74 +308,71 @@ class ISMRMValidator:
         - length constraints: Geometric filtering
 
         Args:
-            tracks: List of Nx3 arrays (voxel coords in DWI space)
+            tracks: List of Nx3 arrays (0-based voxel coords in DWI space)
             bundle_name: Name of bundle
             bundle_config: ROI configuration
-            dwi_to_t1_scale: Scaling factor from DWI to T1 space (default: 2.0 for 2mm→1mm)
+            dwi_to_t1_scale: DEPRECATED and ignored. The DWI->mask mapping now
+                goes through world coordinates using each file's own affine.
         """
         print(f"\n  Segmenting {bundle_name}...")
 
-        # Load masks (in T1 space)
-        all_mask = None
-        if 'all_mask' in bundle_config:
-            all_mask_path = self.scoring_dir / bundle_config['all_mask']
-            if all_mask_path.exists():
-                all_mask = nib.load(str(all_mask_path)).get_fdata() > 0
+        # Load each mask WITH its own affine. Masks are not required to share a
+        # grid with each other or with the DWI, and the affine is the only thing
+        # that says where a voxel actually is.
+        def _load(key):
+            if key not in bundle_config:
+                return None, None
+            path = self.scoring_dir / bundle_config[key]
+            if not path.exists():
+                return None, None
+            img = nib.load(str(path))
+            return img.get_fdata() > 0, img.affine
 
-        any_mask = None
-        if 'any_mask' in bundle_config:
-            any_mask_path = self.scoring_dir / bundle_config['any_mask']
-            if any_mask_path.exists():
-                any_mask = nib.load(str(any_mask_path)).get_fdata() > 0
+        all_mask,  all_aff  = _load('all_mask')
+        any_mask,  any_aff  = _load('any_mask')
+        head_mask, head_aff = _load('head')
+        tail_mask, tail_aff = _load('tail')
 
-        head_mask = None
-        if 'head' in bundle_config:
-            head_path = self.scoring_dir / bundle_config['head']
-            if head_path.exists():
-                head_mask = nib.load(str(head_path)).get_fdata() > 0
-
-        tail_mask = None
-        if 'tail' in bundle_config:
-            tail_path = self.scoring_dir / bundle_config['tail']
-            if tail_path.exists():
-                tail_mask = nib.load(str(tail_path)).get_fdata() > 0
-
-        # Determine scaling factor
-        if dwi_to_t1_scale is None:
-            # Auto-detect: ISMRM uses 2mm DWI → 1mm T1 (scale by 2)
-            dwi_to_t1_scale = 2.0
-
-        # Filter tracks
         filtered = []
         for track in tracks:
-            # Transform from DWI space to T1 space
-            # DWI @ 90×108×90 (2mm) → T1 @ 180×216×180 (1mm)
-            track_t1 = track * dwi_to_t1_scale
+            # DWI voxel -> world (mm). This used to be `track * 2.0`, a hardcoded
+            # 2mm->1mm scale that ignored both affines.
+            #
+            # On the ISMRM data that scale happens to agree with the correct
+            # mapping - the DWI is 2mm at zero offset, the masks are 1mm at a
+            # half-voxel offset, and rounding absorbs the shift - so it produced
+            # no visible error and nobody noticed. It is still wrong in general:
+            # any non-zero relative offset, any rotation, or any ratio other than
+            # 2:1 breaks it silently. Going through world coordinates is correct
+            # for any pair of grids, and it is what the MATLAB side already does
+            # (see nim_nifti_affine / nim_read_trk).
+            world = np.column_stack([track, np.ones(len(track))]) @ self.dwi_affine.T
 
-            # Convert to voxel indices
-            track_vox = np.round(track_t1).astype(int)
+            def to_vox(aff):
+                return np.round(world @ np.linalg.inv(aff).T)[:, :3].astype(int)
 
-            # Check bounds
-            if not self._in_bounds(track_vox, all_mask.shape if all_mask is not None else (100, 100, 100)):
-                continue
-
-            # All mask check
             if all_mask is not None:
-                if not self._passes_all_mask(track_vox, all_mask):
+                v = to_vox(all_aff)
+                if not self._in_bounds(v, all_mask.shape):
+                    continue
+                if not self._passes_all_mask(v, all_mask):
                     continue
 
-            # Any mask check
             if any_mask is not None:
-                if not self._passes_any_mask(track_vox, any_mask):
+                if not self._passes_any_mask(to_vox(any_aff), any_mask):
                     continue
 
-            # Endpoint checks
             if head_mask is not None and tail_mask is not None:
-                if not self._check_endpoints(track_vox, head_mask, tail_mask):
+                # head and tail may in principle sit on different grids
+                if not self._check_endpoints_xy(to_vox(head_aff), to_vox(tail_aff),
+                                                head_mask, tail_mask):
                     continue
 
-            # Length constraints
-            if not self._check_length_constraints(track, bundle_config):
+            # Length constraints are specified in MILLIMETRES, so they must be
+            # evaluated on world coordinates. They used to be evaluated on the
+            # DWI voxel coordinates, so on 2mm data every geometric gate fired at
+            # half its threshold - a 70mm minimum rejected everything under 140mm.
+            if not self._check_length_constraints(world[:, :3], bundle_config):
                 continue
 
             filtered.append(track)
@@ -397,6 +399,26 @@ class ISMRMValidator:
                 if mask[tuple(point)] > 0:
                     return True
         return False
+
+    def _check_endpoints_xy(self, head_vox, tail_vox, head_mask, tail_mask):
+        """Endpoints in head/tail, each evaluated on its own mask's grid.
+
+        head and tail are not required to share a voxel grid, so the streamline
+        is mapped into each mask's own indices rather than being indexed into
+        both with one set of coordinates.
+        """
+        def inside(vox, i, mask):
+            p = vox[i]
+            if not self._in_bounds(p.reshape(1, -1), mask.shape):
+                return False
+            return mask[tuple(p)] > 0
+
+        start_in_head = inside(head_vox, 0, head_mask)
+        end_in_head   = inside(head_vox, -1, head_mask)
+        start_in_tail = inside(tail_vox, 0, tail_mask)
+        end_in_tail   = inside(tail_vox, -1, tail_mask)
+
+        return (start_in_head and end_in_tail) or (start_in_tail and end_in_head)
 
     def _check_endpoints(self, track_vox, head_mask, tail_mask):
         """Check if endpoints are in correct regions"""
@@ -442,7 +464,11 @@ class ISMRMValidator:
         return True
 
     def _compute_length(self, track):
-        """Compute track length in mm"""
+        """Sum of segment lengths, in the units of the coordinates passed in.
+
+        Callers must pass WORLD coordinates when comparing against the config's
+        length bounds, which are in millimetres.
+        """
         if len(track) < 2:
             return 0
         diffs = np.diff(track, axis=0)
@@ -690,6 +716,20 @@ class ISMRMValidator:
         # Load tracks (in voxel space)
         voxel_tracks = self.load_hinec_tracks(tracks_file)
 
+        # Resolve the DWI grid the tracks live on.
+        if self.dwi_ref is None:
+            guess = sorted(Path(nim_file).parent.glob('*_dwi_ref.nii.gz'))
+            if guess:
+                self.dwi_ref = guess[0]
+                print(f"\nUsing DWI reference found beside the nim: {self.dwi_ref}")
+        if self.dwi_ref is None or not self.dwi_ref.exists():
+            raise FileNotFoundError(
+                "No DWI reference. Pass --dwi-ref <dwi.nii.gz> (the grid the tracks "
+                "are stored on). It is required to map streamlines into the ROI "
+                "masks; the previous behaviour assumed a 2mm->1mm scale with a "
+                "shared origin and orientation, which is not generally true.")
+        self.dwi_affine = nib.load(str(self.dwi_ref)).affine
+
         # Get reference for later world space conversion
         reference_nii = self.scoring_dir / 't1.nii.gz'
         if not reference_nii.exists():
@@ -701,9 +741,12 @@ class ISMRMValidator:
             # Segment user tractography (ROI filtering in voxel space)
             user_bundle_voxel = self.segment_bundle_roi(voxel_tracks, bundle_name, bundle_config)
 
-            # Convert segmented bundle to world space for distance metrics
+            # Convert segmented bundle to world space for distance metrics.
+            # The DWI affine, not the T1's: these are DWI voxel coordinates, and
+            # applying the T1 affine to them was the same class of error as the
+            # hardcoded scale above.
             if len(user_bundle_voxel) > 0:
-                user_bundle_world = self.convert_to_world_space(user_bundle_voxel, reference_nii)
+                user_bundle_world = self.convert_to_world_space(user_bundle_voxel, self.dwi_ref)
             else:
                 user_bundle_world = []
 
@@ -750,13 +793,17 @@ def main():
                        help='HINEC tractography results (.mat file)')
     parser.add_argument('--scoring-dir', required=True,
                        help='ISMRM scoring data directory')
+    parser.add_argument('--dwi-ref', default=None,
+                       help='DWI NIfTI defining the grid the tracks are stored on '
+                            '(default: a sibling *_dwi_ref.nii.gz beside --nim-file). '
+                            'Required to map streamlines into the ROI masks.')
     parser.add_argument('--output-dir', default='validation_results',
                        help='Output directory for results (default: validation_results)')
 
     args = parser.parse_args()
 
     try:
-        validator = ISMRMValidator(args.scoring_dir, args.output_dir)
+        validator = ISMRMValidator(args.scoring_dir, args.output_dir, args.dwi_ref)
         results = validator.validate(args.nim_file, args.tracks_file)
 
         sys.exit(0)
