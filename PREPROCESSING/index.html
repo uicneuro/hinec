@@ -1,0 +1,3622 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="HIgh-order NEural Connectivity — dMRI Tractography Pipeline">
+      
+      
+        <meta name="author" content="HINEC Team">
+      
+      
+      
+        <link rel="prev" href="../PIPELINE/">
+      
+      
+        <link rel="next" href="../ARCHITECTURE/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Preprocessing - HINEC Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#hinec-preprocessing-pipeline" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="HINEC Documentation" class="md-header__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            HINEC Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Preprocessing
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../USER_GUIDE/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../PIPELINE/" class="md-tabs__link">
+          
+  
+  
+  Pipeline
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../TRACTOGRAPHY_METHODS/" class="md-tabs__link">
+          
+  
+  
+  Tractography
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../YAML_CONFIG/" class="md-tabs__link">
+          
+  
+  
+  Configuration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../VISUALIZATION_GUIDE/" class="md-tabs__link">
+          
+  
+  
+  Visualization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../CONVERGENCE/" class="md-tabs__link">
+          
+  
+  
+  Verification & Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../API_REFERENCE/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ABOUT/" class="md-tabs__link">
+          
+  
+  
+  About
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="HINEC Documentation" class="md-nav__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    HINEC Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../USER_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PIPELINE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preprocessing-detection-logic-mainm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preprocessing Detection Logic (main.m)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pipeline-entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline Entry Points
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preprocessing-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preprocessing Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Preprocessing Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-environment-setup-and-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Environment Setup and Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 1: Environment Setup and Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-b0-volume-extraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: B0 Volume Extraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-brain-extraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Brain Extraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-distortion-and-artifact-correction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Distortion and Artifact Correction
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2: Distortion and Artifact Correction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-3-denoising-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Denoising (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-field-map-distortion-correction-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Field Map Distortion Correction (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-motion-correction-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Motion Correction (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-eddy-current-correction-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Eddy Current Correction (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-finalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Finalization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 3: Finalization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-7-data-finalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7: Data Finalization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-8-t1-preprocessing-and-registration-when-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8: T1 Preprocessing and Registration (When Available)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-9-atlas-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 9: Atlas Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-10-finalization-and-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 10: Finalization and Cleanup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#t1-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        T1 Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#legacy-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy Support
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling-and-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling and Recovery
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Error Handling and Recovery">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comprehensive-error-reporting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comprehensive Error Reporting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-error-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Error Scenarios
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Error Scenarios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-fsl-environment-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. FSL Environment Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-insufficient-disk-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Insufficient Disk Space
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-memory-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Memory Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-corrupted-input-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Corrupted Input Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-parameter-file-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Parameter File Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quality-control-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality Control Metrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quality Control Metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#motion-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motion Assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eddy-current-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eddy Current Assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-map-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Map Assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#processing-time-estimates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing Time Estimates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#system-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimization-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization Tips
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-main-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration with Main Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting Guide
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common-issues-and-solutions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Issues and Solutions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Issues and Solutions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fsldir-not-set-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        "FSLDIR not set" error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-map-correction-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field map correction fails
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eddy-correction-takes-too-long" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eddy correction takes too long
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#motion-correction-produces-artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motion correction produces artifacts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tissue-segmentation-for-act" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tissue Segmentation for ACT
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#field-map-correction-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Map Correction Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Field Map Correction Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setup-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typical-dwell-times-by-vendor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical Dwell Times by Vendor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#t1-based-registration-implementation-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        T1-Based Registration Implementation Details
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="T1-Based Registration Implementation Details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#coordinate-system-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coordinate System Considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RUN_DIRECTORY_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Directory System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tractography
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tractography
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY_METHODS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MMF_TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MMF Connection-Form
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standard (FACT)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../High_Order/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    High-Order Methods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Adaptive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF_Usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SEEDING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seeding Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hinec_tractography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Configuration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../YAML_CONFIG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YAML Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CHANGELOG_YAML/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VISUALIZATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REGION_VISUALIZATION_EXAMPLES/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Region Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DISTRIBUTED_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification & Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Verification & Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CONVERGENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solution Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ISMRM_SCORING_ANALYSIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ISMRM Scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_USAGE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IRONTRACT_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IronTract Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../API_REFERENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MATHEMATICAL_FOUNDATIONS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mathematical Foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCIENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Science Background
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ABOUT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preprocessing-detection-logic-mainm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preprocessing Detection Logic (main.m)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pipeline-entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline Entry Points
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preprocessing-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preprocessing Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Preprocessing Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-environment-setup-and-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Environment Setup and Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 1: Environment Setup and Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-b0-volume-extraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: B0 Volume Extraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-brain-extraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Brain Extraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-distortion-and-artifact-correction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Distortion and Artifact Correction
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2: Distortion and Artifact Correction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-3-denoising-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Denoising (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-field-map-distortion-correction-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Field Map Distortion Correction (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-motion-correction-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Motion Correction (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-eddy-current-correction-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Eddy Current Correction (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-finalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Finalization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 3: Finalization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-7-data-finalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7: Data Finalization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-8-t1-preprocessing-and-registration-when-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8: T1 Preprocessing and Registration (When Available)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-9-atlas-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 9: Atlas Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-10-finalization-and-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 10: Finalization and Cleanup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#t1-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        T1 Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#legacy-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy Support
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling-and-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling and Recovery
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Error Handling and Recovery">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comprehensive-error-reporting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comprehensive Error Reporting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-error-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Error Scenarios
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Error Scenarios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-fsl-environment-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. FSL Environment Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-insufficient-disk-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Insufficient Disk Space
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-memory-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Memory Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-corrupted-input-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Corrupted Input Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-parameter-file-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Parameter File Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quality-control-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality Control Metrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quality Control Metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#motion-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motion Assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eddy-current-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eddy Current Assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-map-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Map Assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#processing-time-estimates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing Time Estimates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#system-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimization-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization Tips
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-main-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration with Main Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting Guide
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common-issues-and-solutions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Issues and Solutions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Issues and Solutions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fsldir-not-set-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        "FSLDIR not set" error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-map-correction-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field map correction fails
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eddy-correction-takes-too-long" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eddy correction takes too long
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#motion-correction-produces-artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motion correction produces artifacts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tissue-segmentation-for-act" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tissue Segmentation for ACT
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#field-map-correction-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Map Correction Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Field Map Correction Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setup-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typical-dwell-times-by-vendor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical Dwell Times by Vendor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#t1-based-registration-implementation-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        T1-Based Registration Implementation Details
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="T1-Based Registration Implementation Details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#coordinate-system-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coordinate System Considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="hinec-preprocessing-pipeline">HINEC Preprocessing Pipeline<a class="headerlink" href="#hinec-preprocessing-pipeline" title="Permanent link">&para;</a></h1>
+<p>This document covers the HINEC preprocessing pipeline: its workflow steps, the fallback path
+taken when a step's preferred tool is unavailable, and the error conditions each step can
+raise.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p><code>nim_preprocessing.m</code> prepares raw diffusion-weighted MRI for tensor estimation and
+tractography. It runs ten sequential steps, from raw NIfTI through to an atlas resampled into
+DWI space, using FSL throughout. <code>main.m</code> decides whether it needs to run at all, based on
+which files are present.</p>
+<p>Where a T1 anatomical image is available, the pipeline uses it for brain extraction and for
+atlas registration through an MNI→T1→DWI transformation chain rather than a direct MNI→DWI
+registration. The pipeline itself produces no white matter mask; tissue segmentation for ACT
+happens later, in <code>main.m</code> (see <a href="#tissue-segmentation-for-act">Tissue Segmentation for ACT</a>).</p>
+<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
+<h3 id="preprocessing-detection-logic-mainm">Preprocessing Detection Logic (main.m)<a class="headerlink" href="#preprocessing-detection-logic-mainm" title="Permanent link">&para;</a></h3>
+<p>The main pipeline uses a hierarchical file detection system:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c">% Detection order:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="mf">1.</span><span class="w"> </span><span class="n">Check</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">processed</span><span class="w"> </span><span class="n">file</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="n">name</span><span class="p">}.</span><span class="n">nii</span><span class="p">.</span><span class="n">gz</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="mf">2.</span><span class="w"> </span><span class="n">If</span><span class="w"> </span><span class="n">not</span><span class="w"> </span><span class="n">found</span><span class="p">,</span><span class="w"> </span><span class="n">check</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">raw</span><span class="w"> </span><span class="n">file</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="n">name</span><span class="p">}</span><span class="n">_raw</span><span class="p">.</span><span class="n">nii</span><span class="p">.</span><span class="n">gz</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="mf">3.</span><span class="w"> </span><span class="n">If</span><span class="w"> </span><span class="n">raw</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="n">exists</span><span class="p">,</span><span class="w"> </span><span class="n">trigger</span><span class="w"> </span><span class="n">preprocessing</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="mf">4.</span><span class="w"> </span><span class="n">If</span><span class="w"> </span><span class="n">neither</span><span class="w"> </span><span class="n">exists</span><span class="p">,</span><span class="w"> </span><span class="nb">throw</span><span class="w"> </span><span class="nb">error</span>
+</code></pre></div>
+<p><strong>File naming conventions:</strong></p>
+<ul>
+<li>Raw data: <code>{name}_raw.nii.gz</code>, <code>{name}.bval</code>, <code>{name}.bvec</code></li>
+<li>T1 structural data: <code>{name}_T1.nii.gz</code> (optional for enhanced processing)</li>
+<li>Field map data: <code>{name}_fmap_Hz.nii.gz</code> (optional for distortion correction)</li>
+<li>Processed data: <code>{name}.nii.gz</code> (output of preprocessing)</li>
+<li>Brain mask: <code>{name}_M.nii.gz</code></li>
+<li>Acquisition parameters: <code>{name}_acqp.txt</code>, <code>{name}_index.txt</code> (optional for advanced eddy correction)</li>
+</ul>
+<h3 id="pipeline-entry-points">Pipeline Entry Points<a class="headerlink" href="#pipeline-entry-points" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Direct preprocessing call:</strong> <code>nim_preprocessing(file_prefix, options)</code></li>
+<li><strong>Automatic from main:</strong> Called when raw data detected in <code>main.m</code></li>
+</ol>
+<h2 id="preprocessing-workflow">Preprocessing Workflow<a class="headerlink" href="#preprocessing-workflow" title="Permanent link">&para;</a></h2>
+<h3 id="phase-1-environment-setup-and-validation">Phase 1: Environment Setup and Validation<a class="headerlink" href="#phase-1-environment-setup-and-validation" title="Permanent link">&para;</a></h3>
+<h4 id="step-1-b0-volume-extraction">Step 1: B0 Volume Extraction<a class="headerlink" href="#step-1-b0-volume-extraction" title="Permanent link">&para;</a></h4>
+<p><strong>Function:</strong> <code>preproc_extract_b0.m</code></p>
+<p><strong>Purpose:</strong> Extract b=0 volume for brain extraction and registration</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>fslroi<span class="w"> </span><span class="o">{</span>input_dwi<span class="o">}</span><span class="w"> </span><span class="o">{</span>b0_output<span class="o">}</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+<p><strong>Fallback:</strong> Use first volume if b=0 not identifiable</p>
+<p><strong>Error condition:</strong> DWI file unreadable or empty</p>
+<h4 id="step-2-brain-extraction">Step 2: Brain Extraction<a class="headerlink" href="#step-2-brain-extraction" title="Permanent link">&para;</a></h4>
+<p><strong>Function:</strong> <code>preproc_t1_brain_extraction.m</code> (when T1 available) or <code>preproc_brain_extraction.m</code></p>
+<p><strong>Purpose:</strong> Create the brain mask, using T1 structural data when available</p>
+<p><strong>T1-Based Processing (Preferred):</strong></p>
+<ol>
+<li>T1 brain extraction using FSL BET with T1-optimized parameters (<code>-f 0.4</code>)</li>
+<li>Boundary-based registration of T1 brain mask to DWI space using FSL epi_reg</li>
+<li>Transfer the T1-derived brain mask into DWI space</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># T1 brain extraction</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>bet<span class="w"> </span><span class="o">{</span>T1_file<span class="o">}</span><span class="w"> </span><span class="o">{</span>T1_brain<span class="o">}</span><span class="w"> </span>-R<span class="w"> </span>-m<span class="w"> </span>-f<span class="w"> </span><span class="m">0</span>.4
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># T1-DWI registration</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>epi_reg<span class="w"> </span>--epi<span class="o">={</span>b0_volume<span class="o">}</span><span class="w"> </span>--t1<span class="o">={</span>T1_file<span class="o">}</span><span class="w"> </span>--t1brain<span class="o">={</span>T1_brain<span class="o">}</span><span class="w"> </span>--out<span class="o">={</span>T1_to_dwi<span class="o">}</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Transform T1 mask to DWI space</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>flirt<span class="w"> </span>-in<span class="w"> </span><span class="o">{</span>T1_brain_mask<span class="o">}</span><span class="w"> </span>-ref<span class="w"> </span><span class="o">{</span>b0_volume<span class="o">}</span><span class="w"> </span>-applyxfm<span class="w"> </span>-init<span class="w"> </span><span class="o">{</span>T1_to_dwi.mat<span class="o">}</span><span class="w"> </span>-interp<span class="w"> </span>nearestneighbour<span class="w"> </span>-out<span class="w"> </span><span class="o">{</span>dwi_brain_mask<span class="o">}</span>
+</code></pre></div>
+<p><strong>DWI-Only Fallback:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>bet<span class="w"> </span><span class="o">{</span>b0_volume<span class="o">}</span><span class="w"> </span><span class="o">{</span>brain_extracted<span class="o">}</span><span class="w"> </span>-m<span class="w"> </span>-f<span class="w"> </span><span class="m">0</span>.3
+</code></pre></div></p>
+<p><strong>T1 Detection:</strong> Automatic detection of <code>{name}_T1.nii.gz</code> in the same directory</p>
+<p><strong>Rationale:</strong> T1 gives sharper tissue contrast at the brain boundary than a b0 volume, so the
+mask follows the actual boundary more closely.</p>
+<p><strong>Fallback:</strong> DWI-based BET if T1 unavailable or T1 processing fails</p>
+<p><strong>Error condition:</strong> All brain extraction methods fail</p>
+<h3 id="phase-2-distortion-and-artifact-correction">Phase 2: Distortion and Artifact Correction<a class="headerlink" href="#phase-2-distortion-and-artifact-correction" title="Permanent link">&para;</a></h3>
+<h4 id="step-3-denoising-optional">Step 3: Denoising (Optional)<a class="headerlink" href="#step-3-denoising-optional" title="Permanent link">&para;</a></h4>
+<p><strong>Function:</strong> <code>preproc_denoising.m</code></p>
+<p><strong>Methods:</strong></p>
+<ul>
+<li><code>dwidenoise</code> (default) - MRtrix3 denoising</li>
+<li><code>nlmeans</code> - Non-local means</li>
+<li><code>gaussian</code> - Gaussian filtering</li>
+</ul>
+<p><strong>Configuration:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">options</span><span class="p">.</span><span class="n">run_denoising</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w">  </span><span class="c">% Enable/disable</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">options</span><span class="p">.</span><span class="n">denoise_method</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'dwidenoise'</span><span class="p">;</span><span class="w">  </span><span class="c">% Method selection</span>
+</code></pre></div></p>
+<p><strong>Fallback:</strong> Skip if denoising tools unavailable</p>
+<p><strong>Error condition:</strong> All denoising methods fail</p>
+<h4 id="step-4-field-map-distortion-correction-optional">Step 4: Field Map Distortion Correction (Optional)<a class="headerlink" href="#step-4-field-map-distortion-correction-optional" title="Permanent link">&para;</a></h4>
+<p><strong>Function:</strong> <code>preproc_fieldmap_correction.m</code></p>
+<p><strong>Purpose:</strong> Correct susceptibility-induced distortions</p>
+<p><strong>Configuration:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">options</span><span class="p">.</span><span class="n">run_fieldmap_correction</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">options</span><span class="p">.</span><span class="n">fieldmap_file</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'auto'</span><span class="p">;</span><span class="w">  </span><span class="c">% Auto-detect or specify path</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">options</span><span class="p">.</span><span class="n">phase_encoding_dir</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'y'</span><span class="p">;</span><span class="w">  </span><span class="c">% Phase encoding direction</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">options</span><span class="p">.</span><span class="n">dwell_time</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mf">0.00058</span><span class="p">;</span><span class="w">  </span><span class="c">% Effective echo spacing (seconds)</span>
+</code></pre></div></p>
+<p><strong>Process:</strong></p>
+<ol>
+<li>Auto-detect field map units (Hz vs rad/s)</li>
+<li>Convert rad/s to Hz if necessary</li>
+<li>Apply brain mask and smooth field map</li>
+<li>Apply FUGUE distortion correction</li>
+</ol>
+<p><strong>Fallback:</strong> Skip field map correction if field map missing/invalid</p>
+<p><strong>Error conditions:</strong></p>
+<ul>
+<li>Field map file corrupt or wrong format</li>
+<li>FUGUE command fails</li>
+<li>Incompatible field map dimensions</li>
+</ul>
+<h4 id="step-5-motion-correction-optional">Step 5: Motion Correction (Optional)<a class="headerlink" href="#step-5-motion-correction-optional" title="Permanent link">&para;</a></h4>
+<p><strong>Function:</strong> <code>preproc_motion_correction.m</code></p>
+<p><strong>Purpose:</strong> Correct head motion between volumes</p>
+<p><strong>Process:</strong></p>
+<ol>
+<li>Extract b=0 volumes as motion reference</li>
+<li>Run FSL mcflirt for volume-to-volume alignment</li>
+<li>Rotate b-vectors according to motion parameters</li>
+<li>Generate motion quality metrics</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mcflirt<span class="w"> </span>-in<span class="w"> </span><span class="o">{</span>dwi<span class="o">}</span><span class="w"> </span>-out<span class="w"> </span><span class="o">{</span>corrected<span class="o">}</span><span class="w"> </span>-refvol<span class="w"> </span><span class="o">{</span>b0_index<span class="o">}</span><span class="w"> </span>-plots<span class="w"> </span>-mats<span class="w"> </span>-rmsrel<span class="w"> </span>-rmsabs
+</code></pre></div>
+<p><strong>Configuration:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">options</span><span class="p">.</span><span class="n">run_motion_correction</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+</code></pre></div></p>
+<p><strong>Fallback:</strong> Copy original data if motion correction fails</p>
+<p><strong>Error conditions:</strong></p>
+<ul>
+<li>No b=0 volumes found</li>
+<li>mcflirt fails</li>
+<li>Motion parameters corrupt</li>
+</ul>
+<p><strong>Quality thresholds:</strong></p>
+<ul>
+<li>Translation warning: &gt;3mm</li>
+<li>Rotation warning: &gt;3 degrees</li>
+<li>RMS displacement warning: &gt;1mm</li>
+</ul>
+<h4 id="step-6-eddy-current-correction-optional">Step 6: Eddy Current Correction (Optional)<a class="headerlink" href="#step-6-eddy-current-correction-optional" title="Permanent link">&para;</a></h4>
+<p><strong>Function:</strong> <code>preproc_eddy_correction.m</code></p>
+<p><strong>Purpose:</strong> Correct eddy current distortions and residual motion</p>
+<p><strong>Automatic Method Selection:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">if</span><span class="w"> </span><span class="nb">exist</span><span class="p">(</span><span class="n">acqp_file</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">exist</span><span class="p">(</span><span class="n">index_file</span><span class="p">)</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="n">method</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'eddy'</span><span class="p">;</span><span class="w">  </span><span class="c">% Full FSL eddy</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">else</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="n">method</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'eddy_correct'</span><span class="p">;</span><span class="w">  </span><span class="c">% Basic correction</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="k">end</span>
+</code></pre></div></p>
+<p><strong>Full <code>eddy</code> (Preferred):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>eddy<span class="w"> </span>--imain<span class="o">={</span>dwi<span class="o">}</span><span class="w"> </span>--mask<span class="o">={</span>mask<span class="o">}</span><span class="w"> </span>--bvecs<span class="o">={</span>bvec<span class="o">}</span><span class="w"> </span>--bvals<span class="o">={</span>bval<span class="o">}</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">     </span>--out<span class="o">={</span>output<span class="o">}</span><span class="w"> </span>--acqp<span class="o">={</span>acqp<span class="o">}</span><span class="w"> </span>--index<span class="o">={</span>index<span class="o">}</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">     </span>--repol<span class="w"> </span>--cnr_maps<span class="w"> </span>--residuals
+</code></pre></div></p>
+<p><strong>Basic Fallback:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>eddy_correct<span class="w"> </span><span class="o">{</span>dwi<span class="o">}</span><span class="w"> </span><span class="o">{</span>output<span class="o">}</span><span class="w"> </span><span class="m">0</span>
+</code></pre></div></p>
+<p><strong>Parameter File Generation:</strong>
+If acquisition parameter files missing, pipeline attempts to create them from options:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">options</span><span class="p">.</span><span class="n">phase_encoding_direction</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'y-'</span><span class="p">;</span><span class="w">  </span><span class="c">% BIDS format</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">options</span><span class="p">.</span><span class="n">total_readout_time</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mf">0.05</span><span class="p">;</span><span class="w">  </span><span class="c">% seconds</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">options</span><span class="p">.</span><span class="n">eddy_index_vector</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[];</span><span class="w">  </span><span class="c">% Auto-generate if empty</span>
+</code></pre></div></p>
+<p><strong>Fallback hierarchy:</strong></p>
+<ol>
+<li>Use full <code>eddy</code> with existing parameter files</li>
+<li>Generate parameter files from options, then use full <code>eddy</code></li>
+<li>Use basic eddy_correct</li>
+<li>Skip eddy correction (with warning)</li>
+</ol>
+<p><strong>Error conditions:</strong></p>
+<ul>
+<li>Both eddy methods fail</li>
+<li>Parameter files corrupt</li>
+<li>Insufficient system resources for eddy</li>
+</ul>
+<h3 id="phase-3-finalization">Phase 3: Finalization<a class="headerlink" href="#phase-3-finalization" title="Permanent link">&para;</a></h3>
+<h4 id="step-7-data-finalization">Step 7: Data Finalization<a class="headerlink" href="#step-7-data-finalization" title="Permanent link">&para;</a></h4>
+<p><strong>Purpose:</strong> Copy processed data to final locations with proper file naming</p>
+<p><strong>Process:</strong></p>
+<ol>
+<li>Copy brain mask to final location as <code>{name}_M.nii.gz</code></li>
+<li>Copy processed DWI data to final output file</li>
+<li>Copy final b-vectors (motion/eddy corrected)</li>
+<li>Update preprocessing report with final file locations</li>
+</ol>
+<p><strong>No Configuration Required</strong> - Always executed</p>
+<h4 id="step-8-t1-preprocessing-and-registration-when-available">Step 8: T1 Preprocessing and Registration (When Available)<a class="headerlink" href="#step-8-t1-preprocessing-and-registration-when-available" title="Permanent link">&para;</a></h4>
+<p><strong>Functions:</strong> <code>preproc_t1_dwi_registration.m</code>, <code>preproc_t1_mni_registration.m</code>, <code>preproc_create_dwi_reference.m</code></p>
+<p><strong>Purpose:</strong> Complete T1-based registration workflow for enhanced atlas processing</p>
+<p><strong>T1 Registration Chain (When T1 Available):</strong></p>
+<ol>
+<li><strong>T1-DWI Registration:</strong> Refine boundary-based registration with final processed DWI</li>
+<li><strong>T1-MNI Registration:</strong> Create nonlinear T1-to-MNI transformation using FSL FNIRT</li>
+<li><strong>DWI Reference Creation:</strong> Generate distortion-corrected DWI reference volume</li>
+</ol>
+<p><strong>Process Flow:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># T1-DWI registration refinement</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>epi_reg<span class="w"> </span>--epi<span class="o">={</span>dwi_ref<span class="o">}</span><span class="w"> </span>--t1<span class="o">={</span>T1_file<span class="o">}</span><span class="w"> </span>--t1brain<span class="o">={</span>T1_brain<span class="o">}</span><span class="w"> </span>--out<span class="o">={</span>T1_to_dwi_refined<span class="o">}</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># T1-MNI nonlinear registration</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>flirt<span class="w"> </span>-in<span class="w"> </span><span class="o">{</span>T1_brain<span class="o">}</span><span class="w"> </span>-ref<span class="w"> </span><span class="o">{</span>MNI_template<span class="o">}</span><span class="w"> </span>-omat<span class="w"> </span><span class="o">{</span>T1_to_MNI_linear.mat<span class="o">}</span><span class="w"> </span>-out<span class="w"> </span><span class="o">{</span>T1_to_MNI_linear<span class="o">}</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>fnirt<span class="w"> </span>--in<span class="o">={</span>T1_file<span class="o">}</span><span class="w"> </span>--aff<span class="o">={</span>T1_to_MNI_linear.mat<span class="o">}</span><span class="w"> </span>--cout<span class="o">={</span>T1_to_MNI_warp<span class="o">}</span><span class="w"> </span>--config<span class="o">=</span>T1_2_MNI152_2mm
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="c1"># Inverse warp for atlas transformation</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>invwarp<span class="w"> </span>-w<span class="w"> </span><span class="o">{</span>T1_to_MNI_warp<span class="o">}</span><span class="w"> </span>-r<span class="w"> </span><span class="o">{</span>T1_file<span class="o">}</span><span class="w"> </span>-o<span class="w"> </span><span class="o">{</span>MNI_to_T1_warp<span class="o">}</span>
+</code></pre></div></p>
+<p><strong>Rationale:</strong> T1-to-MNI registration is a same-contrast, undistorted problem and converges
+far better than a direct MNI-to-DWI registration, which must cope with EPI distortion and
+diffusion contrast at once. Routing the atlas through T1 inherits that better alignment.</p>
+<p><strong>Configuration.</strong> Both keys are derived, not chosen: when <code>main.m</code> calls preprocessing it
+sets <code>t1_available</code> and <code>use_t1_registration</code> from whether <code>{name}_T1.nii.gz</code> actually exists,
+overriding whatever the config carried. To take the direct path, call <code>nim_preprocessing</code>
+yourself with the keys left unset (absent means off).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">options</span><span class="p">.</span><span class="n">use_t1_registration</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">options</span><span class="p">.</span><span class="n">t1_available</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="n">options</span><span class="p">.</span><span class="n">t1_file</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'/path/to/subject_T1.nii.gz'</span><span class="p">;</span>
+</code></pre></div>
+<p><strong>Fallback:</strong> Skip T1 registration if T1 data unavailable or T1 processing fails</p>
+<p><strong>Error condition:</strong> T1 registration chain fails (falls back to direct atlas registration)</p>
+<h4 id="step-9-atlas-processing">Step 9: Atlas Processing<a class="headerlink" href="#step-9-atlas-processing" title="Permanent link">&para;</a></h4>
+<p><strong>Function:</strong> <code>preproc_atlas_resampling.m</code></p>
+<p><strong>Purpose:</strong> Resample atlas to DWI space for parcellation using optimal registration method</p>
+<p><strong>T1-Based Atlas Registration (When T1 Available):</strong>
+Uses the complete MNI→T1→DWI transformation chain created in Step 8:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Apply composite transformation</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>applywarp<span class="w"> </span>-i<span class="w"> </span><span class="o">{</span>atlas_MNI<span class="o">}</span><span class="w"> </span>-r<span class="w"> </span><span class="o">{</span>dwi_ref<span class="o">}</span><span class="w"> </span>--warp<span class="o">={</span>MNI_to_T1_warp<span class="o">}</span><span class="w"> </span>--postmat<span class="o">={</span>T1_to_dwi.mat<span class="o">}</span><span class="w"> </span>--interp<span class="o">=</span>nn<span class="w"> </span>-o<span class="w"> </span><span class="o">{</span>atlas_dwi<span class="o">}</span>
+</code></pre></div></p>
+<p><strong>Direct Registration Fallback (DWI-Only):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Direct atlas resampling (fallback method)</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>flirt<span class="w"> </span>-in<span class="w"> </span><span class="o">{</span>atlas_MNI<span class="o">}</span><span class="w"> </span>-ref<span class="w"> </span><span class="o">{</span>dwi_ref<span class="o">}</span><span class="w"> </span>-out<span class="w"> </span><span class="o">{</span>atlas_dwi<span class="o">}</span><span class="w"> </span>-interp<span class="w"> </span>nearestneighbour
+</code></pre></div></p>
+<p><strong>Supported atlases:</strong></p>
+<ul>
+<li><code>HarvardOxford</code> (HarvardOxford-cort-maxprob-thr0-1mm) — the default in <code>nim_preprocessing</code>,
+  and the fallback for an unrecognised name</li>
+<li><code>JHU</code> (JHU-ICBM-labels-1mm)</li>
+<li><code>JHU-tract</code> (JHU-ICBM-tracts-maxprob-thr0-1mm)</li>
+</ul>
+<p>All three are read from <code>$FSLDIR/data/atlases/</code>.</p>
+<p><strong>Configuration:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">options</span><span class="p">.</span><span class="n">atlas_type</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'HarvardOxford'</span><span class="p">;</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">options</span><span class="p">.</span><span class="n">use_t1_registration</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w">  </span><span class="c">% Enables T1-guided atlas registration</span>
+</code></pre></div></p>
+<p>Note the two layers disagree on the default: <code>nim_preprocessing</code>'s own default is
+<code>HarvardOxford</code>, while the YAML schema's <code>preprocessing.atlas_type</code> defaults to <code>jhu</code>. A run
+launched from a config therefore gets JHU unless it says otherwise.</p>
+<p><strong>Atlas Quality Validation:</strong></p>
+<ul>
+<li>Label value range checking (ensures integer labels preserved)</li>
+<li>Voxel coverage assessment (validates successful registration)</li>
+<li>Spatial consistency verification</li>
+</ul>
+<p><strong>Why the T1 route:</strong> it avoids registering an MNI template directly onto distorted,
+diffusion-contrast data, and it preserves label integrity by resampling with nearest-neighbour
+interpolation throughout.</p>
+<p><strong>Fallback:</strong> Use direct FLIRT registration if T1-based method unavailable</p>
+<p><strong>Error condition:</strong> All atlas registration methods fail</p>
+<h4 id="step-10-finalization-and-cleanup">Step 10: Finalization and Cleanup<a class="headerlink" href="#step-10-finalization-and-cleanup" title="Permanent link">&para;</a></h4>
+<p><strong>Function:</strong> <code>preproc_cleanup.m</code></p>
+<p><strong>Purpose:</strong> Organize final outputs and remove temporary files</p>
+<p><strong>Final outputs:</strong></p>
+<ul>
+<li><code>{name}.nii.gz</code> - Processed DWI data</li>
+<li><code>{name}.bvec</code> - Final b-vectors (motion/eddy corrected)</li>
+<li><code>{name}.bval</code> - B-values (unchanged)</li>
+<li><code>{name}_M.nii.gz</code> - Brain mask</li>
+<li><code>parcellation_mask.nii.gz</code> - Atlas mask</li>
+</ul>
+<h2 id="configuration-options">Configuration Options<a class="headerlink" href="#configuration-options" title="Permanent link">&para;</a></h2>
+<h3 id="default-configuration">Default Configuration<a class="headerlink" href="#default-configuration" title="Permanent link">&para;</a></h3>
+<p>These are <code>nim_preprocessing.m</code>'s own defaults, applied to any key the caller omits:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">default_options</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">struct</span><span class="p">(</span><span class="k">...</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">    </span><span class="s">'run_denoising'</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="s">'denoise_method'</span><span class="p">,</span><span class="w"> </span><span class="s">'dwidenoise'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span><span class="s">'run_motion_correction'</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">    </span><span class="s">'run_fieldmap_correction'</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">    </span><span class="s">'fieldmap_file'</span><span class="p">,</span><span class="w"> </span><span class="s">''</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">    </span><span class="s">'fieldmap_units'</span><span class="p">,</span><span class="w"> </span><span class="s">'auto'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">    </span><span class="s">'phase_encoding_dir'</span><span class="p">,</span><span class="w"> </span><span class="s">'y'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">    </span><span class="s">'dwell_time'</span><span class="p">,</span><span class="w"> </span><span class="mf">0.00058</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="w">    </span><span class="s">'eddy_method'</span><span class="p">,</span><span class="w"> </span><span class="s">'auto'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="w">    </span><span class="s">'run_eddy'</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="w">    </span><span class="s">'improve_mask'</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="w">    </span><span class="s">'atlas_type'</span><span class="p">,</span><span class="w"> </span><span class="s">'HarvardOxford'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="w">    </span><span class="s">'phase_encoding_direction'</span><span class="p">,</span><span class="w"> </span><span class="s">""</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="w">    </span><span class="s">'total_readout_time'</span><span class="p">,</span><span class="w"> </span><span class="p">[],</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="w">    </span><span class="s">'eddy_index_vector'</span><span class="p">,</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="p">);</span>
+</code></pre></div>
+<p>The T1 keys (<code>t1_available</code>, <code>use_t1_registration</code>, <code>t1_file</code>) are deliberately absent from
+this struct: an unset key means the T1 path is off, and <code>main.m</code> sets all three from whether
+<code>{name}_T1.nii.gz</code> exists.</p>
+<p>The YAML surface is narrower than this struct and is documented separately. The <code>preprocessing</code>
+section of a config exposes <code>run_denoising</code>, <code>denoise_method</code>, <code>run_motion_correction</code>,
+<code>run_eddy</code>, <code>improve_mask</code>, <code>atlas_type</code>, <code>t1_available</code>, <code>use_t1_registration</code> and
+<code>register_to_mni</code>; <code>src/nim_utils/nim_config_schema.m</code> is the single source of truth for it,
+and <a href="../YAML_CONFIG/">YAML_CONFIG.md</a> is generated from that file.</p>
+<h3 id="t1-integration">T1 Integration<a class="headerlink" href="#t1-integration" title="Permanent link">&para;</a></h3>
+<p>The pipeline detects T1 structural data by the naming convention <code>{name}_T1.nii.gz</code> in the
+same directory as the DWI, and turns on the T1 path when it is found. A T1 changes three
+things: brain extraction runs on structural contrast rather than a b0 volume; the atlas
+reaches DWI space through MNI→T1→DWI instead of directly; and tissue segmentation for ACT can
+use FSL FAST instead of the FA-tertile fallback.</p>
+<h3 id="legacy-support">Legacy Support<a class="headerlink" href="#legacy-support" title="Permanent link">&para;</a></h3>
+<p>Two positional forms are still accepted for backward compatibility:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">nim_preprocessing</span><span class="p">(</span><span class="n">file_prefix</span><span class="p">,</span><span class="w"> </span><span class="n">options</span><span class="p">);</span><span class="w">                   </span><span class="c">% current</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">nim_preprocessing</span><span class="p">(</span><span class="n">file_prefix</span><span class="p">,</span><span class="w"> </span><span class="n">run_eddy</span><span class="p">);</span><span class="w">                  </span><span class="c">% legacy</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">nim_preprocessing</span><span class="p">(</span><span class="n">file_prefix</span><span class="p">,</span><span class="w"> </span><span class="n">run_eddy</span><span class="p">,</span><span class="w"> </span><span class="n">atlas_type</span><span class="p">);</span><span class="w">      </span><span class="c">% legacy</span>
+</code></pre></div>
+<p>Both legacy forms force <code>run_denoising</code>, <code>run_motion_correction</code> and <code>improve_mask</code> on, and
+<code>denoise_method</code> to <code>dwidenoise</code>.</p>
+<h2 id="error-handling-and-recovery">Error Handling and Recovery<a class="headerlink" href="#error-handling-and-recovery" title="Permanent link">&para;</a></h2>
+<h3 id="comprehensive-error-reporting">Comprehensive Error Reporting<a class="headerlink" href="#comprehensive-error-reporting" title="Permanent link">&para;</a></h3>
+<p>All errors and warnings are logged in a preprocessing report:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">preprocessing_report</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">struct</span><span class="p">();</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">preprocessing_report</span><span class="p">.</span><span class="n">errors</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">{};</span><span class="w">      </span><span class="c">% Critical errors</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="n">preprocessing_report</span><span class="p">.</span><span class="n">warnings</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">{};</span><span class="w">    </span><span class="c">% Non-fatal issues</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">preprocessing_report</span><span class="p">.</span><span class="n">steps_completed</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">{};</span><span class="w">  </span><span class="c">% Successful steps</span>
+</code></pre></div></p>
+<h3 id="common-error-scenarios">Common Error Scenarios<a class="headerlink" href="#common-error-scenarios" title="Permanent link">&para;</a></h3>
+<h4 id="1-fsl-environment-issues">1. FSL Environment Issues<a class="headerlink" href="#1-fsl-environment-issues" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms:</strong> FSLDIR not set, FSL commands not found</p>
+<p><strong>Recovery:</strong> Install FSL, set environment variables</p>
+<p><strong>Pipeline behavior:</strong> Fatal error, cannot proceed</p>
+<h4 id="2-insufficient-disk-space">2. Insufficient Disk Space<a class="headerlink" href="#2-insufficient-disk-space" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms:</strong> Preprocessing steps fail with I/O errors</p>
+<p><strong>Recovery:</strong> Free disk space, resume from last successful step</p>
+<p><strong>Pipeline behavior:</strong> Stop and save partial results</p>
+<h4 id="3-memory-limitations">3. Memory Limitations<a class="headerlink" href="#3-memory-limitations" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms:</strong> Large dataset processing fails</p>
+<p><strong>Recovery:</strong> Reduce processing options, use cluster computing</p>
+<p><strong>Pipeline behavior:</strong> Fall back to less memory-intensive methods</p>
+<h4 id="4-corrupted-input-data">4. Corrupted Input Data<a class="headerlink" href="#4-corrupted-input-data" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms:</strong> NIfTI reading errors, dimension mismatches</p>
+<p><strong>Recovery:</strong> Re-export data from scanner, verify file integrity</p>
+<p><strong>Pipeline behavior:</strong> Fatal error with detailed diagnostics</p>
+<h4 id="5-parameter-file-issues">5. Parameter File Issues<a class="headerlink" href="#5-parameter-file-issues" title="Permanent link">&para;</a></h4>
+<p><strong>Symptoms:</strong> Eddy correction fails due to missing acqp/index files</p>
+<p><strong>Recovery:</strong> Automatic parameter generation from options</p>
+<p><strong>Pipeline behavior:</strong></p>
+<ol>
+<li>Try to generate parameters from options</li>
+<li>Fall back to basic eddy_correct</li>
+<li>Skip eddy correction if all methods fail</li>
+</ol>
+<h3 id="quality-control-metrics">Quality Control Metrics<a class="headerlink" href="#quality-control-metrics" title="Permanent link">&para;</a></h3>
+<h4 id="motion-assessment">Motion Assessment<a class="headerlink" href="#motion-assessment" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Maximum translation (mm)</li>
+<li>Maximum rotation (degrees)</li>
+<li>Mean relative RMS displacement (mm)</li>
+<li>Frame-to-frame displacement spikes</li>
+</ul>
+<h4 id="eddy-current-assessment">Eddy Current Assessment<a class="headerlink" href="#eddy-current-assessment" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Outlier slices detected and corrected</li>
+<li>CNR (Contrast-to-Noise Ratio) maps</li>
+<li>Residual maps for quality assessment</li>
+</ul>
+<h4 id="field-map-assessment">Field Map Assessment<a class="headerlink" href="#field-map-assessment" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Field map coverage (% of brain)</li>
+<li>Distortion magnitude statistics</li>
+<li>Correction effectiveness metrics</li>
+</ul>
+<h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
+<h3 id="processing-time-estimates">Processing Time Estimates<a class="headerlink" href="#processing-time-estimates" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Basic preprocessing (no eddy): 3-10 minutes</li>
+<li>With advanced eddy correction: 2-8 hours</li>
+<li>With field map correction: Additional 30-60 minutes</li>
+</ul>
+<h3 id="system-requirements">System Requirements<a class="headerlink" href="#system-requirements" title="Permanent link">&para;</a></h3>
+<ul>
+<li>RAM: Minimum 8GB, recommended 16GB+</li>
+<li>Disk space: 3-5x input data size for temporary files</li>
+<li>CPU: Multi-core beneficial for FSL operations</li>
+</ul>
+<h3 id="optimization-tips">Optimization Tips<a class="headerlink" href="#optimization-tips" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Use cluster computing for large datasets</li>
+<li>Enable parallel processing in FSL</li>
+<li>Use SSDs for temporary file storage</li>
+<li>Pre-compute parameter files for batch processing</li>
+</ol>
+<h2 id="integration-with-main-pipeline">Integration with Main Pipeline<a class="headerlink" href="#integration-with-main-pipeline" title="Permanent link">&para;</a></h2>
+<p>The preprocessing module integrates seamlessly with the main HINEC pipeline:</p>
+<ol>
+<li><strong>Automatic Detection:</strong> Main pipeline detects raw vs processed data</li>
+<li><strong>Transparent Processing:</strong> Preprocessing runs automatically when needed</li>
+<li><strong>Quality Validation:</strong> Results validated before proceeding to DTI calculation</li>
+<li><strong>Error Propagation:</strong> Preprocessing errors properly handled by main pipeline</li>
+</ol>
+<h2 id="troubleshooting-guide">Troubleshooting Guide<a class="headerlink" href="#troubleshooting-guide" title="Permanent link">&para;</a></h2>
+<h3 id="common-issues-and-solutions">Common Issues and Solutions<a class="headerlink" href="#common-issues-and-solutions" title="Permanent link">&para;</a></h3>
+<h4 id="fsldir-not-set-error">"FSLDIR not set" error<a class="headerlink" href="#fsldir-not-set-error" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FSLDIR</span><span class="o">=</span>/usr/local/fsl
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="si">${</span><span class="nv">FSLDIR</span><span class="si">}</span>/bin:<span class="si">${</span><span class="nv">PATH</span><span class="si">}</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="nb">source</span><span class="w"> </span><span class="si">${</span><span class="nv">FSLDIR</span><span class="si">}</span>/etc/fslconf/fsl.sh
+</code></pre></div>
+<h4 id="field-map-correction-fails">Field map correction fails<a class="headerlink" href="#field-map-correction-fails" title="Permanent link">&para;</a></h4>
+<ol>
+<li>Check field map units (Hz vs rad/s)</li>
+<li>Verify phase encoding direction</li>
+<li>Ensure field map covers brain region</li>
+<li>Check dwell time parameter accuracy</li>
+</ol>
+<h4 id="eddy-correction-takes-too-long">Eddy correction takes too long<a class="headerlink" href="#eddy-correction-takes-too-long" title="Permanent link">&para;</a></h4>
+<ol>
+<li>Use basic eddy_correct instead of full eddy</li>
+<li>Reduce number of iterations</li>
+<li>Use cluster computing with multiple cores</li>
+<li>Consider GPU-accelerated eddy</li>
+</ol>
+<h4 id="motion-correction-produces-artifacts">Motion correction produces artifacts<a class="headerlink" href="#motion-correction-produces-artifacts" title="Permanent link">&para;</a></h4>
+<ol>
+<li>Check motion parameters for excessive movement</li>
+<li>Verify b-vector rotation is applied correctly</li>
+<li>Consider excluding high-motion volumes</li>
+<li>Use more robust reference volume selection</li>
+</ol>
+<h2 id="tissue-segmentation-for-act">Tissue Segmentation for ACT<a class="headerlink" href="#tissue-segmentation-for-act" title="Permanent link">&para;</a></h2>
+<p>Tissue masks are produced by <code>main.m</code>, not by <code>nim_preprocessing</code>, and are stored on the <code>nim</code>
+as <code>.wm_mask</code>, <code>.gm_mask</code> and <code>.csf_mask</code> (with the corresponding NIfTI paths in
+<code>.wm_mask_file</code> and friends).</p>
+<p><strong>Primary method</strong> (<code>preproc_tissue_segmentation.m</code>): FSL FAST on the anatomical T1, resampled
+into DWI space through the two images' <strong>world affines</strong> (<code>flirt -usesqform</code>). Deliberately no
+registration step is involved, so the masks cannot be corrupted by a T1→DWI registration that
+is disabled or has converged poorly. This is the right approach whenever the T1 is already
+world-aligned to the diffusion data.</p>
+<p><strong>Fallback</strong> (no usable T1): FA-tertile binning. This bins <strong>anisotropy, not tissue</strong>, so ACT
+driven by it terminates streamlines mid-crossing. It exists for DWI-only datasets and should
+be read as a degraded mode, not an equivalent one.</p>
+<p>Output files are <code>{name}_WM_mask.nii.gz</code>, <code>{name}_GM_mask.nii.gz</code> and
+<code>{name}_CSF_mask.nii.gz</code>. Note that these masks are generated on every run, but ACT itself is
+off unless <code>tractography.act</code> is set true.</p>
+<h2 id="field-map-correction-reference">Field Map Correction Reference<a class="headerlink" href="#field-map-correction-reference" title="Permanent link">&para;</a></h2>
+<h3 id="setup-example">Setup Example<a class="headerlink" href="#setup-example" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">options</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">struct</span><span class="p">();</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">options</span><span class="p">.</span><span class="n">run_fieldmap_correction</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="n">options</span><span class="p">.</span><span class="n">fieldmap_file</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'subject_fmap_Hz.nii.gz'</span><span class="p">;</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">options</span><span class="p">.</span><span class="n">phase_encoding_dir</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'y'</span><span class="p">;</span><span class="w">      </span><span class="c">% acquisition-dependent</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="n">options</span><span class="p">.</span><span class="n">dwell_time</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mf">0.00058</span><span class="p">;</span><span class="w">          </span><span class="c">% scanner-dependent, seconds</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="n">options</span><span class="p">.</span><span class="n">eddy_method</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'eddy_correct'</span><span class="p">;</span><span class="w">  </span><span class="c">% force the basic method</span>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="n">nim_preprocessing</span><span class="p">(</span><span class="s">'path/to/subject'</span><span class="p">,</span><span class="w"> </span><span class="n">options</span><span class="p">);</span>
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="n">main</span><span class="p">(</span><span class="s">'path/to/subject'</span><span class="p">,</span><span class="w"> </span><span class="s">'subject.mat'</span><span class="p">);</span>
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="n">runTractography</span><span class="p">(</span><span class="s">'subject.mat'</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="typical-dwell-times-by-vendor">Typical Dwell Times by Vendor<a class="headerlink" href="#typical-dwell-times-by-vendor" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Vendor</th>
+<th>Effective echo spacing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Siemens</td>
+<td>~0.00058 s</td>
+</tr>
+<tr>
+<td>GE</td>
+<td>~0.000476 s</td>
+</tr>
+<tr>
+<td>Philips</td>
+<td>~0.000694 s</td>
+</tr>
+</tbody>
+</table>
+<p>These are representative values only; read the actual figure from your sequence protocol.</p>
+<h2 id="t1-based-registration-implementation-details">T1-Based Registration Implementation Details<a class="headerlink" href="#t1-based-registration-implementation-details" title="Permanent link">&para;</a></h2>
+<p>The atlas reaches DWI space through an MNI→T1→DWI chain rather than a direct MNI→DWI
+registration, because the direct route must absorb EPI distortion and diffusion contrast at
+once. The chain is assembled from four steps:</p>
+<ol>
+<li>
+<p><strong>T1 Brain Extraction</strong> (<code>preproc_t1_brain_extraction.m</code>):</p>
+</li>
+<li>
+<p>Use FSL BET with robust skull stripping parameters</p>
+</li>
+<li>
+<p>Generate T1 brain mask and brain-extracted T1 image</p>
+</li>
+<li>
+<p><strong>T1-DWI Registration</strong> (<code>preproc_t1_dwi_registration.m</code>):</p>
+</li>
+<li>
+<p>Use FSL epi_reg for boundary-based registration</p>
+</li>
+<li>
+<p>Handle EPI distortions and generate transformation matrix</p>
+</li>
+<li>
+<p><strong>T1-MNI Registration</strong> (<code>preproc_t1_mni_registration.m</code>):</p>
+</li>
+<li>
+<p>Perform linear pre-alignment using FLIRT</p>
+</li>
+<li>Execute nonlinear registration using FNIRT</li>
+<li>
+<p>Generate and invert warp fields for MNI→T1 transformation</p>
+</li>
+<li>
+<p><strong>Composite Transform Application</strong>:</p>
+</li>
+<li>
+<p>Use applywarp to combine MNI→T1 warp with T1→DWI affine</p>
+</li>
+<li>Apply nearest neighbor interpolation to preserve label values</li>
+</ol>
+<h3 id="coordinate-system-considerations">Coordinate System Considerations<a class="headerlink" href="#coordinate-system-considerations" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>MATLAB vs FSL</strong>: Handle coordinate system differences</li>
+<li><strong>Voxel vs World</strong>: All internal processing in voxel coordinates</li>
+<li><strong>Label Preservation</strong>: Use nearest neighbor interpolation for atlases</li>
+</ul>
+<h2 id="known-limitations">Known Limitations<a class="headerlink" href="#known-limitations" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Motion correction is volume-to-volume; there is no slice-to-volume correction, so
+  within-volume motion is not recovered.</li>
+<li>The FA-tertile tissue fallback is not a tissue segmentation and should not be used to drive
+  ACT on data where a T1 is available.</li>
+<li>Eddy correction is not GPU-accelerated here; on a large dataset the full <code>eddy</code> path
+  dominates the wall-clock time.</li>
+<li>There is no automatic BIDS ingestion; inputs follow the <code>{name}_*</code> prefix convention
+  described above.</li>
+</ul>
+<hr />
+<p>For behaviour not covered here, the function files under <code>src/nim_preprocessing/</code> are the
+authority.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

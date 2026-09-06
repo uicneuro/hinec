@@ -1,0 +1,3581 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="HIgh-order NEural Connectivity — dMRI Tractography Pipeline">
+      
+      
+        <meta name="author" content="HINEC Team">
+      
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../PIPELINE/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Getting Started - HINEC Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#getting-started-and-usage-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="HINEC Documentation" class="md-header__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            HINEC Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Getting Started
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../PIPELINE/" class="md-tabs__link">
+          
+  
+  
+  Pipeline
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../TRACTOGRAPHY_METHODS/" class="md-tabs__link">
+          
+  
+  
+  Tractography
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../YAML_CONFIG/" class="md-tabs__link">
+          
+  
+  
+  Configuration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../VISUALIZATION_GUIDE/" class="md-tabs__link">
+          
+  
+  
+  Visualization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../CONVERGENCE/" class="md-tabs__link">
+          
+  
+  
+  Verification & Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../API_REFERENCE/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ABOUT/" class="md-tabs__link">
+          
+  
+  
+  About
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="HINEC Documentation" class="md-nav__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    HINEC Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Prerequisites
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#matlab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MATLAB
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fsl-fmrib-software-library" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FSL (FMRIB Software Library)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spm12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SPM12
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-shell-scripts-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using Shell Scripts (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-matlab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using MATLAB
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#expected-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expected Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-running-the-full-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Running the Full Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Running the Full Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-matlab-direct" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A: MATLAB Direct
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-shell-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B: Shell Script
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-c-preprocess-once-iterate-tractography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option C: Preprocess Once, Iterate Tractography
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#input-data-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input Data Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-yaml-presets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using YAML Presets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-tractography-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Tractography Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-custom-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating Custom Configurations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-running-tractography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Running Tractography
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Running Tractography">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#by-tracker-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Tracker Name
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#direct-function-calls-advanced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Direct Function Calls (Advanced)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#understanding-track-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Understanding Track Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Visualization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Visualization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quick-3d-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick 3D View
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tractography-visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tractography Visualization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cli-visualization-export-shell-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Visualization Export (Shell Script)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interactive-slice-viewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interactive Slice Viewer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fast-distributed-viewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fast Distributed Viewer
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-working-with-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Working with Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Working with Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#loading-saved-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading Saved Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extracting-connectivity-matrices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extracting Connectivity Matrices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparing-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparing Runs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fsl-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FSL Not Found
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#out-of-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out of Memory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#string-vs-char-array-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        String vs Char Array Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-tracks-generated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No Tracks Generated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#act-reported-as-disabled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ACT Reported as Disabled
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preprocessing-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preprocessing Fails
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#registration-quality-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registration Quality Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PIPELINE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PREPROCESSING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RUN_DIRECTORY_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Directory System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tractography
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tractography
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY_METHODS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MMF_TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MMF Connection-Form
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standard (FACT)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../High_Order/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    High-Order Methods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Adaptive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF_Usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SEEDING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seeding Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hinec_tractography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Configuration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../YAML_CONFIG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YAML Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CHANGELOG_YAML/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VISUALIZATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REGION_VISUALIZATION_EXAMPLES/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Region Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DISTRIBUTED_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification & Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Verification & Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CONVERGENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solution Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ISMRM_SCORING_ANALYSIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ISMRM Scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_USAGE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IRONTRACT_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IronTract Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../API_REFERENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MATHEMATICAL_FOUNDATIONS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mathematical Foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCIENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Science Background
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ABOUT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Prerequisites
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#matlab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MATLAB
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fsl-fmrib-software-library" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FSL (FMRIB Software Library)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spm12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SPM12
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-shell-scripts-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using Shell Scripts (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-matlab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using MATLAB
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#expected-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expected Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-running-the-full-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Running the Full Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Running the Full Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-matlab-direct" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A: MATLAB Direct
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-shell-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B: Shell Script
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-c-preprocess-once-iterate-tractography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option C: Preprocess Once, Iterate Tractography
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#input-data-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input Data Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-yaml-presets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using YAML Presets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-tractography-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Tractography Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-custom-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating Custom Configurations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-running-tractography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Running Tractography
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Running Tractography">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#by-tracker-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Tracker Name
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#direct-function-calls-advanced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Direct Function Calls (Advanced)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#understanding-track-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Understanding Track Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Visualization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Visualization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quick-3d-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick 3D View
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tractography-visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tractography Visualization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cli-visualization-export-shell-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Visualization Export (Shell Script)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interactive-slice-viewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interactive Slice Viewer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fast-distributed-viewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fast Distributed Viewer
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-working-with-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Working with Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Working with Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#loading-saved-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading Saved Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extracting-connectivity-matrices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extracting Connectivity Matrices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparing-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparing Runs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fsl-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FSL Not Found
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#out-of-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out of Memory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#string-vs-char-array-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        String vs Char Array Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-tracks-generated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No Tracks Generated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#act-reported-as-disabled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ACT Reported as Disabled
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preprocessing-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preprocessing Fails
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#registration-quality-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registration Quality Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="getting-started-and-usage-guide">Getting Started and Usage Guide<a class="headerlink" href="#getting-started-and-usage-guide" title="Permanent link">&para;</a></h1>
+<p>Practical guide for installing, configuring, running the HINEC pipeline, and interpreting results.</p>
+<hr />
+<h2 id="1-prerequisites">1. Prerequisites<a class="headerlink" href="#1-prerequisites" title="Permanent link">&para;</a></h2>
+<h3 id="matlab">MATLAB<a class="headerlink" href="#matlab" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Version</strong>: R2020b or later (for <code>arguments</code> block syntax and <code>griddedInterpolant</code>)</li>
+<li><strong>Required Toolboxes</strong>:</li>
+<li>Image Processing Toolbox</li>
+<li>Statistics and Machine Learning Toolbox</li>
+<li>Tools for NIfTI and ANALYZE image (MATLAB File Exchange)</li>
+</ul>
+<p>Verify toolboxes:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">ver</span><span class="p">(</span><span class="s">'images'</span><span class="p">)</span><span class="w">    </span><span class="c">% Image Processing Toolbox</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">ver</span><span class="p">(</span><span class="s">'stats'</span><span class="p">)</span><span class="w">     </span><span class="c">% Statistics and Machine Learning Toolbox</span>
+</code></pre></div></p>
+<h3 id="fsl-fmrib-software-library">FSL (FMRIB Software Library)<a class="headerlink" href="#fsl-fmrib-software-library" title="Permanent link">&para;</a></h3>
+<p>Required for preprocessing. Not needed if you provide already-preprocessed data.</p>
+<ol>
+<li>Install FSL from <a href="https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FslInstallation">fsl.fmrib.ox.ac.uk</a></li>
+<li>Initialize FSL before running HINEC:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Add to your shell profile (~/.bashrc or ~/.zshrc)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FSLDIR</span><span class="o">=</span>/usr/local/fsl
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nb">source</span><span class="w"> </span><span class="nv">$FSLDIR</span>/etc/fslconf/fsl.sh
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$FSLDIR</span>/bin:<span class="nv">$PATH</span>
+</code></pre></div></li>
+<li>Verify: <code>flirt -version</code> should print the FSL version</li>
+</ol>
+<h3 id="spm12">SPM12<a class="headerlink" href="#spm12" title="Permanent link">&para;</a></h3>
+<p>Used for NIfTI I/O and as an optional registration backend. SPM12 is <strong>not</strong> vendored in this
+repository: install it at <code>lib/spm12/</code>, which is the path <code>main.m</code> adds with
+<code>addpath(genpath('lib/spm12'))</code>.</p>
+<h3 id="python-optional">Python (Optional)<a class="headerlink" href="#python-optional" title="Permanent link">&para;</a></h3>
+<p>Not needed for the MATLAB pipeline. Required for the fast distributed slice viewer, for TRK
+export, and for the ISMRM scoring tooling:</p>
+<ul>
+<li>Python 3.7+</li>
+<li><code>pip install -r requirements.txt</code></li>
+<li>tkinter for the viewer's GUI (usually included with Python)</li>
+</ul>
+<hr />
+<h2 id="2-installation">2. Installation<a class="headerlink" href="#2-installation" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Clone the repository</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>git<span class="w"> </span>clone<span class="w"> </span>&lt;repository-url&gt;<span class="w"> </span>hinec
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nb">cd</span><span class="w"> </span>hinec
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># Verify sample data exists</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>ls<span class="w"> </span>data/original_sample/
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>ls<span class="w"> </span>data/parcellation_sample/
+</code></pre></div>
+<p>No build step is required. MATLAB source files are used directly.</p>
+<hr />
+<h2 id="3-quick-start">3. Quick Start<a class="headerlink" href="#3-quick-start" title="Permanent link">&para;</a></h2>
+<h3 id="using-shell-scripts-recommended">Using Shell Scripts (Recommended)<a class="headerlink" href="#using-shell-scripts-recommended" title="Permanent link">&para;</a></h3>
+<p>The simplest way to run HINEC end-to-end — preprocessing, DTI, and tractography in one command:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>/path/to/hinec
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Process sample data with default configuration</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>./bin/run_hinec.sh<span class="w"> </span>data/parcellation_sample/sample<span class="w"> </span>sample.mat
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1"># Export visualization figures (after pipeline completes)</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>./bin/run_visualization.sh<span class="w"> </span>hinec_runs/latest/
+</code></pre></div>
+<p>The first argument is a <strong>data prefix</strong> — this is the shared path and name that all your input files have in common, without any suffix or extension. For example, given these files:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>data/parcellation_sample/
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>├── sample_raw.nii.gz    ← raw diffusion data
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>├── sample.bval          ← b-values
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>├── sample.bvec          ← b-vectors
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>└── sample_T1.nii.gz     ← T1 anatomical (optional; not shipped with this sample)
+</code></pre></div>
+<p>The data prefix is <code>data/parcellation_sample/sample</code> — HINEC appends <code>_raw.nii.gz</code>, <code>.bval</code>, <code>.bvec</code>, etc. automatically.</p>
+<p>More examples:</p>
+<table>
+<thead>
+<tr>
+<th>Your files</th>
+<th>Data prefix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data/ISMRM/ISMRM_raw.nii.gz</code>, <code>ISMRM.bval</code>, <code>ISMRM.bvec</code></td>
+<td><code>data/ISMRM/ISMRM</code></td>
+</tr>
+<tr>
+<td><code>subjects/sub01/dwi_raw.nii.gz</code>, <code>dwi.bval</code>, <code>dwi.bvec</code></td>
+<td><code>subjects/sub01/dwi</code></td>
+</tr>
+<tr>
+<td><code>my_data.nii.gz</code>, <code>my_data.bval</code>, <code>my_data.bvec</code></td>
+<td><code>my_data</code></td>
+</tr>
+</tbody>
+</table>
+<p>If your files end in <code>_raw.nii.gz</code>, HINEC runs FSL preprocessing automatically. If they end in just <code>.nii.gz</code> (no <code>_raw</code>), it assumes data is already preprocessed.</p>
+<h3 id="using-matlab">Using MATLAB<a class="headerlink" href="#using-matlab" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span><span class="o">/</span><span class="nb">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">hinec</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c">% Process sample data (preprocessed, no FSL needed)</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">main</span><span class="p">(</span><span class="s">'data/original_sample/sample'</span><span class="p">,</span><span class="w"> </span><span class="s">'output/sample.mat'</span><span class="p">);</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c">% Run tractography</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">runTractography</span><span class="p">(</span><span class="s">'output/sample.mat'</span><span class="p">);</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="c">% Load and view results</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="nb">load</span><span class="p">(</span><span class="s">'output/sample.mat'</span><span class="p">);</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">nim_plot</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'single'</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="expected-output">Expected Output<a class="headerlink" href="#expected-output" title="Permanent link">&para;</a></h3>
+<p>After <code>main()</code> completes, the output <code>.mat</code> file contains a <code>nim</code> struct with:</p>
+<ul>
+<li><code>.img</code> — Original image data</li>
+<li><code>.DT</code> — Diffusion tensors (6 components per voxel)</li>
+<li><code>.evec</code> — Eigenvectors (fiber directions)</li>
+<li><code>.eval</code> — Eigenvalues (diffusion magnitudes)</li>
+<li><code>.FA</code> — Fractional anisotropy map</li>
+<li><code>.wm_mask</code>, <code>.gm_mask</code>, <code>.csf_mask</code> — Tissue masks for ACT</li>
+<li><code>.parcellation_mask</code> — Brain region labels</li>
+<li><code>.labels</code> — Region names</li>
+</ul>
+<p>After <code>runTractography()</code>, a tracks file is written to the run directory's <code>tractography/</code>
+(or to <code>tractography_results/</code> when no run directory is in use), containing:</p>
+<ul>
+<li><code>tracks</code> — Cell array of fiber pathways (each track is an Nx3 matrix)</li>
+<li><code>options</code> — Flat option struct actually passed to the tracker</li>
+<li><code>algorithm</code> — Tracker that produced the tracks</li>
+<li><code>elapsed_time</code> — Processing time</li>
+<li><code>track_meta</code> — Per-track metadata</li>
+</ul>
+<hr />
+<h2 id="4-running-the-full-pipeline">4. Running the Full Pipeline<a class="headerlink" href="#4-running-the-full-pipeline" title="Permanent link">&para;</a></h2>
+<h3 id="option-a-matlab-direct">Option A: MATLAB Direct<a class="headerlink" href="#option-a-matlab-direct" title="Permanent link">&para;</a></h3>
+<p><code>main</code> and <code>runTractography</code> take <strong>positional</strong> optional arguments, not name-value pairs;
+the argument's type selects its meaning (see the parsing block at the top of each file).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c">% Basic usage (preprocessed data)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">main</span><span class="p">(</span><span class="s">'path/to/data/subject'</span><span class="p">,</span><span class="w"> </span><span class="s">'output/subject.mat'</span><span class="p">);</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c">% With T1 for registration-enhanced parcellation (3rd argument = T1 path)</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">main</span><span class="p">(</span><span class="s">'path/to/data/subject_raw'</span><span class="p">,</span><span class="w"> </span><span class="s">'output/subject.mat'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">     </span><span class="s">'path/to/data/subject_T1.nii.gz'</span><span class="p">);</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c">% With YAML configuration (3rd argument = config struct)</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="n">config</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">load_config_yaml</span><span class="p">(</span><span class="s">'config/hinec_dti_cubic.yml'</span><span class="p">);</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="n">main</span><span class="p">(</span><span class="s">'path/to/data/subject'</span><span class="p">,</span><span class="w"> </span><span class="s">'output/subject.mat'</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="p">);</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="c">% With run directory organization (4th argument = run_info struct)</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="n">config</span><span class="w">   </span><span class="p">=</span><span class="w"> </span><span class="n">load_config_yaml</span><span class="p">(</span><span class="s">'config/hinec_default.yml'</span><span class="p">);</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="n">run_info</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">create_run_directory</span><span class="p">(</span><span class="s">'config/hinec_default.yml'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="s">'description'</span><span class="p">,</span><span class="w"> </span><span class="s">'First processing run'</span><span class="p">);</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="n">main</span><span class="p">(</span><span class="s">'path/to/data/subject'</span><span class="p">,</span><span class="w"> </span><span class="s">'output/subject.mat'</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">run_info</span><span class="p">);</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="n">runTractography</span><span class="p">(</span><span class="nb">fullfile</span><span class="p">(</span><span class="n">run_info</span><span class="p">.</span><span class="n">output_dir</span><span class="p">,</span><span class="w"> </span><span class="s">'subject.mat'</span><span class="p">),</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">run_info</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="option-b-shell-script">Option B: Shell Script<a class="headerlink" href="#option-b-shell-script" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Usage: ./bin/run_hinec.sh &lt;data_prefix&gt; &lt;output_mat&gt; [config_file] [--set key=value ...]</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="c1"># Default config (cubic interpolation + RK4 + ACT)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>./bin/run_hinec.sh<span class="w"> </span>path/to/data/subject<span class="w"> </span>subject.mat
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1"># Standard FACT for comparison</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>./bin/run_hinec.sh<span class="w"> </span>path/to/data/subject<span class="w"> </span>subject.mat<span class="w"> </span>config/standard_dti.yml
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="c1"># Cubic interpolation with adaptive RKF45</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>./bin/run_hinec.sh<span class="w"> </span>path/to/data/subject<span class="w"> </span>subject.mat<span class="w"> </span>config/hinec_dti_cubic.yml
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="c1"># Override any config parameter on the command line</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>./bin/run_hinec.sh<span class="w"> </span>path/to/data/subject<span class="w"> </span>subject.mat<span class="w"> </span>config/ismrm2015.yml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">    </span>--set<span class="w"> </span>seeding.density<span class="o">=</span><span class="m">8</span><span class="w"> </span>--set<span class="w"> </span>integrator.method<span class="o">=</span>rk4
+</code></pre></div>
+<p>The script validates the input files (<code>&lt;prefix&gt;_raw.nii.gz</code>, <code>.bval</code>, <code>.bvec</code>), creates a
+timestamped run directory under <code>hinec_runs/</code>, then runs preprocessing plus DTI calculation
+followed by tractography in a single background <code>matlab -batch</code> process, logging to
+<code>&lt;run_dir&gt;/logs/pipeline.log</code>.</p>
+<p><code>&lt;data_prefix&gt;</code> is the shared path without <code>_raw.nii.gz</code> — see <a href="#3-quick-start">Quick Start</a>
+for examples.</p>
+<h3 id="option-c-preprocess-once-iterate-tractography">Option C: Preprocess Once, Iterate Tractography<a class="headerlink" href="#option-c-preprocess-once-iterate-tractography" title="Permanent link">&para;</a></h3>
+<p>Preprocessing is the expensive stage, and it does not change when you vary tracking
+parameters. <code>bin/run_tractography.sh</code> runs tractography <strong>only</strong>, against an
+already-preprocessed <code>nim</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># 1. Preprocess once. main.m writes the canonical nim next to the input data.</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>./bin/run_hinec.sh<span class="w"> </span>data/ismrm2015/ismrm2015<span class="w"> </span>ismrm2015.mat<span class="w"> </span>config/ismrm2015.yml
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># 2. Run any number of tractography configs against it — no re-preprocessing.</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>./bin/run_tractography.sh<span class="w"> </span>hinec_csd<span class="w"> </span>--score
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># 3. Sweep a parameter without writing new YAML files.</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="k">for</span><span class="w"> </span>d<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="m">8</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span>./bin/run_tractography.sh<span class="w"> </span>hinec_dti<span class="w"> </span>--set<span class="w"> </span>seeding.density<span class="o">=</span><span class="nv">$d</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="k">done</span>
+</code></pre></div>
+<p><code>&lt;config&gt;</code> accepts <code>config/&lt;name&gt;.yml</code> or the bare <code>&lt;name&gt;</code>. Each invocation produces its own
+run directory, tagged with any <code>--set</code> overrides and recording them in <code>overrides.txt</code>.
+<code>--source &lt;nim|dir&gt;</code> selects a different preprocessed source; <code>--score</code> runs
+<code>bin/run_ismrm_scoring.sh</code> on the finished run directory.</p>
+<p>Keep the processed <code>nim</code>, the preprocessed references and the CSD cache in the data directory;
+run directories hold tractography <strong>outputs</strong> only.</p>
+<h3 id="input-data-requirements">Input Data Requirements<a class="headerlink" href="#input-data-requirements" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Required</th>
+<th>Format</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{name}.nii.gz</code></td>
+<td>Yes</td>
+<td>NIfTI-1</td>
+<td>4D diffusion-weighted images</td>
+</tr>
+<tr>
+<td><code>{name}.bval</code></td>
+<td>Yes</td>
+<td>Text</td>
+<td>B-values (space-separated, one line)</td>
+</tr>
+<tr>
+<td><code>{name}.bvec</code></td>
+<td>Yes</td>
+<td>Text</td>
+<td>Gradient directions (3 rows × N columns)</td>
+</tr>
+<tr>
+<td><code>{name}_M.nii.gz</code></td>
+<td>No</td>
+<td>NIfTI-1</td>
+<td>Brain mask (binary)</td>
+</tr>
+<tr>
+<td><code>{name}_raw.nii.gz</code></td>
+<td>Alt</td>
+<td>NIfTI-1</td>
+<td>Raw data (triggers preprocessing)</td>
+</tr>
+<tr>
+<td><code>{name}_acqp.txt</code></td>
+<td>No</td>
+<td>Text</td>
+<td>Acquisition parameters (for eddy correction)</td>
+</tr>
+<tr>
+<td><code>{name}_index.txt</code></td>
+<td>No</td>
+<td>Text</td>
+<td>Volume index (for eddy correction)</td>
+</tr>
+<tr>
+<td><code>{name}_T1.nii.gz</code></td>
+<td>No</td>
+<td>NIfTI-1</td>
+<td>T1 anatomical; enables T1-based brain extraction, registration and FAST tissue segmentation</td>
+</tr>
+<tr>
+<td><code>{name}_fmap_Hz.nii.gz</code></td>
+<td>No</td>
+<td>NIfTI-1</td>
+<td>Field map in Hz, for susceptibility distortion correction</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Raw vs preprocessed</strong>: if the filename contains <code>_raw</code>, HINEC runs FSL preprocessing.
+Otherwise it assumes the data is already preprocessed. <code>main.m</code> short-circuits aggressively:
+an existing output <code>.mat</code> skips everything, and an existing preprocessed <code>.nii.gz</code> skips
+preprocessing. To force reprocessing, delete the target file.</p>
+<hr />
+<h2 id="5-configuration">5. Configuration<a class="headerlink" href="#5-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="using-yaml-presets">Using YAML Presets<a class="headerlink" href="#using-yaml-presets" title="Permanent link">&para;</a></h3>
+<p>Configs in <code>config/</code> fall into two families, distinguished by which launcher consumes them.</p>
+<p><strong>Tracker configs</strong> — <code>&lt;algorithm&gt;_&lt;field&gt;[_&lt;variant&gt;].yml</code>, for <code>bin/run_tractography.sh</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Algorithm</th>
+<th>Field</th>
+<th>Integrator</th>
+<th>Interpolation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>standard_dti.yml</code></td>
+<td>standard (FACT)</td>
+<td>dti</td>
+<td>euler</td>
+<td>none (discrete voxel)</td>
+</tr>
+<tr>
+<td><code>hinec_dti.yml</code></td>
+<td>hinec</td>
+<td>dti</td>
+<td>rkf45</td>
+<td>trilinear</td>
+</tr>
+<tr>
+<td><code>hinec_csd.yml</code></td>
+<td>hinec</td>
+<td>csd</td>
+<td>rkf45</td>
+<td>trilinear</td>
+</tr>
+<tr>
+<td><code>hinec_dti_cubic.yml</code></td>
+<td>hinec</td>
+<td>dti</td>
+<td>rkf45</td>
+<td>cubic</td>
+</tr>
+<tr>
+<td><code>hinec_dti_cubic_recall.yml</code></td>
+<td>hinec</td>
+<td>dti</td>
+<td>rkf45</td>
+<td>cubic (recall-tuned termination)</td>
+</tr>
+<tr>
+<td><code>hinec_dti_fast.yml</code></td>
+<td>hinec</td>
+<td>dti</td>
+<td>rk2</td>
+<td>trilinear</td>
+</tr>
+<tr>
+<td><code>hinec_dti_euler.yml</code></td>
+<td>hinec</td>
+<td>dti</td>
+<td>euler</td>
+<td>trilinear</td>
+</tr>
+<tr>
+<td><code>mmf_dti.yml</code></td>
+<td>mmf</td>
+<td>dti</td>
+<td>rk4</td>
+<td>trilinear</td>
+</tr>
+<tr>
+<td><code>mmf_csd.yml</code></td>
+<td>mmf</td>
+<td>csd</td>
+<td>rk4</td>
+<td>trilinear</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Dataset configs</strong> — <code>&lt;dataset&gt;[_variant].yml</code>, for <code>bin/run_hinec.sh</code>: <code>ismrm2015.yml</code> and
+<code>irontract.yml</code>. <code>hinec_default.yml</code> is the generic full-pipeline fallback and is the only
+config pairing a full preprocessing block with a general-purpose tractography block.
+<code>reference.yml</code> is a template for step-size convergence ladders, driven entirely from
+<code>--set</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c">% Load a preset and pass it positionally</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">config</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">load_config_yaml</span><span class="p">(</span><span class="s">'config/hinec_dti_cubic.yml'</span><span class="p">);</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">main</span><span class="p">(</span><span class="s">'data/subject'</span><span class="p">,</span><span class="w"> </span><span class="s">'output/subject.mat'</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="p">);</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">runTractography</span><span class="p">(</span><span class="s">'output/subject.mat'</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="key-tractography-parameters">Key Tractography Parameters<a class="headerlink" href="#key-tractography-parameters" title="Permanent link">&para;</a></h3>
+<p>Configuration nests exactly two levels below a section (<code>section</code> → <code>group</code> → <code>key</code>); a third
+level is a parse error. Defaults come from the schema, so a working config is usually short.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Range</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>integrator.method</code></td>
+<td>euler, rk2, rk4, rkf45</td>
+<td>rk4</td>
+<td>Stepping scheme — a method name, not an order</td>
+</tr>
+<tr>
+<td><code>integrator.step</code></td>
+<td>1e-6 – 10</td>
+<td>0.2</td>
+<td>Step in voxels; the initial step for rkf45</td>
+</tr>
+<tr>
+<td><code>interpolation.method</code></td>
+<td>trilinear, cubic, spline</td>
+<td>trilinear</td>
+<td>Kernel smoothness: C0, C1 (Keys convolution), C2 (true spline)</td>
+</tr>
+<tr>
+<td><code>interpolation.upsample</code></td>
+<td>0.05 – 8</td>
+<td>1</td>
+<td>Field sampling factor: &gt;1 refines, &lt;1 coarsens</td>
+</tr>
+<tr>
+<td><code>seeding.density</code></td>
+<td>1 – 1000</td>
+<td>8</td>
+<td>Seeds per seeded voxel, honoured exactly</td>
+</tr>
+<tr>
+<td><code>seeding.fa_min</code></td>
+<td>0 – 1</td>
+<td>0.05</td>
+<td>Minimum FA for a voxel to be seeded</td>
+</tr>
+<tr>
+<td><code>termination.fa_min</code></td>
+<td>0 – 1</td>
+<td>0.10</td>
+<td>Stop tracking below this FA</td>
+</tr>
+<tr>
+<td><code>termination.angle_max</code></td>
+<td>0 – 3600</td>
+<td>225</td>
+<td>Maximum turn in <strong>degrees per voxel of arc</strong>; <code>0</code> disables</td>
+</tr>
+<tr>
+<td><code>termination.max_arc</code></td>
+<td>1 – 100000</td>
+<td>400</td>
+<td>Maximum arc length in voxels</td>
+</tr>
+<tr>
+<td><code>termination.min_arc</code></td>
+<td>0 – 100000</td>
+<td>15</td>
+<td>Discard tracks shorter than this arc length</td>
+</tr>
+<tr>
+<td><code>act</code></td>
+<td>true/false</td>
+<td><strong>false</strong></td>
+<td>Anatomically constrained tracking</td>
+</tr>
+</tbody>
+</table>
+<p>Two of these behave in ways worth stating explicitly.</p>
+<p><code>termination.angle_max</code> is a curvature budget, not a per-step limit: it fixes a minimum radius
+of curvature <code>R = 57.3 / angle_max</code> voxels, so refining the step does not loosen the
+constraint. Because the principal direction is a line field, tangents are sign-aligned and a
+measured turn never exceeds 90 degrees — any budget above <code>90 / step</code> is <strong>inert</strong>, not merely
+loose. Set <code>angle_max: 0</code> when you want the criterion off deliberately.</p>
+<p><code>act</code> defaults to false. <code>main.m</code> always generates the WM/GM/CSF tissue masks and stores them
+on the <code>nim</code>, so ACT being off is a configuration choice rather than a missing input;
+<code>runTractography</code> prints which of the two reasons applies for a given run.</p>
+<h3 id="creating-custom-configurations">Creating Custom Configurations<a class="headerlink" href="#creating-custom-configurations" title="Permanent link">&para;</a></h3>
+<p>Copy an existing preset and modify:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>cp<span class="w"> </span>config/hinec_default.yml<span class="w"> </span>config/my_config.yml
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="c1"># Edit my_config.yml with your parameters</span>
+</code></pre></div>
+<p>For a one-off sweep, prefer <code>--set key=value</code> over a new file. Any parameter is reachable by
+its canonical path (<code>tractography.integrator.step</code>), by its group and key
+(<code>integrator.step</code> — the <code>tractography.</code> prefix is assumed), or by a bare leaf name when that
+name is unique across the schema.</p>
+<p><code>src/nim_utils/nim_config_schema.m</code> is the single source of truth for every parameter, its
+default, and its permitted values. <a href="../YAML_CONFIG/">YAML_CONFIG.md</a> is generated from it, so
+the reference cannot drift from the code.</p>
+<hr />
+<h2 id="6-running-tractography">6. Running Tractography<a class="headerlink" href="#6-running-tractography" title="Permanent link">&para;</a></h2>
+<p><code>runTractography</code>'s optional third argument is either a tracker name or a config struct.
+When a config is given, <code>tractography.algorithm</code> selects the tracker.</p>
+<h3 id="by-tracker-name">By Tracker Name<a class="headerlink" href="#by-tracker-name" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c">% Standard FACT (the default when no argument is given)</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">runTractography</span><span class="p">(</span><span class="s">'output/subject.mat'</span><span class="p">);</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">runTractography</span><span class="p">(</span><span class="s">'output/subject.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'standard'</span><span class="p">);</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="c">% HINEC interpolated streamlines</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">runTractography</span><span class="p">(</span><span class="s">'output/subject.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'hinec'</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="by-configuration">By Configuration<a class="headerlink" href="#by-configuration" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c">% Cubic interpolation with adaptive RKF45</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">config</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">load_config_yaml</span><span class="p">(</span><span class="s">'config/hinec_dti_cubic.yml'</span><span class="p">);</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">runTractography</span><span class="p">(</span><span class="s">'output/subject.mat'</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="p">);</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="c">% Connection-form Method of Moving Frames</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="n">config</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">load_config_yaml</span><span class="p">(</span><span class="s">'config/mmf_dti.yml'</span><span class="p">);</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="n">runTractography</span><span class="p">(</span><span class="s">'output/subject.mat'</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="direct-function-calls-advanced">Direct Function Calls (Advanced)<a class="headerlink" href="#direct-function-calls-advanced" title="Permanent link">&para;</a></h3>
+<p>The trackers themselves still read a <strong>flat</strong> option struct with legacy names.
+<code>nim_config_to_options</code> is the single translation point from the nested config surface to
+those names; call it rather than hand-assembling a struct, so a direct call stays consistent
+with what the launchers do.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">data</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">load</span><span class="p">(</span><span class="s">'output/subject.mat'</span><span class="p">);</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">nim</span><span class="w">  </span><span class="p">=</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">nim</span><span class="p">;</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">config</span><span class="w">  </span><span class="p">=</span><span class="w"> </span><span class="n">load_config_yaml</span><span class="p">(</span><span class="s">'config/hinec_dti_cubic.yml'</span><span class="p">);</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="n">options</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim_config_to_options</span><span class="p">(</span><span class="n">config</span><span class="p">);</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="c">% A seed mask is required — the trackers do no seeding decisions of their own</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="n">options</span><span class="p">.</span><span class="n">seed_mask</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim</span><span class="p">.</span><span class="n">mask</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.5</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">nim</span><span class="p">.</span><span class="n">FA</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">options</span><span class="p">.</span><span class="n">seed_fa_threshold</span><span class="p">;</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="c">% ACT is opt-in: the tracker decides purely from whether it received tissue masks</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="k">if</span><span class="w"> </span><span class="n">options</span><span class="p">.</span><span class="n">act_enabled</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="w">    </span><span class="n">options</span><span class="p">.</span><span class="n">wm_mask</span><span class="w">  </span><span class="p">=</span><span class="w"> </span><span class="n">nim</span><span class="p">.</span><span class="n">wm_mask</span><span class="p">;</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="w">    </span><span class="n">options</span><span class="p">.</span><span class="n">gm_mask</span><span class="w">  </span><span class="p">=</span><span class="w"> </span><span class="n">nim</span><span class="p">.</span><span class="n">gm_mask</span><span class="p">;</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="w">    </span><span class="n">options</span><span class="p">.</span><span class="n">csf_mask</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim</span><span class="p">.</span><span class="n">csf_mask</span><span class="p">;</span>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="k">end</span>
+<a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a>
+<a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="n">tracks</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim_tractography_hinec</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="n">options</span><span class="p">);</span>
+</code></pre></div>
+<p>Note that <code>options.integration_order</code> in the flat struct is a <strong>method selector</strong>
+(1/2/4/5 → euler/rk2/rk4/rkf45) despite its name, and <code>options.max_steps</code> is derived as
+<code>ceil(max_arc / step)</code>.</p>
+<h3 id="understanding-track-output">Understanding Track Output<a class="headerlink" href="#understanding-track-output" title="Permanent link">&para;</a></h3>
+<p><code>tracks</code> is a cell array. Each cell is an Nx3 matrix of <strong>voxel-space</strong> coordinates holding
+the complete trajectory, not just the endpoints; N varies per fiber.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">data</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">load</span><span class="p">(</span><span class="s">'tractography_results/tracks_hinec_2025-01-15_14_30_00.mat'</span><span class="p">);</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="n">tracks</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">tracks</span><span class="p">;</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'Total tracks: %d\n'</span><span class="p">,</span><span class="w"> </span><span class="nb">numel</span><span class="p">(</span><span class="n">tracks</span><span class="p">));</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="c">% Examine a single track</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="n">track</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">tracks</span><span class="p">{</span><span class="mi">1</span><span class="p">};</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'Points in track: %d\n'</span><span class="p">,</span><span class="w"> </span><span class="nb">size</span><span class="p">(</span><span class="n">track</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'Start: [%.1f, %.1f, %.1f]\n'</span><span class="p">,</span><span class="w"> </span><span class="n">track</span><span class="p">(</span><span class="mi">1</span><span class="p">,:));</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'End:   [%.1f, %.1f, %.1f]\n'</span><span class="p">,</span><span class="w"> </span><span class="n">track</span><span class="p">(</span><span class="k">end</span><span class="p">,:));</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a><span class="c">% Arc lengths in voxels. Point counts are not comparable across runs when</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="c">% output.arc_step or an adaptive integrator changes the point spacing.</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a><span class="n">arclen</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">cellfun</span><span class="p">(@(</span><span class="n">t</span><span class="p">)</span><span class="w"> </span><span class="nb">sum</span><span class="p">(</span><span class="nb">vecnorm</span><span class="p">(</span><span class="nb">diff</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)),</span><span class="w"> </span><span class="n">tracks</span><span class="p">);</span>
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'Mean arc length: %.1f voxels\n'</span><span class="p">,</span><span class="w"> </span><span class="nb">mean</span><span class="p">(</span><span class="n">arclen</span><span class="p">));</span>
+<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'Max arc length:  %.1f voxels\n'</span><span class="p">,</span><span class="w"> </span><span class="nb">max</span><span class="p">(</span><span class="n">arclen</span><span class="p">));</span>
+</code></pre></div>
+<p>Scoring tools expect RAS world coordinates in millimetres. <code>bin/run_ismrm_scoring.sh</code> converts
+a run's tracks to TRK using the DWI affine from the run's <code>intermediate/</code> directory before
+handing them to the scorer.</p>
+<hr />
+<h2 id="7-visualization">7. Visualization<a class="headerlink" href="#7-visualization" title="Permanent link">&para;</a></h2>
+<h3 id="quick-3d-view">Quick 3D View<a class="headerlink" href="#quick-3d-view" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c">% Load data</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">load</span><span class="p">(</span><span class="s">'output/subject.mat'</span><span class="p">);</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c">% Eigenvector visualization</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="n">nim_plot</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'single'</span><span class="p">);</span><span class="w">                  </span><span class="c">% Voxel-indexed view (default)</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="n">nim_plot</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'parcel'</span><span class="p">,</span><span class="w"> </span><span class="s">'parcel_id'</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w">  </span><span class="c">% One specific parcel</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="n">nim_plot</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'parcels'</span><span class="p">);</span><span class="w">                 </span><span class="c">% All parcels (separate figures)</span>
+</code></pre></div>
+<h3 id="tractography-visualization">Tractography Visualization<a class="headerlink" href="#tractography-visualization" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c">% Whole brain</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'whole'</span><span class="p">);</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c">% Single region, or several</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mi">5</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="mi">15</span><span class="p">]);</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="c">% All regions in grid</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'grid'</span><span class="p">);</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="c">% Auto-detect tracks and nim from a run directory</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'hinec_runs/latest'</span><span class="p">);</span>
+<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>
+<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a><span class="c">% Export</span>
+<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'whole'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a><span class="w">    </span><span class="s">'export_dir'</span><span class="p">,</span><span class="w"> </span><span class="s">'figures/'</span><span class="p">,</span><span class="w"> </span><span class="s">'export_format'</span><span class="p">,</span><span class="w"> </span><span class="s">'png'</span><span class="p">,</span><span class="w"> </span><span class="s">'export_dpi'</span><span class="p">,</span><span class="w"> </span><span class="mi">600</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="cli-visualization-export-shell-script">CLI Visualization Export (Shell Script)<a class="headerlink" href="#cli-visualization-export-shell-script" title="Permanent link">&para;</a></h3>
+<p>Export figures headlessly without an interactive MATLAB session:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># From a run directory (auto-detects tracks + nim files)</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>./bin/run_visualization.sh<span class="w"> </span>hinec_runs/latest/
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># Restrict to specific regions</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>./bin/run_visualization.sh<span class="w"> </span>hinec_runs/latest/<span class="w"> </span>png<span class="w"> </span><span class="s1">'23,24,25,26'</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># PDF at high DPI</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>./bin/run_visualization.sh<span class="w"> </span>hinec_runs/latest/<span class="w"> </span>pdf<span class="w"> </span><span class="s1">''</span><span class="w"> </span><span class="m">600</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="c1"># Explicit file paths and output directory</span>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>./bin/run_visualization.sh<span class="w"> </span>tracks.mat<span class="w"> </span>nim.mat<span class="w"> </span>figures/euler<span class="w"> </span>png
+</code></pre></div>
+<p>Two argument forms:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>./bin/run_visualization.sh &lt;run_dir&gt;                     [format] [region] [dpi]
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>./bin/run_visualization.sh &lt;tracks_file&gt; &lt;nim_file&gt; &lt;output_dir&gt; [format] [region] [dpi]
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Default</th>
+<th>Options</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>format</td>
+<td><code>png</code></td>
+<td><code>png</code>, <code>pdf</code>, <code>eps</code></td>
+</tr>
+<tr>
+<td>region</td>
+<td>all tracks</td>
+<td>Region ID or comma-separated list, e.g. <code>'5,10,15'</code></td>
+</tr>
+<tr>
+<td>dpi</td>
+<td><code>300</code></td>
+<td>Any positive integer</td>
+</tr>
+</tbody>
+</table>
+<p>The script renders all eight anatomical viewing angles (superior, inferior, anterior,
+posterior, left, right, oblique left, oblique right). In run-directory mode, output goes to
+<code>&lt;run_dir&gt;/figures/</code>.</p>
+<h3 id="interactive-slice-viewer">Interactive Slice Viewer<a class="headerlink" href="#interactive-slice-viewer" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">visualizeTractographySlices</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="fast-distributed-viewer">Fast Distributed Viewer<a class="headerlink" href="#fast-distributed-viewer" title="Permanent link">&para;</a></h3>
+<p>Slice images can be pre-rendered on the machine that holds the data, then browsed locally
+without MATLAB.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c">% On the server, in MATLAB: generate the cache</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">generateSlices</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'/path/to/cache'</span><span class="p">);</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Or from the shell, as a background batch job</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>./bin/run_generateSlices.sh<span class="w"> </span>tracks.mat<span class="w"> </span>nim.mat<span class="w"> </span>/path/to/cache
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="c1"># Transfer the cache to the local machine</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>rsync<span class="w"> </span>-avz<span class="w"> </span>server:/path/to/cache/<span class="w"> </span>~/local/cache/
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="c1"># View locally (Python only, no MATLAB needed)</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>./bin/viewSlices.sh<span class="w"> </span>~/local/cache/
+</code></pre></div>
+<p>See <a href="../VISUALIZATION_GUIDE/">VISUALIZATION_GUIDE.md</a> for complete visualization reference and <a href="../DISTRIBUTED_WORKFLOW/">DISTRIBUTED_WORKFLOW.md</a> for distributed setup.</p>
+<hr />
+<h2 id="8-working-with-results">8. Working with Results<a class="headerlink" href="#8-working-with-results" title="Permanent link">&para;</a></h2>
+<h3 id="loading-saved-data">Loading Saved Data<a class="headerlink" href="#loading-saved-data" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c">% Load processed nim structure</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="n">data</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">load</span><span class="p">(</span><span class="s">'output/subject.mat'</span><span class="p">);</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="n">nim</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">nim</span><span class="p">;</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="c">% Access fields</span>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="n">fa_map</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim</span><span class="p">.</span><span class="n">FA</span><span class="p">;</span><span class="w">              </span><span class="c">% 3D fractional anisotropy</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="n">evecs</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim</span><span class="p">.</span><span class="n">evec</span><span class="p">;</span><span class="w">             </span><span class="c">% Eigenvectors</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="n">evals</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim</span><span class="p">.</span><span class="n">eval</span><span class="p">;</span><span class="w">             </span><span class="c">% Eigenvalues</span>
+<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="n">mask</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim</span><span class="p">.</span><span class="n">parcellation_mask</span><span class="p">;</span><span class="w"> </span><span class="c">% Brain region labels</span>
+<a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a><span class="n">labels</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim</span><span class="p">.</span><span class="n">labels</span><span class="p">;</span><span class="w">          </span><span class="c">% Region names</span>
+</code></pre></div>
+<h3 id="extracting-connectivity-matrices">Extracting Connectivity Matrices<a class="headerlink" href="#extracting-connectivity-matrices" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c">% Load tracks and nim</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="n">tracks_data</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">load</span><span class="p">(</span><span class="s">'tractography_results/tracks_hinec.mat'</span><span class="p">);</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="n">nim_data</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">load</span><span class="p">(</span><span class="s">'output/subject.mat'</span><span class="p">);</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="c">% Compute connectivity</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="n">C</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim_plot_connectivity_matrix</span><span class="p">(</span><span class="n">tracks_data</span><span class="p">.</span><span class="n">tracks</span><span class="p">,</span><span class="w"> </span><span class="n">nim_data</span><span class="p">.</span><span class="n">nim</span><span class="p">);</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="c">% Access the matrix</span>
+<a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'Regions: %d x %d\n'</span><span class="p">,</span><span class="w"> </span><span class="nb">size</span><span class="p">(</span><span class="n">C</span><span class="p">));</span>
+<a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'Connections: %d\n'</span><span class="p">,</span><span class="w"> </span><span class="nb">nnz</span><span class="p">(</span><span class="n">C</span><span class="p">));</span>
+</code></pre></div>
+<h3 id="comparing-runs">Comparing Runs<a class="headerlink" href="#comparing-runs" title="Permanent link">&para;</a></h3>
+<p>Because tractography-only runs share one preprocessed <code>nim</code>, comparing two tracking
+configurations means comparing their track files:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">runs</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">dir</span><span class="p">(</span><span class="s">'hinec_runs/run_*'</span><span class="p">);</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="n">a</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">load</span><span class="p">(</span><span class="nb">fullfile</span><span class="p">(</span><span class="s">'hinec_runs'</span><span class="p">,</span><span class="w"> </span><span class="n">runs</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="s">'tractography'</span><span class="p">,</span><span class="w"> </span><span class="s">'tracks.mat'</span><span class="p">));</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="n">b</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">load</span><span class="p">(</span><span class="nb">fullfile</span><span class="p">(</span><span class="s">'hinec_runs'</span><span class="p">,</span><span class="w"> </span><span class="n">runs</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="s">'tractography'</span><span class="p">,</span><span class="w"> </span><span class="s">'tracks.mat'</span><span class="p">));</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'Tracks: %d vs %d\n'</span><span class="p">,</span><span class="w"> </span><span class="nb">numel</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">tracks</span><span class="p">),</span><span class="w"> </span><span class="nb">numel</span><span class="p">(</span><span class="n">b</span><span class="p">.</span><span class="n">tracks</span><span class="p">));</span>
+</code></pre></div>
+<p>Their exact parameters are recorded in each run directory's <code>config.yml</code> and, for <code>--set</code>
+sweeps, <code>overrides.txt</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>diff<span class="w"> </span>hinec_runs/run_A/config.yml<span class="w"> </span>hinec_runs/run_B/config.yml
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>cat<span class="w"> </span>hinec_runs/run_*/overrides.txt
+</code></pre></div>
+<hr />
+<h2 id="9-troubleshooting">9. Troubleshooting<a class="headerlink" href="#9-troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="fsl-not-found">FSL Not Found<a class="headerlink" href="#fsl-not-found" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: <code>'flirt' is not recognized</code> or <code>command not found</code></p>
+<p><strong>Solution</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># Check FSL is installed</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="nb">echo</span><span class="w"> </span><span class="nv">$FSLDIR</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>which<span class="w"> </span>flirt
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="c1"># If not set, add to shell profile:</span>
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FSLDIR</span><span class="o">=</span>/usr/local/fsl
+<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="nb">source</span><span class="w"> </span><span class="nv">$FSLDIR</span>/etc/fslconf/fsl.sh
+<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$FSLDIR</span>/bin:<span class="nv">$PATH</span>
+</code></pre></div></p>
+<p>In MATLAB, ensure FSL is accessible:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="p">[</span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">system</span><span class="p">(</span><span class="s">'flirt -version'</span><span class="p">);</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="k">if</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">~=</span><span class="w"> </span><span class="mi">0</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">    </span><span class="nb">error</span><span class="p">(</span><span class="s">'FSL not found. Set FSLDIR and source fsl.sh before launching MATLAB.'</span><span class="p">);</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="k">end</span>
+</code></pre></div></p>
+<h3 id="out-of-memory">Out of Memory<a class="headerlink" href="#out-of-memory" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: MATLAB crashes or reports <code>Out of memory</code></p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>Restrict seeding to specific regions with <code>seeding.roi</code></li>
+<li>Reduce seeding density: <code>--set seeding.density=2</code></li>
+<li>Increase <code>output.arc_step</code> to resample saved streamlines — this shrinks the track file
+   without affecting integration accuracy</li>
+<li>Close other applications to free RAM</li>
+<li>Use the <code>hinec_dti_fast.yml</code> preset for initial screening</li>
+</ol>
+<p><code>nim_save</code> switches to the v7.3 MAT format automatically for large <code>nim</code> structs, so the
+2 GB per-variable limit of the older format is not what you are hitting.</p>
+<h3 id="string-vs-char-array-errors">String vs Char Array Errors<a class="headerlink" href="#string-vs-char-array-errors" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: <code>Error using fullfile</code> or path concatenation errors</p>
+<p><strong>Cause</strong>: MATLAB string (<code>"text"</code>) vs char array (<code>'text'</code>) incompatibility.</p>
+<p><strong>Solution</strong>: Convert strings to char arrays when passing to file operations:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="nb">path</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">char</span><span class="p">(</span><span class="n">string_path</span><span class="p">);</span><span class="w">  </span><span class="c">% Convert if needed</span>
+</code></pre></div></p>
+<p>See <code>docs/STRING_CHAR_FIXES.md</code> in the repository for the string/char
+post-mortem; it is a development note and is not part of this site.</p>
+<h3 id="no-tracks-generated">No Tracks Generated<a class="headerlink" href="#no-tracks-generated" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: <code>runTractography</code> produces 0 tracks</p>
+<p><strong>Possible causes</strong>:</p>
+<ol>
+<li><strong>Termination FA too high</strong>: lower <code>termination.fa_min</code> (the seeding threshold,
+   <code>seeding.fa_min</code>, is a separate knob — they are not interchangeable)</li>
+<li><strong><code>min_arc</code> discarding everything</strong>: <code>termination.min_arc</code> is an arc length in voxels and
+   is enforced; a value above the tracks your parameters actually produce silently empties
+   the output</li>
+<li><strong>Empty seed mask</strong>: check that the brain mask, or the <code>seeding.roi</code> regions you named,
+   resolve to a non-empty set of voxels</li>
+<li><strong>Data quality</strong>: verify the FA map has reasonable values (max &gt; 0.3)</li>
+<li><strong>Preprocessing issues</strong>: check that eigenvectors were computed correctly</li>
+</ol>
+<p>The retired key <code>fa_threshold</code> no longer does anything. If a config still carries it, the
+loader warns and drops it rather than migrating it, because it was never equivalent to either
+of the two thresholds that replaced it.</p>
+<p><strong>Diagnostic</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="n">data</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">load</span><span class="p">(</span><span class="s">'output/subject.mat'</span><span class="p">);</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'Max FA: %.3f\n'</span><span class="p">,</span><span class="w"> </span><span class="nb">max</span><span class="p">(</span><span class="n">data</span><span class="p">.</span><span class="n">nim</span><span class="p">.</span><span class="n">FA</span><span class="p">(:)));</span>
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'Mask voxels: %d\n'</span><span class="p">,</span><span class="w"> </span><span class="nb">sum</span><span class="p">(</span><span class="n">data</span><span class="p">.</span><span class="n">nim</span><span class="p">.</span><span class="n">mask</span><span class="p">(:)));</span>
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="nb">fprintf</span><span class="p">(</span><span class="s">'Has eigenvectors: %d\n'</span><span class="p">,</span><span class="w"> </span><span class="nb">isfield</span><span class="p">(</span><span class="n">data</span><span class="p">.</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="s">'evec'</span><span class="p">));</span>
+</code></pre></div></p>
+<h3 id="act-reported-as-disabled">ACT Reported as Disabled<a class="headerlink" href="#act-reported-as-disabled" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: <code>runTractography</code> prints <code>ACT disabled</code></p>
+<p>There are two distinct reasons, and the log line says which one applies:</p>
+<ul>
+<li><code>ACT disabled by config (tractography.act: false)</code> — <code>act</code> defaults to false. The tissue
+  masks are present on the <code>nim</code>, and the line reports their voxel counts. Set <code>act: true</code>
+  under <code>tractography:</code> to enable it.</li>
+<li><code>ACT disabled: tissue masks not present in the nim</code> — the <code>nim</code> predates tissue
+  segmentation, or segmentation failed. Re-run <code>main()</code> to generate the masks.</li>
+</ul>
+<p>Regenerating masks you already have will not fix the first case.</p>
+<h3 id="preprocessing-fails">Preprocessing Fails<a class="headerlink" href="#preprocessing-fails" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: Error during <code>nim_preprocessing</code></p>
+<p><strong>Common issues</strong>:</p>
+<ol>
+<li><strong>Missing FSL tools</strong>: Ensure all required FSL tools are installed (mcflirt, bet, flirt, fnirt)</li>
+<li><strong>Missing input files</strong>: Verify <code>.bval</code> and <code>.bvec</code> files exist alongside the NIfTI</li>
+<li><strong>Permission errors</strong>: Check write permissions in the output directory</li>
+<li><strong>Incompatible data format</strong>: Ensure NIfTI files are valid (try <code>fslinfo input.nii.gz</code>)</li>
+</ol>
+<h3 id="registration-quality-issues">Registration Quality Issues<a class="headerlink" href="#registration-quality-issues" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: Parcellation regions appear misaligned</p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>Check registration quality metrics (NMI scores)</li>
+<li>Provide a T1 image for better registration accuracy</li>
+<li>Verify T1 and DWI are from the same subject/session</li>
+<li>Try different registration method (FSL vs SPM)</li>
+</ol>
+<hr />
+<h2 id="cross-references">Cross-References<a class="headerlink" href="#cross-references" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Architecture overview: <a href="../ARCHITECTURE/">ARCHITECTURE.md</a></li>
+<li>Complete API reference: <a href="../API_REFERENCE/">API_REFERENCE.md</a></li>
+<li>Configuration system: <a href="../YAML_CONFIG/">YAML_CONFIG.md</a></li>
+<li>Visualization guide: <a href="../VISUALIZATION_GUIDE/">VISUALIZATION_GUIDE.md</a></li>
+<li>Preprocessing details: <a href="../PREPROCESSING/">PREPROCESSING.md</a></li>
+<li>IronTract workflow: <a href="../IRONTRACT_WORKFLOW/">IRONTRACT_WORKFLOW.md</a></li>
+<li>Run directory system: <a href="../RUN_DIRECTORY_SYSTEM/">RUN_DIRECTORY_SYSTEM.md</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

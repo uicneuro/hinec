@@ -1,0 +1,3441 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="HIgh-order NEural Connectivity — dMRI Tractography Pipeline">
+      
+      
+        <meta name="author" content="HINEC Team">
+      
+      
+      
+        <link rel="prev" href="../CHANGELOG_YAML/">
+      
+      
+        <link rel="next" href="../REGION_VISUALIZATION_EXAMPLES/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Visualization Guide - HINEC Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#complete-visualization-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="HINEC Documentation" class="md-header__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            HINEC Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Visualization Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../USER_GUIDE/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../PIPELINE/" class="md-tabs__link">
+          
+  
+  
+  Pipeline
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../TRACTOGRAPHY_METHODS/" class="md-tabs__link">
+          
+  
+  
+  Tractography
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../YAML_CONFIG/" class="md-tabs__link">
+          
+  
+  
+  Configuration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Visualization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../CONVERGENCE/" class="md-tabs__link">
+          
+  
+  
+  Verification & Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../API_REFERENCE/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ABOUT/" class="md-tabs__link">
+          
+  
+  
+  About
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="HINEC Documentation" class="md-nav__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    HINEC Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../USER_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PIPELINE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PREPROCESSING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RUN_DIRECTORY_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Directory System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tractography
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tractography
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY_METHODS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MMF_TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MMF Connection-Form
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standard (FACT)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../High_Order/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    High-Order Methods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Adaptive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF_Usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SEEDING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seeding Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hinec_tractography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Configuration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../YAML_CONFIG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YAML Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CHANGELOG_YAML/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-visualization-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Visualization Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Visualization Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision-tree-which-tool-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Tree: Which Tool to Use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-dti-eigenvector-visualization-nim_plot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. DTI Eigenvector Visualization (nim_plot)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. DTI Eigenvector Visualization (nim_plot)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dti-color-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DTI Color Convention
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-3d-tractography-visualization-visualizetractography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 3D Tractography Visualization (visualizeTractography)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 3D Tractography Visualization (visualizeTractography)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-flexibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input Flexibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mode-whole-brain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mode: Whole Brain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mode-singlemulti-region" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mode: Single/Multi Region
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mode-grid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mode: Grid
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mode-sequential" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mode: Sequential
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#track-coloring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Track Coloring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#track-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Track Filtering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-orthogonal-slice-viewer-visualizetractographyslices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Orthogonal Slice Viewer (visualizeTractographySlices)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Orthogonal Slice Viewer (visualizeTractographySlices)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-fast-distributed-viewer-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Fast Distributed Viewer Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Fast Distributed Viewer Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-generate-cache-server-matlab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Generate Cache (Server, MATLAB)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-transfer-rsyncscp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Transfer (rsync/scp)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-view-local-python-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: View (Local, Python only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-viewer-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python Viewer Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#matlab-bridge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MATLAB Bridge
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-connectivity-matrix-visualization-nim_plot_connectivity_matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Connectivity Matrix Visualization (nim_plot_connectivity_matrix)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Connectivity Matrix Visualization (nim_plot_connectivity_matrix)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-vector-field-visualization-nim_plot_vector_field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Vector Field Visualization (nim_plot_vector_field)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-bundle-rendering-nim_plot_bundles-nim_plot_vs_groundtruth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Bundle Rendering (nim_plot_bundles, nim_plot_vs_groundtruth)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Bundle Rendering (nim_plot_bundles, nim_plot_vs_groundtruth)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_bundles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_bundles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_vs_groundtruth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_vs_groundtruth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#figures-in-the-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figures in the docs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-presentation-and-publication-figures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Presentation and Publication Figures
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Presentation and Publication Figures">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#method-comparison-visualizations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method Comparison Visualizations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-settings-for-publications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Settings for Publications
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recommended-figure-sizes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended Figure Sizes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-export-with-shell-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Export with Shell Script
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CLI Export with Shell Script">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arguments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REGION_VISUALIZATION_EXAMPLES/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Region Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DISTRIBUTED_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification & Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Verification & Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CONVERGENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solution Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ISMRM_SCORING_ANALYSIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ISMRM Scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_USAGE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IRONTRACT_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IronTract Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../API_REFERENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MATHEMATICAL_FOUNDATIONS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mathematical Foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCIENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Science Background
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ABOUT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-visualization-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Visualization Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Visualization Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision-tree-which-tool-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Tree: Which Tool to Use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-dti-eigenvector-visualization-nim_plot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. DTI Eigenvector Visualization (nim_plot)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. DTI Eigenvector Visualization (nim_plot)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dti-color-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DTI Color Convention
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-3d-tractography-visualization-visualizetractography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 3D Tractography Visualization (visualizeTractography)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 3D Tractography Visualization (visualizeTractography)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-flexibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input Flexibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mode-whole-brain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mode: Whole Brain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mode-singlemulti-region" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mode: Single/Multi Region
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mode-grid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mode: Grid
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mode-sequential" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mode: Sequential
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#track-coloring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Track Coloring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#track-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Track Filtering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-orthogonal-slice-viewer-visualizetractographyslices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Orthogonal Slice Viewer (visualizeTractographySlices)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Orthogonal Slice Viewer (visualizeTractographySlices)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-fast-distributed-viewer-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Fast Distributed Viewer Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Fast Distributed Viewer Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-generate-cache-server-matlab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Generate Cache (Server, MATLAB)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-transfer-rsyncscp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Transfer (rsync/scp)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-view-local-python-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: View (Local, Python only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-viewer-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python Viewer Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#matlab-bridge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MATLAB Bridge
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-connectivity-matrix-visualization-nim_plot_connectivity_matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Connectivity Matrix Visualization (nim_plot_connectivity_matrix)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Connectivity Matrix Visualization (nim_plot_connectivity_matrix)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-vector-field-visualization-nim_plot_vector_field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Vector Field Visualization (nim_plot_vector_field)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-bundle-rendering-nim_plot_bundles-nim_plot_vs_groundtruth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Bundle Rendering (nim_plot_bundles, nim_plot_vs_groundtruth)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Bundle Rendering (nim_plot_bundles, nim_plot_vs_groundtruth)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_bundles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_bundles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_vs_groundtruth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_vs_groundtruth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#figures-in-the-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figures in the docs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-presentation-and-publication-figures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Presentation and Publication Figures
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Presentation and Publication Figures">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#method-comparison-visualizations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method Comparison Visualizations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-settings-for-publications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Settings for Publications
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recommended-figure-sizes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended Figure Sizes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-export-with-shell-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Export with Shell Script
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CLI Export with Shell Script">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arguments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arguments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="complete-visualization-reference">Complete Visualization Reference<a class="headerlink" href="#complete-visualization-reference" title="Permanent link">&para;</a></h1>
+<p>Unified guide to all visualization capabilities in HINEC. Covers DTI visualization, 3D tractography, interactive slice viewing, fast distributed viewing, connectivity matrices, and publication-quality exports.</p>
+<hr />
+<h2 id="1-visualization-overview">1. Visualization Overview<a class="headerlink" href="#1-visualization-overview" title="Permanent link">&para;</a></h2>
+<p>HINEC provides multiple visualization tools optimized for different tasks:</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Type</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nim_plot</code></td>
+<td>DTI eigenvectors</td>
+<td>DTI quality check</td>
+</tr>
+<tr>
+<td><code>visualizeTractography</code></td>
+<td>3D tractography</td>
+<td>whole-brain and per-region exploration</td>
+</tr>
+<tr>
+<td><code>visualizeTractographyAngles</code></td>
+<td>3D, batch export</td>
+<td>headless figure export from 8 anatomical views</td>
+</tr>
+<tr>
+<td><code>visualizeTractographySlices</code></td>
+<td>2D slices</td>
+<td>slice-by-slice inspection</td>
+</tr>
+<tr>
+<td><code>generateSlices</code> + <code>FastTractographyViewer.py</code></td>
+<td>pre-computed 2D</td>
+<td>fast slice navigation without MATLAB</td>
+</tr>
+<tr>
+<td><code>nim_plot_bundles</code></td>
+<td>3D streamline sets</td>
+<td>comparing bundles in one shared frame</td>
+</tr>
+<tr>
+<td><code>nim_plot_vs_groundtruth</code></td>
+<td>3D overlay</td>
+<td>ours against an ISMRM ground-truth bundle</td>
+</tr>
+<tr>
+<td><code>nim_plot_tractography</code></td>
+<td>basic 3D</td>
+<td>quick look at a track set</td>
+</tr>
+<tr>
+<td><code>nim_plot_connectivity_matrix</code></td>
+<td>2D heatmap</td>
+<td>connectivity analysis</td>
+</tr>
+<tr>
+<td><code>nim_plot_vector_field</code></td>
+<td>2D quiver</td>
+<td>direction-field inspection</td>
+</tr>
+</tbody>
+</table>
+<h3 id="decision-tree-which-tool-to-use">Decision Tree: Which Tool to Use<a class="headerlink" href="#decision-tree-which-tool-to-use" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>What do you need?
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── Quick DTI quality check → nim_plot
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── 3D whole-brain tractography → visualizeTractography('mode', 'whole')
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── Specific brain region analysis → visualizeTractography('mode', 'region')
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── All regions at once → visualizeTractography('mode', 'grid')
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── Step through regions one by one → visualizeTractography('mode', 'sequential')
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── Slice-by-slice inspection → visualizeTractographySlices
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── Fast slice navigation → generateSlices + FastTractographyViewer.py
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── One or more bundles side by side → nim_plot_bundles
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── Ours vs ISMRM ground truth → nim_plot_vs_groundtruth
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── Connectivity between regions → nim_plot_connectivity_matrix
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── Direction field on a slice → nim_plot_vector_field
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>└── Publication figures → visualizeTractography with 'export_dir'
+</code></pre></div>
+<hr />
+<h2 id="2-dti-eigenvector-visualization-nim_plot">2. DTI Eigenvector Visualization (<code>nim_plot</code>)<a class="headerlink" href="#2-dti-eigenvector-visualization-nim_plot" title="Permanent link">&para;</a></h2>
+<p><strong>File</strong>: <code>src/nim_plots/nim_plot.m</code></p>
+<p>Displays principal eigenvectors color-coded by direction. This is the primary tool for verifying DTI processing quality.</p>
+<h3 id="dti-color-convention">DTI Color Convention<a class="headerlink" href="#dti-color-convention" title="Permanent link">&para;</a></h3>
+<p>The standard neuroimaging color coding:</p>
+<ul>
+<li><strong>Red</strong> = Left/Right (X axis)</li>
+<li><strong>Green</strong> = Anterior/Posterior (Y axis)</li>
+<li><strong>Blue</strong> = Superior/Inferior (Z axis)</li>
+</ul>
+<p>Colors are derived from the absolute value of the primary eigenvector components using <code>vector_to_color()</code>.</p>
+<h3 id="modes">Modes<a class="headerlink" href="#modes" title="Permanent link">&para;</a></h3>
+<p><strong>Single region</strong> (default):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">nim_plot</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'single'</span><span class="p">);</span>
+</code></pre></div>
+Shows eigenvectors for a single region or the whole volume.</p>
+<p><strong>Single parcel</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">nim_plot</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'parcel'</span><span class="p">,</span><span class="w"> </span><span class="s">'parcel_id'</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+</code></pre></div>
+Shows eigenvectors within a specific parcellation region.</p>
+<p><strong>All parcels</strong> (separate figures):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">nim_plot</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'parcels'</span><span class="p">);</span>
+</code></pre></div>
+Creates one figure per parcellation region. Useful for surveying all regions.</p>
+<h3 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h3>
+<p>For large datasets, downsample:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">nim_plot</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'single'</span><span class="p">,</span><span class="w"> </span><span class="s">'downsample_factor'</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span><span class="w">  </span><span class="c">% every 3rd voxel</span>
+</code></pre></div></p>
+<p><code>indx</code>/<code>indy</code>/<code>indz</code> restrict <code>mode: single</code> to an explicit voxel index range;
+<code>figindex</code>, <code>show_figure</code> and <code>show_progress</code> control figure handling.</p>
+<hr />
+<h2 id="3-3d-tractography-visualization-visualizetractography">3. 3D Tractography Visualization (<code>visualizeTractography</code>)<a class="headerlink" href="#3-3d-tractography-visualization-visualizetractography" title="Permanent link">&para;</a></h2>
+<p><strong>File</strong>: <code>src/nim_visualization/visualizeTractography.m</code></p>
+<p>The primary tool for 3D tractography visualization. It supersedes the older
+<code>visualizeTractographyRegion</code>, <code>visualizeTractographyAllRegions</code> and
+<code>nim_plot_tractography_region</code> entry points, and supports four modes, several
+colour schemes, track filtering, run-directory auto-detection and export.</p>
+<h3 id="input-flexibility">Input Flexibility<a class="headerlink" href="#input-flexibility" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c">% Direct file paths</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'path/to/tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'path/to/nim.mat'</span><span class="p">);</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c">% From a run directory (auto-detects nim + latest tracks; wildcards allowed)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'hinec_runs/run_&lt;TIMESTAMP&gt;_&lt;config&gt;/'</span><span class="p">);</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c">% Wildcard support</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tractography_results/tracks_hinec_*.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'output/*.mat'</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="mode-whole-brain">Mode: Whole Brain<a class="headerlink" href="#mode-whole-brain" title="Permanent link">&para;</a></h3>
+<p>Complete 3D view of all fiber tracks with summary statistics.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'whole'</span><span class="p">);</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c">% With custom settings</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'whole'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="s">'max_tracts'</span><span class="p">,</span><span class="w"> </span><span class="mi">10000</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="s">'color_mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'direction'</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="mode-singlemulti-region">Mode: Single/Multi Region<a class="headerlink" href="#mode-singlemulti-region" title="Permanent link">&para;</a></h3>
+<p>Focused view of tracks associated with specific brain regions.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c">% Single region</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c">% Multiple regions</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">15</span><span class="p">]);</span>
+</code></pre></div>
+<p>The parameter is <code>region</code> (singular). <code>visualizeTractographySlices</code> uses
+<code>regions</code> for the same idea, so check which function you are calling.</p>
+<h3 id="mode-grid">Mode: Grid<a class="headerlink" href="#mode-grid" title="Permanent link">&para;</a></h3>
+<p>All parcellation regions displayed simultaneously in a grid layout. Useful for comparing regions at a glance.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'grid'</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="mode-sequential">Mode: Sequential<a class="headerlink" href="#mode-sequential" title="Permanent link">&para;</a></h3>
+<p>Step through regions one at a time with pause between each.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'sequential'</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="track-coloring">Track Coloring<a class="headerlink" href="#track-coloring" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Color Mode</th>
+<th>Description</th>
+<th>Best For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>'direction'</code></td>
+<td>RGB from eigenvector (R=L/R, G=A/P, B=S/I)</td>
+<td>Anatomical orientation</td>
+</tr>
+<tr>
+<td><code>'fa'</code></td>
+<td>Hot colormap based on mean FA along track</td>
+<td>White matter integrity</td>
+</tr>
+<tr>
+<td><code>'uniform'</code></td>
+<td>Single color for all tracks</td>
+<td>Simplicity</td>
+</tr>
+<tr>
+<td><code>'region'</code></td>
+<td>Random color per parcellation region</td>
+<td>Region comparison</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'whole'</span><span class="p">,</span><span class="w"> </span><span class="s">'color_mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'fa'</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="track-filtering">Track Filtering<a class="headerlink" href="#track-filtering" title="Permanent link">&para;</a></h3>
+<p>Control which tracks are displayed based on their relationship to brain regions:</p>
+<table>
+<thead>
+<tr>
+<th>Filter Mode</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>'pass_through'</code></td>
+<td>Track passes through the region (default)</td>
+</tr>
+<tr>
+<td><code>'start_in'</code></td>
+<td>Track starts in the region</td>
+</tr>
+<tr>
+<td><code>'end_in'</code></td>
+<td>Track ends in the region</td>
+</tr>
+<tr>
+<td><code>'connect_to'</code></td>
+<td>Track connects region to another specified region</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="s">'filter_mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'start_in'</span><span class="p">);</span>
+</code></pre></div>
+<p>See <a href="../REGION_VISUALIZATION_EXAMPLES/">REGION_VISUALIZATION_EXAMPLES.md</a> for detailed filtering examples.</p>
+<h3 id="export">Export<a class="headerlink" href="#export" title="Permanent link">&para;</a></h3>
+<p>Export takes a <em>directory</em> plus a format, not a filename: <code>export_dir</code>,
+<code>export_format</code> (<code>png</code>, <code>pdf</code>, <code>eps</code>, <code>fig</code>) and <code>export_dpi</code>. Subdirectories are
+created automatically, and figures are not displayed while exporting unless
+<code>silent_export</code> is set false.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c">% PNG (raster, for presentations)</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'export_dir'</span><span class="p">,</span><span class="w"> </span><span class="s">'figures/'</span><span class="p">);</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c">% PDF (vector, for publications)</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="s">'export_dir'</span><span class="p">,</span><span class="w"> </span><span class="s">'figures/'</span><span class="p">,</span><span class="w"> </span><span class="s">'export_format'</span><span class="p">,</span><span class="w"> </span><span class="s">'pdf'</span><span class="p">);</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="c">% MATLAB figure, for later editing</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">    </span><span class="s">'export_dir'</span><span class="p">,</span><span class="w"> </span><span class="s">'figures/'</span><span class="p">,</span><span class="w"> </span><span class="s">'export_format'</span><span class="p">,</span><span class="w"> </span><span class="s">'fig'</span><span class="p">);</span>
+</code></pre></div>
+<hr />
+<h2 id="4-orthogonal-slice-viewer-visualizetractographyslices">4. Orthogonal Slice Viewer (<code>visualizeTractographySlices</code>)<a class="headerlink" href="#4-orthogonal-slice-viewer-visualizetractographyslices" title="Permanent link">&para;</a></h2>
+<p><strong>File</strong>: <code>src/nim_visualization/visualizeTractographySlices.m</code></p>
+<p>Displays tractography on three orthogonal anatomical slices: sagittal, coronal
+and axial. The three slice positions are <strong>required positional arguments</strong>, in
+<code>x, y, z</code> order.</p>
+<h3 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c">% x = sagittal, y = coronal, z = axial</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">visualizeTractographySlices</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="mi">60</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="mi">45</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">visualizeTractographySlices</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="mi">60</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="mi">45</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">    </span><span class="s">'tolerance'</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="k">...</span><span class="c">          % slice thickness in voxels for track inclusion</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="s">'regions'</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">],</span><span class="w"> </span><span class="k">...</span><span class="c">        % filter by parcellation region</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="s">'region_filter'</span><span class="p">,</span><span class="w"> </span><span class="s">'start_in'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span><span class="c">% 'pass_through' | 'start_in' | 'end_in'</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span><span class="s">'min_overlap'</span><span class="p">,</span><span class="w"> </span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="k">...</span><span class="c">        % minimum track-region overlap</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span><span class="s">'color_mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'direction'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span><span class="c"> % 'direction' | 'uniform'</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span><span class="s">'show_anatomy'</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="k">...</span><span class="c">      % FA background</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="w">    </span><span class="s">'alpha'</span><span class="p">,</span><span class="w"> </span><span class="mf">0.6</span><span class="p">,</span><span class="w"> </span><span class="k">...</span><span class="c">              % FA background transparency</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="w">    </span><span class="s">'show_crosshairs'</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="k">...</span><span class="c">   % draw the slice intersections</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="w">    </span><span class="s">'save'</span><span class="p">,</span><span class="w"> </span><span class="s">'figures/slices.png'</span><span class="p">);</span><span class="w"> </span><span class="c">% write a PNG instead of only displaying</span>
+</code></pre></div>
+<h3 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Three views</strong>: sagittal, coronal and axial planes at the requested positions</li>
+<li><strong>Crosshairs</strong>: the slice intersections drawn on each panel</li>
+<li><strong>FA background</strong>: anatomy overlay showing tissue structure</li>
+<li><strong>Region filtering</strong>: display only tracks related to given parcellation regions</li>
+<li><strong>PNG export</strong>: via <code>save</code></li>
+</ul>
+<h3 id="performance_1">Performance<a class="headerlink" href="#performance_1" title="Permanent link">&para;</a></h3>
+<p>Each render recomputes track–slice intersections, so stepping through many slice
+positions interactively is slow. For that, pre-compute a cache and use the
+distributed workflow below.</p>
+<hr />
+<h2 id="5-fast-distributed-viewer-workflow">5. Fast Distributed Viewer Workflow<a class="headerlink" href="#5-fast-distributed-viewer-workflow" title="Permanent link">&para;</a></h2>
+<p>Pre-compute every slice image once on a server, then page through them locally with a lightweight Python GUI. Navigation cost drops to an image load, and the local machine needs no MATLAB.</p>
+<h3 id="step-1-generate-cache-server-matlab">Step 1: Generate Cache (Server, MATLAB)<a class="headerlink" href="#step-1-generate-cache-server-matlab" title="Permanent link">&para;</a></h3>
+<p>Options are passed as a <strong>struct</strong>, not name-value pairs.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c">% Basic generation</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">addpath</span><span class="p">(</span><span class="s">'src/nim_visualization'</span><span class="p">);</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">generateSlices</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'/export/slices'</span><span class="p">);</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="c">% With custom settings</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="n">opts</span><span class="p">.</span><span class="n">image_resolution</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="mi">1024</span><span class="p">,</span><span class="w"> </span><span class="mi">768</span><span class="p">];</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="n">opts</span><span class="p">.</span><span class="n">image_format</span><span class="w">     </span><span class="p">=</span><span class="w"> </span><span class="s">'png'</span><span class="p">;</span><span class="w">       </span><span class="c">% 'png' | 'jpg'</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="n">opts</span><span class="p">.</span><span class="n">tolerance</span><span class="w">        </span><span class="p">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">           </span><span class="c">% slice thickness in voxels</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="n">opts</span><span class="p">.</span><span class="n">regions</span><span class="w">          </span><span class="p">=</span><span class="w"> </span><span class="p">[];</span><span class="w">          </span><span class="c">% [] = all regions</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="n">generateSlices</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'/export/slices'</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="p">);</span>
+</code></pre></div>
+<p>The cache is keyed by dataset and by rendering parameters, so several parameter
+sets can coexist under one output directory:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>/export/slices/
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>└── datasets/
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    └── &lt;dataset_hash&gt;/
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>        ├── metadata.json
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>        └── parameters/
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>            └── &lt;param_hash&gt;/
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>                ├── config.json
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>                ├── axial/*.png
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>                ├── sagittal/*.png
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>                └── coronal/*.png
+</code></pre></div>
+<p>Generation time depends on brain dimensions and track count. Workers are used
+when the Parallel Computing Toolbox is available (<code>opts.parallel_workers</code>).</p>
+<h3 id="step-2-transfer-rsyncscp">Step 2: Transfer (rsync/scp)<a class="headerlink" href="#step-2-transfer-rsyncscp" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Transfer cache to local machine</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>rsync<span class="w"> </span>-avz<span class="w"> </span>server:/export/slices/<span class="w"> </span>~/local/slices/
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># Or use scp</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>scp<span class="w"> </span>-r<span class="w"> </span>server:/export/slices/<span class="w"> </span>~/local/slices/
+</code></pre></div>
+<h3 id="step-3-view-local-python-only">Step 3: View (Local, Python only)<a class="headerlink" href="#step-3-view-local-python-only" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Using the launcher script</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>./bin/viewSlices.sh<span class="w"> </span>~/local/slices/
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># Or directly</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>python<span class="w"> </span>scripts/FastTractographyViewer.py<span class="w"> </span>~/local/slices/
+</code></pre></div>
+<h3 id="python-viewer-features">Python Viewer Features<a class="headerlink" href="#python-viewer-features" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Three synchronized panels</strong>: Axial, sagittal, coronal views</li>
+<li><strong>Keyboard navigation</strong>: Arrow keys to scroll through slices</li>
+<li><strong>Fast transitions</strong>: slices are pre-rendered, so paging is an image load</li>
+<li><strong>Image caching</strong>: In-memory cache for smooth scrolling</li>
+<li><strong>Performance monitoring</strong>: Real-time display of load times</li>
+<li><strong>Export</strong>: Save current view or batch export</li>
+</ul>
+<h3 id="matlab-bridge">MATLAB Bridge<a class="headerlink" href="#matlab-bridge" title="Permanent link">&para;</a></h3>
+<p>Alternatively, launch the Python viewer directly from MATLAB:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">launchFastViewer</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">);</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="c">% Automatically generates cache if needed, then launches Python GUI</span>
+</code></pre></div>
+<p>See <a href="../DISTRIBUTED_WORKFLOW/">DISTRIBUTED_WORKFLOW.md</a> for complete setup instructions.</p>
+<hr />
+<h2 id="6-connectivity-matrix-visualization-nim_plot_connectivity_matrix">6. Connectivity Matrix Visualization (<code>nim_plot_connectivity_matrix</code>)<a class="headerlink" href="#6-connectivity-matrix-visualization-nim_plot_connectivity_matrix" title="Permanent link">&para;</a></h2>
+<p><strong>File</strong>: <code>src/nim_tractography/nim_plot_connectivity_matrix.m</code></p>
+<p>Computes and displays the structural connectivity matrix between parcellation regions.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c">% Compute and visualize</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">data_t</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">load</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">);</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">data_n</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">load</span><span class="p">(</span><span class="s">'nim.mat'</span><span class="p">);</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="n">C</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim_plot_connectivity_matrix</span><span class="p">(</span><span class="n">data_t</span><span class="p">.</span><span class="n">tracks</span><span class="p">,</span><span class="w"> </span><span class="n">data_n</span><span class="p">.</span><span class="n">nim</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="output">Output<a class="headerlink" href="#output" title="Permanent link">&para;</a></h3>
+<p>Creates a 4-panel figure:</p>
+<ol>
+<li><strong>Heatmap</strong>: Region-by-region connectivity strength</li>
+<li><strong>Histogram</strong>: Distribution of connection strengths</li>
+<li><strong>Node strengths</strong>: Bar chart showing total connectivity per region</li>
+<li><strong>Summary statistics</strong>: Track counts, region counts</li>
+</ol>
+<h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">options</span><span class="p">.</span><span class="n">min_track_length</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">15</span><span class="p">;</span><span class="w">   </span><span class="c">% only count tracks with 15+ points (default 10)</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">options</span><span class="p">.</span><span class="n">normalize</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w">        </span><span class="c">% normalise to [0, 1]</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="n">options</span><span class="p">.</span><span class="n">symmetric</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w">        </span><span class="c">% C(i,j) = C(j,i)</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">C</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim_plot_connectivity_matrix</span><span class="p">(</span><span class="n">tracks</span><span class="p">,</span><span class="w"> </span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="n">options</span><span class="p">);</span>
+</code></pre></div>
+<hr />
+<h2 id="7-vector-field-visualization-nim_plot_vector_field">7. Vector Field Visualization (<code>nim_plot_vector_field</code>)<a class="headerlink" href="#7-vector-field-visualization-nim_plot_vector_field" title="Permanent link">&para;</a></h2>
+<p><strong>File</strong>: <code>src/nim_tractography/nim_plot_vector_field.m</code></p>
+<p>Displays the primary eigenvector direction field on a 2D anatomical slice. Useful for verifying DTI direction estimates and understanding local fiber architecture.</p>
+<p>Options are passed as a struct.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="n">nim_plot_vector_field</span><span class="p">(</span><span class="n">nim</span><span class="p">);</span><span class="w">                    </span><span class="c">% default: axial, middle slice</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="n">opts</span><span class="p">.</span><span class="n">axis_view</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">'sagittal'</span><span class="p">;</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="n">nim_plot_vector_field</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="p">);</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="n">opts</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">struct</span><span class="p">(</span><span class="s">'slice'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="s">'downsample'</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span><span class="w">   </span><span class="c">% specific slice, sparser quiver</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="n">nim_plot_vector_field</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="p">);</span>
+</code></pre></div>
+<p>Vectors are masked at FA &gt; 0.2, so only white matter is drawn, and overlaid on an
+FA background image.</p>
+<hr />
+<h2 id="8-bundle-rendering-nim_plot_bundles-nim_plot_vs_groundtruth">8. Bundle Rendering (<code>nim_plot_bundles</code>, <code>nim_plot_vs_groundtruth</code>)<a class="headerlink" href="#8-bundle-rendering-nim_plot_bundles-nim_plot_vs_groundtruth" title="Permanent link">&para;</a></h2>
+<p><strong>Files</strong>: <code>src/nim_visualization/nim_plot_bundles.m</code>,
+<code>src/nim_visualization/nim_plot_vs_groundtruth.m</code></p>
+<p>These two render <em>streamline sets</em> rather than a whole tractogram, in a shared
+voxel frame with fixed limits across panels, and they are what produced the
+bundle figures in <a href="../ISMRM_SCORING_ANALYSIS/">ISMRM Scoring</a>.</p>
+<h3 id="nim_plot_bundles"><code>nim_plot_bundles</code><a class="headerlink" href="#nim_plot_bundles" title="Permanent link">&para;</a></h3>
+<p>Takes a struct array of items, one per streamline set, and draws each across four
+views (sagittal, coronal, axial, oblique) by default.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">items</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="n">tracks</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">gt_tracks</span><span class="p">;</span><span class="w">              </span><span class="c">% cell array of Nx3 voxel polylines</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="n">items</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="n">name</span><span class="w">   </span><span class="p">=</span><span class="w"> </span><span class="s">'ground truth'</span><span class="p">;</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="n">items</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="n">color</span><span class="w">  </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="mf">0.62</span><span class="w"> </span><span class="mf">0.63</span><span class="w"> </span><span class="mf">0.66</span><span class="p">];</span><span class="w">       </span><span class="c">% flat grey</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="n">items</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="n">alpha</span><span class="w">  </span><span class="p">=</span><span class="w"> </span><span class="mf">0.2</span><span class="p">;</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="n">items</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="n">tracks</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">our_tracks</span><span class="p">;</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="n">items</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="n">name</span><span class="w">   </span><span class="p">=</span><span class="w"> </span><span class="s">'ours'</span><span class="p">;</span>
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="n">items</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="n">color</span><span class="w">  </span><span class="p">=</span><span class="w"> </span><span class="p">[];</span><span class="w">                     </span><span class="c">% [] = colour each segment by direction</span>
+<a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a><span class="n">items</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="n">clip</span><span class="w">   </span><span class="p">=</span><span class="w"> </span><span class="n">bundle_mask</span><span class="p">;</span><span class="w">            </span><span class="c">% optional: trim to a corridor</span>
+<a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>
+<a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a><span class="n">opts</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">struct</span><span class="p">(</span><span class="s">'title'</span><span class="p">,</span><span class="w"> </span><span class="s">'UF right'</span><span class="p">,</span><span class="w"> </span><span class="s">'save'</span><span class="p">,</span><span class="w"> </span><span class="s">'docs/img/bundle_uf_right'</span><span class="p">,</span><span class="w"> </span><span class="s">'dpi'</span><span class="p">,</span><span class="w"> </span><span class="mi">150</span><span class="p">);</span>
+<a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a><span class="n">fig</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim_plot_bundles</span><span class="p">(</span><span class="n">items</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="p">);</span>
+</code></pre></div>
+<p>Per item: <code>tracks</code>, <code>name</code>, <code>color</code> (<code>[]</code> for direction encoding — |dx| red, |dy|
+green, |dz| blue, applied per segment), <code>alpha</code>, <code>width</code>, and <code>clip</code>. Per figure:
+<code>views</code>, <code>title</code>, <code>subtitle</code>, <code>save</code> (a path stem; <code>.png</code> is appended), <code>dpi</code>,
+<code>maxper</code> (streamlines drawn per item, default 900).</p>
+<div class="admonition note">
+<p class="admonition-title"><code>clip</code> trims, it does not reject</p>
+<p>With <code>clip</code> set, each streamline is reduced to its longest contiguous run
+inside the mask, and the fraction of length that fell outside is returned in
+<code>items(i).frac_outside</code>. This is deliberately <em>not</em> the scorer's rule, which
+discards a streamline entirely if any point leaves the corridor — that rule
+makes an overshooting streamline vanish, so the figure shows a bundle
+stopping short when it in fact reached too far. Rejection lives in
+<code>nim_filter_tracks_roi</code> and is what scoring uses.</p>
+</div>
+<h3 id="nim_plot_vs_groundtruth"><code>nim_plot_vs_groundtruth</code><a class="headerlink" href="#nim_plot_vs_groundtruth" title="Permanent link">&para;</a></h3>
+<p>Overlays our streamlines (orange) on an ISMRM ground-truth bundle (grey) across
+the same four views.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">opts</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">struct</span><span class="p">(</span><span class="s">'max_gt'</span><span class="p">,</span><span class="w"> </span><span class="mi">700</span><span class="p">,</span><span class="w"> </span><span class="s">'max_ours'</span><span class="p">,</span><span class="w"> </span><span class="mi">700</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="w">              </span><span class="s">'title'</span><span class="p">,</span><span class="w"> </span><span class="s">'UF right'</span><span class="p">,</span><span class="w"> </span><span class="s">'save'</span><span class="p">,</span><span class="w"> </span><span class="s">'figures/uf_right'</span><span class="p">);</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="n">nim_plot_vs_groundtruth</span><span class="p">(</span><span class="n">run_dir_or_tracks_mat</span><span class="p">,</span><span class="w"> </span><span class="n">gt_trk</span><span class="p">,</span><span class="w"> </span><span class="n">ref_nii</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="p">);</span>
+</code></pre></div>
+<p>The ground truth arrives on the 1 mm 180×216×180 scoring grid and is mapped
+through world RAS into the DWI's 2 mm 90×108×90 voxel space by <code>nim_read_trk</code>.
+Skipping that step draws the ground truth at half scale in a corner, which looks
+like a tracking failure and is a units bug.</p>
+<h3 id="figures-in-the-docs">Figures in the docs<a class="headerlink" href="#figures-in-the-docs" title="Permanent link">&para;</a></h3>
+<p><code>docs/img/</code> holds the rendered outputs used across this documentation:
+<code>tractogram_whole_brain.png</code>, <code>tractogram_bundles.png</code>, and one <code>bundle_*.png</code>
+per bundle (<code>bundle_bps_right</code>, <code>bundle_cc_u_shaped</code>, <code>bundle_cingulum_right</code>,
+<code>bundle_ilf_right</code>, <code>bundle_slf_right</code>, <code>bundle_uf_right</code>).</p>
+<hr />
+<h2 id="9-presentation-and-publication-figures">9. Presentation and Publication Figures<a class="headerlink" href="#9-presentation-and-publication-figures" title="Permanent link">&para;</a></h2>
+<h3 id="method-comparison-visualizations">Method Comparison Visualizations<a class="headerlink" href="#method-comparison-visualizations" title="Permanent link">&para;</a></h3>
+<p>The <code>src/nim_presentation/</code> module provides scripts for generating publication-quality comparison figures:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c">% Compare integration methods (Euler vs RK2 vs RK4 vs RKF45)</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="n">visualize_integration_methods</span><span class="p">;</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="c">% Compare interpolation methods (none vs trilinear vs cubic)</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="n">visualize_interpolation_methods</span><span class="p">;</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="c">% Example tractography visualization</span>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="n">visualize_tractography_example</span><span class="p">;</span>
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>
+<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a><span class="c">% Slice-based comparison</span>
+<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a><span class="n">visualize_tractography_slice</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="export-settings-for-publications">Export Settings for Publications<a class="headerlink" href="#export-settings-for-publications" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c">% High-resolution PNG</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">    </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'whole'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">    </span><span class="s">'max_tracts'</span><span class="p">,</span><span class="w"> </span><span class="mi">20000</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="w">    </span><span class="s">'export_dir'</span><span class="p">,</span><span class="w"> </span><span class="s">'figures/'</span><span class="p">,</span><span class="w"> </span><span class="s">'export_dpi'</span><span class="p">,</span><span class="w"> </span><span class="mi">600</span><span class="p">);</span>
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>
+<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="c">% Vector format for LaTeX</span>
+<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="w">    </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="s">'region'</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a><span class="w">    </span><span class="s">'export_dir'</span><span class="p">,</span><span class="w"> </span><span class="s">'figures/'</span><span class="p">,</span><span class="w"> </span><span class="s">'export_format'</span><span class="p">,</span><span class="w"> </span><span class="s">'eps'</span><span class="p">);</span>
+<a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a>
+<a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a><span class="c">% MATLAB figure for further customisation</span>
+<a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a><span class="n">visualizeTractography</span><span class="p">(</span><span class="s">'tracks.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'nim.mat'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-26-14" name="__codelineno-26-14" href="#__codelineno-26-14"></a><span class="w">    </span><span class="s">'mode'</span><span class="p">,</span><span class="w"> </span><span class="s">'whole'</span><span class="p">,</span><span class="w"> </span><span class="k">...</span>
+<a id="__codelineno-26-15" name="__codelineno-26-15" href="#__codelineno-26-15"></a><span class="w">    </span><span class="s">'export_dir'</span><span class="p">,</span><span class="w"> </span><span class="s">'figures/'</span><span class="p">,</span><span class="w"> </span><span class="s">'export_format'</span><span class="p">,</span><span class="w"> </span><span class="s">'fig'</span><span class="p">);</span>
+<a id="__codelineno-26-16" name="__codelineno-26-16" href="#__codelineno-26-16"></a><span class="c">% Then open and adjust:</span>
+<a id="__codelineno-26-17" name="__codelineno-26-17" href="#__codelineno-26-17"></a><span class="nb">openfig</span><span class="p">(</span><span class="s">'figures/tractography_whole.fig'</span><span class="p">);</span>
+<a id="__codelineno-26-18" name="__codelineno-26-18" href="#__codelineno-26-18"></a><span class="nb">set</span><span class="p">(</span><span class="nb">gcf</span><span class="p">,</span><span class="w"> </span><span class="s">'PaperSize'</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mi">8</span><span class="w"> </span><span class="mi">6</span><span class="p">]);</span>
+<a id="__codelineno-26-19" name="__codelineno-26-19" href="#__codelineno-26-19"></a><span class="nb">print</span><span class="p">(</span><span class="s">'-dpdf'</span><span class="p">,</span><span class="w"> </span><span class="s">'-r300'</span><span class="p">,</span><span class="w"> </span><span class="s">'figures/fig1_final.pdf'</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="recommended-figure-sizes">Recommended Figure Sizes<a class="headerlink" href="#recommended-figure-sizes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Journal Format</th>
+<th>Width</th>
+<th>Height</th>
+<th>DPI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Single column</td>
+<td>3.5 in</td>
+<td>2.5 in</td>
+<td>300</td>
+</tr>
+<tr>
+<td>Double column</td>
+<td>7.0 in</td>
+<td>5.0 in</td>
+<td>300</td>
+</tr>
+<tr>
+<td>Full page</td>
+<td>7.0 in</td>
+<td>9.0 in</td>
+<td>300</td>
+</tr>
+<tr>
+<td>Poster</td>
+<td>12.0 in</td>
+<td>9.0 in</td>
+<td>150</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="cli-export-with-shell-script">CLI Export with Shell Script<a class="headerlink" href="#cli-export-with-shell-script" title="Permanent link">&para;</a></h2>
+<p>Export tractography figures from the command line without an interactive MATLAB
+session. The script wraps <code>visualizeTractographyAngles()</code>, which renders the same
+track set from eight standard anatomical viewpoints, and runs MATLAB in the
+background.</p>
+<h3 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># From a run directory (auto-detects tracks + nim; figures go to &lt;run_dir&gt;/figures/)</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>./bin/run_visualization.sh<span class="w"> </span>&lt;run_dir&gt;<span class="w"> </span><span class="o">[</span>format<span class="o">]</span><span class="w"> </span><span class="o">[</span>region<span class="o">]</span><span class="w"> </span><span class="o">[</span>dpi<span class="o">]</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="c1"># With explicit file paths (output_dir is required in this form)</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>./bin/run_visualization.sh<span class="w"> </span>&lt;tracks_file&gt;<span class="w"> </span>&lt;nim_file&gt;<span class="w"> </span>&lt;output_dir&gt;<span class="w"> </span><span class="o">[</span>format<span class="o">]</span><span class="w"> </span><span class="o">[</span>region<span class="o">]</span><span class="w"> </span><span class="o">[</span>dpi<span class="o">]</span>
+</code></pre></div>
+<p>There is no mode argument: the script always generates all eight views
+(superior, inferior, anterior, posterior, left, right, oblique_left,
+oblique_right).</p>
+<h3 id="arguments">Arguments<a class="headerlink" href="#arguments" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_dir</code></td>
+<td><code>&lt;run_dir&gt;/figures/</code> in run-dir form; required in explicit form</td>
+<td>where to save exported images</td>
+</tr>
+<tr>
+<td><code>format</code></td>
+<td><code>png</code></td>
+<td><code>png</code>, <code>pdf</code>, <code>eps</code></td>
+</tr>
+<tr>
+<td><code>region</code></td>
+<td>—</td>
+<td>region ID(s) to filter by, e.g. <code>5</code> or <code>5,10,15</code>; omitted means all tracks</td>
+</tr>
+<tr>
+<td><code>dpi</code></td>
+<td><code>300</code></td>
+<td>export resolution</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># Whole brain, all eight views</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>./bin/run_visualization.sh<span class="w"> </span>hinec_runs/run_&lt;TIMESTAMP&gt;_standard_dti/
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="c1"># PDF at high DPI</span>
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>./bin/run_visualization.sh<span class="w"> </span>hinec_runs/run_&lt;TIMESTAMP&gt;_standard_dti/<span class="w"> </span>pdf<span class="w"> </span><span class="s1">''</span><span class="w"> </span><span class="m">600</span>
+<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a>
+<a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a><span class="c1"># Specific regions</span>
+<a id="__codelineno-28-8" name="__codelineno-28-8" href="#__codelineno-28-8"></a>./bin/run_visualization.sh<span class="w"> </span>hinec_runs/run_&lt;TIMESTAMP&gt;_standard_dti/<span class="w"> </span>png<span class="w"> </span><span class="s1">'5,10,15'</span>
+<a id="__codelineno-28-9" name="__codelineno-28-9" href="#__codelineno-28-9"></a>
+<a id="__codelineno-28-10" name="__codelineno-28-10" href="#__codelineno-28-10"></a><span class="c1"># Explicit files and output directory</span>
+<a id="__codelineno-28-11" name="__codelineno-28-11" href="#__codelineno-28-11"></a>./bin/run_visualization.sh<span class="w"> </span>tracks.mat<span class="w"> </span>nim.mat<span class="w"> </span>publication_figures/<span class="w"> </span>pdf<span class="w"> </span><span class="s1">''</span><span class="w"> </span><span class="m">600</span>
+</code></pre></div>
+<h3 id="output_1">Output<a class="headerlink" href="#output_1" title="Permanent link">&para;</a></h3>
+<p>Files land flat in the output directory, one per view:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>&lt;output_dir&gt;/
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>├── tractography_superior.png
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>├── tractography_inferior.png
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a>├── tractography_anterior.png
+<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a>├── ...
+<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a>└── tractography_oblique_right.png
+</code></pre></div>
+<p>With a region filter the names carry a region suffix. In run-directory form logs
+go to <code>&lt;run_dir&gt;/logs/visualization_&lt;timestamp&gt;.log</code>; otherwise
+<code>visualization_&lt;timestamp&gt;.log</code> in the working directory. Monitor with
+<code>tail -f</code>.</p>
+<hr />
+<h2 id="cross-references">Cross-References<a class="headerlink" href="#cross-references" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Distributed workflow setup: <a href="../DISTRIBUTED_WORKFLOW/">DISTRIBUTED_WORKFLOW.md</a></li>
+<li>Region visualization examples: <a href="../REGION_VISUALIZATION_EXAMPLES/">REGION_VISUALIZATION_EXAMPLES.md</a></li>
+<li>Complete API reference: <a href="../API_REFERENCE/">API_REFERENCE.md</a></li>
+<li>User guide: <a href="../USER_GUIDE/">USER_GUIDE.md</a></li>
+<li>Architecture overview: <a href="../ARCHITECTURE/">ARCHITECTURE.md</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

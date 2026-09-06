@@ -1,0 +1,2312 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="HIgh-order NEural Connectivity — dMRI Tractography Pipeline">
+      
+      
+        <meta name="author" content="HINEC Team">
+      
+      
+      
+        <link rel="prev" href="../DISTRIBUTED_WORKFLOW/">
+      
+      
+        <link rel="next" href="../ISMRM_SCORING_ANALYSIS/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Solution Verification - HINEC Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#solution-verification" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="HINEC Documentation" class="md-header__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            HINEC Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Solution Verification
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../USER_GUIDE/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../PIPELINE/" class="md-tabs__link">
+          
+  
+  
+  Pipeline
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../TRACTOGRAPHY_METHODS/" class="md-tabs__link">
+          
+  
+  
+  Tractography
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../YAML_CONFIG/" class="md-tabs__link">
+          
+  
+  
+  Configuration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../VISUALIZATION_GUIDE/" class="md-tabs__link">
+          
+  
+  
+  Visualization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Verification & Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../API_REFERENCE/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ABOUT/" class="md-tabs__link">
+          
+  
+  
+  About
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="HINEC Documentation" class="md-nav__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    HINEC Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../USER_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PIPELINE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PREPROCESSING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RUN_DIRECTORY_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Directory System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tractography
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tractography
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY_METHODS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MMF_TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MMF Connection-Form
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standard (FACT)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../High_Order/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    High-Order Methods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Adaptive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF_Usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SEEDING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seeding Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hinec_tractography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Configuration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../YAML_CONFIG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YAML Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CHANGELOG_YAML/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VISUALIZATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REGION_VISUALIZATION_EXAMPLES/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Region Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DISTRIBUTED_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification & Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Verification & Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solution Verification
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solution Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Method">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-error-metric" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The error metric
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reference-solutions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference solutions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refinement-in-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refinement in time
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refinement-in-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refinement in space
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#which-axis-binds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which axis binds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-does-not-limit-the-observed-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What does not limit the observed order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threats-to-validity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threats to validity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reproduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproduction
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ISMRM_SCORING_ANALYSIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ISMRM Scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_USAGE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IRONTRACT_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IronTract Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../API_REFERENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MATHEMATICAL_FOUNDATIONS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mathematical Foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCIENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Science Background
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ABOUT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Method">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-error-metric" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The error metric
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reference-solutions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference solutions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refinement-in-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refinement in time
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refinement-in-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refinement in space
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#which-axis-binds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which axis binds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-does-not-limit-the-observed-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What does not limit the observed order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threats-to-validity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threats to validity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reproduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproduction
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="solution-verification">Solution Verification<a class="headerlink" href="#solution-verification" title="Permanent link">&para;</a></h1>
+<p>Streamline tractography is the numerical solution of an ordinary differential
+equation, <span class="arithmatex">\(d\mathbf{x}/ds = \mathbf{v}(\mathbf{x})\)</span>. This page establishes that
+HINEC's solver converges under refinement of both discretisations — the
+integration step and the spatial sampling of the direction field — and measures
+the rate of each.</p>
+<div class="admonition abstract">
+<p class="admonition-title">Result</p>
+<p>Both axes converge monotonically at stable power-law rates. Under step
+refinement the integrators reach their formal orders: Euler <span class="arithmatex">\(0.99\)</span>, RK2
+<span class="arithmatex">\(2.01\)</span>, RK4 <span class="arithmatex">\(\mathbf{4.00}\)</span> with a <span class="arithmatex">\(C^2\)</span> spline interpolant. Under spatial
+refinement the order is <span class="arithmatex">\(\approx 2.25\)</span>. <strong>Spatial resolution is the binding
+constraint</strong>: past a moderately coarse step there is little left to gain from
+refining time.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Scope — verification, not validation</p>
+<p>Verification asks whether the equations are being solved correctly.
+Validation asks whether the answer corresponds to anatomy. This page is the
+former only, and no claim about anatomical accuracy follows from anything
+below. The ISMRM ground-truth bundles appear here solely to define a seed
+region; for how the streamlines actually measure against them, see
+<a href="../ISMRM_SCORING_ANALYSIS/">ISMRM Scoring</a>, where between 28% and 62% of
+produced streamline length leaves the bundle it was seeded in.</p>
+</div>
+<hr />
+<h2 id="method">Method<a class="headerlink" href="#method" title="Permanent link">&para;</a></h2>
+<h3 id="the-problem">The problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h3>
+<p>Streamline tractography integrates <span class="arithmatex">\(d\mathbf{x}/ds = \mathbf{v}(\mathbf{x})\)</span>,
+where <span class="arithmatex">\(\mathbf{v}\)</span> is the principal eigenvector field and <span class="arithmatex">\(|\mathbf{v}| = 1\)</span>, so
+the parameter <span class="arithmatex">\(s\)</span> is arc length. Seeds are the 8,384 voxels of the ISMRM
+ground-truth <code>UF_right</code> bundle mask with FA &gt; 0.15.</p>
+<p>The angle termination criterion is <strong>disabled</strong> (<code>angle_max: 0</code>). It is a
+stopping rule whose budget scales with the step size, and a rule that changes
+with the refinement parameter is not a fixed problem to converge to.</p>
+<p><img alt="Right uncinate fasciculus: ours against the ISMRM ground truth" src="../img/bundle_uf_right.png" /></p>
+<p><em>The seed region. Grey is the ISMRM ground-truth <code>UF_right</code> bundle, red is ours,
+clipped to the bundle corridor for display. Shown only to establish what the
+convergence ladders are tracking through — it is a validation figure and the
+ladders do not depend on it.</em></p>
+<div class="admonition note">
+<p class="admonition-title">Do not read this as an accuracy claim</p>
+<p>Applying the scorer's full definition (endpoint pair plus containment) leaves
+streamlines that are 98.5% inside the ground-truth envelope, but that number
+describes the survivors of a filter that discards most of what was produced.
+Measured on the unfiltered output, <strong>62% of <code>UF_right</code> streamline length
+leaves the bundle corridor</strong>. See
+<a href="../ISMRM_SCORING_ANALYSIS/#reconstruction-against-ground-truth">ISMRM Scoring</a>.</p>
+</div>
+<h3 id="the-error-metric">The error metric<a class="headerlink" href="#the-error-metric" title="Permanent link">&para;</a></h3>
+<p>Each run is compared against a reference run. Both are streamline <em>sets</em>, so the
+comparison must decide which streamline corresponds to which, and then which
+point corresponds to which. <code>nim_convergence_error</code> does this in six steps:</p>
+<ol>
+<li><strong>Pair by seed.</strong> Matched through <code>track_meta.seed_index</code>, not by position in
+   the array — the tracker compacts out seeds that produce nothing, so
+   "streamline 7" is a different fibre in the two runs.</li>
+<li><strong>Anchor at the seed.</strong> A track is stored as
+   <code>[reversed backward half; seed; forward half]</code>, so index 1 is a <em>termination</em>
+   point. Arc is measured outward from the seed.</li>
+<li><strong>Parameterise by nominal arc.</strong> The point <span class="arithmatex">\(n\)</span> steps from the seed is at arc
+   <span class="arithmatex">\(nh\)</span> <em>by construction</em>, since each step advances exactly <span class="arithmatex">\(h\)</span> of arc.
+   Cumulative chord length is not used: it underestimates true arc by
+   <span class="arithmatex">\(h^2/(24R^2)\)</span> per unit length, putting the two runs on parameters that
+   disagree at <span class="arithmatex">\(O(h^2)\)</span>.</li>
+<li><strong>Window to ±10 voxels</strong> about the seed, using only streamlines that reach
+   that in both directions in both runs. This excludes termination, which is a
+   discontinuous function of <span class="arithmatex">\(h\)</span>.</li>
+<li><strong>Compare the test track's own stored points</strong> against a splined reference.
+   The test points are exact integrator output and are not interpolated;
+   resampling them linearly imposes a chord-error floor of <span class="arithmatex">\(\approx h^2/(8R)\)</span>
+   that has nothing to do with the integrator.</li>
+<li><strong>Reduce.</strong> Median over the streamlines measurable at <em>every</em> rung — a fixed
+   population. The 95th percentile is tracked separately.</li>
+</ol>
+<div class="admonition warning">
+<p class="admonition-title">Steps 3 and 5 both matter at <span class="arithmatex">\(O(h^2)\)</span></p>
+<p>Either one, done naively, imposes a floor no integrator can beat and reports
+order 2 for every method regardless of the tableau — which is
+indistinguishable from a genuine physical cap <strong>unless methods with known
+formal orders are run alongside as a control</strong>.</p>
+</div>
+<h3 id="reference-solutions">Reference solutions<a class="headerlink" href="#reference-solutions" title="Permanent link">&para;</a></h3>
+<p>One shared reference per experiment, always the most accurate configuration
+available, <strong>never a refined copy of the method under test</strong>. Referencing Euler
+to Euler leaves the reference carrying ~25% of the error being measured at the
+finest rung, and inflates Euler's observed order from 0.99 to 1.24.</p>
+<hr />
+<h2 id="refinement-in-time">Refinement in time<a class="headerlink" href="#refinement-in-time" title="Permanent link">&para;</a></h2>
+<p>Nine step sizes, refined in ratios of <span class="arithmatex">\(\sqrt{2}\)</span> from 0.5 to 0.03125 voxels; reference RK4
+at <span class="arithmatex">\(h = 0.0078125\)</span>; fixed population <span class="arithmatex">\(n \approx 1300\)</span>.</p>
+<table>
+<thead>
+<tr>
+<th>method</th>
+<th style="text-align: center;">field</th>
+<th style="text-align: center;">formal</th>
+<th style="text-align: right;"><span class="arithmatex">\(h=0.5\)</span></th>
+<th style="text-align: right;"><span class="arithmatex">\(h=0.031\)</span></th>
+<th style="text-align: right;"><strong>observed</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Euler</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: right;">1.33e-1</td>
+<td style="text-align: right;">8.41e-3</td>
+<td style="text-align: right;"><strong>0.99</strong></td>
+</tr>
+<tr>
+<td>RK2</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: right;">3.43e-3</td>
+<td style="text-align: right;">1.30e-5</td>
+<td style="text-align: right;"><strong>2.01</strong></td>
+</tr>
+<tr>
+<td>RK4 trilinear</td>
+<td style="text-align: center;"><span class="arithmatex">\(C^0\)</span></td>
+<td style="text-align: center;">4</td>
+<td style="text-align: right;">5.05e-4</td>
+<td style="text-align: right;">1.91e-6</td>
+<td style="text-align: right;"><strong>2.00</strong></td>
+</tr>
+<tr>
+<td>RK4 cubic</td>
+<td style="text-align: center;"><span class="arithmatex">\(C^1\)</span></td>
+<td style="text-align: center;">4</td>
+<td style="text-align: right;">6.58e-5</td>
+<td style="text-align: right;">1.35e-8</td>
+<td style="text-align: right;"><strong>3.06</strong></td>
+</tr>
+<tr>
+<td>RK4 spline</td>
+<td style="text-align: center;"><span class="arithmatex">\(C^2\)</span></td>
+<td style="text-align: center;">4</td>
+<td style="text-align: right;">2.12e-5</td>
+<td style="text-align: right;">3.05e-10</td>
+<td style="text-align: right;"><strong>4.00</strong></td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Convergence under step refinement" src="../img/convergence_time.png" /></p>
+<p>Euler and RK2 land on their formal orders. Because those two answers are known
+in advance they serve as a <strong>control on the measurement itself</strong>: a metric that
+reports 0.99 and 2.01 for methods whose orders are 1 and 2 is measuring the
+integrator and not an artefact of its own.</p>
+<p><strong>The observed order of RK4 is set by the smoothness of the interpolant</strong> — one
+order per continuous derivative, until the tableau's formal order is reached.
+The three RK4 rows differ <em>only</em> in the interpolation kernel.</p>
+<p>Local slopes are stable across every triplet (the asymptotic-range condition),
+and the 95th percentile converges at the same rate as the median, so the whole
+distribution converges rather than a well-behaved majority.</p>
+<hr />
+<h2 id="refinement-in-space">Refinement in space<a class="headerlink" href="#refinement-in-space" title="Permanent link">&para;</a></h2>
+<p>The direction field is sampled on a grid of spacing <span class="arithmatex">\(1/u\)</span> voxels before the
+interpolants are built — see <a href="../YAML_CONFIG/"><code>interpolation.upsample</code></a>. The
+coordinate frame is unchanged, so positions, step sizes and lengths stay in
+native voxel units and runs at different factors are directly comparable.</p>
+<p>The integration step is pinned at <span class="arithmatex">\(h = 0.125\)</span> with RK4 and spline interpolation,
+where the temporal error is <span class="arithmatex">\(\approx 8\times10^{-8}\)</span> voxels — four to six orders
+below the spatial errors being measured.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">spacing (vox)</th>
+<th style="text-align: right;">median</th>
+<th style="text-align: right;">p95</th>
+<th style="text-align: right;">local <span class="arithmatex">\(p\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">8.000</td>
+<td style="text-align: right;">1.0713</td>
+<td style="text-align: right;">6.709</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td style="text-align: right;">5.657</td>
+<td style="text-align: right;">1.0167</td>
+<td style="text-align: right;">5.148</td>
+<td style="text-align: right;">0.15</td>
+</tr>
+<tr>
+<td style="text-align: right;">4.000</td>
+<td style="text-align: right;">0.5303</td>
+<td style="text-align: right;">3.899</td>
+<td style="text-align: right;">1.88</td>
+</tr>
+<tr>
+<td style="text-align: right;">2.828</td>
+<td style="text-align: right;">0.2924</td>
+<td style="text-align: right;">2.520</td>
+<td style="text-align: right;">1.72</td>
+</tr>
+<tr>
+<td style="text-align: right;">2.000</td>
+<td style="text-align: right;">0.1188</td>
+<td style="text-align: right;">1.839</td>
+<td style="text-align: right;">2.60</td>
+</tr>
+<tr>
+<td style="text-align: right;">1.414</td>
+<td style="text-align: right;">0.0476</td>
+<td style="text-align: right;">0.193</td>
+<td style="text-align: right;">2.64</td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Convergence under spatial refinement" src="../img/convergence_space.png" /></p>
+<p>Fitted order <strong>2.25</strong> over the four asymptotic rungs (<span class="arithmatex">\(n = 761\)</span>), rising to
+2.43–2.62 over the finest three. Error falls by a factor of 22 as the grid
+refines 5.7×, and the p95 falls with it (6.71 → 0.19). The two coarsest rungs
+are pre-asymptotic: at 8-voxel spacing the field is barely resolved and the
+error saturates near one voxel.</p>
+<div class="admonition note">
+<p class="admonition-title">The limit is the native-resolution interpolant, not the anatomy</p>
+<p>Sampling <em>above</em> the acquisition grid returns error that is exactly zero — a
+spline through samples of itself reproduces itself — which says the 2 mm
+samples already carry all the information there is. This ladder demonstrates
+grid convergence <em>of the algorithm</em>; whether 2 mm resolves the anatomy is a
+validation question requiring different data.</p>
+</div>
+<hr />
+<h2 id="which-axis-binds">Which axis binds<a class="headerlink" href="#which-axis-binds" title="Permanent link">&para;</a></h2>
+<p>RK4 with spline interpolation converges at order 4 in time and <span class="arithmatex">\(\approx 2.3\)</span> in
+space. <strong>Resolution is the binding constraint.</strong> Beyond a moderately coarse step
+there is little to gain from refining time; effort is better spent on the
+spatial representation of the direction field.</p>
+<p>Practically: pair <code>interpolation.method: spline</code> with <code>integrator.method: rk4</code>.
+At <span class="arithmatex">\(h = 0.5\)</span> that combination is 162× more accurate than RK2 and 6300× more
+accurate than Euler, so the larger step fourth-order accuracy affords can be
+taken without giving the accuracy back.</p>
+<hr />
+<h2 id="what-does-not-limit-the-observed-order">What does not limit the observed order<a class="headerlink" href="#what-does-not-limit-the-observed-order" title="Permanent link">&para;</a></h2>
+<p>Three candidate explanations were tested directly and <strong>rejected</strong>. The negative
+results constrain what the numbers above can mean.</p>
+<table>
+<thead>
+<tr>
+<th>tested</th>
+<th>result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Field noise</strong> — a field whose every voxel direction is rotated through a random angle <span class="arithmatex">\(\sigma\)</span>, swept 0–20° against the real field's measured median of 4.84° between adjacent voxels, with random per-voxel sign flips</td>
+<td>RK4 stayed above order 2.5 and 2–756× ahead of RK2 throughout</td>
+</tr>
+<tr>
+<td><strong>Coherent discontinuities</strong> — a surface across which the principal direction jumps by up to 60°, crossed mid-integration (the shape a fibre crossing takes)</td>
+<td>RK4 still finished near order 4 and 9× ahead of RK2</td>
+</tr>
+<tr>
+<td><strong>Stage fallbacks</strong> — <code>rk4_integration_step</code> substitutes the previous stage when interpolation refuses a probe below the FA floor</td>
+<td>0.80% of probes, independent of <span class="arithmatex">\(h\)</span> — present, but far too small to govern the observed order</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="threats-to-validity">Threats to validity<a class="headerlink" href="#threats-to-validity" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>One bundle, one subject.</strong> All results are the right uncinate fasciculus of
+  the ISMRM 2015 phantom. Nothing here establishes generality.</li>
+<li><strong>Self-convergence, not accuracy.</strong> The reference is our own refined solution.
+  The pipeline converges to <em>something</em>; that it is the right thing is a
+  separate claim.</li>
+<li><strong>The spatial ladder is not fully asymptotic.</strong> Local order is still rising at
+  the finest rung, so 2.25 is a lower bound.</li>
+<li><strong>Termination is quantised to one step.</strong> Measured arc-length difference is
+  0.87–0.98 <span class="arithmatex">\(h\)</span> across a 16× refinement, so the endpoint converges at <span class="arithmatex">\(O(h)\)</span>
+  while the interior converges at the integrator's order. The windowed metric
+  excludes this deliberately; it remains a real defect.</li>
+<li><strong>MMF is untested here.</strong> The angle criterion in
+  <code>nim_tractography_mmf_connframe</code> is covered only by a source-text check, not a
+  behavioural test.</li>
+<li><strong>The whole-brain benchmark has not been run.</strong> Every ISMRM score collected so
+  far comes from a single-ROI submission, which is not a valid use of a scorer
+  that segments a whole-brain tractogram into 26 bundles.</li>
+</ul>
+<hr />
+<h2 id="reproduction">Reproduction<a class="headerlink" href="#reproduction" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># time ladder, one rung</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>./bin/run_tractography.sh<span class="w"> </span>reference<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>--set<span class="w"> </span>seeding.roi<span class="o">=</span>UF_right<span class="w"> </span>--set<span class="w"> </span>seeding.fa_min<span class="o">=</span><span class="m">0</span>.15<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>--set<span class="w"> </span>interpolation.method<span class="o">=</span>spline<span class="w"> </span>--set<span class="w"> </span>integrator.method<span class="o">=</span>rk4<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span>--set<span class="w"> </span>integrator.step<span class="o">=</span><span class="m">0</span>.125<span class="w"> </span>--set<span class="w"> </span>output.arc_step<span class="o">=</span><span class="m">0</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># space ladder, one rung — add</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span>--set<span class="w"> </span><span class="nv">upsample</span><span class="o">=</span><span class="m">0</span>.5
+</code></pre></div>
+<p>Analysis is <code>nim_convergence_error(test_run, reference_run, struct('prefix_arc', 10))</code>,
+which returns per-seed errors so a fixed population can be intersected across
+rungs.</p>
+<p>Verification suite: <strong>82/82</strong> passing, including behavioural cases that
+integrate real streamlines through synthetic fields of known analytic curvature —
+order verification for each integrator, the angle criterion firing exactly at
+the field's true turning rate, sign-invariance of the dyadic interpolation, and
+the endpoint/containment bundle gates.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,2415 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="HIgh-order NEural Connectivity — dMRI Tractography Pipeline">
+      
+      
+        <meta name="author" content="HINEC Team">
+      
+      
+      
+        <link rel="prev" href="../TRACTOGRAPHY_METHODS/">
+      
+      
+        <link rel="next" href="../TRACTOGRAPHY/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>MMF Connection-Form - HINEC Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#mmf-connection-form-tractography" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="HINEC Documentation" class="md-header__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            HINEC Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              MMF Connection-Form
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../USER_GUIDE/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../PIPELINE/" class="md-tabs__link">
+          
+  
+  
+  Pipeline
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../TRACTOGRAPHY_METHODS/" class="md-tabs__link">
+          
+  
+  
+  Tractography
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../YAML_CONFIG/" class="md-tabs__link">
+          
+  
+  
+  Configuration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../VISUALIZATION_GUIDE/" class="md-tabs__link">
+          
+  
+  
+  Visualization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../CONVERGENCE/" class="md-tabs__link">
+          
+  
+  
+  Verification & Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../API_REFERENCE/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ABOUT/" class="md-tabs__link">
+          
+  
+  
+  About
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="HINEC Documentation" class="md-nav__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    HINEC Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../USER_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PIPELINE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PREPROCESSING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RUN_DIRECTORY_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Directory System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tractography
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tractography
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY_METHODS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MMF Connection-Form
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MMF Connection-Form
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-moving-frames" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why moving frames?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-1-building-the-geometry-nim_mmf_geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 1 — Building the geometry (nim_mmf_geometry)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stage 1 — Building the geometry (nim_mmf_geometry)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-connection-1-form-nim_connection_form" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The connection 1-form (nim_connection_form)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frame-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame helpers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-2-tracing-nim_tractography_mmf_connframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 2 — Tracing (nim_tractography_mmf_connframe)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stage 2 — Tracing (nim_tractography_mmf_connframe)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mmf_anchor-faithful-vs-anchored" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mmf_anchor — faithful vs. anchored
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#csd-field-multiple-pathways" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSD field: multiple pathways
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standard (FACT)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../High_Order/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    High-Order Methods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Adaptive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF_Usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SEEDING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seeding Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hinec_tractography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Configuration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../YAML_CONFIG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YAML Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CHANGELOG_YAML/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VISUALIZATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REGION_VISUALIZATION_EXAMPLES/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Region Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DISTRIBUTED_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification & Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Verification & Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CONVERGENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solution Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ISMRM_SCORING_ANALYSIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ISMRM Scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_USAGE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IRONTRACT_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IronTract Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../API_REFERENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MATHEMATICAL_FOUNDATIONS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mathematical Foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCIENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Science Background
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ABOUT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-moving-frames" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why moving frames?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-1-building-the-geometry-nim_mmf_geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 1 — Building the geometry (nim_mmf_geometry)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stage 1 — Building the geometry (nim_mmf_geometry)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-connection-1-form-nim_connection_form" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The connection 1-form (nim_connection_form)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frame-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame helpers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-2-tracing-nim_tractography_mmf_connframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 2 — Tracing (nim_tractography_mmf_connframe)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stage 2 — Tracing (nim_tractography_mmf_connframe)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mmf_anchor-faithful-vs-anchored" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mmf_anchor — faithful vs. anchored
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#csd-field-multiple-pathways" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSD field: multiple pathways
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="mmf-connection-form-tractography">MMF Connection-Form Tractography<a class="headerlink" href="#mmf-connection-form-tractography" title="Permanent link">&para;</a></h1>
+<p><strong>Method of Moving Frames (MMF) tractography</strong> — Chun &amp; Peng, in preparation.</p>
+<p>This is the <em>genuine</em> moving-frames tracker: it builds an orthonormal <strong>moving-frame
+field</strong> {e1, e2, e3} and its <strong>connection 1-form</strong> (curvature + torsion) over the whole
+brain, then traces streamlines by <em>evolving a carried frame with the connection structure
+equation</em> rather than by re-sampling a direction field at each step.</p>
+<div class="admonition note">
+<p class="admonition-title">Not to be confused with the interpolated tracker</p>
+<p>The interpolated streamline tracker (spatial interpolation, RK4/RKF45, CSD-peak
+resampling) is <code>algorithm: hinec</code> — see
+<a href="../TRACTOGRAPHY_METHODS/">Tractography Methods</a>. <em>That</em> tracker was previously
+mislabelled <code>mmf</code> + <code>integrator: rkf45</code>. The tracker documented here — <code>algorithm: mmf</code>
+— is the real connection-form Method of Moving Frames and shares none of that code.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dispatch</strong></td>
+<td><code>algorithm: mmf</code> → <code>runTractography</code> → <code>nim_tractography_mmf_connframe</code></td>
+</tr>
+<tr>
+<td><strong>Geometry build</strong></td>
+<td><code>nim_mmf_geometry</code> (<code>main.m</code> Step 2b) → stored into the <code>nim</code></td>
+</tr>
+<tr>
+<td><strong>Configs</strong></td>
+<td><code>config/mmf_dti.yml</code> (DTI field), <code>config/mmf_csd.yml</code> (CSD field)</td>
+</tr>
+<tr>
+<td><strong>Reference</strong></td>
+<td>Chun &amp; Peng, in preparation. Equation numbers below follow that formulation; the equations themselves are written out on this page.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="why-moving-frames">Why moving frames?<a class="headerlink" href="#why-moving-frames" title="Permanent link">&para;</a></h2>
+<p>Classical streamline tractography integrates <code>dx/ds = v(x)</code>, where <code>v</code> is a diffusion
+direction re-interpolated at every point. It carries no memory of <em>how</em> the fiber is
+turning. The Method of Moving Frames instead attaches an orthonormal frame to each point of
+the trajectory and describes the fiber intrinsically through the <strong>connection 1-form</strong> of
+that frame field — the same object that, in the Frenet–Serret picture, packages curvature
+and torsion:</p>
+<div class="arithmatex">\[
+\frac{d}{ds}\begin{bmatrix} e_1 \\ e_2 \\ e_3 \end{bmatrix}
+=\begin{bmatrix} 0 &amp; \omega_{12} &amp; \omega_{13} \\ -\omega_{12} &amp; 0 &amp; \omega_{23} \\ -\omega_{13} &amp; -\omega_{23} &amp; 0 \end{bmatrix}
+\begin{bmatrix} e_1 \\ e_2 \\ e_3 \end{bmatrix}
+\qquad(\text{Eq. 10})
+\]</div>
+<div class="arithmatex">\[
+\frac{dx}{ds} = e_1 \qquad(\text{Eq. 11})
+\]</div>
+<p>The connection coefficients are the <strong>curvature</strong> <span class="arithmatex">\( \kappa = \nabla_{e_1} e_1 \)</span>
+(with <span class="arithmatex">\( \omega_{12} = \kappa\cdot e_2 \)</span>, <span class="arithmatex">\( \omega_{13} = \kappa\cdot e_3 \)</span>) and the
+<strong>torsion</strong> <span class="arithmatex">\( \tau = \omega_{23}(e_1) \)</span>. Because those are properties of the <em>space</em>
+(they depend only on the tensor/FOD field, not on any particular streamline), HINEC builds
+them <strong>once</strong> and stores them in the <code>nim</code>, exactly like FA or the eigenvectors.</p>
+<hr />
+<h2 id="stage-1-building-the-geometry-nim_mmf_geometry">Stage 1 — Building the geometry (<code>nim_mmf_geometry</code>)<a class="headerlink" href="#stage-1-building-the-geometry-nim_mmf_geometry" title="Permanent link">&para;</a></h2>
+<p>Called from <code>main.m</code> <strong>Step 2b</strong>, right after <code>nim_dt_spd</code>/<code>nim_eig</code>/<code>nim_fa</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c">%% Step 2b: MMF moving-frame geometry (frame field + connection 1-form) baked into the nim</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">nim</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim_mmf_geometry</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="p">.</span><span class="n">tractography</span><span class="p">);</span><span class="w">   </span><span class="c">% honours frame_sel_power / field</span>
+</code></pre></div>
+<p>The build follows the Frenet construction of the formulation (steps 1–3, Eq. 6–9):</p>
+<p><strong>1. Alignment-selective tangent field <code>e1</code>.</strong>
+The raw tangent is the tensor principal eigenvector (DTI) or, when a CSD FOD peak field is
+present <em>and</em> requested, the <strong>dominant FOD peak</strong> (so <code>field: csd</code> genuinely builds the
+connection from CSD data — see <a href="#csd-field-multiple-pathways">CSD field</a> below). It is then
+denoised by an <strong>alignment-selective</strong> filter — <em>not</em> an isotropic Gaussian
+(<code>mmf_traj_denoise</code>): each 3×3×3 neighbour is weighted by <span class="arithmatex">\( |n\cdot e_1|^{\text{sel}} \)</span>,
+so aligned neighbours dominate and misaligned (crossing) neighbours get ≈0 weight. This
+denoises without blurring across crossings. The selectivity is <code>mmf.frame_sel_power</code>
+(default 16). This is MMF's own knob for building the frame field; it is unrelated to the
+<code>sel_power</code> term that has been removed from the <code>hinec</code> tracker.</p>
+<p><strong>2. Curvature vector <span class="arithmatex">\( \kappa = \nabla_{e_1} e_1 \)</span> (Eq. 7 source).</strong>
+Computed basis-free through the connection form itself: with a reference-axis frame
+<code>(e2a, e3a)</code>, <span class="arithmatex">\( \kappa = \omega_{12}(e_1)\,e_2^a + \omega_{13}(e_1)\,e_3^a \)</span>.</p>
+<p><strong>3. Frenet normal <code>e2</code> (Eq. 7) and binormal <code>e3</code> (Eq. 8).</strong>
+<span class="arithmatex">\( e_2 = \kappa/\lVert\kappa\rVert \)</span> where curvature is well-defined; where
+<span class="arithmatex">\( \lVert\kappa\rVert \approx 0 \)</span> (straight fiber) it falls back to the <strong>reference-axis
+projection</strong> (Eq. 6, <code>mmf_reference_axis_frame</code>), which is robust to the
+<span class="arithmatex">\( \lambda_2 \approx \lambda_3 \)</span> degeneracy that makes the DTI e2/e3 arbitrary. Then
+<span class="arithmatex">\( e_3 = e_1 \times e_2 \)</span>.</p>
+<p><strong>4. Torsion <span class="arithmatex">\( \tau = \omega_{23}(e_1) \)</span> (Eq. 9).</strong>
+A second pass of <code>nim_connection_form</code> on the completed Frenet frame gives the torsion.</p>
+<p><strong>Stored into the <code>nim</code>:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Shape</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nim.mmf_frames</code></td>
+<td><code>[X Y Z 3 3]</code></td>
+<td>frame field, <code>(:,:,:,c,i)</code> = component <em>c</em> of <span class="arithmatex">\(e_i\)</span></td>
+</tr>
+<tr>
+<td><code>nim.mmf_kappa</code></td>
+<td><code>[X Y Z 3]</code></td>
+<td>curvature vector <span class="arithmatex">\( \nabla_{e_1} e_1 \)</span></td>
+</tr>
+<tr>
+<td><code>nim.mmf_tau</code></td>
+<td><code>[X Y Z]</code></td>
+<td>torsion <span class="arithmatex">\( \omega_{23}(e_1) \)</span></td>
+</tr>
+<tr>
+<td><code>nim.mmf_field</code></td>
+<td><code>'dti'</code>|<code>'csd'</code></td>
+<td>which field the geometry was <strong>actually</strong> built from</td>
+</tr>
+<tr>
+<td><code>nim.mmf_built</code></td>
+<td><code>true</code></td>
+<td>build flag</td>
+</tr>
+</tbody>
+</table>
+<p>The build is wrapped in a <code>try/catch</code> in <code>main.m</code>; if it fails, the tracker rebuilds it
+on demand.</p>
+<h3 id="the-connection-1-form-nim_connection_form">The connection 1-form (<code>nim_connection_form</code>)<a class="headerlink" href="#the-connection-1-form-nim_connection_form" title="Permanent link">&para;</a></h3>
+<p>The connection 1-form <span class="arithmatex">\( [\omega] = dA\,A^{T} \)</span> (with <span class="arithmatex">\( A=[e_1\ e_2\ e_3] \)</span>) records how
+the orthonormal frame rotates through space. It is antisymmetric, so it reduces to three
+scalar 1-forms <span class="arithmatex">\( (\omega_{12},\omega_{13},\omega_{23}) \)</span>. Evaluated along a frame
+direction <span class="arithmatex">\(e_k\)</span>:</p>
+<div class="arithmatex">\[
+\omega_{ij}(e_k) = \sum_c e_j^{\,c}\,\big(\nabla e_i^{\,c}\cdot e_k\big)
+\qquad(\text{component form of the connection 1-form})
+\]</div>
+<p>i.e. take the spatial Jacobian of each component field of <span class="arithmatex">\(e_i\)</span>, contract with <span class="arithmatex">\(e_k\)</span> to
+get the directional derivative of <span class="arithmatex">\(e_i\)</span> along <span class="arithmatex">\(e_k\)</span>, then dot with <span class="arithmatex">\(e_j\)</span>.
+<code>nim_connection_form</code> returns <code>wijk[X,Y,Z,i,j,k] = ω_ij(e_k)</code> with antisymmetry enforced.</p>
+<h3 id="frame-helpers">Frame helpers<a class="headerlink" href="#frame-helpers" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nim_build_frames</code></td>
+<td>sign-consistent <code>e1</code> field + reference-axis <code>e2/e3</code></td>
+</tr>
+<tr>
+<td><code>mmf_reference_axis_frame</code></td>
+<td>complete <code>e2, e3</code> from <code>e1</code> alone (robust to λ₂≈λ₃)</td>
+</tr>
+<tr>
+<td><code>mmf_gram_schmidt</code></td>
+<td>re-orthonormalize a drifted frame during integration</td>
+</tr>
+<tr>
+<td><code>mmf_bishop_update</code></td>
+<td>rotation-minimizing (Bishop) parallel transport of a frame vector</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="stage-2-tracing-nim_tractography_mmf_connframe">Stage 2 — Tracing (<code>nim_tractography_mmf_connframe</code>)<a class="headerlink" href="#stage-2-tracing-nim_tractography_mmf_connframe" title="Permanent link">&para;</a></h2>
+<p>The tracer reads the precomputed geometry from the <code>nim</code> (rebuilding it if absent, or if it
+was baked for a different <code>field</code> — e.g. DTI geometry baked by <code>main.m</code> but this is a CSD
+run). It wraps each stored field in a <code>griddedInterpolant</code> and traces:</p>
+<ol>
+<li><strong>Seeds</strong> are placed on the seed mask (<code>seeding.density</code> sub-voxel offsets, on a
+   deterministic lattice). For DTI, each
+   seed's initial tangent is the principal direction; for CSD, <strong>one seed per FOD peak</strong>, so
+   crossing populations are all launched.</li>
+<li><strong>Bidirectional</strong> tracking (<code>track_bi</code>) from each seed.</li>
+<li>Each streamline <strong>carries a moving frame</strong>: <code>e1 = tangent</code>, <code>e2/e3</code> initialized by the
+   reference-axis projection at the seed (Eq. 6), then <strong>evolved by the structure equation
+   (Eq. 10)</strong> while advancing <code>dx/ds = e1</code> (Eq. 11).</li>
+<li>The coupled <span class="arithmatex">\((x, e_1, e_2, e_3)\)</span> system is integrated by <code>mmf_step</code> with <strong>RK4</strong>
+   (fixed step) or <strong>RKF45</strong> (adaptive Dormand–Prince), the frame <strong>re-orthonormalized</strong>
+   (<code>mmf_gram_schmidt</code>) each step. The curvature and torsion are interpolated from the
+   stored connection field at each substep.</li>
+<li><strong>Termination</strong>: the turn budget (<code>termination.angle_max</code>), the propagation mask, which
+   is derived from FA (<code>termination.fa_min</code>) and the brain mask <strong>independently of the seed
+   mask</strong>, and ACT tissue rules — stop on entering CSF or leaving the brain, terminate on
+   reaching GM. Tracks shorter than <code>termination.min_arc</code> (an arc length in voxels) are
+   discarded.</li>
+</ol>
+<div class="admonition info">
+<p class="admonition-title">The path equation</p>
+<p>Because <span class="arithmatex">\( dT/ds = \kappa N \)</span> in the Frenet picture, the streamline <strong>path</strong> is a
+curvature-vector-field streamline: <span class="arithmatex">\( de_1/ds = \kappa(x) \)</span>. The full frame <em>and</em>
+torsion are evolved and available downstream, but do not feed back into <code>dx/ds</code>.
+<code>mmf_anchor</code> optionally re-anchors <code>e1</code> toward the field tangent (see below).</p>
+</div>
+<h3 id="mmf_anchor-faithful-vs-anchored"><code>mmf_anchor</code> — faithful vs. anchored<a class="headerlink" href="#mmf_anchor-faithful-vs-anchored" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">tractography</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">mmf</span><span class="p">:</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">anchor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">     </span><span class="c1"># 0 = pure Eq.10-11 (faithful); &gt;0 re-anchors e1 to the field</span>
+</code></pre></div>
+<ul>
+<li><code>anchor: 0</code> — the <strong>pure</strong> connection-form formulation: <code>e1</code> is driven only by the
+  integrated curvature. Most faithful to the formulation.</li>
+<li><code>anchor</code> in <code>(0, 1]</code> — after each step, blend <code>e1</code> toward the interpolated field
+  tangent: <span class="arithmatex">\( e_1 \leftarrow (1-a)\,e_1 + a\,e_1^{\text{field}} \)</span>, then re-orthonormalize.
+  A stabilizer that trades faithfulness for robustness against accumulated curvature error.</li>
+</ul>
+<hr />
+<h2 id="csd-field-multiple-pathways">CSD field: multiple pathways<a class="headerlink" href="#csd-field-multiple-pathways" title="Permanent link">&para;</a></h2>
+<p>With <code>field: csd</code>, <code>nim_mmf_geometry</code> builds a <strong>per-peak connection</strong>: for every FOD peak
+<span class="arithmatex">\(p\)</span> (a distinct fiber population) it computes a curvature vector
+<span class="arithmatex">\( \nabla_{e_{1p}} e_{1p} \)</span> by <strong>trajectory-aligned differencing</strong> — each neighbour
+contributes the peak best aligned with the centre's peak <span class="arithmatex">\(p\)</span> (peak matching across the
+crossing). Stored as:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Shape</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nim.mmf_peakdirs</code></td>
+<td><code>[X Y Z maxK 3]</code></td>
+<td>unit peak directions</td>
+</tr>
+<tr>
+<td><code>nim.mmf_kappa_p</code></td>
+<td><code>[X Y Z maxK 3]</code></td>
+<td>per-peak curvature vectors</td>
+</tr>
+<tr>
+<td><code>nim.mmf_multi</code></td>
+<td><code>true</code></td>
+<td>multi-frame flag</td>
+</tr>
+</tbody>
+</table>
+<p>At trace time the tracer selects the peak aligned with the <strong>incoming</strong> tangent, so two
+streamlines entering one voxel from different approach directions follow <em>different</em>
+curvatures → different continuations. That is how a single moving-frame formulation resolves
+crossings into multiple pathways.</p>
+<p><code>runTractography</code> computes/loads the FOD peaks (via <code>nim_csd</code>, cached as <code>&lt;source&gt;_csd.mat</code>)
+before tracking — see <a href="../TRACTOGRAPHY_METHODS/#csd-fod-reconstruction">CSD</a>.</p>
+<hr />
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
+<p>Two sanctioned configs; run them with the <a href="../TRACTOGRAPHY_METHODS/#config-driven-experiment-workflow">config-driven
+workflow</a>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>./bin/run_tractography.sh<span class="w"> </span>mmf_dti<span class="w"> </span>--score<span class="w">        </span><span class="c1"># DTI-field connection</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>./bin/run_tractography.sh<span class="w"> </span>mmf_csd<span class="w"> </span>--score<span class="w">        </span><span class="c1"># CSD-field connection (multiple pathways)</span>
+</code></pre></div>
+<h3 id="key-parameters">Key parameters<a class="headerlink" href="#key-parameters" title="Permanent link">&para;</a></h3>
+<p>Paths below are canonical config paths under <code>tractography:</code>; defaults come from
+<code>src/nim_utils/nim_config_schema.m</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>algorithm</code></td>
+<td><code>hinec</code></td>
+<td>must be <code>mmf</code> to select this tracker (the dispatch key)</td>
+</tr>
+<tr>
+<td><code>field</code></td>
+<td><code>dti</code></td>
+<td><code>dti</code> = tensor principal direction; <code>csd</code> = per-peak FOD connection</td>
+</tr>
+<tr>
+<td><code>integrator.method</code></td>
+<td><code>rk4</code></td>
+<td>numerical stepping scheme; <code>rk4</code> (fixed) or <code>rkf45</code> (adaptive)</td>
+</tr>
+<tr>
+<td><code>integrator.step</code></td>
+<td><code>0.2</code></td>
+<td>step in voxels (initial step for <code>rkf45</code>)</td>
+</tr>
+<tr>
+<td><code>interpolation.method</code></td>
+<td><code>trilinear</code></td>
+<td>kernel used to sample the stored connection field</td>
+</tr>
+<tr>
+<td><code>mmf.anchor</code></td>
+<td><code>0</code></td>
+<td><code>0</code> = pure Eq.10-11; <code>&gt;0</code> re-anchors <code>e1</code> to the field</td>
+</tr>
+<tr>
+<td><code>mmf.frame_sel_power</code></td>
+<td><code>16</code></td>
+<td>alignment selectivity of the tangent denoise when building the frames</td>
+</tr>
+<tr>
+<td><code>termination.angle_max</code></td>
+<td><code>225</code></td>
+<td>turn budget in degrees <strong>per voxel of arc</strong></td>
+</tr>
+<tr>
+<td><code>termination.fa_min</code></td>
+<td><code>0.10</code></td>
+<td>FA floor for propagation</td>
+</tr>
+<tr>
+<td><code>termination.min_arc</code></td>
+<td><code>15</code></td>
+<td>minimum track arc length, in <strong>voxels</strong></td>
+</tr>
+<tr>
+<td><code>termination.max_arc</code></td>
+<td><code>400</code></td>
+<td>maximum track arc length in voxels; <code>max_steps</code> is derived as <code>ceil(max_arc/step)</code></td>
+</tr>
+<tr>
+<td><code>csd.lmax</code>, <code>csd.max_peaks</code>, <code>csd.peak_thresh</code>, <code>csd.peak_min_sep</code></td>
+<td>see <a href="../TRACTOGRAPHY_METHODS/#csd-fod-reconstruction">CSD</a></td>
+<td>FOD peak extraction (only <code>field: csd</code>)</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title"><code>angle_max</code> is a rate, and it has a ceiling</p>
+<p><code>termination.angle_max</code> is degrees of turning per <strong>voxel of arc</strong>, so the budget for
+one step is <code>angle_max × step</code> and the criterion is step-invariant. Consecutive tangents
+are sign-aligned — <span class="arithmatex">\(e_1\)</span> names a line, not a ray — so a measured turn never exceeds
+90°. Any budget above that is <strong>inert</strong>, not merely loose: the shipped <code>mmf_dti.yml</code>
+setting of 225°/voxel goes inert for any step ≥ 0.4. <code>angle_max: 0</code> disables the
+criterion outright.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title"><code>algorithm</code> is the only dispatch key</p>
+<p><code>runTractography</code> dispatches purely on <code>algorithm</code>. <code>integrator.method</code> selects the
+stepping scheme <em>within</em> the chosen tracker; changing it never changes which tracker
+runs. Earlier configs carried <code>integrator: mmf</code> as a readability marker — that is no
+longer an accepted value.</p>
+</div>
+<hr />
+<h2 id="tests">Tests<a class="headerlink" href="#tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>tests/unit/TestConnectionForm.m</code> — <code>nim_connection_form</code> on analytic frame fields.</li>
+<li><code>tests/unit/TestBishopFrame.m</code> — <code>mmf_bishop_update</code> transport / orthonormality.</li>
+<li><code>tests/fixtures/make_synthetic_nim.m</code> — synthetic <code>nim</code> (known curvature/torsion) for the above.</li>
+</ul>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../TRACTOGRAPHY_METHODS/">Tractography Methods</a> — the three trackers and how they dispatch.</li>
+<li><a href="../YAML_CONFIG/">YAML Config</a> — full parameter reference.</li>
+<li><a href="../MATHEMATICAL_FOUNDATIONS/">Mathematical Foundations</a> — frames, connections, curvature.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,5712 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="HIgh-order NEural Connectivity — dMRI Tractography Pipeline">
+      
+      
+        <meta name="author" content="HINEC Team">
+      
+      
+      
+        <link rel="prev" href="../IRONTRACT_WORKFLOW/">
+      
+      
+        <link rel="next" href="../MATHEMATICAL_FOUNDATIONS/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>API Reference - HINEC Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#function-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="HINEC Documentation" class="md-header__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            HINEC Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              API Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../USER_GUIDE/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../PIPELINE/" class="md-tabs__link">
+          
+  
+  
+  Pipeline
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../TRACTOGRAPHY_METHODS/" class="md-tabs__link">
+          
+  
+  
+  Tractography
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../YAML_CONFIG/" class="md-tabs__link">
+          
+  
+  
+  Configuration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../VISUALIZATION_GUIDE/" class="md-tabs__link">
+          
+  
+  
+  Visualization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../CONVERGENCE/" class="md-tabs__link">
+          
+  
+  
+  Verification & Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ABOUT/" class="md-tabs__link">
+          
+  
+  
+  About
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="HINEC Documentation" class="md-nav__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    HINEC Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../USER_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PIPELINE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PREPROCESSING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RUN_DIRECTORY_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Directory System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tractography
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tractography
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY_METHODS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MMF_TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MMF Connection-Form
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standard (FACT)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../High_Order/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    High-Order Methods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Adaptive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF_Usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SEEDING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seeding Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hinec_tractography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Configuration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../YAML_CONFIG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YAML Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CHANGELOG_YAML/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VISUALIZATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REGION_VISUALIZATION_EXAMPLES/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Region Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DISTRIBUTED_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification & Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Verification & Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CONVERGENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solution Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ISMRM_SCORING_ANALYSIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ISMRM Scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_USAGE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IRONTRACT_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IronTract Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Entry Points
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Entry Points">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mainimgpath-nimpath-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        main(imgpath, nimpath, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtractographydata_path-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runTractography(data_path, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runhinec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runhinec
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-configuration-srcnim_utils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Configuration (src/nim_utils/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Configuration (src/nim_utils/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_schema()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#load_config_yamlconfig_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_config_yaml(config_file)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_yaml_parsefilename" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_yaml_parse(filename)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_to_optionsconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_to_options(config)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_apply_overridesconfig-sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_apply_overrides(config, sets)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_writeconfig-out_file-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_write(config, out_file, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_docsout_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_docs(out_file)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_retired" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_retired()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create_run_directoryconfig_file-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create_run_directory(config_file, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-data-io-srcnim_utils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Data I/O (src/nim_utils/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Data I/O (src/nim_utils/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_readdatapath-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_read(datapath, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_savenim-nimpath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_save(nim, nimpath)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_load_nimfile_prefix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_load_nim(file_prefix)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_load_labelsnim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_load_labels(nim)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_load_atlas_labelsatlas_type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_load_atlas_labels(atlas_type)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_atlas_label_mapnim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_atlas_label_map(nim)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_nifti_affinef" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_nifti_affine(f)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_read_trktrk_file-target_nii" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_read_trk(trk_file, target_nii)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-calculation-srcnim_calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Calculation (src/nim_calculation/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Calculation (src/nim_calculation/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_dt_spdnim-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_dt_spd(nim, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_dtnim-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_dt(nim, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_eignim-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_eig(nim, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_fanim-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_fa(nim, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_csdnim-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_csd(nim, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_mmf_geometrynim-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_mmf_geometry(nim, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_build_framesnim-options-and-nim_connection_formframes-mask-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_build_frames(nim, options) and nim_connection_form(frames, mask, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-preprocessing-srcnim_preprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Preprocessing (src/nim_preprocessing/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Preprocessing (src/nim_preprocessing/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_preprocessingfile_prefix-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_preprocessing(file_prefix, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#individual-preprocessing-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Individual preprocessing functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preproc_fieldmap_correction-optional-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        preproc_fieldmap_correction optional parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-registration-srcnim_registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Registration (src/nim_registration/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Registration (src/nim_registration/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_registrationdwi_file-t1_file-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_registration(dwi_file, t1_file, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#register_dti_to_t1registration_data-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_dti_to_t1(registration_data, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#register_t1_to_mniregistration_data-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_t1_to_mni(registration_data, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_apply_transformsinput_file-registration_data-transform_chain-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_apply_transforms(input_file, registration_data, transform_chain, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supporting-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supporting functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-parcellation-and-rois" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Parcellation and ROIs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Parcellation and ROIs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_parcellationnim-parcellation_file-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_parcellation(nim, parcellation_file, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_parcellation_registerednim-registration_data-parcellation_mask_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_parcellation_registered(nim, registration_data, parcellation_mask_file)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_parcellation_from_masksmask_dirs-ref_nii-target_dims" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_parcellation_from_masks(mask_dirs, ref_nii, target_dims)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_roi_masknim-roi_spec-dilate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_roi_mask(nim, roi_spec, dilate)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-tractography-srcnim_tractography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Tractography (src/nim_tractography/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Tractography (src/nim_tractography/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_tractography_standarddata_path-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_tractography_standard(data_path, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_tractography_hinecdata_path-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_tractography_hinec(data_path, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_tractography_mmf_connframenim-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_tractography_mmf_connframe(nim, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_tractography_highorderdata_path-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_tractography_highorder(data_path, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tractography-support-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tractography support functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tractography support functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_seed_offsetsdensity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_seed_offsets(density)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_angle_limitangle_rate-arc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_angle_limit(angle_rate, arc)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_principal_dirdxx-dyy-dzz-dxy-dxz-dyz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_principal_dir(Dxx, Dyy, Dzz, Dxy, Dxz, Dyz)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_resample_track_arctracks-arc_step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_resample_track_arc(tracks, arc_step)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_filter_tracks_roitracks-nim-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_filter_tracks_roi(tracks, nim, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_sifttracks-nim-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_sift(tracks, nim, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-solution-verification-srcnim_utils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Solution Verification (src/nim_utils/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Solution Verification (src/nim_utils/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_convergence_errortest_file-ref_file-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_convergence_error(test_file, ref_file, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-tractography-plotting-srcnim_tractography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Tractography Plotting (src/nim_tractography/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Tractography Plotting (src/nim_tractography/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_tractographytracks-nim-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_tractography(tracks, nim, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_tractography_regiontracks-nim-region_id-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_tractography_region(tracks, nim, region_id, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_connectivity_matrixtracks-nim-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_connectivity_matrix(tracks, nim, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_vector_fieldnim-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_vector_field(nim, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_excitation_time_mapnim-seed_points-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_excitation_time_map(nim, seed_points, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-visualization-srcnim_visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Visualization (src/nim_visualization/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Visualization (src/nim_visualization/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#visualizetractographyvarargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        visualizeTractography(varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#visualizetractographyslicestracks_file-nim_file-x-y-z-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        visualizeTractographySlices(tracks_file, nim_file, x, y, z, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#visualizetractographyanglesvarargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        visualizeTractographyAngles(varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_bundlesitems-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_bundles(items, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_vs_groundtruthtracks_src-gt_trk-ref_nii-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_vs_groundtruth(tracks_src, gt_trk, ref_nii, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slice-cache-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slice cache pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-general-plotting-and-utilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. General Plotting and Utilities
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. General Plotting and Utilities">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_plotnim-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot(nim, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srcnim_utils-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        src/nim_utils/ helpers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-challenge-submissions-srcnim_challenges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Challenge Submissions (src/nim_challenges/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13. Challenge Submissions (src/nim_challenges/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_irontract_submitnim_file-injection_file-output_dir-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_irontract_submit(nim_file, injection_file, output_dir, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-python-scripts-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Python Scripts (scripts/)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MATHEMATICAL_FOUNDATIONS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mathematical Foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCIENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Science Background
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ABOUT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Entry Points
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Entry Points">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mainimgpath-nimpath-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        main(imgpath, nimpath, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtractographydata_path-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runTractography(data_path, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runhinec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runhinec
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-configuration-srcnim_utils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Configuration (src/nim_utils/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Configuration (src/nim_utils/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_schema()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#load_config_yamlconfig_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_config_yaml(config_file)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_yaml_parsefilename" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_yaml_parse(filename)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_to_optionsconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_to_options(config)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_apply_overridesconfig-sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_apply_overrides(config, sets)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_writeconfig-out_file-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_write(config, out_file, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_docsout_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_docs(out_file)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_config_retired" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_config_retired()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create_run_directoryconfig_file-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create_run_directory(config_file, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-data-io-srcnim_utils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Data I/O (src/nim_utils/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Data I/O (src/nim_utils/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_readdatapath-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_read(datapath, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_savenim-nimpath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_save(nim, nimpath)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_load_nimfile_prefix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_load_nim(file_prefix)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_load_labelsnim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_load_labels(nim)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_load_atlas_labelsatlas_type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_load_atlas_labels(atlas_type)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_atlas_label_mapnim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_atlas_label_map(nim)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_nifti_affinef" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_nifti_affine(f)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_read_trktrk_file-target_nii" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_read_trk(trk_file, target_nii)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-calculation-srcnim_calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Calculation (src/nim_calculation/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Calculation (src/nim_calculation/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_dt_spdnim-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_dt_spd(nim, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_dtnim-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_dt(nim, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_eignim-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_eig(nim, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_fanim-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_fa(nim, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_csdnim-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_csd(nim, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_mmf_geometrynim-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_mmf_geometry(nim, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_build_framesnim-options-and-nim_connection_formframes-mask-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_build_frames(nim, options) and nim_connection_form(frames, mask, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-preprocessing-srcnim_preprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Preprocessing (src/nim_preprocessing/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Preprocessing (src/nim_preprocessing/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_preprocessingfile_prefix-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_preprocessing(file_prefix, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#individual-preprocessing-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Individual preprocessing functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preproc_fieldmap_correction-optional-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        preproc_fieldmap_correction optional parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-registration-srcnim_registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Registration (src/nim_registration/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Registration (src/nim_registration/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_registrationdwi_file-t1_file-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_registration(dwi_file, t1_file, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#register_dti_to_t1registration_data-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_dti_to_t1(registration_data, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#register_t1_to_mniregistration_data-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_t1_to_mni(registration_data, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_apply_transformsinput_file-registration_data-transform_chain-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_apply_transforms(input_file, registration_data, transform_chain, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supporting-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supporting functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-parcellation-and-rois" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Parcellation and ROIs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Parcellation and ROIs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_parcellationnim-parcellation_file-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_parcellation(nim, parcellation_file, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_parcellation_registerednim-registration_data-parcellation_mask_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_parcellation_registered(nim, registration_data, parcellation_mask_file)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_parcellation_from_masksmask_dirs-ref_nii-target_dims" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_parcellation_from_masks(mask_dirs, ref_nii, target_dims)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_roi_masknim-roi_spec-dilate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_roi_mask(nim, roi_spec, dilate)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-tractography-srcnim_tractography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Tractography (src/nim_tractography/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Tractography (src/nim_tractography/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_tractography_standarddata_path-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_tractography_standard(data_path, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_tractography_hinecdata_path-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_tractography_hinec(data_path, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_tractography_mmf_connframenim-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_tractography_mmf_connframe(nim, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_tractography_highorderdata_path-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_tractography_highorder(data_path, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tractography-support-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tractography support functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tractography support functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_seed_offsetsdensity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_seed_offsets(density)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_angle_limitangle_rate-arc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_angle_limit(angle_rate, arc)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_principal_dirdxx-dyy-dzz-dxy-dxz-dyz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_principal_dir(Dxx, Dyy, Dzz, Dxy, Dxz, Dyz)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_resample_track_arctracks-arc_step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_resample_track_arc(tracks, arc_step)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_filter_tracks_roitracks-nim-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_filter_tracks_roi(tracks, nim, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_sifttracks-nim-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_sift(tracks, nim, options)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-solution-verification-srcnim_utils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Solution Verification (src/nim_utils/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Solution Verification (src/nim_utils/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_convergence_errortest_file-ref_file-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_convergence_error(test_file, ref_file, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-tractography-plotting-srcnim_tractography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Tractography Plotting (src/nim_tractography/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Tractography Plotting (src/nim_tractography/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_tractographytracks-nim-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_tractography(tracks, nim, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_tractography_regiontracks-nim-region_id-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_tractography_region(tracks, nim, region_id, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_connectivity_matrixtracks-nim-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_connectivity_matrix(tracks, nim, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_vector_fieldnim-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_vector_field(nim, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_excitation_time_mapnim-seed_points-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_excitation_time_map(nim, seed_points, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-visualization-srcnim_visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Visualization (src/nim_visualization/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Visualization (src/nim_visualization/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#visualizetractographyvarargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        visualizeTractography(varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#visualizetractographyslicestracks_file-nim_file-x-y-z-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        visualizeTractographySlices(tracks_file, nim_file, x, y, z, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#visualizetractographyanglesvarargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        visualizeTractographyAngles(varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_bundlesitems-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_bundles(items, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nim_plot_vs_groundtruthtracks_src-gt_trk-ref_nii-opts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot_vs_groundtruth(tracks_src, gt_trk, ref_nii, opts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slice-cache-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slice cache pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-general-plotting-and-utilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. General Plotting and Utilities
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. General Plotting and Utilities">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_plotnim-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_plot(nim, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srcnim_utils-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        src/nim_utils/ helpers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-challenge-submissions-srcnim_challenges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Challenge Submissions (src/nim_challenges/)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13. Challenge Submissions (src/nim_challenges/)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nim_irontract_submitnim_file-injection_file-output_dir-varargin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_irontract_submit(nim_file, injection_file, output_dir, varargin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-python-scripts-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Python Scripts (scripts/)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="function-reference">Function Reference<a class="headerlink" href="#function-reference" title="Permanent link">&para;</a></h1>
+<p>Signatures, arguments, return values and defaults for the public functions in
+HINEC, organized by module. Parameter <em>semantics</em> for the YAML configuration
+surface live in <a href="../YAML_CONFIG/">YAML_CONFIG.md</a>, which is generated from
+<code>src/nim_utils/nim_config_schema.m</code>; this page covers the MATLAB interfaces.</p>
+<p>Two conventions run through the codebase and are worth stating once:</p>
+<ul>
+<li><strong>Voxel coordinates.</strong> Streamlines, seeds and masks are all in 1-based voxel
+  index space of the DWI grid. Only <code>nim_nifti_affine</code> and <code>nim_read_trk</code> deal in
+  world (RAS) millimetres.</li>
+<li><strong>Options structs, not name-value pairs.</strong> Most tractography and plotting
+  functions take a single <code>options</code> struct in <code>varargin{1}</code>. The visualization
+  entry points (<code>visualizeTractography</code>, <code>visualizeTractographySlices</code>,
+  <code>nim_plot</code>) are the exception and use <code>inputParser</code> name-value pairs.</li>
+</ul>
+<hr />
+<h2 id="1-entry-points">1. Entry Points<a class="headerlink" href="#1-entry-points" title="Permanent link">&para;</a></h2>
+<h3 id="mainimgpath-nimpath-varargin"><code>main(imgpath, nimpath, varargin)</code><a class="headerlink" href="#mainimgpath-nimpath-varargin" title="Permanent link">&para;</a></h3>
+<p><strong>File</strong>: <code>main.m</code></p>
+<p>Builds the processed <code>nim</code>: data loading, preprocessing, tensor fitting,
+eigendecomposition, FA, registration, parcellation and tissue segmentation.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>imgpath</code></td>
+<td>char/string</td>
+<td>Yes</td>
+<td>Path to the NIfTI image, without extension</td>
+</tr>
+<tr>
+<td><code>nimpath</code></td>
+<td>char/string</td>
+<td>Yes</td>
+<td>Path to save the processed <code>.mat</code> (must end in <code>.mat</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The trailing arguments are <strong>positional and type-dispatched</strong>, not name-value:</p>
+<table>
+<thead>
+<tr>
+<th>Position</th>
+<th>Accepted</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3rd</td>
+<td>struct with a <code>preprocessing</code> field</td>
+<td>YAML config; <code>t1_file</code> is derived from <code>preprocessing.t1_available</code></td>
+</tr>
+<tr>
+<td>3rd</td>
+<td>struct with a <code>run_dir</code> field</td>
+<td><code>run_info</code>; redirects all writes into the run directory</td>
+</tr>
+<tr>
+<td>3rd</td>
+<td>struct (other)</td>
+<td>Legacy options struct; <code>.t1_file</code> honored</td>
+</tr>
+<tr>
+<td>3rd</td>
+<td>char/string</td>
+<td>Legacy T1 file path</td>
+</tr>
+<tr>
+<td>4th</td>
+<td>struct with a <code>run_dir</code> field</td>
+<td><code>run_info</code>, when the 3rd argument was a config</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns</strong>: nothing; writes the <code>nim</code> struct to <code>nimpath</code>.</p>
+<p><strong>Behavior</strong>:</p>
+<ul>
+<li>Short-circuits if the output <code>.mat</code> already exists, and skips preprocessing if
+  the preprocessed <code>.nii.gz</code> exists. Delete the target to force reprocessing.</li>
+<li>Detects raw data by <code>_raw</code> in the filename and triggers preprocessing.</li>
+<li>Runs <code>nim_read</code> → <code>nim_dt_spd</code> → <code>nim_eig</code> → <code>nim_fa</code> → optional
+  <code>nim_registration</code> → parcellation → mask improvement → tissue segmentation →
+  <code>nim_save</code>.</li>
+<li>Adds every <code>src/nim_*</code> directory and <code>lib/spm12</code> to the MATLAB path, and
+  <code>char()</code>-converts path inputs.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">main</span><span class="p">(</span><span class="s">'data/sample'</span><span class="p">,</span><span class="w"> </span><span class="s">'output/sample.mat'</span><span class="p">);</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">main</span><span class="p">(</span><span class="s">'data/sample_raw'</span><span class="p">,</span><span class="w"> </span><span class="s">'output/sample.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'data/sample_T1.nii.gz'</span><span class="p">);</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">config</span><span class="w">   </span><span class="p">=</span><span class="w"> </span><span class="n">load_config_yaml</span><span class="p">(</span><span class="s">'config/ismrm2015.yml'</span><span class="p">);</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">run_info</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">create_run_directory</span><span class="p">(</span><span class="s">'config/ismrm2015.yml'</span><span class="p">);</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">main</span><span class="p">(</span><span class="s">'data/ismrm2015/ismrm2015'</span><span class="p">,</span><span class="w"> </span><span class="s">'ismrm2015.mat'</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">run_info</span><span class="p">);</span>
+</code></pre></div>
+<hr />
+<h3 id="runtractographydata_path-varargin"><code>runTractography(data_path, varargin)</code><a class="headerlink" href="#runtractographydata_path-varargin" title="Permanent link">&para;</a></h3>
+<p><strong>File</strong>: <code>runTractography.m</code></p>
+<p>Loads a processed <code>nim</code>, resolves the seed mask and ACT masks, dispatches to one
+of the three trackers, applies ROI filtering and output decimation, and saves.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data_path</code></td>
+<td>char</td>
+<td>Yes</td>
+<td>Path to the <code>.mat</code> holding the <code>nim</code> struct</td>
+</tr>
+</tbody>
+</table>
+<p>Again positional and type-dispatched:</p>
+<table>
+<thead>
+<tr>
+<th>Position</th>
+<th>Accepted</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2nd</td>
+<td>struct with a <code>tractography</code> field</td>
+<td>YAML config; the tracker comes from <code>tractography.algorithm</code></td>
+</tr>
+<tr>
+<td>2nd</td>
+<td>struct with a <code>run_dir</code> field</td>
+<td><code>run_info</code></td>
+</tr>
+<tr>
+<td>2nd</td>
+<td><code>'standard'</code> / <code>'hinec'</code> / <code>'mmf'</code></td>
+<td>Legacy algorithm selector</td>
+</tr>
+<tr>
+<td>2nd</td>
+<td><code>'IronTract'</code></td>
+<td>IronTract submission mode; requires an injection file and output directory as the 3rd and 4th arguments</td>
+</tr>
+<tr>
+<td>3rd</td>
+<td>struct with a <code>run_dir</code> field</td>
+<td><code>run_info</code>, when the 2nd argument was a config</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns</strong>: nothing.</p>
+<p><strong>Output</strong>: <code>tracks_{algorithm}_{yyyy-mm-dd_HH_MM_SS}.mat</code>, written to
+<code>run_info.tractography_dir</code> when a <code>run_info</code> is supplied and to
+<code>tractography_results/</code> otherwise. The file contains:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tracks</code></td>
+<td>Cell array of <span class="arithmatex">\(N \times 3\)</span> voxel-coordinate polylines</td>
+</tr>
+<tr>
+<td><code>options</code></td>
+<td>The flat option struct actually handed to the tracker</td>
+</tr>
+<tr>
+<td><code>elapsed_time</code></td>
+<td>Tracking wall time, seconds</td>
+</tr>
+<tr>
+<td><code>algorithm</code></td>
+<td><code>'standard'</code>, <code>'hinec'</code> or <code>'mmf'</code></td>
+</tr>
+<tr>
+<td><code>track_meta</code></td>
+<td><code>.seed_index</code>, <code>.seed_points</code>, <code>.n_seeds</code> — populated by <code>hinec</code>, empty otherwise</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Seed mask priority</strong> (first match wins, then intersected with the brain mask
+where available and with <code>seeding.fa_min</code>):</p>
+<ol>
+<li><code>seeding.roi</code> — explicit atlas regions, via <code>nim_roi_mask</code></li>
+<li><code>nim.mask</code> — the preprocessed brain mask</li>
+<li><code>nim.parcellation_mask</code>, dilated by 3 voxels</li>
+<li><code>nim.FA &gt; 0.10</code> — last-resort fallback</li>
+</ol>
+<p><strong>CSD provisioning</strong>: with <code>field: csd</code>, FOD peaks are computed by <code>nim_csd</code>
+before dispatch and cached alongside the source nim as <code>&lt;source&gt;_csd.mat</code>, so
+they are computed once per dataset and reused by every subsequent config.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">runTractography</span><span class="p">(</span><span class="s">'output/sample.mat'</span><span class="p">);</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">runTractography</span><span class="p">(</span><span class="s">'output/sample.mat'</span><span class="p">,</span><span class="w"> </span><span class="s">'hinec'</span><span class="p">);</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">runTractography</span><span class="p">(</span><span class="s">'output/sample.mat'</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">run_info</span><span class="p">);</span>
+</code></pre></div>
+<hr />
+<h3 id="runhinec"><code>runhinec</code><a class="headerlink" href="#runhinec" title="Permanent link">&para;</a></h3>
+<p><strong>File</strong>: <code>runhinec.m</code></p>
+<p>Demo <strong>script</strong> (not a function). Loads <code>sample_parcellated.mat</code> from the working
+directory and calls <code>nim_plot(nim, 'mode', 'parcels')</code>.</p>
+<hr />
+<h2 id="2-configuration-srcnim_utils">2. Configuration (<code>src/nim_utils/</code>)<a class="headerlink" href="#2-configuration-srcnim_utils" title="Permanent link">&para;</a></h2>
+<p><code>nim_config_schema</code> is the single source of truth for the configuration surface.
+Every other function in this section derives from it, which is what keeps the
+loader, the CLI overrides and the generated reference from drifting apart.</p>
+<h3 id="nim_config_schema"><code>nim_config_schema()</code><a class="headerlink" href="#nim_config_schema" title="Permanent link">&para;</a></h3>
+<p><strong>Returns</strong>: a struct array, one entry per configurable parameter, with fields
+<code>path</code> (canonical dotted path), <code>default</code>, <code>type</code>
+(<code>numeric</code>/<code>string</code>/<code>logical</code>/<code>list</code>), <code>allowed</code> (enum values), <code>range</code>
+(<code>[lo hi]</code> for numerics), <code>legacy</code> (superseded flat key names that migrate here),
+<code>algos</code> (which trackers read it) and <code>help</code>.</p>
+<p>Add or change a knob here, not in the trackers.</p>
+<h3 id="load_config_yamlconfig_file"><code>load_config_yaml(config_file)</code><a class="headerlink" href="#load_config_yamlconfig_file" title="Permanent link">&para;</a></h3>
+<p>Parses a YAML config, applies schema defaults, validates types, enums and ranges,
+migrates legacy flat keys, and rejects unknown keys. Returns a nested <code>config</code>
+struct with <code>.preprocessing</code> and <code>.tractography</code> sections.</p>
+<h3 id="nim_yaml_parsefilename"><code>nim_yaml_parse(filename)</code><a class="headerlink" href="#nim_yaml_parsefilename" title="Permanent link">&para;</a></h3>
+<p>Indentation-aware reader for the YAML subset HINEC uses: <code>section:</code> at column 0,
+<code>key: value</code> one level in, and <code>group:</code> / <code>key: value</code> two levels in. A third
+level of nesting is a hard error. Handles numbers, booleans, <code>null</code>/<code>~</code>, quoted
+and unquoted strings, inline lists <code>[a, b, c]</code>, and <code>#</code> comments outside quotes.
+Returns the raw nested struct with no defaults and no validation.</p>
+<h3 id="nim_config_to_optionsconfig"><code>nim_config_to_options(config)</code><a class="headerlink" href="#nim_config_to_optionsconfig" title="Permanent link">&para;</a></h3>
+<p>Flattens the canonical nested config into the flat option names the trackers
+read. This is the one place the legacy names live. Notable derivations:</p>
+<ul>
+<li><code>integrator.method</code> → <code>options.integration_order</code> (<code>euler</code>→1, <code>rk2</code>→2,
+  <code>rk4</code>→4, <code>rkf45</code>→5) — a method selector wearing a numeric name.</li>
+<li><code>options.adaptive_step</code> is true only for <code>rkf45</code> with <code>integrator.adaptive</code>.</li>
+<li><code>options.max_steps = ceil(termination.max_arc / integrator.step)</code>, so refining
+  the step cannot truncate tracks.</li>
+<li>Warns when <code>angle_max × step ≥ 90</code>, where the angle criterion is inert.</li>
+<li><code>sel_power</code> and <code>fa_threshold</code> are deliberately <strong>not</strong> emitted (see
+  <code>nim_config_retired</code>).</li>
+</ul>
+<h3 id="nim_config_apply_overridesconfig-sets"><code>nim_config_apply_overrides(config, sets)</code><a class="headerlink" href="#nim_config_apply_overridesconfig-sets" title="Permanent link">&para;</a></h3>
+<p>Applies CLI <code>--set key=value</code> overrides. Returns <code>[config, applied]</code>. Keys resolve
+in order: full canonical path (<code>tractography.integrator.step</code>), path with
+<code>tractography.</code> assumed (<code>integrator.step</code>), unique bare leaf name (<code>upsample</code>),
+then legacy alias (<code>step_size</code>, with a warning). An ambiguous bare leaf or an
+unknown key is an error, never a silent no-op. Values parse as YAML scalars plus
+lists (<code>[41,42]</code>, <code>41,42</code>, <code>SLF_L,SLF_R</code>).</p>
+<h3 id="nim_config_writeconfig-out_file-opts"><code>nim_config_write(config, out_file, opts)</code><a class="headerlink" href="#nim_config_writeconfig-out_file-opts" title="Permanent link">&para;</a></h3>
+<p>Writes a config back out as nested YAML. By default only values differing from
+the schema default are emitted; <code>opts.all = true</code> writes every key (for run
+manifests), and <code>opts.header</code> is a cell array of comment lines for the top.</p>
+<h3 id="nim_config_docsout_file"><code>nim_config_docs(out_file)</code><a class="headerlink" href="#nim_config_docsout_file" title="Permanent link">&para;</a></h3>
+<p>Generates the configuration reference from the schema. <code>nim_config_docs()</code>
+returns the markdown; <code>nim_config_docs('docs/YAML_CONFIG.md')</code> writes it.</p>
+<div class="admonition warning">
+<p class="admonition-title"><code>docs/YAML_CONFIG.md</code> is generated</p>
+<p>Do not edit it by hand — regenerate it from the schema instead.</p>
+</div>
+<h3 id="nim_config_retired"><code>nim_config_retired()</code><a class="headerlink" href="#nim_config_retired" title="Permanent link">&para;</a></h3>
+<p>Returns the keys that were once accepted and now do nothing, each with the reason.
+The loader warns and drops them rather than silently remapping them, since they
+had no functional effect and mapping them anywhere would change behavior.</p>
+<h3 id="create_run_directoryconfig_file-varargin"><code>create_run_directory(config_file, varargin)</code><a class="headerlink" href="#create_run_directoryconfig_file-varargin" title="Permanent link">&para;</a></h3>
+<p>Creates a timestamped, self-contained run directory.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config_file</code></td>
+<td>char</td>
+<td>—</td>
+<td>YAML config used for this run (copied in)</td>
+</tr>
+<tr>
+<td><code>'base_dir'</code></td>
+<td>char</td>
+<td><code>'hinec_runs'</code></td>
+<td>Parent directory</td>
+</tr>
+<tr>
+<td><code>'run_name'</code></td>
+<td>char</td>
+<td>auto</td>
+<td>Custom run name</td>
+</tr>
+<tr>
+<td><code>'description'</code></td>
+<td>char</td>
+<td><code>''</code></td>
+<td>Recorded in the run metadata</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns</strong>: <code>run_info</code> with <code>.run_dir</code>, <code>.config_file</code>, <code>.logs_dir</code>,
+<code>.intermediate_dir</code>, <code>.output_dir</code>, <code>.tractography_dir</code>, <code>.diagnostics_dir</code>,
+<code>.run_id</code>, <code>.timestamp</code>. Creates the subdirectory tree, copies the config,
+records git information and updates a <code>latest</code> symlink.</p>
+<p>Code that writes outputs branches on <code>use_run_dir = ~isempty(fieldnames(run_info))</code>;
+preserve that branch when extending it.</p>
+<hr />
+<h2 id="3-data-io-srcnim_utils">3. Data I/O (<code>src/nim_utils/</code>)<a class="headerlink" href="#3-data-io-srcnim_utils" title="Permanent link">&para;</a></h2>
+<h3 id="nim_readdatapath-opts"><code>nim_read(datapath, opts)</code><a class="headerlink" href="#nim_readdatapath-opts" title="Permanent link">&para;</a></h3>
+<p>Reads NIfTI-1 diffusion data together with its acquisition parameters. <code>opts</code> are
+name-value arguments.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BvalPath</code>, <code>BvecPath</code>, <code>MaskPath</code></td>
+<td>string</td>
+<td>derived from <code>datapath</code></td>
+<td>Explicit overrides</td>
+</tr>
+<tr>
+<td><code>Mask</code>, <code>Bval</code>, <code>Bvec</code></td>
+<td><code>"on"</code>/<code>"off"</code></td>
+<td><code>"on"</code></td>
+<td>Whether to read each sidecar</td>
+</tr>
+<tr>
+<td><code>B0Threshold</code></td>
+<td>double</td>
+<td><code>5</code></td>
+<td>Volumes with <code>bval &lt; B0Threshold</code> are b0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns</strong> <code>nim</code> with:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.img</code></td>
+<td>4D image data, <code>[X Y Z N]</code></td>
+</tr>
+<tr>
+<td><code>.img_b0</code></td>
+<td>Mean of the b0 volumes</td>
+</tr>
+<tr>
+<td><code>.img_bi</code></td>
+<td>The diffusion-weighted volumes, as double</td>
+</tr>
+<tr>
+<td><code>.bval</code>, <code>.bvec</code></td>
+<td>B-values and gradient directions</td>
+</tr>
+<tr>
+<td><code>.hdr</code></td>
+<td><code>niftiinfo</code> header</td>
+</tr>
+<tr>
+<td><code>.mask</code></td>
+<td>Brain mask, if <code>{name}_M.nii.gz</code> exists</td>
+</tr>
+<tr>
+<td><code>.xdim</code>, <code>.ydim</code>, <code>.zdim</code>, <code>.size3</code></td>
+<td>Volume dimensions and their product</td>
+</tr>
+<tr>
+<td><code>.size_b0</code>, <code>.size_bi</code></td>
+<td>Number of b0 and diffusion-weighted volumes</td>
+</tr>
+<tr>
+<td><code>.thrsh_b0</code></td>
+<td>The b0 threshold actually used</td>
+</tr>
+</tbody>
+</table>
+<p>Both the standard single-line <code>.bval</code>/<code>.bvec</code> layout and the IronTract
+one-value-per-line layout are detected automatically.</p>
+<h3 id="nim_savenim-nimpath"><code>nim_save(nim, nimpath)</code><a class="headerlink" href="#nim_savenim-nimpath" title="Permanent link">&para;</a></h3>
+<p>Saves the <code>nim</code> struct. Uses MATLAB v7.3 (HDF5) when the struct exceeds 1900 MB,
+which is the practical limit of the default format, and the default format below
+that.</p>
+<h3 id="nim_load_nimfile_prefix"><code>nim_load_nim(file_prefix)</code><a class="headerlink" href="#nim_load_nimfile_prefix" title="Permanent link">&para;</a></h3>
+<p>Loads a previously saved <code>nim</code> together with its mask, parcellation mask and atlas
+labels.</p>
+<h3 id="nim_load_labelsnim"><code>nim_load_labels(nim)</code><a class="headerlink" href="#nim_load_labelsnim" title="Permanent link">&para;</a></h3>
+<p>Populates <code>nim.atlas_labels</code> from the atlas referenced by
+<code>nim.parcellation_mask_file</code>, searching for FSL XML and <code>.mat</code> label files.</p>
+<h3 id="nim_load_atlas_labelsatlas_type"><code>nim_load_atlas_labels(atlas_type)</code><a class="headerlink" href="#nim_load_atlas_labelsatlas_type" title="Permanent link">&para;</a></h3>
+<p>Reads an FSL atlas XML directly. <code>atlas_type</code> is <code>'HarvardOxford'</code>, <code>'JHU'</code> or
+<code>'JHU-tract'</code>. Returns a struct with <code>.map</code> (a <code>containers.Map</code>) and <code>.atlas_type</code>.</p>
+<h3 id="nim_atlas_label_mapnim"><code>nim_atlas_label_map(nim)</code><a class="headerlink" href="#nim_atlas_label_mapnim" title="Permanent link">&para;</a></h3>
+<p>Returns the atlas index → region name map for a <code>nim</code>, resolving in order: a map
+embedded in the nim, the sidecar <code>&lt;prefix&gt;_atlas_labels.mat</code> if recorded, then
+<code>nim_load_atlas_labels</code>. Errors with an actionable message rather than returning
+an empty map.</p>
+<h3 id="nim_nifti_affinef"><code>nim_nifti_affine(f)</code><a class="headerlink" href="#nim_nifti_affinef" title="Permanent link">&para;</a></h3>
+<p>Returns the <span class="arithmatex">\(4 \times 4\)</span> voxel-to-world affine of a NIfTI-1 file, mapping
+<strong>0-based</strong> voxel indices to world RAS millimetres. Prefers the sform and falls
+back to the qform, since roughly a third of the ISMRM 2015 ground-truth ROI masks
+set <code>sform_code = 0</code> and describe their geometry only through the qform
+quaternion; reading <code>srow</code> blindly returns zeros for those and silently places
+them at the origin. Read from the raw header rather than through a toolbox,
+because toolboxes disagree on whether their affine is 0- or 1-based.</p>
+<h3 id="nim_read_trktrk_file-target_nii"><code>nim_read_trk(trk_file, target_nii)</code><a class="headerlink" href="#nim_read_trktrk_file-target_nii" title="Permanent link">&para;</a></h3>
+<p>Reads a TrackVis <code>.trk</code> file into a cell array of <span class="arithmatex">\(N \times 3\)</span> tracks, plus the
+header. With <code>target_nii</code>, streamlines are resampled into that volume's voxel grid
+via world RAS, which is the only frame the two files agree on:</p>
+<div class="arithmatex">\[
+\text{ras} = \mathbf{M}_{\text{vox}\to\text{ras}}\,[\,p / \text{voxel size}\,],
+\qquad
+\text{vox}_{\text{target}} = \mathbf{S}^{-1}\,\text{ras} + 1 .
+\]</div>
+<p>Without it, points come back in the TRK's own voxel units. The transform matters:
+the ISMRM 2015 ground truth is 1 mm <span class="arithmatex">\(180\times216\times180\)</span> while this pipeline's
+DWI is 2 mm <span class="arithmatex">\(90\times108\times90\)</span>, and plotting the two together untransformed
+draws the ground truth at half scale in a corner of the volume.</p>
+<hr />
+<h2 id="4-calculation-srcnim_calculation">4. Calculation (<code>src/nim_calculation/</code>)<a class="headerlink" href="#4-calculation-srcnim_calculation" title="Permanent link">&para;</a></h2>
+<h3 id="nim_dt_spdnim-opts"><code>nim_dt_spd(nim, opts)</code><a class="headerlink" href="#nim_dt_spdnim-opts" title="Permanent link">&para;</a></h3>
+<p>Tensor fitting with an SPD constraint.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nim</code></td>
+<td>struct</td>
+<td>—</td>
+<td>Needs <code>.img</code>, <code>.bval</code>, <code>.bvec</code></td>
+</tr>
+<tr>
+<td><code>opts.Mask</code></td>
+<td>string</td>
+<td><code>"on"</code></td>
+<td>Restrict the fit to the brain mask</td>
+</tr>
+<tr>
+<td><code>opts.Steps</code></td>
+<td>int</td>
+<td>2000</td>
+<td>BFGS iteration cap</td>
+</tr>
+<tr>
+<td><code>opts.FontSize</code></td>
+<td>int</td>
+<td>16</td>
+<td>Diagnostic plot font size</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns</strong> <code>nim</code> with <code>.DT</code> <code>[X Y Z 6]</code>, <code>.evec</code> <code>[X Y Z 3 3]</code> and <code>.eval</code>
+<code>[X Y Z 3]</code> sorted descending.</p>
+<p>Per voxel: compute the ADC <span class="arithmatex">\(Y = \ln(S_0/S)/b\)</span>, build the design matrix <span class="arithmatex">\(H\)</span>, solve
+<span class="arithmatex">\(D = H \backslash Y\)</span>, and if any eigenvalue is negative re-solve by BFGS over a
+Cholesky parameterization (<code>lib/bfgs/vox_dt_bfgs.m</code>), which cannot produce a
+non-SPD tensor. NaN, Inf and unrealistic eigenvalues (&gt; 0.01) are rejected;
+eigenvalues are then sorted with <code>maxk</code>.</p>
+<h3 id="nim_dtnim-opts"><code>nim_dt(nim, opts)</code><a class="headerlink" href="#nim_dtnim-opts" title="Permanent link">&para;</a></h3>
+<p>Plain least-squares tensor fitting with no SPD enforcement. Returns <code>nim</code> with
+<code>.DT</code> and reports the count of non-positive-definite tensors without correcting
+them.</p>
+<h3 id="nim_eignim-opts"><code>nim_eig(nim, opts)</code><a class="headerlink" href="#nim_eignim-opts" title="Permanent link">&para;</a></h3>
+<p>Eigendecomposition of <code>.DT</code>. Returns <code>.evec</code> (columns ordered by eigenvalue) and
+<code>.eval</code> (descending).</p>
+<h3 id="nim_fanim-opts"><code>nim_fa(nim, opts)</code><a class="headerlink" href="#nim_fanim-opts" title="Permanent link">&para;</a></h3>
+<p>Fractional anisotropy from <code>.eval</code>. Returns <code>.FA</code> in <span class="arithmatex">\([0, 1]\)</span>, with FA set to 0
+where all eigenvalues vanish.</p>
+<h3 id="nim_csdnim-options"><code>nim_csd(nim, options)</code><a class="headerlink" href="#nim_csdnim-options" title="Permanent link">&para;</a></h3>
+<p>Single-shell, single-tissue constrained spherical deconvolution (Tournier 2007),
+implemented natively in MATLAB: real spherical-harmonic fit of the DW signal, a
+single-fiber response estimated from high-FA voxels, iterative non-negativity
+deconvolution, then peak extraction.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lmax</code></td>
+<td>6</td>
+<td>SH order, capped by the number of directions</td>
+</tr>
+<tr>
+<td><code>sf_fa</code></td>
+<td>0.7</td>
+<td>FA threshold for response-function voxels</td>
+</tr>
+<tr>
+<td><code>fod_lambda</code></td>
+<td>1.0</td>
+<td>Non-negativity regularisation weight</td>
+</tr>
+<tr>
+<td><code>fod_thresh</code></td>
+<td>0.1 × mean</td>
+<td>FOD amplitude treated as negative</td>
+</tr>
+<tr>
+<td><code>n_iter</code></td>
+<td>50</td>
+<td>Deconvolution iterations</td>
+</tr>
+<tr>
+<td><code>peak_thresh</code></td>
+<td>0.1</td>
+<td>Minimum peak amplitude, as a fraction of the max FOD</td>
+</tr>
+<tr>
+<td><code>peak_min_sep</code></td>
+<td>25</td>
+<td>Minimum angular peak separation, degrees</td>
+</tr>
+<tr>
+<td><code>max_peaks</code></td>
+<td>3</td>
+<td>Peaks kept per voxel</td>
+</tr>
+<tr>
+<td><code>response</code></td>
+<td>—</td>
+<td>Precomputed zonal response, to skip estimation</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns</strong> <code>nim</code> with <code>.peaks</code>, <code>.npeaks</code>, <code>.peak_w</code>, <code>.fod_sh</code> and <code>.response</code>
+— the same interface the trackers consume for DTI, so the two direction sources
+are interchangeable upstream of tractography.</p>
+<div class="admonition note">
+<p class="admonition-title">Defaults differ between <code>nim_csd</code> and the config</p>
+<p><code>runTractography</code> passes the schema's <code>csd.*</code> values, which are stricter than
+<code>nim_csd</code>'s own defaults: <code>peak_thresh</code> 0.5 and <code>peak_min_sep</code> 45.</p>
+</div>
+<h3 id="nim_mmf_geometrynim-options"><code>nim_mmf_geometry(nim, options)</code><a class="headerlink" href="#nim_mmf_geometrynim-options" title="Permanent link">&para;</a></h3>
+<p>Builds the moving-frame geometry over the whole domain and stores it in the <code>nim</code>
+(Chun &amp; Peng, in preparation). Constructs the denoised tangent field <span class="arithmatex">\(e_1\)</span>, the
+Frenet normal <span class="arithmatex">\(e_2 = (de_1/ds)/\lVert de_1/ds \rVert\)</span> with a reference-axis
+fallback where the curvature vanishes, <span class="arithmatex">\(e_3 = e_1 \times e_2\)</span>, and the connection
+1-form of the frame field.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>frame_sel_power</code></td>
+<td>16</td>
+<td>Trajectory-dependent denoising selectivity</td>
+</tr>
+<tr>
+<td><code>field</code></td>
+<td><code>'dti'</code></td>
+<td><code>'csd'</code> builds the per-peak connection from FOD peaks instead</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns</strong> <code>nim</code> with <code>.mmf_frames</code> <code>[X Y Z 3 3]</code>, <code>.mmf_kappa</code> <code>[X Y Z 3]</code>,
+<code>.mmf_tau</code> <code>[X Y Z]</code>, <code>.mmf_built</code> and <code>.mmf_field</code> (stamped from what was
+actually built, so the tracer can tell DTI geometry from CSD geometry).</p>
+<h3 id="nim_build_framesnim-options-and-nim_connection_formframes-mask-options"><code>nim_build_frames(nim, options)</code> and <code>nim_connection_form(frames, mask, options)</code><a class="headerlink" href="#nim_build_framesnim-options-and-nim_connection_formframes-mask-options" title="Permanent link">&para;</a></h3>
+<p>The two components <code>nim_mmf_geometry</code> composes: the frame field, and the
+connection 1-form derived from it.</p>
+<hr />
+<h2 id="5-preprocessing-srcnim_preprocessing">5. Preprocessing (<code>src/nim_preprocessing/</code>)<a class="headerlink" href="#5-preprocessing-srcnim_preprocessing" title="Permanent link">&para;</a></h2>
+<h3 id="nim_preprocessingfile_prefix-varargin"><code>nim_preprocessing(file_prefix, varargin)</code><a class="headerlink" href="#nim_preprocessingfile_prefix-varargin" title="Permanent link">&para;</a></h3>
+<p>FSL-driven preprocessing orchestrator. Takes an options struct (or the legacy
+positional <code>run_eddy</code>, <code>atlas_type</code> form) and writes its outputs to disk; it
+returns nothing.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.run_denoising</code></td>
+<td>true</td>
+<td>Denoise before tensor fitting</td>
+</tr>
+<tr>
+<td><code>.denoise_method</code></td>
+<td><code>'dwidenoise'</code></td>
+<td><code>'dwidenoise'</code>, <code>'nlmeans'</code> or <code>'gaussian'</code></td>
+</tr>
+<tr>
+<td><code>.run_motion_correction</code></td>
+<td>true</td>
+<td>MCFLIRT motion correction</td>
+</tr>
+<tr>
+<td><code>.run_eddy</code></td>
+<td>true</td>
+<td>FSL <code>eddy</code></td>
+</tr>
+<tr>
+<td><code>.improve_mask</code></td>
+<td>true</td>
+<td>FA-based mask refinement</td>
+</tr>
+<tr>
+<td><code>.atlas_type</code></td>
+<td><code>'HarvardOxford'</code></td>
+<td>Atlas for parcellation</td>
+</tr>
+<tr>
+<td><code>.phase_encoding_direction</code></td>
+<td><code>""</code></td>
+<td>Phase-encoding axis for <code>eddy</code>, e.g. <code>'j-'</code></td>
+</tr>
+<tr>
+<td><code>.total_readout_time</code></td>
+<td><code>[]</code></td>
+<td>Readout time, seconds</td>
+</tr>
+<tr>
+<td><code>.eddy_index_vector</code></td>
+<td><code>[]</code></td>
+<td>Per-volume acquisition indices</td>
+</tr>
+</tbody>
+</table>
+<h3 id="individual-preprocessing-functions">Individual preprocessing functions<a class="headerlink" href="#individual-preprocessing-functions" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Signature</th>
+<th>FSL tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>preproc_denoising</code></td>
+<td><code>(dwi_file, file_prefix, method)</code></td>
+<td>dwidenoise / SUSAN</td>
+<td>Remove thermal noise</td>
+</tr>
+<tr>
+<td><code>preproc_extract_b0</code></td>
+<td><code>(dwi_file, output_dir)</code></td>
+<td>fslroi</td>
+<td>Extract the b0 reference</td>
+</tr>
+<tr>
+<td><code>preproc_motion_correction</code></td>
+<td><code>(dwi_file, bvec_file, bval_file, file_prefix)</code></td>
+<td>mcflirt</td>
+<td>Correct head motion</td>
+</tr>
+<tr>
+<td><code>preproc_eddy_correction</code></td>
+<td><code>(dwi_file, brain_mask_file, bvec_file, bval_file, acqp_file, index_file, file_prefix)</code></td>
+<td>eddy</td>
+<td>Correct eddy currents</td>
+</tr>
+<tr>
+<td><code>preproc_brain_extraction</code></td>
+<td><code>(dwi_or_b0_file, output_dir, brain_mask_file)</code></td>
+<td>BET (<code>-f 0.3</code>)</td>
+<td>Generate the brain mask</td>
+</tr>
+<tr>
+<td><code>preproc_t1_brain_extraction</code></td>
+<td><code>(t1_file, output_dir)</code></td>
+<td>BET (<code>-f 0.4 -R</code>)</td>
+<td>Extract the T1 brain</td>
+</tr>
+<tr>
+<td><code>preproc_fieldmap_correction</code></td>
+<td><code>(dwi_file, fieldmap_file, output_prefix, varargin)</code></td>
+<td>FUGUE</td>
+<td>Correct field inhomogeneity</td>
+</tr>
+<tr>
+<td><code>preproc_mask_improvement</code></td>
+<td><code>(brain_mask_file, fa_data, file_prefix)</code></td>
+<td>BET + fslmaths</td>
+<td>FA-based mask refinement</td>
+</tr>
+<tr>
+<td><code>preproc_tissue_segmentation</code></td>
+<td><code>(fa_data, brain_mask_file, file_prefix, t1_file)</code></td>
+<td>fslmaths</td>
+<td>WM/GM/CSF classification</td>
+</tr>
+<tr>
+<td><code>preproc_create_dwi_reference</code></td>
+<td><code>(dwi_file, brain_mask_file, output_dir, file_prefix)</code></td>
+<td>fslroi + fslmaths</td>
+<td>Clean DWI reference volume</td>
+</tr>
+<tr>
+<td><code>preproc_t1_dwi_registration</code></td>
+<td><code>(dwi_ref_file, t1_file, t1_brain_file, output_dir, file_prefix)</code></td>
+<td>epi_reg</td>
+<td>T1 ↔ DWI transform</td>
+</tr>
+<tr>
+<td><code>preproc_t1_mni_registration</code></td>
+<td><code>(t1_file, t1_brain_file, output_dir, file_prefix)</code></td>
+<td>FLIRT + FNIRT</td>
+<td>T1 → MNI warp</td>
+</tr>
+<tr>
+<td><code>preproc_atlas_resampling</code></td>
+<td><code>(reference_file, output_dir, file_prefix, atlas_type, options)</code></td>
+<td>applywarp / flirt</td>
+<td>Atlas into DWI space</td>
+</tr>
+<tr>
+<td><code>preproc_cleanup</code></td>
+<td><code>(output_dir, file_prefix, keep_files)</code></td>
+<td>—</td>
+<td>Remove intermediate files</td>
+</tr>
+</tbody>
+</table>
+<p>Returns worth noting: <code>preproc_tissue_segmentation</code> returns
+<code>[wm_mask_file, gm_mask_file, csf_mask_file]</code>, and <code>preproc_atlas_resampling</code>
+returns <code>[parcellation_mask_output, atlas_labels_file]</code>.</p>
+<p><strong>Tissue thresholds</strong>: WM <code>FA &gt; 0.2</code> (then eroded), GM <code>0.05 &lt; FA ≤ 0.2</code>, CSF
+<code>FA ≤ 0.05</code>.</p>
+<h3 id="preproc_fieldmap_correction-optional-parameters"><code>preproc_fieldmap_correction</code> optional parameters<a class="headerlink" href="#preproc_fieldmap_correction-optional-parameters" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>'TE'</code></td>
+<td>double</td>
+<td>auto-detect</td>
+<td>Echo time difference</td>
+</tr>
+<tr>
+<td><code>'dwell_time'</code></td>
+<td>double</td>
+<td>0.00058</td>
+<td>Effective echo spacing, seconds</td>
+</tr>
+<tr>
+<td><code>'phase_dir'</code></td>
+<td>char</td>
+<td><code>'y'</code></td>
+<td>Phase-encoding direction</td>
+</tr>
+<tr>
+<td><code>'units'</code></td>
+<td>char</td>
+<td>auto-detect</td>
+<td><code>'Hz'</code> or <code>'rad/s'</code></td>
+</tr>
+<tr>
+<td><code>'smooth_sigma'</code></td>
+<td>double</td>
+<td>2.0</td>
+<td>Field map smoothing, mm</td>
+</tr>
+<tr>
+<td><code>'mask_file'</code></td>
+<td>char</td>
+<td>auto-generate</td>
+<td>Brain mask path</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-registration-srcnim_registration">6. Registration (<code>src/nim_registration/</code>)<a class="headerlink" href="#6-registration-srcnim_registration" title="Permanent link">&para;</a></h2>
+<h3 id="nim_registrationdwi_file-t1_file-varargin"><code>nim_registration(dwi_file, t1_file, varargin)</code><a class="headerlink" href="#nim_registrationdwi_file-t1_file-varargin" title="Permanent link">&para;</a></h3>
+<p>Multi-modal registration orchestrator. Returns a <code>registration_data</code> struct
+carrying <code>.transforms</code>, <code>.registered_images</code> and <code>.quality_metrics</code>.</p>
+<h3 id="register_dti_to_t1registration_data-options"><code>register_dti_to_t1(registration_data, options)</code><a class="headerlink" href="#register_dti_to_t1registration_data-options" title="Permanent link">&para;</a></h3>
+<p>DTI → T1. FSL backend uses FLIRT with 6 DOF and a correlation-ratio cost; an SPM
+backend is also available. Returns the updated <code>registration_data</code>.</p>
+<h3 id="register_t1_to_mniregistration_data-options"><code>register_t1_to_mni(registration_data, options)</code><a class="headerlink" href="#register_t1_to_mniregistration_data-options" title="Permanent link">&para;</a></h3>
+<p>T1 → MNI152 in two stages: linear FLIRT (12 DOF), then optional non-linear FNIRT.
+Returns the updated <code>registration_data</code>, including inverse warps.</p>
+<h3 id="nim_apply_transformsinput_file-registration_data-transform_chain-varargin"><code>nim_apply_transforms(input_file, registration_data, transform_chain, varargin)</code><a class="headerlink" href="#nim_apply_transformsinput_file-registration_data-transform_chain-varargin" title="Permanent link">&para;</a></h3>
+<p>Applies a chain of transforms between coordinate spaces.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>input_file</code></td>
+<td>char</td>
+<td>Image to transform</td>
+</tr>
+<tr>
+<td><code>registration_data</code></td>
+<td>struct</td>
+<td>Transforms from the registration pipeline</td>
+</tr>
+<tr>
+<td><code>transform_chain</code></td>
+<td>cell</td>
+<td>Sequence, e.g. <code>{'mni_to_t1', 't1_to_dti'}</code></td>
+</tr>
+<tr>
+<td><code>options</code></td>
+<td>struct</td>
+<td><code>.output_file</code>, <code>.interpolation</code> (<code>'linear'</code>/<code>'nearest'</code>/<code>'spline'</code>), <code>.method</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns</strong>: <code>output_file</code>, the path to the transformed image.</p>
+<h3 id="supporting-functions">Supporting functions<a class="headerlink" href="#supporting-functions" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Signature</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>extract_reference_volumes</code></td>
+<td><code>(registration_data, options)</code></td>
+<td>Extract the b0 volume from the DWI</td>
+</tr>
+<tr>
+<td><code>compute_registration_quality</code></td>
+<td><code>(registration_data, options)</code></td>
+<td>Score alignment</td>
+</tr>
+<tr>
+<td><code>compute_normalized_mutual_information</code></td>
+<td><code>(img1, img2)</code></td>
+<td>NMI between two volumes</td>
+</tr>
+<tr>
+<td><code>save_registration_data</code></td>
+<td><code>(registration_data, options)</code></td>
+<td>Persist the results</td>
+</tr>
+<tr>
+<td><code>generate_registration_report</code></td>
+<td><code>(registration_data, options)</code></td>
+<td>HTML quality report</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-parcellation-and-rois">7. Parcellation and ROIs<a class="headerlink" href="#7-parcellation-and-rois" title="Permanent link">&para;</a></h2>
+<h3 id="nim_parcellationnim-parcellation_file-varargin"><code>nim_parcellation(nim, parcellation_file, varargin)</code><a class="headerlink" href="#nim_parcellationnim-parcellation_file-varargin" title="Permanent link">&para;</a></h3>
+<p><strong>File</strong>: <code>src/nim_parcellation/nim_parcellation.m</code></p>
+<p>Loads a parcellation NIfTI, or generates one from an MNI atlas if the file is
+absent. <code>varargin{1}</code> is an options struct with <code>.dwi_file</code> (required for
+generation), <code>.atlas_type</code> (<code>'jhu'</code> default, plus <code>'HarvardOxford'</code> and <code>'aal'</code>)
+and <code>.force_regenerate</code>. Returns <code>nim</code> with <code>.parcellation_mask</code>,
+<code>.parcellation_mask_file</code> and <code>.labels</code>, handling dimension mismatches
+automatically.</p>
+<h3 id="nim_parcellation_registerednim-registration_data-parcellation_mask_file"><code>nim_parcellation_registered(nim, registration_data, parcellation_mask_file)</code><a class="headerlink" href="#nim_parcellation_registerednim-registration_data-parcellation_mask_file" title="Permanent link">&para;</a></h3>
+<p><strong>File</strong>: <code>src/nim_parcellation/nim_parcellation_registered.m</code></p>
+<p>Parcellation through the full registration chain (MNI → T1 → DWI). Returns <code>nim</code>
+with <code>.parcellation_mask</code> and <code>.parcellation_info</code> (quality metrics, atlas type,
+coverage).</p>
+<h3 id="nim_parcellation_from_masksmask_dirs-ref_nii-target_dims"><code>nim_parcellation_from_masks(mask_dirs, ref_nii, target_dims)</code><a class="headerlink" href="#nim_parcellation_from_masksmask_dirs-ref_nii-target_dims" title="Permanent link">&para;</a></h3>
+<p><strong>File</strong>: <code>src/nim_utils/nim_parcellation_from_masks.m</code></p>
+<p>Builds a parcellation from a directory of binary mask volumes, resampled
+nearest-neighbor through the two sforms into the target grid.</p>
+<p><strong>Returns</strong> a struct with <code>.labels</code> (integer label volume), <code>.map</code> (label →
+name), <code>.masks</code> (name → logical volume, overlaps intact) and <code>.overlap</code> (a report
+on how much the source masks overlap).</p>
+<p>Both <code>.labels</code> and <code>.masks</code> exist because anatomical bundles genuinely overlap —
+a temporal-stem voxel can belong to the uncinate, the inferior longitudinal
+fasciculus and the corpus callosum at once — and an integer label volume cannot
+represent that. Overlap in <code>.labels</code> is resolved smallest-region-wins, so a large
+structure cannot swallow every small bundle crossing it.</p>
+<h3 id="nim_roi_masknim-roi_spec-dilate"><code>nim_roi_mask(nim, roi_spec, dilate)</code><a class="headerlink" href="#nim_roi_masknim-roi_spec-dilate" title="Permanent link">&para;</a></h3>
+<p><strong>File</strong>: <code>src/nim_utils/nim_roi_mask.m</code></p>
+<p>Builds a binary mask from a list of atlas regions. <code>roi_spec</code> freely mixes numeric
+indices and names; names match case-insensitively by exact match, then unique
+substring, then short alias (<code>SLF_L</code>, <code>CST_R</code>, <code>CC_genu</code>). <code>dilate</code> (default 0)
+grows the result with a spherical structuring element — often necessary rather
+than cosmetic, since the JHU parcellation is thin (9,641 labelled voxels in the
+ISMRM data, of which the uncinate is 23–24).</p>
+<p><strong>Returns</strong> <code>[mask, info]</code>, where <code>info</code> carries per-label voxel counts at each
+stage so an empty result can be diagnosed rather than guessed at.</p>
+<hr />
+<h2 id="8-tractography-srcnim_tractography">8. Tractography (<code>src/nim_tractography/</code>)<a class="headerlink" href="#8-tractography-srcnim_tractography" title="Permanent link">&para;</a></h2>
+<p>All three trackers take a <code>nim</code> struct or a path to one, plus a single flat
+<code>options</code> struct. In normal use <code>runTractography</code> produces that struct from the
+config via <code>nim_config_to_options</code>; the tables below give both the config key you
+set and the option field the tracker reads.</p>
+<h3 id="nim_tractography_standarddata_path-varargin"><code>nim_tractography_standard(data_path, varargin)</code><a class="headerlink" href="#nim_tractography_standarddata_path-varargin" title="Permanent link">&para;</a></h3>
+<p>FACT — Fiber Assignment by Continuous Tracking (Mori et al., 1999). Discrete
+per-voxel tensors with no interpolation; each step is an exact ray-box
+intersection with the current voxel boundary, so the step length is determined by
+the geometry rather than configured.</p>
+<table>
+<thead>
+<tr>
+<th>Config key</th>
+<th>Option field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>seeding.density</code></td>
+<td><code>seed_density</code></td>
+<td>1</td>
+<td>Seeds per voxel</td>
+</tr>
+<tr>
+<td><code>seeding.strategy</code></td>
+<td><code>seed_strategy</code></td>
+<td><code>"uniform"</code></td>
+<td>Seed placement</td>
+</tr>
+<tr>
+<td><code>termination.fa_min</code></td>
+<td><code>termination_fa</code></td>
+<td>0.05</td>
+<td>FA floor for termination</td>
+</tr>
+<tr>
+<td><code>termination.angle_max</code></td>
+<td><code>angle_thresh</code></td>
+<td>60</td>
+<td>Turn budget, <strong>degrees per voxel of arc</strong></td>
+</tr>
+<tr>
+<td><code>termination.max_arc</code></td>
+<td><code>max_steps</code></td>
+<td>5000</td>
+<td>Derived step cap (boundary crossings)</td>
+</tr>
+<tr>
+<td><code>termination.min_arc</code></td>
+<td><code>min_length</code></td>
+<td>10</td>
+<td>Minimum track length</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>seed_mask</code></td>
+<td><code>[]</code></td>
+<td>Seed mask, supplied by <code>runTractography</code></td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>step_size</code></td>
+<td>0.5</td>
+<td>Unused: exits are computed exactly</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>use_fa_seed_filter</code></td>
+<td>false</td>
+<td>Filter seeds by FA</td>
+</tr>
+<tr>
+<td><code>diagnostics</code></td>
+<td><code>enable_diagnostics</code></td>
+<td>true</td>
+<td>Timing diagnostics</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns</strong>: <code>tracks</code>, a cell array of <span class="arithmatex">\(N \times 3\)</span> matrices.</p>
+<h3 id="nim_tractography_hinecdata_path-varargin"><code>nim_tractography_hinec(data_path, varargin)</code><a class="headerlink" href="#nim_tractography_hinecdata_path-varargin" title="Permanent link">&para;</a></h3>
+<p>Interpolated streamline tractography: a continuous direction field, Runge-Kutta
+integration and optional ACT. <strong>Returns</strong> <code>[tracks, meta]</code>, where <code>meta</code> carries
+<code>.seed_index</code>, <code>.seed_points</code> and <code>.n_seeds</code> — the seed correspondence that makes
+per-streamline comparison across a refinement ladder possible, since the tracker
+compacts out seeds that produce nothing.</p>
+<p>Everything in the standard table applies, plus:</p>
+<table>
+<thead>
+<tr>
+<th>Config key</th>
+<th>Option field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>field</code></td>
+<td><code>field</code></td>
+<td><code>'dti'</code></td>
+<td><code>'dti'</code> (principal eigenvector) or <code>'csd'</code> (FOD peaks)</td>
+</tr>
+<tr>
+<td><code>interpolation.method</code></td>
+<td><code>interp_method</code></td>
+<td><code>'trilinear'</code></td>
+<td><code>'trilinear'</code> (<span class="arithmatex">\(C^0\)</span>), <code>'cubic'</code> (Keys convolution, <span class="arithmatex">\(C^1\)</span>), <code>'spline'</code> (<span class="arithmatex">\(C^2\)</span>)</td>
+</tr>
+<tr>
+<td><code>interpolation.upsample</code></td>
+<td><code>upsample</code></td>
+<td>1</td>
+<td>Sample the field at <span class="arithmatex">\(1/u\)</span> voxel spacing before building interpolants</td>
+</tr>
+<tr>
+<td><code>integrator.method</code></td>
+<td><code>integration_order</code></td>
+<td><code>'rk4'</code> → 4</td>
+<td><code>euler</code>→1, <code>rk2</code>→2, <code>rk4</code>→4, <code>rkf45</code>→5</td>
+</tr>
+<tr>
+<td><code>integrator.step</code></td>
+<td><code>step_size</code></td>
+<td>0.2</td>
+<td>Step in voxels; the initial step for <code>rkf45</code></td>
+</tr>
+<tr>
+<td><code>integrator.adaptive</code></td>
+<td><code>adaptive_step</code></td>
+<td>true (rkf45 only)</td>
+<td>Adaptive step-size control</td>
+</tr>
+<tr>
+<td><code>integrator.tolerance</code></td>
+<td><code>rkf_tolerance</code></td>
+<td>0.01</td>
+<td>RKF45 error tolerance, voxels</td>
+</tr>
+<tr>
+<td><code>integrator.safety</code></td>
+<td><code>rkf_safety</code></td>
+<td>0.9</td>
+<td>RKF45 step safety factor</td>
+</tr>
+<tr>
+<td><code>integrator.step_min</code></td>
+<td><code>step_min</code></td>
+<td>0.01</td>
+<td>RKF45 minimum step</td>
+</tr>
+<tr>
+<td><code>integrator.step_max</code></td>
+<td><code>step_max</code></td>
+<td>1.0</td>
+<td>RKF45 maximum step</td>
+</tr>
+<tr>
+<td><code>act</code></td>
+<td><code>act_enabled</code></td>
+<td><strong>false</strong></td>
+<td>Anatomically constrained tracking</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>wm_mask</code>, <code>gm_mask</code>, <code>csf_mask</code></td>
+<td><code>[]</code></td>
+<td>Tissue masks; supplied by <code>runTractography</code> when ACT is on</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Two different ACT defaults</p>
+<p><code>tractography.act</code> defaults to <strong>false</strong> in the config schema. The tracker's
+own internal default for <code>act_enabled</code>, used only when it is called directly
+with a hand-built options struct, is <code>true</code>. ACT is additionally inert
+without WM/GM/CSF masks in the <code>nim</code>.</p>
+</div>
+<p><strong>Precomputation</strong>: <code>griddedInterpolant</code> objects for FA and for the six unique
+components of the dyadic <span class="arithmatex">\(\mathbf{v}_1\mathbf{v}_1^\top\)</span> are built once per run,
+with <code>'none'</code> extrapolation so out-of-volume queries return <code>NaN</code> and terminate
+the streamline. This is 2–5× faster than repeated <code>interp3</code> calls. The dyadic,
+not the signed eigenvector components, is what DTI tracking interpolates — see
+<a href="../MATHEMATICAL_FOUNDATIONS/">MATHEMATICAL_FOUNDATIONS.md</a>.</p>
+<h3 id="nim_tractography_mmf_connframenim-options"><code>nim_tractography_mmf_connframe(nim, options)</code><a class="headerlink" href="#nim_tractography_mmf_connframenim-options" title="Permanent link">&para;</a></h3>
+<p>Method of Moving Frames tracking (Chun &amp; Peng, in preparation). Reads the geometry
+built by <code>nim_mmf_geometry</code>, evolves the carried frame by the structure equation
+and advances <span class="arithmatex">\(d\mathbf{x}/ds = e_1\)</span>. The direction comes purely from the
+connection form; the integrator is only the stepping scheme. With <code>field: 'csd'</code>,
+a per-peak connection yields multiple pathways through a crossing.</p>
+<table>
+<thead>
+<tr>
+<th>Config key</th>
+<th>Option field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>field</code></td>
+<td><code>field</code></td>
+<td><code>'dti'</code></td>
+<td><code>'dti'</code> or <code>'csd'</code> (per-peak, multi-frame)</td>
+</tr>
+<tr>
+<td><code>integrator.method</code></td>
+<td><code>integrator</code></td>
+<td><code>'rk4'</code></td>
+<td><code>'rk4'</code> fixed step, or <code>'rkf45'</code> adaptive Dormand-Prince</td>
+</tr>
+<tr>
+<td><code>integrator.tolerance</code></td>
+<td><code>rkf_tol</code></td>
+<td>0.02</td>
+<td>RKF45 error tolerance</td>
+</tr>
+<tr>
+<td><code>integrator.step</code></td>
+<td><code>step_size</code></td>
+<td>0.2</td>
+<td>Step in voxels</td>
+</tr>
+<tr>
+<td><code>integrator.step_min</code> / <code>step_max</code></td>
+<td><code>step_min</code> / <code>step_max</code></td>
+<td>0.02 / 0.5</td>
+<td>Adaptive step bounds</td>
+</tr>
+<tr>
+<td><code>interpolation.method</code></td>
+<td><code>interp_method</code></td>
+<td><code>'trilinear'</code></td>
+<td>How <span class="arithmatex">\(\kappa\)</span>, <span class="arithmatex">\(\tau\)</span> and <span class="arithmatex">\(e_1\)</span> are sampled; peak <em>directions</em> always use nearest neighbor, since sign ambiguity breaks under averaging</td>
+</tr>
+<tr>
+<td><code>mmf.anchor</code></td>
+<td><code>mmf_anchor</code></td>
+<td>0</td>
+<td>Re-anchor strength of <span class="arithmatex">\(e_1\)</span> toward the field tangent; 0 is the pure connection-form evolution</td>
+</tr>
+<tr>
+<td><code>mmf.frame_sel_power</code></td>
+<td><code>frame_sel_power</code></td>
+<td>16</td>
+<td>Selectivity used when building the frames</td>
+</tr>
+</tbody>
+</table>
+<p>Requires <code>nim.evec</code>, <code>.FA</code> and <code>.mask</code>; <code>field: 'csd'</code> additionally requires
+<code>nim.peaks</code> and <code>nim.npeaks</code>. The geometry is rebuilt in place if it is absent or
+was baked for a different field. <strong>Returns</strong> <code>[tracks, info]</code>.</p>
+<h3 id="nim_tractography_highorderdata_path-varargin"><code>nim_tractography_highorder(data_path, varargin)</code><a class="headerlink" href="#nim_tractography_highorderdata_path-varargin" title="Permanent link">&para;</a></h3>
+<p>Superseded predecessor of the <code>hinec</code> tracker, kept for reference. Options
+<code>order</code> (3), <code>step_size</code> (0.2), <code>fa_threshold</code> (0.1), <code>angle_thresh</code> (60),
+<code>max_steps</code> (5000), <code>min_length</code> (10), <code>termination_fa</code> (0.05), <code>interp_method</code>
+(<code>"spline"</code>), <code>seed_density</code> (1). Not reachable from <code>algorithm:</code> — new work
+should use <code>nim_tractography_hinec</code>.</p>
+<h3 id="tractography-support-functions">Tractography support functions<a class="headerlink" href="#tractography-support-functions" title="Permanent link">&para;</a></h3>
+<h4 id="nim_seed_offsetsdensity"><code>nim_seed_offsets(density)</code><a class="headerlink" href="#nim_seed_offsetsdensity" title="Permanent link">&para;</a></h4>
+<p>Returns <code>[offsets, info]</code>: exactly <code>density</code> sub-voxel seed offsets in
+<span class="arithmatex">\([-0.5, +0.5]^3\)</span>. A perfect cube uses the full <span class="arithmatex">\(n^3\)</span> lattice in <code>ndgrid</code> order;
+any other count takes a deterministic farthest-point subset of the next-larger
+lattice, so seeds stay spread through the voxel rather than clustering in a
+corner, with no RNG and therefore reproducible. <code>info</code> reports <code>.requested</code>,
+<code>.actual</code>, <code>.per_axis</code>, <code>.lattice_points</code>, <code>.exact_lattice</code> and <code>.spacing</code>.</p>
+<h4 id="nim_angle_limitangle_rate-arc"><code>nim_angle_limit(angle_rate, arc)</code><a class="headerlink" href="#nim_angle_limitangle_rate-arc" title="Permanent link">&para;</a></h4>
+<p>Returns <code>[allowed_deg, cos_allowed]</code>, the turn budget for one step.
+<code>angle_rate</code> is degrees of turning per voxel of arc — a minimum radius of
+curvature <span class="arithmatex">\(R = (180/\pi)/\texttt{angle\_rate}\)</span> voxels in disguise — and <code>arc</code> is
+the arc the step advances.</p>
+<p>Pass the <strong>nominal</strong> step size, never the realised chord. Under
+<span class="arithmatex">\(d\mathbf{x}/ds = \mathbf{v}\)</span> with <span class="arithmatex">\(|\mathbf{v}| = 1\)</span> a step advances <code>arc</code> of arc
+by construction; the chord is shorter mostly because the RK stage vectors
+disagree, not because less arc was covered, so scaling by it would make the
+criterion method-dependent — Euler and RK2 have a chord of exactly <span class="arithmatex">\(h\)</span> while
+RK4's falls as low as <span class="arithmatex">\(0.25h\)</span> on this data.</p>
+<p>Because <span class="arithmatex">\(\mathbf{v}_1\)</span> is a line field and tangents are sign-aligned before the
+turn is measured, the measured turn never exceeds 90°: a budget at or above that
+is inert, not merely loose.</p>
+<h4 id="nim_principal_dirdxx-dyy-dzz-dxy-dxz-dyz"><code>nim_principal_dir(Dxx, Dyy, Dzz, Dxy, Dxz, Dyz)</code><a class="headerlink" href="#nim_principal_dirdxx-dyy-dzz-dxy-dxz-dyz" title="Permanent link">&para;</a></h4>
+<p>Unit principal eigenvector of a symmetric <span class="arithmatex">\(3\times3\)</span>, in closed form; <code>[]</code> for a
+degenerate or non-finite matrix. The sign is arbitrary — what it returns is a
+line, and the caller picks the representative. Cardano's trigonometric solution
+via the deviatoric part, then the eigenvector from the null space of
+<span class="arithmatex">\(\mathbf{D} - \lambda\mathbf{I}\)</span>, taken as the largest cross product of its rows
+so the result stays conditioned when a row is near zero. Measured at 1.7 µs
+against 2.5 µs for <code>eig</code> on the same matrix, with a worst disagreement of
+1.1e-13 over 20,000 random PSD matrices.</p>
+<h4 id="nim_resample_track_arctracks-arc_step"><code>nim_resample_track_arc(tracks, arc_step)</code><a class="headerlink" href="#nim_resample_track_arctracks-arc_step" title="Permanent link">&para;</a></h4>
+<p>Resamples streamlines to a fixed arc-length spacing, decoupling the stored
+representation from the integration step — every step is otherwise kept, so
+storage grows as <span class="arithmatex">\(1/h\)</span>. Endpoints are preserved exactly, since they carry the
+connectivity that scoring is built on. <code>arc_step ≤ 0</code> returns the input
+untouched. Accepts a single <span class="arithmatex">\(N \times 3\)</span> track or a cell array.</p>
+<h4 id="nim_filter_tracks_roitracks-nim-options"><code>nim_filter_tracks_roi(tracks, nim, options)</code><a class="headerlink" href="#nim_filter_tracks_roitracks-nim-options" title="Permanent link">&para;</a></h4>
+<p>Keeps or discards streamlines by the regions they touch. Returns
+<code>[tracks, stats]</code>, with <code>stats.keep</code> a logical index into the input so
+<code>track_meta</code> can be kept aligned.</p>
+<table>
+<thead>
+<tr>
+<th>Option field</th>
+<th>Config key</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>include_roi</code></td>
+<td><code>filter.include_roi</code></td>
+<td>Keep tracks touching these regions (waypoint)</td>
+</tr>
+<tr>
+<td><code>exclude_roi</code></td>
+<td><code>filter.exclude_roi</code></td>
+<td>Discard tracks touching these regions</td>
+</tr>
+<tr>
+<td><code>roi_filter_mode</code></td>
+<td><code>filter.mode</code></td>
+<td><code>'all'</code> (every include region) or <code>'any'</code></td>
+</tr>
+<tr>
+<td><code>roi_filter_dilate</code></td>
+<td><code>filter.roi_dilate</code></td>
+<td>Dilate the filter masks first</td>
+</tr>
+<tr>
+<td><code>endpoints_in</code></td>
+<td><code>filter.endpoints_in</code></td>
+<td>Two regions; one end in each, either way round</td>
+</tr>
+<tr>
+<td><code>contained_in</code></td>
+<td><code>filter.contained_in</code></td>
+<td>Every point must lie inside these regions</td>
+</tr>
+</tbody>
+</table>
+<p>With none of these set, the tracks are returned untouched. <code>endpoints_in</code> and
+<code>contained_in</code> together are how the ISMRM 2015 scorer defines a bundle: an
+endpoint pair plus a containment corridor. Neither is expressible as a waypoint
+include, which is why they are separate keys.</p>
+<h4 id="nim_sifttracks-nim-options"><code>nim_sift(tracks, nim, options)</code><a class="headerlink" href="#nim_sifttracks-nim-options" title="Permanent link">&para;</a></h4>
+<p>SIFT-style filtering with per-lobe attribution (an analog of Smith 2013). Each
+streamline segment is attributed to the FOD peak it best aligns with, and
+streamlines running through over-represented lobes are removed, so that
+streamline density on each lobe matches that lobe's FOD amplitude. This separates
+a legitimately dense bundle from spray overloading a weak lobe, which a
+per-voxel density match cannot. Requires <code>nim.peaks</code> and <code>nim.peak_w</code> from CSD.
+Options: <code>sift_batch_frac</code> (0.03), <code>sift_n_iter</code> (60), <code>sift_min_keep</code> (0.20),
+<code>sift_align_pow</code> (1). Returns <code>[tracks_out, info]</code>.</p>
+<hr />
+<h2 id="9-solution-verification-srcnim_utils">9. Solution Verification (<code>src/nim_utils/</code>)<a class="headerlink" href="#9-solution-verification-srcnim_utils" title="Permanent link">&para;</a></h2>
+<h3 id="nim_convergence_errortest_file-ref_file-opts"><code>nim_convergence_error(test_file, ref_file, opts)</code><a class="headerlink" href="#nim_convergence_errortest_file-ref_file-opts" title="Permanent link">&para;</a></h3>
+<p>Per-streamline geometric error of one tractography run against a reference run.
+Streamlines are matched by <code>track_meta.seed_index</code>, not by position in the cell
+array, since the tracker compacts out unproductive seeds and "streamline 7" is a
+different fiber in the two runs.</p>
+<p>Two error families, and the distinction governs which one an order may be fitted
+to:</p>
+<ul>
+<li><strong><code>prefix</code></strong> — compared over <span class="arithmatex">\(\pm\)</span> <code>opts.prefix_arc</code> voxels of arc <em>either side
+  of the seed</em> (default 20). Anchoring at the seed matters: a track is stored as
+  <code>[reversed backward half; seed; forward half]</code>, so its first point is a
+  termination point. This is the family to fit an observed order to.</li>
+<li><strong><code>whole</code></strong> — the full common arc, plus endpoint distance and arc-length
+  difference. Dominated by termination, which is discontinuous in the step size.
+  Characterises termination sensitivity; not an order.</li>
+</ul>
+<p>Statistics are reported as median and p95, never a mean: crossing regions make
+the distribution heavy-tailed. Returned fields include <code>.n_test</code>, <code>.n_ref</code>,
+<code>.n_matched</code>, <code>.matched_frac</code>, <code>.seed_index</code>, <code>.prefix</code>, <code>.prefix_max</code>,
+<code>.whole</code>, <code>.whole_max</code>, <code>.endpoint</code> and <code>.length_diff</code>.</p>
+<p>See <a href="../CONVERGENCE/">CONVERGENCE.md</a> for the measured rates.</p>
+<hr />
+<h2 id="10-tractography-plotting-srcnim_tractography">10. Tractography Plotting (<code>src/nim_tractography/</code>)<a class="headerlink" href="#10-tractography-plotting-srcnim_tractography" title="Permanent link">&para;</a></h2>
+<p>These take an options <strong>struct</strong> in <code>varargin{1}</code>.</p>
+<h3 id="nim_plot_tractographytracks-nim-varargin"><code>nim_plot_tractography(tracks, nim, varargin)</code><a class="headerlink" href="#nim_plot_tractographytracks-nim-varargin" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color_mode</code></td>
+<td><code>"direction"</code></td>
+<td><code>'direction'</code>, <code>'fa'</code>, <code>'parcellation'</code></td>
+</tr>
+<tr>
+<td><code>show_anatomy</code></td>
+<td>true</td>
+<td>FA slice background</td>
+</tr>
+<tr>
+<td><code>track_subset</code></td>
+<td>all</td>
+<td>Indices of tracks to draw</td>
+</tr>
+<tr>
+<td><code>line_width</code></td>
+<td>1</td>
+<td>Line width</td>
+</tr>
+<tr>
+<td><code>alpha</code></td>
+<td>0.8</td>
+<td>Transparency</td>
+</tr>
+</tbody>
+</table>
+<p>Caps the display at 2000 tracks.</p>
+<h3 id="nim_plot_tractography_regiontracks-nim-region_id-varargin"><code>nim_plot_tractography_region(tracks, nim, region_id, varargin)</code><a class="headerlink" href="#nim_plot_tractography_regiontracks-nim-region_id-varargin" title="Permanent link">&para;</a></h3>
+<p>Draws the tracks associated with one parcellation region. <code>nim</code> must carry
+<code>.parcellation_mask</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>filter_mode</code></td>
+<td><code>'pass_through'</code></td>
+<td><code>'pass_through'</code>, <code>'start_in'</code>, <code>'end_in'</code>, <code>'connect_to'</code></td>
+</tr>
+<tr>
+<td><code>min_overlap</code></td>
+<td>0.3</td>
+<td>Minimum fraction of the track inside the region</td>
+</tr>
+<tr>
+<td><code>show_region</code></td>
+<td>true</td>
+<td>Region isosurface overlay</td>
+</tr>
+<tr>
+<td><code>region_alpha</code></td>
+<td>0.3</td>
+<td>Overlay transparency</td>
+</tr>
+<tr>
+<td><code>track_color</code></td>
+<td><code>'direction'</code></td>
+<td><code>'direction'</code>, <code>'fa'</code>, <code>'uniform'</code>, <code>'region'</code></td>
+</tr>
+<tr>
+<td><code>max_tracks</code></td>
+<td><code>inf</code></td>
+<td>Display cap</td>
+</tr>
+<tr>
+<td><code>line_width</code></td>
+<td>1.2</td>
+<td>Line width</td>
+</tr>
+<tr>
+<td><code>min_track_length</code></td>
+<td>10</td>
+<td>Minimum track points</td>
+</tr>
+<tr>
+<td><code>show_stats</code></td>
+<td>true</td>
+<td>Print statistics</td>
+</tr>
+</tbody>
+</table>
+<h3 id="nim_plot_connectivity_matrixtracks-nim-varargin"><code>nim_plot_connectivity_matrix(tracks, nim, varargin)</code><a class="headerlink" href="#nim_plot_connectivity_matrixtracks-nim-varargin" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>min_track_length</code></td>
+<td>10</td>
+<td>Minimum track points</td>
+</tr>
+<tr>
+<td><code>normalize</code></td>
+<td>true</td>
+<td>Scale to <span class="arithmatex">\([0, 1]\)</span></td>
+</tr>
+<tr>
+<td><code>symmetric</code></td>
+<td>true</td>
+<td>Symmetrise</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns</strong> the <span class="arithmatex">\(N \times N\)</span> connectivity matrix, and draws a four-panel figure:
+heatmap, histogram, node strengths, summary.</p>
+<h3 id="nim_plot_vector_fieldnim-varargin"><code>nim_plot_vector_field(nim, varargin)</code><a class="headerlink" href="#nim_plot_vector_fieldnim-varargin" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>slice</code></td>
+<td>middle</td>
+<td>Slice index</td>
+</tr>
+<tr>
+<td><code>downsample</code></td>
+<td>2</td>
+<td>Downsample factor</td>
+</tr>
+<tr>
+<td><code>scale</code></td>
+<td>1</td>
+<td>Vector scale</td>
+</tr>
+<tr>
+<td><code>axis_view</code></td>
+<td><code>"axial"</code></td>
+<td><code>'axial'</code>, <code>'coronal'</code>, <code>'sagittal'</code></td>
+</tr>
+</tbody>
+</table>
+<p>Masks vectors by <code>FA &gt; 0.2</code> and overlays them on an FA background.</p>
+<h3 id="nim_excitation_time_mapnim-seed_points-varargin"><code>nim_excitation_time_map(nim, seed_points, varargin)</code><a class="headerlink" href="#nim_excitation_time_mapnim-seed_points-varargin" title="Permanent link">&para;</a></h3>
+<p>Excitation propagation time from <code>seed_points</code> (<span class="arithmatex">\(N \times 3\)</span>), with velocity
+shaped by DTI anisotropy.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>conduction_speed</code></td>
+<td>1.0</td>
+<td>Base conduction speed</td>
+</tr>
+<tr>
+<td><code>fa_scaling</code></td>
+<td>true</td>
+<td>Scale velocity by FA</td>
+</tr>
+<tr>
+<td><code>max_time</code></td>
+<td>100</td>
+<td>Time cap</td>
+</tr>
+<tr>
+<td><code>method</code></td>
+<td><code>"fast_marching"</code></td>
+<td><code>'fast_marching'</code> or <code>'dijkstra'</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns</strong> <code>[time_map, velocity_field]</code>.</p>
+<hr />
+<h2 id="11-visualization-srcnim_visualization">11. Visualization (<code>src/nim_visualization/</code>)<a class="headerlink" href="#11-visualization-srcnim_visualization" title="Permanent link">&para;</a></h2>
+<h3 id="visualizetractographyvarargin"><code>visualizeTractography(varargin)</code><a class="headerlink" href="#visualizetractographyvarargin" title="Permanent link">&para;</a></h3>
+<p>Unified viewer with four modes and figure export. The first arguments are either
+a run directory (files auto-detected, wildcards accepted) or an explicit
+<code>tracks_file</code> and <code>nim_file</code> pair, followed by name-value options.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>'mode'</code></td>
+<td><code>'whole'</code></td>
+<td><code>'whole'</code>, <code>'region'</code>, <code>'grid'</code>, <code>'sequential'</code></td>
+</tr>
+<tr>
+<td><code>'region'</code></td>
+<td><code>[]</code></td>
+<td>Region ID or array of IDs</td>
+</tr>
+<tr>
+<td><code>'export_dir'</code></td>
+<td><code>''</code></td>
+<td>Directory for image export</td>
+</tr>
+<tr>
+<td><code>'export_format'</code></td>
+<td><code>'png'</code></td>
+<td><code>'png'</code>, <code>'pdf'</code>, <code>'eps'</code>, <code>'fig'</code></td>
+</tr>
+<tr>
+<td><code>'export_dpi'</code></td>
+<td>300</td>
+<td>Export resolution</td>
+</tr>
+<tr>
+<td><code>'filter_mode'</code></td>
+<td><code>'pass_through'</code></td>
+<td><code>'pass_through'</code>, <code>'start_in'</code>, <code>'end_in'</code>, <code>'connect_to'</code></td>
+</tr>
+<tr>
+<td><code>'region_filter'</code></td>
+<td><code>'pass_through'</code></td>
+<td>Slice-viewer-compatible spelling of the above</td>
+</tr>
+<tr>
+<td><code>'min_overlap'</code></td>
+<td>0.05</td>
+<td>Minimum region overlap ratio</td>
+</tr>
+<tr>
+<td><code>'min_region_points'</code></td>
+<td>3</td>
+<td>Minimum in-region points for pass-through</td>
+</tr>
+<tr>
+<td><code>'max_tracts'</code></td>
+<td><code>[]</code></td>
+<td>Display cap (2000 in whole mode, unlimited otherwise)</td>
+</tr>
+<tr>
+<td><code>'color_mode'</code></td>
+<td><code>'direction'</code></td>
+<td><code>'direction'</code>, <code>'fa'</code>, <code>'uniform'</code>, <code>'region'</code></td>
+</tr>
+<tr>
+<td><code>'show_anatomy'</code></td>
+<td>true</td>
+<td>FA background</td>
+</tr>
+<tr>
+<td><code>'show_region'</code></td>
+<td>true</td>
+<td>Region overlay</td>
+</tr>
+<tr>
+<td><code>'line_width'</code></td>
+<td>1.2</td>
+<td>Line width</td>
+</tr>
+<tr>
+<td><code>'region_alpha'</code></td>
+<td>0.3</td>
+<td>Overlay transparency</td>
+</tr>
+<tr>
+<td><code>'grid_cols'</code></td>
+<td>auto</td>
+<td>Grid columns</td>
+</tr>
+<tr>
+<td><code>'subplot_size'</code></td>
+<td><code>[400, 350]</code></td>
+<td>Panel size</td>
+</tr>
+<tr>
+<td><code>'show_all_tracks'</code></td>
+<td>true</td>
+<td>Force all tracks in grid mode</td>
+</tr>
+<tr>
+<td><code>'silent_export'</code></td>
+<td>true</td>
+<td>Do not display figures while exporting</td>
+</tr>
+</tbody>
+</table>
+<h3 id="visualizetractographyslicestracks_file-nim_file-x-y-z-varargin"><code>visualizeTractographySlices(tracks_file, nim_file, x, y, z, varargin)</code><a class="headerlink" href="#visualizetractographyslicestracks_file-nim_file-x-y-z-varargin" title="Permanent link">&para;</a></h3>
+<p>Command-line viewer for three orthogonal slices. The slice positions <code>x</code> (sagittal),
+<code>y</code> (coronal) and <code>z</code> (axial) are <strong>required positional</strong> arguments.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>'save'</code></td>
+<td><code>''</code></td>
+<td>Output PNG filename</td>
+</tr>
+<tr>
+<td><code>'tolerance'</code></td>
+<td>2</td>
+<td>Slice thickness in voxels for track selection</td>
+</tr>
+<tr>
+<td><code>'show_crosshairs'</code></td>
+<td>true</td>
+<td>Draw slice intersections</td>
+</tr>
+<tr>
+<td><code>'show_anatomy'</code></td>
+<td>true</td>
+<td>FA background</td>
+</tr>
+<tr>
+<td><code>'color_mode'</code></td>
+<td><code>'direction'</code></td>
+<td><code>'direction'</code> or <code>'uniform'</code></td>
+</tr>
+<tr>
+<td><code>'alpha'</code></td>
+<td>0.6</td>
+<td>FA background transparency</td>
+</tr>
+<tr>
+<td><code>'regions'</code></td>
+<td><code>[]</code></td>
+<td>Region ID(s) to filter by</td>
+</tr>
+<tr>
+<td><code>'region_filter'</code></td>
+<td><code>'pass_through'</code></td>
+<td><code>'pass_through'</code>, <code>'start_in'</code>, <code>'end_in'</code></td>
+</tr>
+<tr>
+<td><code>'min_overlap'</code></td>
+<td>0.1</td>
+<td>Minimum region overlap</td>
+</tr>
+</tbody>
+</table>
+<h3 id="visualizetractographyanglesvarargin"><code>visualizeTractographyAngles(varargin)</code><a class="headerlink" href="#visualizetractographyanglesvarargin" title="Permanent link">&para;</a></h3>
+<p>Generates and exports 3D tractography figures from the standard anatomical
+viewing angles (axial, sagittal, coronal, oblique). Takes the same
+run-directory-or-file-pair first arguments as <code>visualizeTractography</code>, plus
+<code>'output_dir'</code>.</p>
+<h3 id="nim_plot_bundlesitems-opts"><code>nim_plot_bundles(items, opts)</code><a class="headerlink" href="#nim_plot_bundlesitems-opts" title="Permanent link">&para;</a></h3>
+<p>Renders one or more streamline sets in a shared voxel frame, and returns the
+figure handle. <code>items</code> is a struct array with <code>.tracks</code>, <code>.name</code>, <code>.color</code>
+(<code>[]</code> for per-segment direction coloring), <code>.alpha</code> (0.35), <code>.width</code> (1.2) and
+<code>.clip</code> — an optional logical volume that keeps only the longest contiguous run of
+each streamline inside it and reports the discarded fraction in
+<code>items(i).frac_outside</code>. (Clipping used to be a separate helper; it is now this
+field.)</p>
+<p><code>opts</code> takes <code>.views</code> (default sagittal / coronal / axial / oblique), <code>.title</code>,
+<code>.save</code> (a path stem; writes <code>&lt;stem&gt;.png</code>), <code>.dpi</code> (150) and <code>.maxper</code> (900
+streamlines drawn per item).</p>
+<p>Per-segment direction coloring is what makes a whole-brain tractogram render as
+anatomy rather than a monotone hairball.</p>
+<h3 id="nim_plot_vs_groundtruthtracks_src-gt_trk-ref_nii-opts"><code>nim_plot_vs_groundtruth(tracks_src, gt_trk, ref_nii, opts)</code><a class="headerlink" href="#nim_plot_vs_groundtruthtracks_src-gt_trk-ref_nii-opts" title="Permanent link">&para;</a></h3>
+<p>Draws a run's streamlines (orange) against an ISMRM 2015 ground-truth bundle
+(grey) in one shared voxel frame, mapping the ground truth through world RAS with
+<code>nim_read_trk</code>. <code>tracks_src</code> is a run directory or a tracks <code>.mat</code>.</p>
+<p><code>opts</code>: <code>.max_gt</code> (700), <code>.max_ours</code> (700), <code>.title</code>, <code>.save</code> (writes
+<code>&lt;stem&gt;.png</code> and <code>&lt;stem&gt;.fig</code>), <code>.roi</code> (JHU label(s) to outline as the seed
+region) and <code>.nim</code> (needed only with <code>.roi</code>).</p>
+<h3 id="slice-cache-pipeline">Slice cache pipeline<a class="headerlink" href="#slice-cache-pipeline" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Signature</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>generateSlices</code></td>
+<td><code>(tracks_file, nim_file, output_dir, options)</code></td>
+<td>Server-side slice generation; returns <code>cache_dir</code></td>
+</tr>
+<tr>
+<td><code>generateTractographySliceCache</code></td>
+<td><code>(tracks_file, nim_file, cache_dir, options)</code></td>
+<td>The full cache build, with parallel rendering and validation</td>
+</tr>
+<tr>
+<td><code>TractographyCacheManager</code></td>
+<td>class, constructed from <code>output_dir</code></td>
+<td>Cache directory management with JSON metadata</td>
+</tr>
+<tr>
+<td><code>buildOptimizedTrackSliceLookup</code></td>
+<td><code>(tracks, dims)</code></td>
+<td>Track↔slice intersection lookup, two-pass count-then-fill</td>
+</tr>
+<tr>
+<td><code>optimizedSliceRenderer</code></td>
+<td><code>(ax, orientation, slice_value, slices, nim, tracks, slice_lookup, opts, dims)</code></td>
+<td>Fast single-slice render with precomputed color tables</td>
+</tr>
+<tr>
+<td><code>launchFastViewer</code></td>
+<td><code>(tracks_file, nim_file, options)</code></td>
+<td>Generates the cache if needed and launches the Python viewer</td>
+</tr>
+</tbody>
+</table>
+<p><code>generateSlices</code> options (a struct, not name-value pairs):</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.tolerance</code></td>
+<td>2</td>
+<td>Slice thickness, voxels</td>
+</tr>
+<tr>
+<td><code>.color_mode</code></td>
+<td><code>'direction'</code></td>
+<td><code>'direction'</code> or <code>'uniform'</code></td>
+</tr>
+<tr>
+<td><code>.show_anatomy</code></td>
+<td>true</td>
+<td>FA background</td>
+</tr>
+<tr>
+<td><code>.alpha</code></td>
+<td>0.6</td>
+<td>FA transparency</td>
+</tr>
+<tr>
+<td><code>.image_resolution</code></td>
+<td><code>[1024, 1024]</code></td>
+<td><code>[width, height]</code> in pixels</td>
+</tr>
+<tr>
+<td><code>.image_format</code></td>
+<td><code>'png'</code></td>
+<td><code>'png'</code> or <code>'jpg'</code></td>
+</tr>
+<tr>
+<td><code>.compression_level</code></td>
+<td>6 (PNG) / 90 (JPG)</td>
+<td>Compression</td>
+</tr>
+<tr>
+<td><code>.parallel_workers</code></td>
+<td>auto</td>
+<td>Worker count</td>
+</tr>
+<tr>
+<td><code>.regions</code></td>
+<td><code>[]</code> (all)</td>
+<td>Region IDs to include</td>
+</tr>
+</tbody>
+</table>
+<p><code>output_dir</code> defaults to <code>./tractography_cache</code>.</p>
+<p><code>TractographyCacheManager</code> methods: <code>initializeCache(tracks_file, nim_file, options)</code>,
+<code>saveMetadata()</code>, <code>loadMetadata()</code>, <code>validateCache()</code>, <code>getCacheStats()</code>.</p>
+<p><code>launchFastViewer</code> options: <code>.cache_dir</code>, <code>.force_regenerate</code> (false),
+<code>.python_path</code> (<code>'python'</code>), <code>.viewer_path</code> (auto), <code>.auto_launch</code> (true),
+<code>.background_mode</code> (false).</p>
+<p>See <a href="../DISTRIBUTED_WORKFLOW/">DISTRIBUTED_WORKFLOW.md</a> for the server → transfer →
+local workflow these support.</p>
+<hr />
+<h2 id="12-general-plotting-and-utilities">12. General Plotting and Utilities<a class="headerlink" href="#12-general-plotting-and-utilities" title="Permanent link">&para;</a></h2>
+<h3 id="nim_plotnim-varargin"><code>nim_plot(nim, varargin)</code><a class="headerlink" href="#nim_plotnim-varargin" title="Permanent link">&para;</a></h3>
+<p><strong>File</strong>: <code>src/nim_plots/nim_plot.m</code></p>
+<p>The consolidated eigenvector plotter, replacing the former <code>nim_plotall</code>,
+<code>nim_plotparcelall</code> and <code>nim_plotparcellation</code>. Name-value options:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>'mode'</code></td>
+<td><code>'single'</code></td>
+<td><code>'single'</code>, <code>'parcel'</code> (one parcel), <code>'parcels'</code> (all, one figure each)</td>
+</tr>
+<tr>
+<td><code>'indx'</code>, <code>'indy'</code>, <code>'indz'</code></td>
+<td><code>[]</code></td>
+<td>Voxel index ranges, <code>'single'</code> mode</td>
+</tr>
+<tr>
+<td><code>'parcel_id'</code></td>
+<td>—</td>
+<td>Parcel to draw, <code>'parcel'</code> mode</td>
+</tr>
+<tr>
+<td><code>'figindex'</code></td>
+<td>1</td>
+<td>Figure number</td>
+</tr>
+<tr>
+<td><code>'downsample_factor'</code></td>
+<td>1</td>
+<td>Downsample factor</td>
+</tr>
+<tr>
+<td><code>'show_figure'</code></td>
+<td>true</td>
+<td>Create a new figure</td>
+</tr>
+<tr>
+<td><code>'show_progress'</code></td>
+<td>true</td>
+<td>Pause and report progress</td>
+</tr>
+</tbody>
+</table>
+<p>A first argument that is a filename is loaded before plotting. Arrow color
+follows the DTI convention: red left–right, green anterior–posterior, blue
+superior–inferior.</p>
+<h3 id="srcnim_utils-helpers"><code>src/nim_utils/</code> helpers<a class="headerlink" href="#srcnim_utils-helpers" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nim_reshape_d</code></td>
+<td><code>(d)</code></td>
+<td><code>[Dxx Dyy Dzz Dxy Dxz Dyz]</code> → the symmetric <span class="arithmatex">\(3\times3\)</span> matrix</td>
+</tr>
+<tr>
+<td><code>vector_to_color</code></td>
+<td><code>(Vx, Vy, Vz)</code></td>
+<td>Unit-normalized direction vectors → <span class="arithmatex">\(N \times 3\)</span> RGB, taking the absolute value of each component</td>
+</tr>
+<tr>
+<td><code>nim_interp</code></td>
+<td><code>(nim, p)</code></td>
+<td>Element-wise sub-voxel interpolation of the eigenvector field at <span class="arithmatex">\((p+1)^3\)</span> uniform nodes per voxel (<code>p</code> default 3, nodes from <code>zwuni</code>); writes <code>nim_interp.mat</code></td>
+</tr>
+<tr>
+<td><code>zwgll</code></td>
+<td><code>(p)</code></td>
+<td><code>[z, w]</code>: the <span class="arithmatex">\(p+1\)</span> Gauss-Lobatto-Legendre nodes on <span class="arithmatex">\([-1, 1]\)</span> and their weights. Provided, but not currently called by <code>nim_interp</code></td>
+</tr>
+<tr>
+<td><code>zwuni</code></td>
+<td><code>(N)</code></td>
+<td><code>[z, w]</code>: <span class="arithmatex">\(N+1\)</span> uniform nodes on <span class="arithmatex">\([-1, 1]\)</span> and their weights</td>
+</tr>
+<tr>
+<td><code>nim_vis_eig</code></td>
+<td><code>(nim, plane, slice, opts)</code></td>
+<td>Eigenvector figure for one slice; returns the figure handle</td>
+</tr>
+<tr>
+<td><code>nim_vis_fa</code></td>
+<td><code>(nim, plane, slice, opts)</code></td>
+<td>FA figure for one slice; returns the figure handle</td>
+</tr>
+<tr>
+<td><code>plot_nim_interp</code></td>
+<td><code>(grid, indx, indy, indz)</code></td>
+<td>Plots an interpolated grid produced by <code>nim_interp</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>hdr.m</code>, <code>gen_vis_eig.m</code> and <code>runnimplot.m</code> are <strong>scripts</strong>, not functions:
+plotting defaults, a batch of <code>nim_vis_eig</code> exports, and a <code>nim_plot</code> example
+respectively.</p>
+<hr />
+<h2 id="13-challenge-submissions-srcnim_challenges">13. Challenge Submissions (<code>src/nim_challenges/</code>)<a class="headerlink" href="#13-challenge-submissions-srcnim_challenges" title="Permanent link">&para;</a></h2>
+<h3 id="nim_irontract_submitnim_file-injection_file-output_dir-varargin"><code>nim_irontract_submit(nim_file, injection_file, output_dir, varargin)</code><a class="headerlink" href="#nim_irontract_submitnim_file-injection_file-output_dir-varargin" title="Permanent link">&para;</a></h3>
+<p>Generates IronTract Challenge submission volumes: binary NIfTI voxel masks from
+tractography results, filtered by injection site, swept over a parameter range for
+ROC analysis. Headers are taken from the injection mask so the volumes align.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>angle_thresholds</code></td>
+<td><code>[30, 45, 60, 75, 90]</code></td>
+<td>Parameter sweep</td>
+</tr>
+<tr>
+<td><code>tracks_file</code></td>
+<td><code>''</code></td>
+<td>Precomputed tracks; empty regenerates with injection-site seeding</td>
+</tr>
+<tr>
+<td><code>base_options</code></td>
+<td>—</td>
+<td>Base tractography options</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Output</strong>: <code>submission_001.nii.gz</code>, <code>submission_002.nii.gz</code>, … in <code>output_dir</code>.</p>
+<p>Reference: Maffei et al. (2022), <em>Insights from the IronTract challenge</em>,
+NeuroImage.</p>
+<hr />
+<h2 id="14-python-scripts-scripts">14. Python Scripts (<code>scripts/</code>)<a class="headerlink" href="#14-python-scripts-scripts" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Script</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FastTractographyViewer.py</code></td>
+<td>Tkinter GUI for instant slice navigation over a pre-computed cache. <code>python3 scripts/FastTractographyViewer.py &lt;cache_dir&gt;</code>. Needs Python 3.7+, <code>tkinter</code>, <code>pillow</code>, <code>numpy</code></td>
+</tr>
+<tr>
+<td><code>tractography_slice_gui.py</code></td>
+<td>Interactive slice GUI</td>
+</tr>
+<tr>
+<td><code>hinec_to_trk.py</code></td>
+<td>Convert HINEC <code>.mat</code> tracks to TrackVis <code>.trk</code></td>
+</tr>
+<tr>
+<td><code>validate_ismrm_tractography.py</code></td>
+<td>Validate against the ISMRM 2015 ground truth</td>
+</tr>
+<tr>
+<td><code>compare_ismrm_results.py</code></td>
+<td>Compare scoring results across runs</td>
+</tr>
+<tr>
+<td><code>build_ismrm_scoring_config.py</code></td>
+<td>Build the scilpy scorer configuration</td>
+</tr>
+<tr>
+<td><code>run_pft_dipy.py</code></td>
+<td>DIPY particle-filtering tractography, for comparison</td>
+</tr>
+</tbody>
+</table>
+<p><code>requirements.txt</code> covers the Python dependencies.</p>
+<hr />
+<h2 id="cross-references">Cross-References<a class="headerlink" href="#cross-references" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Architecture and data flow: <a href="../ARCHITECTURE/">ARCHITECTURE.md</a></li>
+<li>Mathematical foundations: <a href="../MATHEMATICAL_FOUNDATIONS/">MATHEMATICAL_FOUNDATIONS.md</a></li>
+<li>Configuration parameter reference: <a href="../YAML_CONFIG/">YAML_CONFIG.md</a></li>
+<li>Run directory system: <a href="../RUN_DIRECTORY_SYSTEM/">RUN_DIRECTORY_SYSTEM.md</a></li>
+<li>Visualization guide: <a href="../VISUALIZATION_GUIDE/">VISUALIZATION_GUIDE.md</a></li>
+<li>User guide: <a href="../USER_GUIDE/">USER_GUIDE.md</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

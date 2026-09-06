@@ -1,0 +1,2475 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="HIgh-order NEural Connectivity — dMRI Tractography Pipeline">
+      
+      
+        <meta name="author" content="HINEC Team">
+      
+      
+      
+        <link rel="prev" href="../MMF_TRACTOGRAPHY/">
+      
+      
+        <link rel="next" href="../High_Order/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Standard (FACT) - HINEC Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#standard-tractography-the-fact-tracker" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="HINEC Documentation" class="md-header__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            HINEC Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Standard (FACT)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../USER_GUIDE/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../PIPELINE/" class="md-tabs__link">
+          
+  
+  
+  Pipeline
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../TRACTOGRAPHY_METHODS/" class="md-tabs__link">
+          
+  
+  
+  Tractography
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../YAML_CONFIG/" class="md-tabs__link">
+          
+  
+  
+  Configuration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../VISUALIZATION_GUIDE/" class="md-tabs__link">
+          
+  
+  
+  Visualization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../CONVERGENCE/" class="md-tabs__link">
+          
+  
+  
+  Verification & Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../API_REFERENCE/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ABOUT/" class="md-tabs__link">
+          
+  
+  
+  About
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="HINEC Documentation" class="md-nav__button md-logo" aria-label="HINEC Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    HINEC Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../USER_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PIPELINE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PREPROCESSING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ARCHITECTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RUN_DIRECTORY_SYSTEM/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Directory System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tractography
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tractography
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TRACTOGRAPHY_METHODS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methods Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MMF_TRACTOGRAPHY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MMF Connection-Form
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standard (FACT)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standard (FACT)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#algorithm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#seeding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Seeding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-propagation-mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The propagation mask
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#termination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Termination
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Termination">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-angle-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The angle budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#track-data-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Track data structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../High_Order/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    High-Order Methods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Adaptive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RKF_Usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RKF45 Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SEEDING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seeding Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hinec_tractography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Configuration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../YAML_CONFIG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YAML Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CHANGELOG_YAML/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VISUALIZATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REGION_VISUALIZATION_EXAMPLES/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Region Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DISTRIBUTED_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification & Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Verification & Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CONVERGENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solution Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ISMRM_SCORING_ANALYSIS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ISMRM Scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../VALIDATION_USAGE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IRONTRACT_WORKFLOW/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IronTract Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../API_REFERENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MATHEMATICAL_FOUNDATIONS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mathematical Foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCIENCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Science Background
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ABOUT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#algorithm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#seeding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Seeding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-propagation-mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The propagation mask
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#termination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Termination
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Termination">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-angle-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The angle budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#track-data-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Track data structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="standard-tractography-the-fact-tracker">Standard Tractography: the FACT Tracker<a class="headerlink" href="#standard-tractography-the-fact-tracker" title="Permanent link">&para;</a></h1>
+<p><code>nim_tractography_standard</code> implements FACT (Fiber Assignment by Continuous
+Tracking, Mori et al. 1999): deterministic streamline tracking on the discrete
+voxel tensor field, with <strong>no interpolation</strong>. Direction is read from the
+principal eigenvector of the voxel the streamline is currently in, and the
+streamline advances by intersecting the voxel boundary rather than by taking a
+fixed step. It is the baseline tracker in HINEC — the reference against which
+the interpolated trackers (<code>nim_tractography_hinec</code>,
+<code>nim_tractography_mmf_connframe</code>) are compared.</p>
+<p>Selected with <code>algorithm: standard</code> in the config. FACT is DTI-only by
+construction: <code>field: csd</code> has no meaning here, because there is no
+interpolation stage in which to resolve multiple peaks.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source</td>
+<td><code>src/nim_tractography/nim_tractography_standard.m</code></td>
+</tr>
+<tr>
+<td>Driver</td>
+<td><code>runTractography.m</code> (seeding, masks, filtering, saving)</td>
+</tr>
+<tr>
+<td>Config</td>
+<td><code>config/standard_dti.yml</code></td>
+</tr>
+<tr>
+<td>Interpolated alternatives</td>
+<td><a href="../High_Order/">High-Order Methods</a>, <a href="../MMF_TRACTOGRAPHY/">MMF Connection-Form</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="algorithm">Algorithm<a class="headerlink" href="#algorithm" title="Permanent link">&para;</a></h2>
+<p>FACT does not step by a fixed increment. From the current position it finds
+where the ray along the current direction leaves the current voxel, jumps to
+that exit point, and reads a new direction from the voxel it has entered. Step
+length therefore varies: it depends on where in the voxel the streamline
+entered and how obliquely it is travelling.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>place seed anywhere inside a seeded voxel
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>direction &lt;- principal eigenvector of the seed voxel, signed by +1 / -1
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>loop:
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    stop if FA at the current voxel &lt; termination.fa_min
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    stop if the turn from the previous segment exceeds the angle budget
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    stop if the crossing count reaches max_steps
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    exit_point &lt;- intersection of the ray with the current voxel boundary
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    stop if there is no forward intersection, or the exit point leaves the volume
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    stop if the exit voxel is outside the propagation mask
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    append exit_point; move there
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    direction &lt;- principal eigenvector of the new voxel, sign-aligned to the old
+</code></pre></div>
+<p>Two passes are run from every seed, one with the initial direction negated. The
+backward pass is reversed and concatenated with the forward pass, so <strong>one seed
+yields at most one track</strong>, spanning the seed in both directions.</p>
+<p>Implementation notes:</p>
+<ul>
+<li>The exit point is nudged <code>1e-4</code> along the direction before being stored.
+  Without it, <code>round()</code> maps a boundary coordinate of the form <code>n.5</code> back to
+  the voxel just left (MATLAB rounds half away from zero) and the streamline
+  stalls.</li>
+<li>Voxel membership is <code>round(position)</code> throughout, so a voxel is the unit cube
+  centred on its integer index.</li>
+<li>Direction is sign-aligned to the previous direction at every crossing
+  (<code>dot &lt; 0</code> flips it), because <code>v1</code> is a line field defined only up to sign.</li>
+</ul>
+<h2 id="inputs">Inputs<a class="headerlink" href="#inputs" title="Permanent link">&para;</a></h2>
+<p>Required fields on the <code>nim</code> struct:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Shape</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nim.evec</code></td>
+<td><code>[x y z 3 3]</code></td>
+<td>principal eigenvector <code>evec(:,:,:,:,1)</code> is the direction field</td>
+</tr>
+<tr>
+<td><code>nim.FA</code></td>
+<td><code>[x y z]</code></td>
+<td>seeding, propagation and termination</td>
+</tr>
+<tr>
+<td><code>nim.eval</code></td>
+<td><code>[x y z 3]</code></td>
+<td>optional; used only for a sanity warning at the centre voxel</td>
+</tr>
+<tr>
+<td><code>nim.mask</code></td>
+<td><code>[x y z]</code></td>
+<td>optional; intersected into the propagation mask</td>
+</tr>
+</tbody>
+</table>
+<p>The eigenvector array is validated to be <code>3 x 3</code> in its last two dimensions,
+and the eigenvalue ordering is checked at the centre voxel: if <code>eval(1)</code> is not
+the largest, a warning is issued that the principal eigenvector may not
+correspond to the largest eigenvalue.</p>
+<h2 id="seeding">Seeding<a class="headerlink" href="#seeding" title="Permanent link">&para;</a></h2>
+<p><strong>Seeding is decided in <code>runTractography.m</code>, not in the tracker.</strong> The tracker
+errors out if <code>options.seed_mask</code> is empty — it executes a seeding decision, it
+does not make one. <code>runTractography</code> picks a mask by priority:</p>
+<ol>
+<li><code>seeding.roi</code> — explicit atlas regions, optionally dilated, then intersected
+   with the brain mask and <code>FA &gt; seeding.fa_min</code>.</li>
+<li><code>nim.mask</code> refined by <code>FA &gt; seeding.fa_min</code>.</li>
+<li><code>nim.parcellation_mask</code> dilated by 3 voxels, then <code>FA &gt; 0.05</code>.</li>
+<li><code>FA &gt; 0.10</code> as a last resort, with a warning that low-anisotropy structures
+   (fornix, cingulum) will be missed.</li>
+</ol>
+<p>Within each seeded voxel, <code>seeding.density</code> seeds are placed by
+<code>nim_seed_offsets</code>:</p>
+<ul>
+<li><code>strategy: uniform</code> (default) — a deterministic sub-voxel lattice. The count
+  is honoured <strong>exactly</strong>: a perfect cube gives the full <code>n x n x n</code> lattice,
+  and any other count gives a deterministic farthest-point subset of the next
+  larger lattice, so seeds stay spread rather than clustering in one corner. No
+  RNG is involved, so runs are reproducible and streamlines can be matched
+  one-to-one across a parameter sweep.</li>
+<li><code>strategy: random</code> — uniform jitter within the voxel. Not reproducible.</li>
+</ul>
+<p>See <a href="../SEEDING_STRATEGY/">Seeding Strategy</a> for the full account.</p>
+<h2 id="the-propagation-mask">The propagation mask<a class="headerlink" href="#the-propagation-mask" title="Permanent link">&para;</a></h2>
+<p>Where a track may <strong>go</strong> is not where it may <strong>start</strong>. The propagation domain
+is derived from the data:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">prop_mask</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">nim</span><span class="p">.</span><span class="n">FA</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">options</span><span class="p">.</span><span class="n">termination_fa</span><span class="p">;</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">if</span><span class="w"> </span><span class="nb">isfield</span><span class="p">(</span><span class="n">nim</span><span class="p">,</span><span class="w"> </span><span class="s">'mask'</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">~</span><span class="nb">isempty</span><span class="p">(</span><span class="n">nim</span><span class="p">.</span><span class="n">mask</span><span class="p">)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">prop_mask</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">prop_mask</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">nim</span><span class="p">.</span><span class="n">mask</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.5</span><span class="p">);</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">end</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">nim</span><span class="p">.</span><span class="n">dilated_brain_mask</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">imdilate</span><span class="p">(</span><span class="n">prop_mask</span><span class="p">,</span><span class="w"> </span><span class="nb">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">));</span>
+</code></pre></div>
+<p>This was previously a dilation of the <em>seed</em> mask. With whole-brain seeding the
+two coincide and nothing looks wrong; with ROI seeding the propagation domain
+collapsed to a one-voxel skin around the ROI and streamlines died almost
+immediately. The same bug had been fixed in <code>nim_tractography_hinec</code> earlier and
+the fix was not carried across. A caller may still override the domain by
+passing <code>options.propagation_mask</code> directly.</p>
+<h2 id="termination">Termination<a class="headerlink" href="#termination" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Config key</th>
+<th>Reason string</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FA at the seed voxel below floor</td>
+<td><code>termination.fa_min</code></td>
+<td><code>initial_fa</code></td>
+</tr>
+<tr>
+<td>FA at the current voxel below floor</td>
+<td><code>termination.fa_min</code></td>
+<td><code>fa</code></td>
+</tr>
+<tr>
+<td>Turn exceeds the angle budget</td>
+<td><code>termination.angle_max</code></td>
+<td><code>angle</code></td>
+</tr>
+<tr>
+<td>Crossing count reached</td>
+<td>derived from <code>termination.max_arc</code></td>
+<td><code>max_steps</code></td>
+</tr>
+<tr>
+<td>No forward boundary intersection</td>
+<td>—</td>
+<td><code>no_exit</code></td>
+</tr>
+<tr>
+<td>Exit voxel outside the propagation mask</td>
+<td>—</td>
+<td><code>brain_mask</code></td>
+</tr>
+<tr>
+<td>No valid eigenvector in the new voxel</td>
+<td>—</td>
+<td><code>no_direction</code></td>
+</tr>
+</tbody>
+</table>
+<p>Counts per reason are printed at the end of the run when
+<code>tractography.diagnostics</code> is true.</p>
+<p>After tracking, a track is kept only if its arc length — the sum of segment
+lengths of the combined forward+backward polyline, in <strong>voxels</strong> — is at least
+<code>termination.min_arc</code>. This filter was previously defaulted at the top of the
+file and then never read; the tracker carried a comment stating it applied "no
+filters at all", which was literally true. A schema-validated key that every
+config sets was honoured by exactly one of the three trackers.</p>
+<h3 id="the-angle-budget">The angle budget<a class="headerlink" href="#the-angle-budget" title="Permanent link">&para;</a></h3>
+<p><code>termination.angle_max</code> is in <strong>degrees of turning per voxel of arc</strong>, not per
+step. All three trackers convert it through <code>nim_utils/nim_angle_limit.m</code>. It is
+a minimum radius of curvature in disguise: <code>R = 57.3 / angle_max</code> voxels.</p>
+<p><strong>FACT is budgeted per voxel transition.</strong> Direction is piecewise constant
+within a voxel and changes only at boundaries, so one transition is charged as
+one voxel of arc — <code>nim_angle_limit(angle_thresh, 1)</code>. This is deliberately
+<em>not</em> the length of the segment just travelled: a streamline that clips a voxel
+corner covers a tiny arc, but the turn waiting for it at the boundary is a
+property of the data, not of how much of the voxel it happened to cross.
+Budgeting by the clipped length would terminate a streamline for the geometry
+of the intersection.</p>
+<p><strong>The 90 degree ceiling.</strong> <code>v1</code> is a line field, defined only up to sign, so
+every tangent is sign-aligned to its predecessor before the turn between them is
+measured. That confines the measured turn to <code>[0, 90]</code> degrees. A budget above
+90 degrees can never be exceeded, so the criterion there is not loose — it is
+<strong>absent</strong>. <code>nim_config_to_options</code> warns when a config lands in that regime.</p>
+<p><code>angle_max: 0</code> disables the criterion outright. Use that for a control run
+rather than setting a very large value: a large value is a silently inert
+criterion, which looks exactly like a satisfied one.</p>
+<p>For the interpolated trackers the budget for one step is <code>angle_max x step</code>, so
+refining the step tightens the budget in proportion and the same physical
+curvature bound is enforced at every step size. The budget is always taken from
+the <em>nominal</em> step, never the realised chord — chord-based budgeting is
+method-dependent, since Euler and RK2 advance by <code>h x (unit vector)</code> and have a
+chord of exactly <code>h</code>, while RK4 averages four stage vectors and its chord is
+shorter. <code>config/standard_dti.yml</code> sets <code>angle_max: 45</code>, the classic FACT
+turning angle, evaluated per voxel transition.</p>
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
+<p>Only the keys FACT actually reads are listed. The full surface, with defaults,
+is in the generated <a href="../YAML_CONFIG/">YAML Configuration Reference</a>; the mapping
+from canonical config path to the flat option names the tracker reads lives in
+<code>src/nim_utils/nim_config_to_options.m</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Config path</th>
+<th>Tracker option</th>
+<th>Effect on FACT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tractography.algorithm: standard</code></td>
+<td>—</td>
+<td>selects this tracker</td>
+</tr>
+<tr>
+<td><code>tractography.seeding.density</code></td>
+<td><code>seed_density</code></td>
+<td>seeds per seeded voxel</td>
+</tr>
+<tr>
+<td><code>tractography.seeding.strategy</code></td>
+<td><code>seed_strategy</code></td>
+<td><code>uniform</code> lattice or <code>random</code> jitter</td>
+</tr>
+<tr>
+<td><code>tractography.seeding.fa_min</code></td>
+<td><code>seed_fa_threshold</code></td>
+<td>seed mask FA floor (applied in <code>runTractography</code>)</td>
+</tr>
+<tr>
+<td><code>tractography.seeding.roi</code> / <code>roi_dilate</code></td>
+<td><code>seed_roi</code> / <code>seed_roi_dilate</code></td>
+<td>restrict seeding to atlas regions</td>
+</tr>
+<tr>
+<td><code>tractography.termination.fa_min</code></td>
+<td><code>termination_fa</code></td>
+<td>termination and propagation-mask FA floor</td>
+</tr>
+<tr>
+<td><code>tractography.termination.angle_max</code></td>
+<td><code>angle_thresh</code></td>
+<td>turn budget per voxel transition</td>
+</tr>
+<tr>
+<td><code>tractography.termination.max_arc</code></td>
+<td><code>max_steps</code> (derived)</td>
+<td>see the caveat below</td>
+</tr>
+<tr>
+<td><code>tractography.termination.min_arc</code></td>
+<td><code>min_length</code></td>
+<td>discard shorter tracks, in voxels</td>
+</tr>
+<tr>
+<td><code>tractography.filter.*</code></td>
+<td>—</td>
+<td>applied by <code>runTractography</code> after tracking</td>
+</tr>
+<tr>
+<td><code>tractography.output.arc_step</code></td>
+<td><code>output_arc_step</code></td>
+<td>resample saved polylines</td>
+</tr>
+<tr>
+<td><code>tractography.diagnostics</code></td>
+<td><code>enable_diagnostics</code></td>
+<td>timing and failure reports</td>
+</tr>
+</tbody>
+</table>
+<p>Keys FACT ignores by design: <code>integrator.method</code> and the RKF45 group (there is
+no numerical integrator here — steps are exact boundary intersections),
+<code>interpolation.*</code> (no interpolation), <code>csd.*</code> and <code>field</code>, <code>mmf.*</code>, and
+<code>tractography.act</code> (ACT is read only by <code>nim_tractography_hinec</code>; the schema
+marks it <code>hinec</code>).</p>
+<p><strong><code>integrator.step</code> caveat.</strong> FACT's geometry does not use a step size, but the
+step is not inert: <code>nim_config_to_options</code> derives <code>max_steps =
+ceil(max_arc / step)</code> for every tracker, and FACT compares that number against
+its <strong>crossing count</strong>. So under FACT <code>max_arc</code> and <code>step</code> together set a cap on
+the number of voxel boundaries crossed, not on arc length in voxels; the two
+coincide only if each crossing happens to advance exactly <code>step</code> of arc. With
+<code>config/standard_dti.yml</code> (<code>max_arc: 2500</code>, <code>step: 0.5</code>) the cap is 5000
+crossings.</p>
+<h2 id="output">Output<a class="headerlink" href="#output" title="Permanent link">&para;</a></h2>
+<p><code>nim_tractography_standard</code> returns <code>tracks</code> and writes nothing itself. Saving,
+ROI filtering and decimation are <code>runTractography</code>'s job, in that order:</p>
+<ol>
+<li><code>nim_filter_tracks_roi</code> applies <code>filter.include_roi</code>, <code>filter.exclude_roi</code>,
+   <code>filter.endpoints_in</code> (one end in each of two regions) and
+   <code>filter.contained_in</code> (every point inside a corridor). Filtering runs on the
+   full-resolution polyline, because it tests which voxels a track visits.</li>
+<li><code>nim_resample_track_arc</code> decimates to <code>output.arc_step</code> voxels of spacing, if
+   set. This decouples file size from step size and does not affect the tracking
+   itself.</li>
+<li>The result is saved to <code>&lt;run_dir&gt;/tractography/tracks_standard_&lt;timestamp&gt;.mat</code>
+   (or <code>tractography_results/</code> without a run directory), containing <code>tracks</code>,
+   <code>options</code>, <code>elapsed_time</code>, <code>algorithm</code> and <code>track_meta</code>.</li>
+</ol>
+<h3 id="track-data-structure">Track data structure<a class="headerlink" href="#track-data-structure" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">tracks</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">cell</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">tracks</span><span class="p">{</span><span class="nb">i</span><span class="p">}</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="n">x1</span><span class="p">,</span><span class="w"> </span><span class="n">y1</span><span class="p">,</span><span class="w"> </span><span class="n">z1</span><span class="p">;</span><span class="w">    </span><span class="c">% complete trajectory, not just endpoints</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">             </span><span class="n">x2</span><span class="p">,</span><span class="w"> </span><span class="n">y2</span><span class="p">,</span><span class="w"> </span><span class="n">z2</span><span class="p">;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">             </span><span class="k">...</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">             </span><span class="n">xN</span><span class="p">,</span><span class="w"> </span><span class="n">yN</span><span class="p">,</span><span class="w"> </span><span class="n">zN</span><span class="p">];</span><span class="w">   </span><span class="c">% voxel-space coordinates</span>
+</code></pre></div>
+<p>Every track is the full polyline; row counts vary per track. Coordinates stay in
+voxel space throughout — conversion to world/RAS coordinates happens only at
+export, in <code>scripts/hinec_to_trk.py</code>, using the DWI affine.</p>
+<h2 id="diagnostics">Diagnostics<a class="headerlink" href="#diagnostics" title="Permanent link">&para;</a></h2>
+<p>With <code>tractography.diagnostics: true</code> the tracker prints, after the run:</p>
+<ul>
+<li>a timing report — total, eigenvector verification, seed generation, tracking,
+  boundary-check time, total voxel steps, average voxels per track, voxels per
+  second;</li>
+<li>a failure analysis — seeds with no initial direction, successful tracks,
+  failures during generation;</li>
+<li>the termination-reason breakdown tabulated above, sorted by frequency;</li>
+<li>a warning when the success rate falls below 10%, which usually means the FA
+  floor or the seed mask is wrong.</li>
+</ul>
+<p><code>runTractography</code> additionally writes <code>track_statistics.txt</code> into the run
+directory's diagnostics folder.</p>
+<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Single tensor model.</strong> One principal eigenvector per voxel cannot represent
+  crossing fibres, and streamlines terminate or take the dominant branch at a
+  crossing. Use <code>algorithm: hinec</code> with <code>field: csd</code> for multi-peak direction
+  resolution.</li>
+<li><strong>No interpolation.</strong> Direction is piecewise constant, so tracks are visibly
+  faceted and turn only at voxel boundaries. This is FACT's definition, not a
+  gap; it is also why FACT has no meaningful order of accuracy to verify — see
+  <a href="../CONVERGENCE/">Solution Verification</a>, which covers the interpolated
+  trackers.</li>
+<li><strong>Deterministic only.</strong> There is no probabilistic variant; low-probability
+  pathways are not sampled.</li>
+<li><strong>Voxel-space output.</strong> Anything requiring physical units (millimetre lengths,
+  world-space overlays) must apply the affine downstream.</li>
+</ul>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../TRACTOGRAPHY_METHODS/">Methods Overview</a> — how the three trackers relate</li>
+<li><a href="../High_Order/">High-Order Methods</a> — the interpolated tracker</li>
+<li><a href="../MMF_TRACTOGRAPHY/">MMF Connection-Form</a> — moving-frame tracking</li>
+<li><a href="../SEEDING_STRATEGY/">Seeding Strategy</a></li>
+<li><a href="../YAML_CONFIG/">YAML Configuration Reference</a> and its
+  <a href="../CHANGELOG_YAML/">changelog</a></li>
+<li><a href="../VISUALIZATION_GUIDE/">Visualization Guide</a> — <code>visualizeTractography</code>,
+  <code>visualizeTractographySlices</code> and the slice-cache viewer</li>
+</ul>
+<h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
+<p>Mori, S., Crain, B. J., Chacko, V. P., &amp; van Zijl, P. C. (1999).
+Three-dimensional tracking of axonal projections in the brain by magnetic
+resonance imaging. <em>Annals of Neurology</em>, 45(2), 265-269.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
