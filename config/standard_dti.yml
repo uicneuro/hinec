@@ -2,26 +2,26 @@
 # algorithm: 'standard' = discrete voxel tracking, no interpolation, Euler stepping.
 # The deterministic sanity-check baseline; faster and coarser than hinec/mmf.
 # There is no CSD variant — FACT is DTI-only by construction.
-#
-#   ./bin/run_tractography.sh standard_dti --score
-
-preprocessing:
-  denoise_method: 'dwidenoise'
+# 
+# ./bin/run_tractography.sh standard_dti --score
+# 
+# Canonical nested schema. Only non-default values appear here;
+# everything else comes from nim_config_schema defaults.
+# Any parameter can be overridden on the CLI: --set <path>=<value>
 
 tractography:
-  # tracker + direction source
-  algorithm: 'standard'      # FACT — discrete voxel tensors, no interpolation
-  field: 'dti'
-  interp_method: 'none'      # FACT does not interpolate
-  # integrator — numerical stepping scheme
-  integration_order: 1       # 1 Euler (FACT)
-  step_size: 0.5
-  # seeding
-  seed_density: 4
-  # termination
-  fa_threshold: 0.1
-  termination_fa: 0.1
-  angle_thresh: 60
-  min_length: 20
-  max_steps: 5000
-  act_enabled: true
+  algorithm: standard
+  act: true
+  integrator:
+    method: euler
+    step: 0.5
+  seeding:
+    density: 4
+  termination:
+    angle_max: 45          # deg per voxel transition. FACT is piecewise constant
+                           # per voxel, so this is the classic FACT turning angle.
+                           # NOT 120: tangents are sign-aligned, so anything >= 90
+                           # can never fire (see nim_angle_limit).
+    max_arc: 2500
+    min_arc: 20
+

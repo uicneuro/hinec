@@ -2,39 +2,23 @@
 # HINEC supports FOD peaks: trajectory-dependent (sel_power) peak selection resolves
 # crossings by approach direction, integrated with RK4/RKF45 + ACT. runTractography
 # computes/loads the FOD peaks (nim_csd) before tracking, cached as <source>_csd.mat.
-#
-#   ./bin/run_tractography.sh hinec_csd --score
-#
+# 
+# ./bin/run_tractography.sh hinec_csd --score
+# 
 # (This is the tracker that used to be mislabelled 'mmf' with integrator: 'rkf45'.)
-
-preprocessing:
-  denoise_method: 'dwidenoise'
+# 
+# Canonical nested schema. Only non-default values appear here;
+# everything else comes from nim_config_schema defaults.
+# Any parameter can be overridden on the CLI: --set <path>=<value>
 
 tractography:
-  # tracker + direction source
-  algorithm: 'hinec'
-  field: 'csd'
-  # direction shaping — interp_method (spatial kernel) x sel_power (alignment steering); they compose
-  interp_method: 'trilinear'   # 'trilinear' | 'cubic'
-  sel_power: 16                # trajectory-dependent FOD-peak selectivity (0 = plain)
-  # integrator — numerical stepping scheme
-  integration_order: 5         # 1 Euler | 2 RK2 | 4 RK4 | 5 RKF45 (adaptive)
-  adaptive_step: true
-  rkf_tolerance: 0.02
-  step_size: 0.2
-  step_min: 0.02
-  step_max: 0.5
-  # seeding
-  seed_density: 8
-  # termination
-  fa_threshold: 0.10
-  termination_fa: 0.10
-  angle_thresh: 45
-  min_length: 15
-  max_steps: 3000
-  act_enabled: false
-  # CSD FOD peak extraction (nim_csd)
-  csd_lmax: 6
-  csd_max_peaks: 3
-  csd_peak_thresh: 0.5
-  csd_peak_min_sep: 45
+  field: csd
+  integrator:
+    method: rkf45
+    tolerance: 0.02
+    step_min: 0.02
+    step_max: 0.5
+  termination:
+    angle_max: 225
+    max_arc: 600
+

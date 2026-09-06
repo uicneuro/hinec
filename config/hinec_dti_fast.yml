@@ -1,28 +1,23 @@
 # HINEC interpolated DTI — FAST exploration: RK2 (order 2) + trilinear, coarse
 # steps and sparse seeding for quick parameter screening (3-5x faster than default).
 # (Formerly fast_exploration.yml.)
-#
-#   ./bin/run_tractography.sh hinec_dti_fast --score
-
-preprocessing:
-  denoise_method: 'dwidenoise'
+# 
+# ./bin/run_tractography.sh hinec_dti_fast --score
+# 
+# Canonical nested schema. Only non-default values appear here;
+# everything else comes from nim_config_schema defaults.
+# Any parameter can be overridden on the CLI: --set <path>=<value>
 
 tractography:
-  # tracker + direction source
-  algorithm: 'hinec'
-  field: 'dti'
-  # direction shaping — interp_method (spatial kernel) x sel_power (alignment steering); they compose
-  interp_method: 'trilinear'   # 'trilinear' | 'cubic'
-  sel_power: 0                 # trajectory-dependent selectivity (0 = plain interpolation)
-  # integrator — numerical stepping scheme
-  integration_order: 2         # 1 Euler | 2 RK2 | 4 RK4 | 5 RKF45 (adaptive)
-  step_size: 0.3
-  # seeding
-  seed_density: 2
-  # termination
-  fa_threshold: 0.1
-  termination_fa: 0.2
-  angle_thresh: 45
-  min_length: 40
-  max_steps: 500
-  act_enabled: true
+  act: true
+  integrator:
+    method: rk2
+    step: 0.3
+  seeding:
+    density: 2
+  termination:
+    angle_max: 150
+    fa_min: 0.2
+    max_arc: 150
+    min_arc: 40
+

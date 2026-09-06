@@ -2,40 +2,20 @@
 # Builds the nim via run_hinec.sh; the tractography block mirrors hinec_dti (initial pass) —
 # iterate/tune per experiment with run_tractography.sh on the built nim. See
 # docs/IRONTRACT_WORKFLOW.md (nim_irontract_submit packages the submission).
-#
-#   ./bin/run_hinec.sh <data_prefix> irontract.mat config/irontract.yml
-
-preprocessing:
-  run_denoising: true
-  denoise_method: 'dwidenoise'
-  run_motion_correction: true
-  run_eddy: true
-  improve_mask: true
-  atlas_type: 'jhu'
-  t1_available: false
-  use_t1_registration: false
-  register_to_mni: false
+# 
+# ./bin/run_hinec.sh <data_prefix> irontract.mat config/irontract.yml
+# 
+# Canonical nested schema. Only non-default values appear here;
+# everything else comes from nim_config_schema defaults.
+# Any parameter can be overridden on the CLI: --set <path>=<value>
 
 tractography:
-  # tracker + direction source
-  algorithm: 'hinec'
-  field: 'dti'
-  # direction shaping — interp_method (spatial kernel) x sel_power (alignment steering); they compose
-  interp_method: 'trilinear'   # 'trilinear' | 'cubic'
-  sel_power: 16                # trajectory-dependent selectivity (0 = plain interpolation)
-  # integrator — numerical stepping scheme
-  integration_order: 5         # 1 Euler | 2 RK2 | 4 RK4 | 5 RKF45 (adaptive)
-  adaptive_step: true
-  rkf_tolerance: 0.02
-  step_size: 0.2
-  step_min: 0.02
-  step_max: 0.5
-  # seeding
-  seed_density: 8
-  # termination
-  fa_threshold: 0.10
-  termination_fa: 0.10
-  angle_thresh: 45
-  min_length: 15
-  max_steps: 3000
-  act_enabled: false
+  integrator:
+    method: rkf45
+    tolerance: 0.02
+    step_min: 0.02
+    step_max: 0.5
+  termination:
+    angle_max: 225
+    max_arc: 600
+

@@ -34,13 +34,34 @@ set -euo pipefail
 
 # Parse arguments
 if [[ $# -lt 2 ]]; then
-    echo "Usage: $0 <data_prefix> <output_mat> [config_file]" >&2
+    echo "Usage: $0 <data_prefix> <output_mat> [config_file] [--set key=value ...]" >&2
     echo "" >&2
     echo "Examples:" >&2
     echo "  $0 data/parcellation_sample/sample sample_hinec.mat" >&2
     echo "  $0 data/parcellation_sample/sample sample_hinec.mat config/ismrm2015.yml" >&2
     exit 1
 fi
+
+# --set key=value overrides work here exactly as in run_tractography.sh, and
+# reach EVERY config parameter (preprocessing included) via the schema resolver.
+# Parallel workers. The tracker caps parpool at 8 unless HINEC_MAX_WORKERS says
+# otherwise, which leaves most of a large machine idle. Default to half the
+# cores (capped at 64) so a co-tenant still has room; override by exporting
+# HINEC_MAX_WORKERS before running.
+if [[ -z "${HINEC_MAX_WORKERS:-}" ]]; then
+    _ncpu=$(nproc 2>/dev/null || echo 8)
+    _w=$(( _ncpu / 2 )); (( _w < 1 )) && _w=1; (( _w > 64 )) && _w=64
+    export HINEC_MAX_WORKERS="$_w"
+fi
+
+sets=(); POS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --set) sets+=("${2:?--set needs key=value}"); shift 2;;
+        *)     POS+=("$1"); shift;;
+    esac
+done
+set -- "${POS[@]}"
 
 data_prefix=$1
 output_mat=$2
@@ -119,6 +140,15 @@ matlab_command+="fprintf('\\n========================================\\n'); "
 matlab_command+="fprintf('LOADING CONFIGURATION\\n'); "
 matlab_command+="fprintf('========================================\\n'); "
 matlab_command+="config = load_config_yaml('$(escape_matlab_string "$config_file")'); "
+if [[ ${#sets[@]} -gt 0 ]]; then
+    set_list=""
+    for kv in "${sets[@]}"; do
+        [[ -n "$set_list" ]] && set_list+=", "
+        set_list+="'$(escape_matlab_string "$kv")'"
+    done
+    matlab_command+="config = nim_config_apply_overrides(config, {${set_list}}); "
+    printf '%s\n' "${sets[@]}" > "${run_dir}/overrides.txt"
+fi
 matlab_command+="fprintf('\\n========================================\\n'); "
 matlab_command+="fprintf('USING RUN DIRECTORY\\n'); "
 matlab_command+="fprintf('========================================\\n'); "

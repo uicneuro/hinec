@@ -35,6 +35,16 @@ escape_matlab_string() { printf "%s" "${1//\'/\'\'}"; }
 if [[ $# -lt 1 ]]; then sed -n '2,30p' "$0" >&2; exit 1; fi
 
 # --- separate flags from positionals ---------------------------------------
+# Parallel workers. The tracker caps parpool at 8 unless HINEC_MAX_WORKERS says
+# otherwise, which leaves most of a large machine idle. Default to half the
+# cores (capped at 64) so a co-tenant still has room; override by exporting
+# HINEC_MAX_WORKERS before running.
+if [[ -z "${HINEC_MAX_WORKERS:-}" ]]; then
+    _ncpu=$(nproc 2>/dev/null || echo 8)
+    _w=$(( _ncpu / 2 )); (( _w < 1 )) && _w=1; (( _w > 64 )) && _w=64
+    export HINEC_MAX_WORKERS="$_w"
+fi
+
 POS=(); do_score=false; src_override=""; sets=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -91,15 +101,22 @@ fi
 [[ -n "${src_mat:-}" && -f "$src_mat" ]] || { echo "Error: no processed .mat at source: $src" >&2; exit 1; }
 src_mat="$(cd "$(dirname "$src_mat")" && pwd)/$(basename "$src_mat")"
 
-# DSE overrides: turn each --set key=value into a config.tractography assignment
-# (quick parameter sweeps without writing a new YAML each time), and a run-name tag.
+# DSE overrides. Each --set key=value is handed to nim_config_apply_overrides,
+# which resolves it against the schema (full path, tractography-assumed, bare
+# leaf, or legacy alias), type-checks it, and rejects unknown keys instead of
+# silently assigning a field nothing reads. Every parameter is reachable this
+# way, including preprocessing.* and nested paths.
 override_mcmd=""; name_suffix=""
-for kv in ${sets[@]+"${sets[@]}"}; do
-    key="${kv%%=*}"; val="${kv#*=}"
-    if [[ "$val" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then mval="$val"; else mval="'$(escape_matlab_string "$val")'"; fi
-    override_mcmd+="config.tractography.$(escape_matlab_string "$key") = $mval; "
-    name_suffix+="_$(printf '%s%s' "$key" "$val" | tr -c 'A-Za-z0-9' '_' | sed 's/__*/_/g; s/_$//')"
-done
+if [[ ${#sets[@]} -gt 0 ]]; then
+    set_list=""
+    for kv in "${sets[@]}"; do
+        [[ -n "$set_list" ]] && set_list+=", "
+        set_list+="'$(escape_matlab_string "$kv")'"
+        key="${kv%%=*}"; val="${kv#*=}"
+        name_suffix+="_$(printf '%s%s' "${key##*.}" "$val" | tr -c 'A-Za-z0-9' '_' | sed 's/__*/_/g; s/_$//')"
+    done
+    override_mcmd="config = nim_config_apply_overrides(config, {${set_list}}); "
+fi
 
 # New run dir (named by config [+ overrides], matching run_hinec convention)
 timestamp=$(date +"%Y%m%d_%H%M%S")

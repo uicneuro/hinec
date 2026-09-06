@@ -5,35 +5,17 @@
 # runTractography computes/loads the FOD peaks (nim_csd) before tracking; the tracer
 # rebuilds the geometry from those peaks because the requested field ('csd') differs
 # from any DTI geometry baked by main.m.
-#
-#   ./bin/run_tractography.sh mmf_csd --score
-
-preprocessing:
-  denoise_method: 'dwidenoise'
+# 
+# ./bin/run_tractography.sh mmf_csd --score
+# 
+# Canonical nested schema. Only non-default values appear here;
+# everything else comes from nim_config_schema defaults.
+# Any parameter can be overridden on the CLI: --set <path>=<value>
 
 tractography:
-  # tracker + direction source
-  algorithm: 'mmf'             # connection-form tracer (direction from the connection)
-  field: 'csd'                 # per-peak connection -> multiple pathways through crossings
-  # frame / connection building (Eq 6-9)
-  frame_sel_power: 16          # trajectory-dependent selectivity for building the frames
-  mmf_anchor: 0                # 0 = pure Eq.10-11; >0 re-anchors e1 to the field
-  # integrator — numerical stepping scheme
-  integrator: 'rk4'            # 'rk4' (fixed) | 'rkf45' (adaptive)
-  rkf_tol: 0.02                # RKF45 error tolerance (ignored for rk4)
-  step_size: 0.2
-  step_min: 0.02
-  step_max: 0.5
-  # seeding
-  seed_density: 8
-  # termination
-  fa_threshold: 0.10
-  termination_fa: 0.10
-  angle_thresh: 45
-  min_length: 15
-  max_steps: 3000
-  # CSD FOD peak extraction (nim_csd) — used to build the connection geometry
-  csd_lmax: 6
-  csd_max_peaks: 3
-  csd_peak_thresh: 0.5
-  csd_peak_min_sep: 45
+  algorithm: mmf
+  field: csd
+  termination:
+    angle_max: 225
+    max_arc: 600
+

@@ -3,36 +3,22 @@
 # hinec DTI tractography block (cubic interpolation + RK4 + ACT). For a specific dataset use
 # a dataset config (ismrm2015, irontract); to iterate trackers on a built nim use a tracker
 # config (hinec_dti / hinec_csd / mmf_dti / mmf_csd / standard_dti / hinec_dti_*).
-#
-#   ./bin/run_hinec.sh <data_prefix> out.mat            # uses this file by default
-
-preprocessing:
-  run_denoising: true
-  denoise_method: 'dwidenoise'   # 'dwidenoise' (MRtrix) | 'susan' (FSL) | 'nlmeans' | 'gaussian'
-  run_motion_correction: true
-  run_eddy: true
-  improve_mask: true
-  atlas_type: 'jhu'              # 'jhu' | 'aal' | 'desikan'
-  t1_available: false
-  use_t1_registration: false
-  register_to_mni: false
+# 
+# ./bin/run_hinec.sh <data_prefix> out.mat            # uses this file by default
+# 
+# Canonical nested schema. Only non-default values appear here;
+# everything else comes from nim_config_schema defaults.
+# Any parameter can be overridden on the CLI: --set <path>=<value>
 
 tractography:
-  # tracker + direction source
-  algorithm: 'hinec'
-  field: 'dti'
-  # direction shaping — interp_method (spatial kernel) x sel_power (alignment steering); they compose
-  interp_method: 'cubic'       # 'trilinear' | 'cubic'
-  sel_power: 0                 # trajectory-dependent selectivity (0 = plain interpolation)
-  # integrator — numerical stepping scheme
-  integration_order: 4         # 1 Euler | 2 RK2 | 4 RK4 | 5 RKF45 (adaptive)
-  step_size: 0.2
-  # seeding
-  seed_density: 4
-  # termination
-  fa_threshold: 0.1
-  termination_fa: 0.2
-  angle_thresh: 35
-  min_length: 45
-  max_steps: 800
-  act_enabled: true
+  act: true
+  interpolation:
+    method: cubic
+  seeding:
+    density: 4
+  termination:
+    fa_min: 0.2
+    angle_max: 175
+    max_arc: 160
+    min_arc: 45
+

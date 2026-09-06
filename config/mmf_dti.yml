@@ -1,39 +1,25 @@
 # GENUINE MMF connection-form tractography (Chun & Peng, DiscussionWithPeng_Winter2026).
 # algorithm: 'mmf' is the ONE selector -> nim_tractography_mmf_connframe (pure connection-form):
-#   - nim_mmf_geometry builds the moving-frame field + connection 1-form into the nim
-#     (Eq 6-9): e1 = trajectory-dependent (frame_sel_power) denoised tangent, e2 = de1/ds
-#     (Frenet normal, Eq 7), e3 = e1 x e2, [omega] = d[A]A^T, curvature + torsion.
-#   - the tracer advances dx/ds = e1 while the FULL frame is evolved by the structure
-#     equation (Eq 10-11), driven by the interpolated connection field.
+# - nim_mmf_geometry builds the moving-frame field + connection 1-form into the nim
+# (Eq 6-9): e1 = trajectory-dependent (frame_sel_power) denoised tangent, e2 = de1/ds
+# (Frenet normal, Eq 7), e3 = e1 x e2, [omega] = d[A]A^T, curvature + torsion.
+# - the tracer advances dx/ds = e1 while the FULL frame is evolved by the structure
+# equation (Eq 10-11), driven by the interpolated connection field.
 # Three orthogonal knobs: algorithm (which tracker) / field (direction source) /
 # integrator (numerical stepping scheme: rk4|rkf45).
-#
-#   ./bin/run_tractography.sh mmf_dti --score
-#
+# 
+# ./bin/run_tractography.sh mmf_dti --score
+# 
 # DTI field: the connection form is built from the tensor principal-direction field.
 # For the CSD (per-peak, multiple-pathways) variant, see mmf_csd.yml.
-
-preprocessing:
-  denoise_method: 'dwidenoise'
+# 
+# Canonical nested schema. Only non-default values appear here;
+# everything else comes from nim_config_schema defaults.
+# Any parameter can be overridden on the CLI: --set <path>=<value>
 
 tractography:
-  # tracker + direction source
-  algorithm: 'mmf'             # connection-form tracer (direction from the connection)
-  field: 'dti'
-  # frame / connection building (Eq 6-9)
-  frame_sel_power: 16          # trajectory-dependent selectivity for building the frames
-  mmf_anchor: 0                # 0 = pure Eq.10-11; >0 re-anchors e1 to the field
-  # integrator — numerical stepping scheme
-  integrator: 'rk4'            # 'rk4' (fixed) | 'rkf45' (adaptive)
-  rkf_tol: 0.02                # RKF45 error tolerance (ignored for rk4)
-  step_size: 0.2
-  step_min: 0.02
-  step_max: 0.5
-  # seeding
-  seed_density: 8
-  # termination
-  fa_threshold: 0.10
-  termination_fa: 0.10
-  angle_thresh: 45
-  min_length: 15
-  max_steps: 3000
+  algorithm: mmf
+  termination:
+    angle_max: 225
+    max_arc: 600
+

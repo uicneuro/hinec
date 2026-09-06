@@ -1,37 +1,25 @@
 # HINEC interpolated DTI — CUBIC interpolation tuned for RECALL / COVERAGE.
 # (Formerly max_coverage.yml.)  Run: ./bin/run_tractography.sh hinec_dti_cubic_recall --score
-#
+# 
 # Tests the OL/OR diagnosis: HINEC is overlap-limited (OL 0.27) with huge
 # overreach headroom (OR 0.11 vs SOTA's 0.60). This config deliberately trades
 # precision for coverage to push recall up, while keeping the strongest
 # deterministic integrator (RKF45). Same model (single-tensor) and same
 # determinism — only the tracking aggressiveness changes vs hinec_dti_cubic:
-#   - densest seeding (seed_density 8)
-#   - aggressive termination (termination_fa 0.05, angle_thresh 60, min_length 15)
-
-preprocessing:
-  denoise_method: 'dwidenoise'
+# - densest seeding (seed_density 8)
+# - aggressive termination (fa_min 0.05, angle_max 300 deg/voxel, min_arc 15)
+# 
+# Canonical nested schema. Only non-default values appear here;
+# everything else comes from nim_config_schema defaults.
+# Any parameter can be overridden on the CLI: --set <path>=<value>
 
 tractography:
-  # tracker + direction source
-  algorithm: 'hinec'
-  field: 'dti'
-  # direction shaping — interp_method (spatial kernel) x sel_power (alignment steering); they compose
-  interp_method: 'cubic'       # 'trilinear' | 'cubic'
-  sel_power: 0                 # trajectory-dependent selectivity (0 = plain interpolation)
-  # integrator — numerical stepping scheme
-  integration_order: 5         # 1 Euler | 2 RK2 | 4 RK4 | 5 RKF45 (adaptive)
-  adaptive_step: true
-  rkf_tolerance: 0.01
-  step_size: 0.2
-  step_min: 0.01
-  step_max: 1.0
-  # seeding
-  seed_density: 8
-  # termination — aggressive (reach low-FA tissue, curved bundles, keep short fibers)
-  fa_threshold: 0.1
-  termination_fa: 0.05
-  angle_thresh: 60
-  min_length: 15
-  max_steps: 1500
-  act_enabled: false
+  integrator:
+    method: rkf45
+  interpolation:
+    method: cubic
+  termination:
+    fa_min: 0.05
+    angle_max: 300
+    max_arc: 300
+

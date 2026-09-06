@@ -1,9 +1,30 @@
 # HINEC Configuration Files
 
 YAML configs for the HINEC pipeline. Every file has two top-level sections —
-`preprocessing:` and `tractography:` — parsed by `src/nim_utils/load_config_yaml.m`
-(flat key/value only; the parser has no lists or nesting). Full parameter reference:
-[docs/YAML_CONFIG.md](../docs/YAML_CONFIG.md).
+`preprocessing:` and `tractography:` — parsed by `src/nim_utils/load_config_yaml.m`.
+
+**The parameter reference is [docs/YAML_CONFIG.md](../docs/YAML_CONFIG.md)**, which is
+*generated* from `src/nim_utils/nim_config_schema.m` and is the only place parameters
+are documented. This file covers naming conventions only; do not duplicate parameter
+tables here, or they will drift.
+
+Configs use **two levels of nesting** below a section (`section` → `group` → `key`);
+a third level is a parse error. Inline lists (`roi: [41, 42]`) are supported. Every
+key is optional, so a working config can be three lines:
+
+```yaml
+tractography:
+  algorithm: hinec
+  seeding:
+    roi: [SLF_L, SLF_R]
+```
+
+Any parameter can be overridden on the command line, including `preprocessing.*`:
+
+```bash
+./bin/run_tractography.sh hinec_dti --set integrator.step=0.05
+./bin/run_hinec.sh data/x x.mat config/y.yml --set preprocessing.run_eddy=false
+```
 
 ## The naming convention (one rule per family)
 
@@ -28,37 +49,52 @@ first two**; the third is a knob with a per-algorithm default.
 2. **`field:`** — *where the local direction comes from*. `dti` (tensor principal
    eigenvector) | `csd` (CSD FOD peaks; needs the `csd_*` params, cached as
    `<source>_csd.mat`). `hinec` and `mmf` accept either; `standard` is DTI-only.
-3. **integrator** — *the numerical stepping scheme (how, and how far, to advance)*.
-   This is **not** the direction. `hinec`/`standard` spell it `integration_order:`
-   (`1`=Euler, `2`=RK2, `4`=RK4, `5`=RKF45 adaptive); `mmf` spells it
-   `integrator:` (`rk4` fixed | `rkf45` adaptive). Same concept, historically
-   different key names.
+3. **`integrator.method:`** — *the numerical stepping scheme (how, and how far,
+   to advance)*. This is **not** the direction. `euler` | `rk2` | `rk4` |
+   `rkf45`, spelled the same way for every tracker. The old
+   `integration_order: 1|2|4|5` is a legacy alias and migrates automatically —
+   it was a method selector wearing a numeric-order name, and its value `5` meant
+   RKF45, a 4(5) embedded pair whose order is 4, not 5.
 
-> Direction (`field`, `sel_power`, `interp_method`) and integrator are genuinely
+> Direction (`field`, `interpolation.method`) and integrator are genuinely
 > independent: you can hold one fixed and sweep the other. Settings that don't apply
-> to the chosen combination (e.g. `csd_lmax` when `field: dti`, `sel_power` when
-> `algorithm: mmf`) are simply ignored — that is expected, not a bug.
+> to the chosen combination (e.g. `csd.lmax` when `field: dti`) are simply ignored
+> — that is expected, not a bug.
 
-### Direction shaping: `interp_method` and `sel_power` compose (not either/or)
+### Direction shaping: the interpolation kernel
 
-For `hinec`, the local direction is a weighted blend over neighbor voxels where each
-neighbor's weight is a **product of two independent factors**:
+For `hinec`, the direction at a sub-voxel point is interpolated from the voxel
+grid. Because `v1` is a **line** field — the sign the eigensolver writes for each
+voxel is arbitrary — the tracker interpolates the dyadic `v1*v1'`, which is
+invariant under `v -> -v`, and recovers the principal eigenvector from it.
+Interpolating the signed components directly would average across disagreeing
+signs and collapse the result toward zero.
 
-```
-weight = spatial_kernel(distance)  ×  alignment^sel_power
-         └── interp_method ──┘         └──── sel_power ────┘
-```
+`interpolation.method` selects the spatial kernel, and the three differ in
+**smoothness**, which is what caps the reachable order of the integrator:
 
-- **`interp_method`** is the *spatial interpolation kernel* — `trilinear` (2×2×2) or
-  `cubic` (4×4×4 tricubic). It decides each neighbor's contribution by distance.
-- **`sel_power`** is *directional steering* — it reweights neighbors by how well they
-  align with the incoming tangent (`0` = no steering = plain interpolation; higher =
-  sharper crossing resolution). It is **not** a spatial scheme.
+| | class | what it is |
+|---|:--:|---|
+| `trilinear` | C⁰ | straight lines between samples; kinked at every voxel face |
+| `cubic` | C¹ | Keys cubic *convolution*, a fixed 4×4×4 stencil — **not** a spline |
+| `spline` | C² | a genuine cubic spline; one global solve, then local evaluation |
 
-So `sel_power: 16` **and** `interp_method: cubic` combine — tricubic spatial weights, each
-sharpened by alignment. `interp_method: cubic` drives the direction at any `sel_power`
-(and at `sel_power: 0` it uses the fast cubic `griddedInterpolant`). This is why cubic and
-sel_power are two knobs, not a choice between them.
+A Runge–Kutta method needs enough continuous derivatives in the right-hand side
+to express its formal order. Measured on ISMRM 2015, RK4 reaches order **2.00**
+on trilinear, **3.06** on cubic and **4.00** on spline — one order per
+derivative. See [Convergence & Verification](../docs/CONVERGENCE.md).
+
+`interpolation.upsample` is the **space axis**: the field is sampled on a grid of
+spacing `1/upsample` voxels before the interpolants are built. Above 1 refines,
+below 1 coarsens; the coordinate frame is unchanged, so runs at different factors
+stay directly comparable.
+
+> **`sel_power` has been removed.** It reweighted neighbours by alignment with
+> the incoming tangent, which made the ODE's right-hand side depend on the
+> trajectory that reached it — there is no justification for that with DTI, where
+> each voxel holds one eigenvector and there is nothing to disambiguate. HINEC is
+> now interpolation + integration only. For CSD, nearest-peak selection is kept
+> because it is structural, but the alignment exponent is gone.
 
 ## The configs
 
@@ -72,7 +108,7 @@ sel_power are two knobs, not a choice between them.
 
 - `standard_dti` — FACT, discrete voxel tensors, no interpolation. Deterministic baseline.
 - `hinec_dti` / `hinec_csd` — interpolated streamlines, trajectory-dependent
-  (`sel_power`) direction, RKF45 + trilinear by default, optional ACT. `hinec_csd` computes
+  direction, RKF45 + trilinear by default, optional ACT. `hinec_csd` computes
   its own FOD peaks (`nim_csd`) at track time — no separate step needed.
 - `mmf_dti` / `mmf_csd` — genuine connection-form tracer (Chun & Peng): the moving-frame
   field + connection 1-form are built into the nim and evolved by the structure equation;
@@ -85,8 +121,8 @@ sel_power are two knobs, not a choice between them.
 |---|---|
 | `hinec_dti_cubic` | `interp_method: cubic` + RKF45 — the cubic high-precision config |
 | `hinec_dti_cubic_recall` | cubic + aggressive termination (`termination_fa 0.05`, `angle 60`) to push coverage/recall |
-| `hinec_dti_euler` | Euler (`integration_order 1`) + trilinear — didactic / FACT-vs-high-order comparison |
-| `hinec_dti_fast` | RK2 (`integration_order 2`), coarse steps & seeding — quick parameter screening |
+| `hinec_dti_euler` | Euler (`integrator.method: euler`) + trilinear — didactic / FACT-vs-high-order comparison |
+| `hinec_dti_fast` | RK2 (`integrator.method: rk2`), coarse steps & seeding — quick parameter screening |
 
 ### Dataset configs — `<dataset>[_variant].yml`  (for `run_hinec.sh`)
 
@@ -127,11 +163,11 @@ Two ways to change knobs; use whichever fits. Neither is "more correct":
 
 ```bash
 # one-off sweep — no file needed
-for s in 8 16 32; do ./bin/run_tractography.sh hinec_csd --score --set sel_power=$s; done
+for h in 0.5 0.25 0.125; do ./bin/run_tractography.sh hinec_csd --score --set integrator.step=$h; done
 
-# cubic on any hinec config, at any sel_power (composes — see "Direction shaping" above)
+# swap the interpolation kernel on any hinec config
 ./bin/run_tractography.sh hinec_dti --score --set interp_method=cubic
-./bin/run_tractography.sh hinec_csd --score --set interp_method=cubic --set sel_power=16
+./bin/run_tractography.sh hinec_csd --score --set interpolation.method=spline
 ```
 
 Rule of thumb: **reuse it → make a `_<variant>` config; one-shot → `--set`.** Nothing is
@@ -152,32 +188,54 @@ cp config/hinec_csd.yml config/hinec_csd_myvariant.yml
 
 ```yaml
 tractography:
-  algorithm: 'hinec'         # standard | hinec | mmf          (axis 1: which tracker)
-  field: 'csd'               # dti | csd                       (axis 2: direction source)
-  # --- axis 3: integrator (numerical stepping scheme) ---
-  integration_order: 5       # hinec/standard: 1 Euler | 2 RK2 | 4 RK4 | 5 RKF45
-  # integrator: 'rk4'        # mmf only:       rk4 (fixed) | rkf45 (adaptive)
-  adaptive_step: true        # RKF45 only
-  rkf_tolerance: 0.02        # RKF45 error tol (hinec); mmf uses rkf_tol
+  algorithm: hinec           # hinec | standard | mmf     (which tracker)
+  field: csd                 # dti | csd                  (direction source)
+  act: false                 # WM/GM/CSF-constrained tracking (hinec; needs tissue masks)
+
+  # --- integrator: ONE scheme for every tracker (mmf no longer differs) ---
+  integrator:
+    method: rkf45            # euler | rk2 | rk4 | rkf45
+    step: 0.2                # voxels; fixed step, or initial step for rkf45
+    tolerance: 0.02          # rkf45 ONLY - setting it with a fixed-step method is an error
+    step_min: 0.02
+    step_max: 0.5
+
   # --- direction shaping ---
-  sel_power: 16              # hinec: 0 = plain interp; >0 = trajectory-dependent selection
-  interp_method: 'cubic'     # hinec: trilinear | cubic | none
-  frame_sel_power: 16        # mmf: selectivity for building the moving frames
-  mmf_anchor: 0              # mmf: 0 = pure structure equation; >0 re-anchors e1 to field
-  # --- seeding / termination ---
-  seed_density: 8            # seeds/voxel (1-8)
-  step_size: 0.2
-  angle_thresh: 45           # max turn per step (deg)
-  termination_fa: 0.10       # FA floor
-  min_length: 15             # mm
-  act_enabled: false         # WM/GM/CSF-constrained tracking (needs tissue masks)
+  interpolation:
+    method: spline           # trilinear (C0) | cubic (C1) | spline (C2)
+    upsample: 1              # spatial sampling factor; >1 refines, <1 coarsens
+
+  # --- seeding ---
+  seeding:
+    density: 8               # seeds/voxel
+    fa_min: 0.05
+    roi: []                  # JHU indices and/or names, e.g. [41, 42] or [SLF_L]
+
+  # --- termination: arc length, so refining the step cannot truncate tracks ---
+  termination:
+    fa_min: 0.10
+    angle_max: 225           # deg per VOXEL OF ARC (not per step), so the budget
+                             # for one step is angle_max * step. Tangents are
+                             # sign-aligned, so a measured turn never exceeds 90
+                             # deg and any budget above that is INERT. 0 disables.
+    max_arc: 400             # voxels; max_steps is DERIVED as ceil(max_arc/step)
+    min_arc: 15              # voxels
+
   # --- field: csd only ---
-  csd_lmax: 6
-  csd_max_peaks: 3
-  csd_peak_thresh: 0.5
-  csd_peak_min_sep: 45
+  csd:
+    lmax: 6
+    max_peaks: 3
+    peak_thresh: 0.5
+    peak_min_sep: 45
+
+  # --- algorithm: mmf only ---
+  mmf:
+    frame_sel_power: 16
+    anchor: 0
 ```
 
-Configs are validated on load (`step_size > 0`, `angle_thresh ∈ (0,180]`,
-`integration_order ∈ {1,2,4,5}`, RKF/MMF ranges). See
-[docs/YAML_CONFIG.md](../docs/YAML_CONFIG.md).
+Every key, its type, range and default is generated from the schema
+(`src/nim_utils/nim_config_schema.m`) into
+[docs/YAML_CONFIG.md](../docs/YAML_CONFIG.md) — that file is the reference, and
+this one is the orientation. Configs are validated on load; unknown keys and
+retired keys are reported rather than silently accepted.
