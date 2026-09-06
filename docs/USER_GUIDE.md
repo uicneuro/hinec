@@ -511,7 +511,8 @@ end
 path = char(string_path);  % Convert if needed
 ```
 
-See [STRING_CHAR_FIXES.md](STRING_CHAR_FIXES.md) for known issues and fixes.
+See `docs/STRING_CHAR_FIXES.md` in the repository for the string/char
+post-mortem; it is a development note and is not part of this site.
 
 ### No Tracks Generated
 
