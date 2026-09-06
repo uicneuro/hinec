@@ -12,8 +12,8 @@ try
     config = load_config_yaml('config/hinec_default.yml');
     fprintf('  ✓ Default config loaded successfully\n');
     fprintf('    Algorithm: %s\n', config.tractography.algorithm);
-    fprintf('    Integration order: %d\n', config.tractography.integration_order);
-    fprintf('    Step size: %.2f\n', config.tractography.step_size);
+    fprintf('    Integrator: %s\n', config.tractography.integrator.method);
+    fprintf('    Step size: %.2f\n', config.tractography.integrator.step);
 catch ME
     fprintf('  ✗ FAILED: %s\n', ME.message);
     return;
@@ -24,9 +24,9 @@ fprintf('\nTest 2: Loading RKF45 tracker configuration (hinec_dti)...\n');
 try
     config_hp = load_config_yaml('config/hinec_dti.yml');
     fprintf('  ✓ hinec_dti config loaded\n');
-    fprintf('    Integration order: %d\n', config_hp.tractography.integration_order);
-    fprintf('    Adaptive step: %d\n', config_hp.tractography.adaptive_step);
-    fprintf('    RKF tolerance: %.4f\n', config_hp.tractography.rkf_tolerance);
+    fprintf('    Integrator: %s\n', config_hp.tractography.integrator.method);
+    fprintf('    Adaptive step: %d\n', config_hp.tractography.integrator.adaptive);
+    fprintf('    RKF tolerance: %.4f\n', config_hp.tractography.integrator.tolerance);
 catch ME
     fprintf('  ✗ FAILED: %s\n', ME.message);
     return;
@@ -40,9 +40,9 @@ try
     fprintf('  ✓ Default parameters pass validation\n');
 
     % Check key parameters are within expected ranges
-    assert(config.tractography.step_size > 0, 'Step size validation');
-    assert(config.tractography.angle_thresh > 0 && config.tractography.angle_thresh <= 180, 'Angle threshold validation');
-    assert(config.tractography.seed_density >= 1, 'Seed density validation');
+    assert(config.tractography.integrator.step > 0, 'Step size validation');
+    assert(config.tractography.termination.angle_max > 0 && config.tractography.termination.angle_max <= 180, 'Angle threshold validation');
+    assert(config.tractography.seeding.density >= 1, 'Seed density validation');
     fprintf('  ✓ All parameter ranges validated\n');
 catch ME
     fprintf('  ✗ FAILED: %s\n', ME.message);
@@ -84,7 +84,7 @@ try
     config_rkf = load_config_yaml('config/hinec_dti.yml');
 
     % Verify RKF45 parameters are present
-    assert(isfield(config_rkf.tractography, 'rkf_tolerance'), 'RKF tolerance field');
+    assert(isfield(config_rkf.tractography.integrator, 'tolerance'), 'RKF tolerance field');
     assert(isfield(config_rkf.tractography, 'rkf_safety'), 'RKF safety field');
     assert(isfield(config_rkf.tractography, 'step_min'), 'Step min field');
     assert(isfield(config_rkf.tractography, 'step_max'), 'Step max field');
