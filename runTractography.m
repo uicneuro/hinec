@@ -112,19 +112,22 @@ end
 %% Set tractography parameters
 if use_config
     fprintf('Loading tractography parameters from YAML config...\n');
-    % Use parameters from YAML config
-    options = config.tractography;
+    % The config is the canonical nested schema; nim_config_to_options is the
+    % single place the legacy flat option names are produced for the trackers.
+    options = nim_config_to_options(config);
 
     % Display key parameters
     fprintf('  Algorithm: %s\n', algorithm);
-    fprintf('  Integration order: %d\n', options.integration_order);
-    fprintf('  Step size: %.2f voxels\n', options.step_size);
+    fprintf('  Integrator: %s\n', config.tractography.integrator.method);
+    fprintf('  Step size: %.4g voxels\n', options.step_size);
+    fprintf('  Max arc length: %g voxels (max_steps = %d, derived)\n', ...
+        options.max_arc, options.max_steps);
     fprintf('  Seed density: %d seeds/voxel\n', options.seed_density);
     fprintf('  Termination FA: %.2f\n', options.termination_fa);
-    fprintf('  Angle threshold: %.1f°\n', options.angle_thresh);
+    fprintf('  Angle threshold: %.1f deg\n', options.angle_thresh);
 
-    if options.integration_order == 5 && options.adaptive_step
-        fprintf('  RKF45 adaptive: enabled (tol=%.4f)\n', options.rkf_tolerance);
+    if options.adaptive_step
+        fprintf('  RKF45 adaptive: enabled (tol=%.4g)\n', options.rkf_tolerance);
     end
 else
     fprintf('Setting up default tractography parameters...\n');
@@ -162,8 +165,42 @@ else
     seed_fa_thr = 0.05;
 end
 
+% Strategy 0: explicit ROI (highest priority). When seeding.roi is set, seeds go
+% only in those atlas regions - the cheapest way to interrogate one bundle, and
+% the basis of the convergence ladder's fixed seed set.
+if isfield(options, 'seed_roi') && ~isempty(options.seed_roi)
+    fprintf('Strategy: explicit ROI seeding\n');
+    seeding_strategy = 'roi';
+
+    dil = 0;
+    if isfield(options, 'seed_roi_dilate') && ~isempty(options.seed_roi_dilate)
+        dil = options.seed_roi_dilate;
+    end
+    [roi_mask, roi_info] = nim_roi_mask(nim, options.seed_roi, dil);
+
+    % Constrain to brain and FA exactly as the other strategies do, so switching
+    % to ROI seeding changes WHERE seeds go and nothing else.
+    if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+        roi_mask = roi_mask & (nim.mask > 0.5);
+        fprintf('  Intersected with brain mask: %d voxels\n', sum(roi_mask(:)));
+    end
+    n_before_fa = sum(roi_mask(:));
+    roi_mask = roi_mask & (nim.FA > seed_fa_thr);
+    fprintf('  FA > %.2f: %d -> %d voxels\n', seed_fa_thr, n_before_fa, sum(roi_mask(:)));
+
+    if ~any(roi_mask(:))
+        error('runTractography:emptyRoiSeedMask', ...
+            ['ROI seed mask is empty after masking. Voxels: %d raw -> %d dilated -> ' ...
+             '%d in brain -> 0 after FA > %.2f. Try a larger seeding.roi_dilate, a ' ...
+             'lower seeding.fa_min, or check the region names.'], ...
+            roi_info.raw_voxels, roi_info.dilated_voxels, n_before_fa, seed_fa_thr);
+    end
+
+    seed_mask = roi_mask;
+    options.seed_roi_info = roi_info;
+
 % Strategy 1: Preprocessed brain mask (BEST)
-if isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
+elseif isfield(nim, 'mask') && ~isempty(nim.mask) && any(nim.mask(:) > 0)
     brain_mask = nim.mask > 0.5;
     fprintf('Strategy: Preprocessed brain mask\n');
     seeding_strategy = 'brain_mask';
@@ -304,6 +341,7 @@ if strcmp(fld, 'csd') && ~isfield(nim, 'peaks')
     end
 end
 
+track_meta = struct();   % populated by hinec; empty for other trackers
 if strcmpi(algorithm, 'mmf')
     fprintf('Running MMF connection-frame tractography (moving frames + connection 1-form)...\n');
     tic;
@@ -313,7 +351,7 @@ if strcmpi(algorithm, 'mmf')
 elseif strcmpi(algorithm, 'hinec')
     fprintf('Running HINEC high-order tractography (interpolation + RK4 + ACT)...\n');
     tic;
-    tracks = nim_tractography_hinec(nim, options);
+    [tracks, track_meta] = nim_tractography_hinec(nim, options);
     elapsed_time = toc;
     output_filename = sprintf('tracks_hinec_%s.mat', timestamp);
 else
@@ -329,6 +367,33 @@ fprintf('Generated %d tracks\n', length(tracks));
 
 if isempty(tracks)
     error('No tracks generated! Check FA threshold and seed mask.');
+end
+
+%% ROI filtering (include / exclude waypoints), applied before saving.
+% No-op unless filter.include_roi or filter.exclude_roi is set.
+[tracks, roi_filter_stats] = nim_filter_tracks_roi(tracks, nim, options);
+% Keep per-track metadata aligned with the surviving tracks, otherwise
+% track_meta.seed_index would point at the pre-filter ordering.
+if roi_filter_stats.applied && isfield(track_meta, 'seed_index')
+    track_meta.seed_index  = track_meta.seed_index(roi_filter_stats.keep);
+    track_meta.seed_points = track_meta.seed_points(roi_filter_stats.keep, :);
+end
+if roi_filter_stats.applied && isempty(tracks)
+    error('runTractography:emptyAfterRoiFilter', ...
+        ['ROI filtering removed all %d tracks. Loosen filter.include_roi, raise ' ...
+         'filter.roi_filter_dilate, or check the region names.'], roi_filter_stats.n_in);
+end
+
+%% Output decimation. Applied AFTER ROI filtering, because filtering tests which
+% voxels a track visits and needs the full-resolution polyline to do that; a
+% decimated track could skip a voxel it actually passed through.
+if isfield(options, 'output_arc_step') && ~isempty(options.output_arc_step) ...
+        && options.output_arc_step > 0
+    pts_before = sum(cellfun(@(x) size(x, 1), tracks));
+    tracks = nim_resample_track_arc(tracks, options.output_arc_step);
+    pts_after = sum(cellfun(@(x) size(x, 1), tracks));
+    fprintf('\nOutput decimation: arc_step %.4g voxels, %d -> %d points (%.1f%% of original)\n', ...
+        options.output_arc_step, pts_before, pts_after, 100 * pts_after / max(pts_before, 1));
 end
 
 %% Compute statistics
@@ -349,7 +414,7 @@ else
     end
 end
 
-save(fullfile(output_dir, output_filename), 'tracks', 'options', 'elapsed_time', 'algorithm', '-v7.3');
+save(fullfile(output_dir, output_filename), 'tracks', 'options', 'elapsed_time', 'algorithm', 'track_meta', '-v7.3');
 fprintf('\nResults saved to %s/%s\n', output_dir, output_filename);
 fprintf('Algorithm used: %s\n', algorithm);
 
