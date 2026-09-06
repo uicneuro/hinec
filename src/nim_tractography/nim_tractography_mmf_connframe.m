@@ -1,6 +1,6 @@
 function [tracks, info] = nim_tractography_mmf_connframe(nim, options)
 % nim_tractography_mmf_connframe: GENUINE Method-of-Moving-Frames tractography
-% (Chun & Peng, DiscussionWithPeng_Winter2026). PURE connection-form tracer -- the
+% (Chun & Peng, in preparation). PURE connection-form tracer -- the
 % interpolated streamline tracker (sel_power / RK4 / RKF45 / CSD-peak resampling) lives
 % in nim_tractography_hinec.m, NOT here.
 %

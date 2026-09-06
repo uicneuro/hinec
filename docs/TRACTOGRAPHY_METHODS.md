@@ -70,7 +70,7 @@ The workhorse interpolated tracker:
 
 ### `mmf` — connection-form Method of Moving Frames
 
-Chun & Peng (`DiscussionWithPeng_Winter2026.pdf`). Builds an orthonormal **moving-frame
+Chun & Peng (in preparation). Builds an orthonormal **moving-frame
 field** {e1, e2, e3} plus its **connection 1-form** (curvature + torsion) into the `nim`
 (`main.m` Step 2b), then traces by evolving a carried frame with the connection structure
 equation — not by re-sampling a direction field. `field: csd` builds a *per-peak*

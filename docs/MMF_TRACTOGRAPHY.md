@@ -1,6 +1,6 @@
 # MMF Connection-Form Tractography
 
-**Method of Moving Frames (MMF) tractography** — Chun & Peng, `DiscussionWithPeng_Winter2026.pdf`.
+**Method of Moving Frames (MMF) tractography** — Chun & Peng, in preparation.
 
 This is the *genuine* moving-frames tracker: it builds an orthonormal **moving-frame
 field** {e1, e2, e3} and its **connection 1-form** (curvature + torsion) over the whole
@@ -19,7 +19,7 @@ equation* rather than by re-sampling a direction field at each step.
 | **Dispatch** | `algorithm: mmf` → `runTractography.m:265` → `nim_tractography_mmf_connframe` |
 | **Geometry build** | `nim_mmf_geometry` (`main.m` Step 2b) → stored into the `nim` |
 | **Configs** | `config/mmf_dti.yml` (DTI field), `config/mmf_csd.yml` (CSD field) |
-| **Reference** | `DiscussionWithPeng_Winter2026.pdf` (equation numbers below refer to it) |
+| **Reference** | Chun & Peng, in preparation. Equation numbers below follow that formulation; the equations themselves are written out on this page. |
 
 ---
 

@@ -1,4 +1,4 @@
-# GENUINE MMF connection-form tractography (Chun & Peng, DiscussionWithPeng_Winter2026).
+# GENUINE MMF connection-form tractography (Chun & Peng, in preparation).
 # algorithm: 'mmf' is the ONE selector -> nim_tractography_mmf_connframe (pure connection-form):
 # - nim_mmf_geometry builds the moving-frame field + connection 1-form into the nim
 # (Eq 6-9): e1 = trajectory-dependent (frame_sel_power) denoised tangent, e2 = de1/ds

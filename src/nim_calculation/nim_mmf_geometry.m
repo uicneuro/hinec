@@ -1,6 +1,6 @@
 function nim = nim_mmf_geometry(nim, options)
 % nim_mmf_geometry: Build the MMF moving-frame geometry over the whole domain and store
-% it INTO the nim (Chun-Peng, DiscussionWithPeng_Winter2026, pipeline steps 1-3).
+% it INTO the nim (Chun & Peng, in preparation; pipeline steps 1-3).
 %
 % Faithful to the spec's Frenet-frame construction:
 %   step 1  e1 = trajectory-dependent (sel_power) denoised tangent field (NOT Gaussian).
