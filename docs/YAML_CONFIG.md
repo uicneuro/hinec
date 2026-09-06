@@ -1,407 +1,198 @@
-# HINEC YAML Configuration System
+# HINEC Configuration Reference
 
-## Overview
+<!-- GENERATED FILE - do not edit by hand.
+     Regenerate with:  nim_config_docs('docs/YAML_CONFIG.md')
+     Source of truth:  src/nim_utils/nim_config_schema.m -->
 
-The HINEC pipeline now supports **YAML-based parameter configuration**, making it easy to:
+Configuration is YAML with **two levels of nesting** below a section
+(`section` -> `group` -> `key`). A third level is a parse error, deliberately:
+deeper nesting was judged more confusing than helpful.
 
-- Manage complex parameter sets in human-readable files
-- Version control your experimental configurations
-- Share reproducible analysis pipelines
-- Switch between different parameter presets instantly
+Every key is optional. Anything you omit takes the default below, so a working
+config can be very short.
 
-## Quick Start
+## Minimal example
 
-### Basic Usage
+```yaml
+tractography:
+  algorithm: hinec
+  seeding:
+    roi: [SLF_L, SLF_R]
+```
+
+## Overriding from the command line
+
+Every parameter in this reference can be overridden with `--set`, on both
+`bin/run_hinec.sh` and `bin/run_tractography.sh`:
 
 ```bash
-# Use default configuration
-./run_hinec.sh data/parcellation_sample/sample sample.mat
-
-# Use custom configuration
-./run_hinec.sh data/parcellation_sample/sample sample.mat config/hinec_dti_cubic.yml
+./bin/run_tractography.sh hinec_dti --set tractography.integrator.step=0.05
+./bin/run_tractography.sh hinec_dti --set integrator.step=0.05    # section assumed
+./bin/run_tractography.sh hinec_dti --set upsample=2              # bare leaf, if unique
+./bin/run_hinec.sh data/x x.mat config/y.yml --set preprocessing.run_eddy=false
+./bin/run_tractography.sh hinec_dti --set seeding.roi=[41,42]     # lists
 ```
 
-### Available Presets
-
-| Config File | Purpose | Speed | Quality |
-|-------------|---------|-------|---------|
-| `hinec_default.yml` | Balanced performance | Medium | Good |
-| `hinec_dti_cubic.yml` | Publication quality | Slow | Excellent |
-| `hinec_dti_fast.yml` | Quick testing | Fast | Moderate |
-| `irontract.yml` | IronTract challenge | Medium | High |
-
-## Configuration File Structure
-
-### Complete Example
-
-```yaml
-# my_experiment.yml
-preprocessing:
-  run_denoising: true
-  denoise_method: 'dwidenoise'
-  run_motion_correction: true
-  run_eddy: true
-  improve_mask: true
-  atlas_type: 'jhu'
-
-tractography:
-  algorithm: 'hinec'
-  integration_order: 4
-  interp_method: 'trilinear'
-  step_size: 0.2
-  seed_density: 4
-  termination_fa: 0.15
-  angle_thresh: 35
-  max_steps: 1000
-  min_length: 35
-  act_enabled: true
-
-output:
-  tractography_dir: 'tractography_results'
-  include_timestamp: true
-```
-
-## Parameter Reference
-
-### Preprocessing Section
-
-```yaml
-preprocessing:
-  # Denoising
-  run_denoising: true|false
-  denoise_method: 'dwidenoise'|'susan'|'nlmeans'|'gaussian'
-
-  # Correction
-  run_motion_correction: true|false
-  run_eddy: true|false
-
-  # Masks and atlases
-  improve_mask: true|false
-  atlas_type: 'jhu'|'aal'|'desikan'
-
-  # T1 registration (optional)
-  t1_available: true|false
-  use_t1_registration: true|false
-  register_to_mni: true|false
-```
-
-### Tractography Section
-
-#### Algorithm Selection
-
-```yaml
-tractography:
-  algorithm: 'standard'|'hinec'
-```
-
-**Options**:
-
-- `standard`: FACT algorithm (Euler integration, no interpolation)
-- `hinec`: High-order (RK2/RK4/RKF45, trilinear interpolation, ACT)
-
-#### Integration Method
-
-```yaml
-  integration_order: 1|2|4|5
-  interp_method: 'trilinear'|'none'
-```
-
-**Integration Orders**:
-
-- `1`: Euler (FACT default)
-- `2`: Runge-Kutta 2nd order
-- `4`: Runge-Kutta 4th order (HINEC default)
-- `5`: RKF45 adaptive (highest accuracy)
-
-#### Step Size Control
-
-```yaml
-  step_size: 0.2          # Fixed step (voxel units)
-
-  # RKF45 adaptive parameters (integration_order=5 only)
-  adaptive_step: true|false
-  rkf_tolerance: 0.01     # Error tolerance (voxels)
-  rkf_safety: 0.9         # Safety factor (0-1)
-  step_min: 0.01          # Minimum step (voxels)
-  step_max: 1.0           # Maximum step (voxels)
-```
-
-**Guidelines**:
-
-- `step_size`: 0.1-0.2 (precise), 0.2-0.3 (balanced), 0.3-0.5 (fast)
-- `rkf_tolerance`: 0.005 (high precision), 0.01 (balanced), 0.02 (fast)
-
-#### Seeding Parameters
-
-```yaml
-  seed_density: 4         # Seeds per voxel (1-8 recommended)
-  seed_strategy: 'uniform'
-```
-
-**Seed Density Guidelines**:
-
-- `1-2`: Fast exploration
-- `4`: Balanced coverage (default)
-- `6-8`: Dense coverage for critical regions
-
-#### Termination Criteria
-
-```yaml
-  termination_fa: 0.15    # FA threshold for termination
-  angle_thresh: 35        # Max curvature (degrees)
-  max_steps: 1000         # Max integration steps
-  min_length: 35          # Min track length (mm)
-```
-
-**Guidelines**:
-
-- `termination_fa`: 0.05 (long tracks), 0.15 (balanced), 0.20 (short/fast)
-- `angle_thresh`: 30° (strict), 35-45° (balanced), 60° (permissive)
-
-#### ACT Configuration
-
-```yaml
-  act_enabled: true|false
-```
-
-ACT (Anatomically Constrained Tractography) automatically uses tissue masks generated during preprocessing (WM/GM/CSF).
-
-### Output Section
-
-```yaml
-output:
-  tractography_dir: 'tractography_results'
-  include_timestamp: true|false
-  auto_visualize: true|false
-```
-
-## Creating Custom Configurations
-
-### Step 1: Copy Template
-
-```bash
-cp config/hinec_default.yml config/my_experiment.yml
-```
-
-### Step 2: Edit Parameters
-
-```bash
-nano config/my_experiment.yml
-```
-
-### Step 3: Run with Custom Config
-
-```bash
-./run_hinec.sh data/mydata data_processed.mat config/my_experiment.yml
-```
-
-## Common Configuration Patterns
-
-### Publication-Quality Results
-
-```yaml
-tractography:
-  integration_order: 5       # RKF45 adaptive
-  adaptive_step: true
-  rkf_tolerance: 0.005       # Tight tolerance
-  step_size: 0.1             # Small initial step
-  seed_density: 6            # Dense seeding
-  termination_fa: 0.1        # Continue in low FA
-  angle_thresh: 30           # Strict curvature
-```
-
-**Expected runtime**: 2-3x slower than default
-
-**Benefits**: Maximum accuracy, smooth tracks, fewer spurious connections
-
----
-
-### Fast Exploration
-
-```yaml
-tractography:
-  integration_order: 2       # RK2
-  adaptive_step: false
-  step_size: 0.3             # Larger steps
-  seed_density: 2            # Sparse seeding
-  termination_fa: 0.2        # Stop earlier
-  angle_thresh: 45           # More permissive
-```
-
-**Expected runtime**: 3-5x faster than default
-
-**Benefits**: Quick parameter testing, exploratory analysis
-
----
-
-### IronTract Challenge
-
-```yaml
-tractography:
-  integration_order: 4       # RK4
-  step_size: 0.2
-  seed_density: 4
-  termination_fa: 0.1        # Complete tracking
-  angle_thresh: 35
-  min_length: 35
-```
-
-**Expected runtime**: Similar to default
-
-**Benefits**: Optimized for phantom validation, proven effective
-
----
-
-### Low-Anisotropy Regions (Fornix, Cingulum)
-
-```yaml
-tractography:
-  integration_order: 4
-  step_size: 0.15            # Smaller steps
-  seed_density: 6            # Dense seeding
-  termination_fa: 0.05       # Very low threshold
-  angle_thresh: 45           # More permissive
-  min_length: 20             # Shorter tracks OK
-```
-
-**Expected runtime**: Slower (more seeds, longer tracks)
-
-**Benefits**: Better coverage in challenging white matter regions
-
----
-
-## Parameter Validation
-
-The configuration system includes automatic validation:
-
-```matlab
-✓ Parameter validation passed
-```
-
-**Validation checks**:
-
-- `step_size > 0`
-- `angle_thresh ∈ (0, 180]`
-- `integration_order ∈ {1, 2, 4, 5}`
-- `rkf_tolerance > 0` (if RKF45 enabled)
-- `step_min < step_max` (if RKF45 enabled)
-- `rkf_safety ∈ (0, 1]` (if RKF45 enabled)
-
-**Warnings**:
-
-- Unusual `seed_density` outside 1-8 range
-
-## Legacy Compatibility
-
-The YAML config system is **fully backward compatible**:
-
-```matlab
-% Legacy usage still works
-runTractography('data.mat', 'hinec');
-
-% New YAML usage
-config = load_config_yaml('config/my_experiment.yml');
-runTractography('data.mat', config);
-```
-
-## Troubleshooting
-
-### Config File Not Found
-
-```bash
-Error: Configuration file not found: config/missing.yml
-Available configs:
-  config/hinec_default.yml
-  config/hinec_dti_cubic.yml
-  config/hinec_dti_fast.yml
-  config/irontract.yml
-```
-
-**Solution**: Check filename and path
-
----
-
-### YAML Parsing Error
-
-```
-Error parsing YAML at line 15: Invalid value
-```
-
-**Common issues**:
-
-- Missing quotes around strings with special characters
-- Incorrect indentation (use 2 spaces, not tabs)
-- Missing colons after keys
-
-**Example fix**:
-
-```yaml
-# WRONG
-tractography:
-algorithm: hinec
-
-# CORRECT
-tractography:
-  algorithm: 'hinec'
-```
-
----
-
-### Parameter Validation Failed
-
-```
-Error: step_size must be positive, got: -0.5
-```
-
-**Solution**: Check parameter values against validation rules in this document
-
----
-
-## Advanced Usage
-
-### Programmatic Configuration
-
-```matlab
-% Load and modify config in MATLAB
-config = load_config_yaml('config/hinec_default.yml');
-
-% Override specific parameters
-config.tractography.seed_density = 8;
-config.tractography.termination_fa = 0.05;
-
-% Run with modified config
-runTractography('data.mat', config);
-```
-
-### Batch Processing
-
-```bash
-#!/bin/bash
-# Process multiple subjects with same config
-
-for subject in subject_001 subject_002 subject_003; do
-    ./run_hinec.sh data/${subject} processed/${subject}.mat config/hinec_dti_cubic.yml
-done
-```
-
-### Config Versioning
-
-```bash
-# Track configs in git for reproducibility
-git add config/experiment_v1.yml
-git commit -m "Add config for Experiment 1 (high precision, dense seeding)"
-```
-
-## Best Practices
-
-1. **Start with presets**: Use `hinec_default.yml` or `hinec_dti_cubic.yml` as starting points
-2. **Document changes**: Add comments explaining why parameters were changed
-3. **Version control**: Keep configs in git for reproducibility
-4. **Test incrementally**: Change one parameter at a time when optimizing
-5. **Monitor logs**: Check `hinec_*.log` files for parameter confirmation and diagnostics
-
-## See Also
-
-- [RKF_Usage.md](RKF_Usage.md) - Detailed RKF45 adaptive integration guide
-- [TRACTOGRAPHY.md](TRACTOGRAPHY.md) - Tractography algorithm documentation
-- [PREPROCESSING.md](../PREPROCESSING.md) - Preprocessing pipeline details
+Overrides are checked against the schema. An unknown or mistyped key is an
+error, never a silent no-op. A bare leaf name that is ambiguous (`method`,
+`fa_min`) is rejected with the candidate full paths.
+
+## Parameters
+
+The **Applies to** column says which tracking algorithms actually read the
+parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
+
+### `tractography`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `algorithm` | string | `hinec` | all | Tracking algorithm. |
+| `field` | string | `dti` | hinec, mmf | Direction source: DTI principal eigenvector, or CSD FOD peaks. |
+| `act` | logical | `false` | hinec | Anatomically constrained tracking using WM/GM/CSF masks. |
+| `diagnostics` | logical | `true` | all | Write per-run diagnostic reports. |
+
+#### `tractography.integrator`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `method` | string | `rk4` | hinec, mmf | Numerical stepping scheme. NOTE: this is a method name, not an order - RKF45 is a 4(5) embedded pair. |
+| `step` | numeric | `0.2` | all | Integration step in voxels. Fixed step, or the initial step for rkf45. |
+| `tolerance` | numeric | `0.01` | hinec, mmf | Adaptive error tolerance in voxels. rkf45 ONLY. |
+| `step_min` | numeric | `0.01` | hinec, mmf | Minimum adaptive step. rkf45 ONLY. |
+| `step_max` | numeric | `1` | hinec, mmf | Maximum adaptive step. rkf45 ONLY. |
+| `safety` | numeric | `0.9` | hinec | Adaptive step safety factor. rkf45 ONLY. |
+| `adaptive` | logical | `true` | hinec | Adaptive step-size control. rkf45 ONLY. rkf45 with adaptive:false is fixed-step RKF45 (a real third mode, kept for completeness). |
+
+#### `tractography.interpolation`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `method` | string | `trilinear` | hinec, mmf | Spatial interpolation kernel for the direction field. These differ in SMOOTHNESS, which caps how much of an integrator formal order is reachable: a Runge-Kutta method of order p needs a right-hand side with p continuous derivatives. trilinear is C0 (kinked at every voxel face), cubic is C1 (Keys cubic convolution, NOT a spline - its second derivative jumps), spline is C2 (a genuine cubic spline). Measured here: RK4 reaches 2.02 on trilinear and 2.02 on cubic, identical, which is what a cap below C2 predicts. |
+| `upsample` | numeric | `1` | hinec, mmf | Spatial sampling factor for the direction field: the field is sampled on a grid of spacing 1/upsample voxels before the interpolants are built. 1 = the acquisition grid. Above 1 refines toward the continuous field the samples imply; BELOW 1 coarsens, discarding spatial information, which is how the space axis of a convergence study is swept. The coordinate frame is unchanged, so positions, step sizes and lengths stay in native voxel units and runs at different factors are directly comparable. Note the u -> infinity limit is the native-resolution interpolant, not ground-truth anatomy. |
+
+#### `tractography.seeding`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `density` | numeric | `8` | all | Seeds per seeded voxel - honoured exactly. Placed on a deterministic sub-voxel lattice (perfect cubes) or a spread subset of one (other counts), so runs are reproducible. |
+| `strategy` | string | `uniform` | all | Seed placement. uniform = deterministic lattice (reproducible); random = jittered. |
+| `fa_min` | numeric | `0.05` | all | Minimum FA for a voxel to be seeded. Default 0.05 excludes CSF only. |
+| `roi` | list | `[]` | all | Restrict seeding to these atlas regions. JHU indices and/or names, freely mixed. Empty = whole brain mask. |
+| `roi_dilate` | numeric | `0` | all | Dilate the seed ROI by this many voxels before seeding. |
+
+#### `tractography.termination`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `fa_min` | numeric | `0.1` | all | Stop tracking below this FA. (NOT the legacy fa_threshold - see nim_config_retired.) |
+| `angle_max` | numeric | `225` | all | Maximum turn in DEGREES PER VOXEL OF ARC, i.e. a minimum radius of curvature R = 57.3/angle_max voxels. The default 225 is the classic 45 deg/step evaluated at the default step of 0.2. Step-invariant: the budget for one step is angle_max x the NOMINAL step arc (never the realised chord - that would make the budget method-dependent), so refining the step does not loosen the constraint. CEILING: tangents are sign-aligned because v1 is a line field, so a measured turn never exceeds 90 deg - any angle_max above 90/step is INERT, not merely loose, and 225 goes inert for any step >= 0.4. 0 disables the criterion outright, which is what a control run should use. |
+| `max_arc` | numeric | `400` | all | Maximum track arc length in voxels. Step-invariant: max_steps is derived as ceil(max_arc/step). |
+| `min_arc` | numeric | `15` | all | Discard tracks shorter than this arc length in voxels. |
+
+#### `tractography.filter`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `include_roi` | list | `[]` | all | Keep only tracks touching these regions (waypoint). |
+| `exclude_roi` | list | `[]` | all | Discard tracks touching these regions. |
+| `mode` | string | `all` | all | Whether a track must touch ALL include regions or ANY of them. |
+| `roi_dilate` | numeric | `0` | all | Dilate the include/exclude masks by this many voxels before testing. |
+| `endpoints_in` | list | `[]` | all | Two regions; keep a track only if one END lands in the first and the other END in the second, either way round. This is an ENDPOINT test, not a waypoint test - include_roi asks whether a track passes through a region, this asks where it stops. It is half of how the ISMRM 2015 scorer defines a bundle (head + tail). |
+| `contained_in` | list | `[]` | all | Keep a track only if EVERY point lies inside these regions. The other half of the ISMRM bundle definition (all_mask): a streamline that wanders outside the corridor is not that bundle, however it ends. |
+
+#### `tractography.output`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `arc_step` | numeric | `0` | all | Resample saved streamlines to this arc-length spacing in voxels. 0 = store every integration step. Decouples file size from step size; integration accuracy is unaffected. |
+
+#### `tractography.csd`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `lmax` | numeric | `6` | hinec, mmf | Spherical harmonic order for CSD. |
+| `max_peaks` | numeric | `3` | hinec, mmf | Maximum FOD peaks retained per voxel. |
+| `peak_thresh` | numeric | `0.5` | hinec, mmf | Relative amplitude threshold for accepting an FOD peak. |
+| `peak_min_sep` | numeric | `45` | hinec, mmf | Minimum angular separation between FOD peaks (degrees). |
+| `n_iter` | numeric | `50` | hinec, mmf | CSD deconvolution iterations. |
+
+#### `tractography.mmf`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `anchor` | numeric | `0` | mmf | Re-anchor strength of e1 toward the field tangent. 0 = pure connection-form evolution. |
+| `frame_sel_power` | numeric | `16` | mmf | Directional selectivity used when building the moving frame. |
+
+### `preprocessing`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `run_denoising` | logical | `true` | - | Run denoising before tensor fitting. |
+| `denoise_method` | string | `dwidenoise` | - | Denoising backend. Falls back to gaussian when MRtrix3 is absent. |
+| `run_motion_correction` | logical | `true` | - | Run motion correction (FSL). |
+| `run_eddy` | logical | `true` | - | Run eddy-current correction (FSL). |
+| `improve_mask` | logical | `true` | - | Refine the brain mask using FA. |
+| `atlas_type` | string | `jhu` | - | Atlas used for parcellation. |
+| `t1_available` | logical | `false` | - | A T1 volume is present alongside the DWI. |
+| `use_t1_registration` | logical | `false` | - | Register T1 to DWI space. |
+| `register_to_mni` | logical | `false` | - | Register to MNI space. |
+
+## Migrating from the old flat config
+
+Old configs still load; each superseded key produces a deprecation warning
+naming its replacement.
+
+| Old key | Replacement |
+|---|---|
+| `act_enabled` | `tractography.act` |
+| `integrator` | `tractography.integrator.method` |
+| `step_size` | `tractography.integrator.step` |
+| `rkf_tolerance` | `tractography.integrator.tolerance` |
+| `rkf_tol` | `tractography.integrator.tolerance` |
+| `step_min` | `tractography.integrator.step_min` |
+| `step_max` | `tractography.integrator.step_max` |
+| `rkf_safety` | `tractography.integrator.safety` |
+| `adaptive_step` | `tractography.integrator.adaptive` |
+| `interp_method` | `tractography.interpolation.method` |
+| `seed_density` | `tractography.seeding.density` |
+| `seed_strategy` | `tractography.seeding.strategy` |
+| `seed_fa_threshold` | `tractography.seeding.fa_min` |
+| `termination_fa` | `tractography.termination.fa_min` |
+| `min_length` | `tractography.termination.min_arc` |
+| `csd_lmax` | `tractography.csd.lmax` |
+| `csd_max_peaks` | `tractography.csd.max_peaks` |
+| `csd_peak_thresh` | `tractography.csd.peak_thresh` |
+| `csd_peak_min_sep` | `tractography.csd.peak_min_sep` |
+| `mmf_anchor` | `tractography.mmf.anchor` |
+| `frame_sel_power` | `tractography.mmf.frame_sel_power` |
+| `enable_diagnostics` | `tractography.diagnostics` |
+| `integration_order: 1\|2\|4\|5` | `integrator.method: euler\|rk2\|rk4\|rkf45` |
+| `max_steps` | `termination.max_arc` (converted as `max_steps x step`) |
+
+`integration_order` was a **method selector wearing a numeric-order name**:
+the value `5` meant RKF45, which is a 4(5) embedded pair whose order is 4,
+not 5. `integrator.method` names the method instead.
+
+`max_steps` counted integration steps, so halving the step size silently
+halved how far a track could travel. `termination.max_arc` is an arc length
+in voxels and is step-invariant; `max_steps` is now derived as
+`ceil(max_arc / step)`.
+
+## Retired keys
+
+These were accepted by the old loader but read by no tracker. They are
+ignored with a warning rather than silently accepted.
+
+| Key | Why it is gone |
+|---|---|
+| `gate_power` | Never read by any tracker. Defaulted and validated by the old loader but had no effect. |
+| `crossing_cp` | Never read by any tracker. |
+| `curv_beta` | Never read by any tracker. |
+| `crossing_detect` | Never read by any tracker. |
+| `swing_ratio_max` | Never read by any tracker. |
+| `transport_gate` | Never read by any tracker. |
+| `transport_strength` | Never read by any tracker. |
+| `bishop_eps` | Referenced only in a comment; no tracker reads it as an option. |
+| `fa_threshold` | Functionally dead: printed by hinec/standard, and only a seed-mask fallback in mmf/highorder that never fires because runTractography always supplies a seed mask. Use termination.fa_min to stop tracking, or seeding.fa_min to restrict seeding. NOTE: in 5 of the 12 original configs fa_threshold and termination_fa held DIFFERENT values, so they were never interchangeable. |
+| `order` | Legacy backward-compatibility key, read by no tracker as an option. |
+| `sel_power` | Removed. HINEC is now pure interpolation + integration. It biased interpolation toward the incoming direction (weight = alignment^sel_power), which has no justification for DTI (one eigenvector per voxel, nothing to disambiguate) and made the ODE direction-dependent. For CSD, nearest-peak selection is retained because it is structural, but the alignment exponent is gone. |
