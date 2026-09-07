@@ -23,38 +23,40 @@ original 2015 scoring system).
 
 ## Reconstruction against ground truth
 
-Each bundle below is seeded from its own ISMRM mask, tracked with **no
-filtering**, and then **clipped** to the bundle's containment corridor for
-display. Grey is the ground-truth tractogram; colour is ours.
+Each bundle below is seeded from its own ISMRM mask and then **segmented the way
+the scorer defines a bundle**: one endpoint in each of the head and tail ROIs,
+and every point inside the containment corridor. Grey is the ground-truth
+tractogram; colour is ours.
 
-!!! warning "Clipped, not filtered — and why that distinction matters"
-    The scorer defines a bundle by containment: a streamline with *any* point
-    outside the corridor is not that bundle and is discarded whole. That is the
-    correct rule for scoring and a misleading one for a picture. A streamline
-    that follows a bundle correctly and then overshoots past its end gets deleted
-    entirely, taking the correct portion with it — so the figure shows a bundle
-    that stops short, which reads as the tracker *failing to reach* when what
-    actually happened is that it reached too far.
+!!! note "These are the streamlines that meet the definition, not everything produced"
+    The counts in each caption say how many of the produced streamlines survive
+    that test, and how much of the produced length leaves the corridor. Both
+    numbers are large: the tracker generates far more than the definition
+    accepts. Read the figure as *what the scorer would count*, not as the
+    tracker's raw output.
 
-    These figures clip instead, and state how much length was lost, so the
-    overshoot is visible rather than hidden. Clipping is `nim_plot_bundles`'
-    `.clip` option; rejection is `nim_filter_tracks_roi`, which is what scoring
-    uses.
+    Showing the raw output instead is not more informative, because the
+    containment corridor is a permissive gate rather than a bundle shape — for
+    `UF_right` it is 2.5× the volume of the ground-truth bundle and 60% of it is
+    space the ground truth never enters. Streamlines merely clipped to that
+    corridor spread through the empty 60%, agreeing with the ground truth over
+    only 62–93% of their length against 94–100% for the segmented bundles.
 
-**How much of each bundle leaves its own corridor:**
+**How much the tracker overproduces:**
 
-| bundle | streamlines | length outside the corridor |
-|---|--:|--:|
-| CC_u_shaped | 16287 | **28%** |
-| ILF_right | 2394 | **42%** |
-| BPS_right | 7810 | **43%** |
-| Cingulum_right | 5450 | **59%** |
-| SLF_right | 3901 | **61%** |
-| UF_right | 1398 | **62%** |
+| bundle | produced | meet the definition | length outside the corridor | agreement with GT |
+|---|--:|--:|--:|--:|
+| CC_u_shaped | 16287 | 5656 (35%) | 26% | 99% |
+| BPS_right | 7810 | 1173 (15%) | 43% | 99% |
+| ILF_right | 2394 | 718 (30%) | 42% | 95% |
+| Cingulum_right | 5450 | 585 (11%) | 53% | 100% |
+| UF_right | 1398 | 363 (26%) | 62% | 98% |
+| SLF_right | 3901 | 365 (9%) | 59% | 94% |
 
-That is the honest headline for single-tensor DTI tracking on this phantom:
-between a quarter and two thirds of produced streamline length leaves the bundle
-it was seeded in. The streamlines are typically correct along the bundle and then
+Two honest headlines sit in that table. The streamlines that meet the definition
+agree with the ground truth over 94–100% of their length — the reconstruction is
+good. But only **9–35% of what the tracker produces** meets it, and between a
+quarter and two thirds of produced length leaves the bundle it was seeded in. The streamlines are typically correct along the bundle and then
 continue past its end onto whichever tract is locally strongest — a crossing
 problem, not a termination one. `field: csd` is the intended remedy and has not
 yet been evaluated here.

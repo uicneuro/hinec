@@ -41,7 +41,7 @@ with the refinement parameter is not a fixed problem to converge to.
 ![Right uncinate fasciculus: ours against the ISMRM ground truth](img/bundle_uf_right.png)
 
 *The seed region. Grey is the ISMRM ground-truth `UF_right` bundle, red is ours,
-clipped to the bundle corridor for display. Shown only to establish what the
+segmented by the scorer's own head/tail and containment test. Shown only to establish what the
 convergence ladders are tracking through — it is a validation figure and the
 ladders do not depend on it.*
 
