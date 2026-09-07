@@ -304,7 +304,23 @@ if abs(upsample - 1) > 1e-9
 end
 
 % Pre-create interpolant objects (much faster than repeated interp3 calls)
-nim.FA_interp = griddedInterpolant(grid_vectors, FA_grid, interp_method, 'none');
+% FA IS INTERPOLATED LINEARLY, NOT WITH interp_method. This is deliberate.
+%
+% interp_method sets the smoothness of the DIRECTION field, where C2 is what
+% lets RK4 reach its formal order (observed 4.00 with 'spline'; see
+% docs/CONVERGENCE.md). FA is not a field being integrated - it is a scalar
+% stop-test - so it gains nothing from C2 and loses correctness: a cubic spline
+% is not monotone and undershoots near a sharp drop, returning values BELOW
+% every sample that produced them.
+%
+% Measured on Cingulum_right: at the termini of streamlines that die mid-turn,
+% the spline reads median FA 0.077 against 0.081 for both linear and the raw
+% voxel data, and puts 89% of them under the 0.08 termination floor where the
+% raw data puts 48%. At 41% of those termini the underlying data is valid tissue
+% (FA >= 0.08) and only the spline's undershoot ends the streamline. The
+% cingulum bend is a crossing region where FA genuinely dips to ~0.2, and the
+% undershoot on that dip was terminating tracks inside real white matter.
+nim.FA_interp = griddedInterpolant(grid_vectors, FA_grid, 'linear', 'none');
 native_gv = {1:dims(1), 1:dims(2), 1:dims(3)};
 nim.v1_x_interp = griddedInterpolant(native_gv, nim.v1_x, interp_method, 'none');
 nim.v1_y_interp = griddedInterpolant(native_gv, nim.v1_y, interp_method, 'none');
