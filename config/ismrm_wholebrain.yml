@@ -1,0 +1,44 @@
+# ismrm_wholebrain — whole-brain tractogram for the ISMRM 2015 challenge scorer.
+#
+# WHY THIS EXISTS. The per-bundle runs (seeding.roi: <bundle>) answer "can we
+# follow this tract", but they cannot be compared to a challenge submission. The
+# scorer segments 26 bundles out of ONE whole-brain tractogram and scores what it
+# finds; seeding inside a bundle's own containment corridor and then reporting how
+# many streamlines stayed in it measures the seeding choice as much as the
+# tractography. Concretely, the Cingulum_right corridor is 38188 voxels while the
+# bundle occupies 8070 of them, so 79% of that corridor is other tissue: 62% of
+# the seeds started off-bundle and 93% of those left the corridor, which is the
+# correct behaviour for a tracker following the fibres that are actually there.
+# Only a whole-brain run makes the denominator meaningful.
+#
+# THRESHOLDS. seeding.fa_min 0.10 / termination.fa_min 0.08 are set from the data
+# rather than inherited: the inferior cingulum has median FA 0.121, so the 0.25
+# seeding floor used earlier put the threshold at roughly twice the FA of the
+# tissue being reconstructed and starved the temporal limb of seeds.
+
+tractography:
+  algorithm: hinec
+  field: dti
+
+  integrator:
+    method: rk4
+    step: 0.25
+
+  interpolation:
+    method: spline       # C2 - the kernel that lets RK4 reach observed order 4.00
+    upsample: 1
+
+  termination:
+    fa_min: 0.08
+    angle_max: 225       # deg per voxel of arc; 56 deg budget per 0.25-voxel step
+    max_arc: 400         # voxels
+    min_arc: 15          # voxels (30 mm) - drops fragments the scorer would reject
+
+  seeding:
+    density: 1           # ~65k streamlines over 71542 seedable voxels
+    fa_min: 0.10
+    roi: []              # EMPTY = whole brain. This is the point of the config.
+    roi_dilate: 0
+
+  output:
+    arc_step: 0.5
