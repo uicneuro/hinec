@@ -111,11 +111,48 @@ tangentially share one orientation, so nothing local distinguishes them. That
 needs non-local information — global tractography, anatomical priors, or
 bundle-level regularisation.
 
-One further property makes small errors expensive. A streamline is a path
-integral, so a direction error is not averaged away by later steps: once a
-streamline transfers onto a neighbouring tract, every subsequent step correctly
-follows *that* tract. A field with 6° median error still yields 46% coverage
-because the rare large errors are absorbing.
+### Derailment is rare, concentrated, and irreversible
+
+A streamline is a path integral, so a direction error is not averaged away by
+later steps. Measured over 9254 streamline arms that start on the true
+`Cingulum_right` tract:
+
+| after a streamline departs by >45° | recovers directional agreement |
+|---|--:|
+| sustained departure (held over ≥2 voxels) | **2.2%** |
+| same, with ≥30 voxels of track still to run | 2.1% |
+| transient crossing of the 45° line | ~50% of all crossings; these recover |
+
+**A sustained derailment is effectively absorbing**, and giving the streamline
+more track to run does not help it recover. An earlier version of this page
+claimed this using a *containment envelope* test, which reported 88% recovery
+and was wrong: re-entering a fat, folded bundle envelope somewhere else is
+nearly free and says nothing about whether the trajectory was recovered.
+
+The risk is not spread evenly along a streamline. **50% of all departures occur
+in 0.3% of the traversed arc**, and 90% in 1.5% — a few hundred voxels. Within
+the bundle, low linearity predicts them best (7× hazard range across C_L
+quintiles) and high planarity is the strongest positive predictor (4×,
+monotone). **FA barely predicts anything** (1.4× range, in the wrong direction),
+which is worth noting given that FA is what termination tests.
+
+### The integrator is not the problem
+
+Three runs on matched seed sets differing only in integration method:
+
+| method | formal order | S(20 vox) | S(40 vox) | vs RK4 (log-rank) |
+|---|--:|--:|--:|--:|
+| Euler | 1 | 0.444 | 0.168 | p = 0.37, not significant |
+| RK2 | 2 | 0.318 | 0.095 | p < 1e-4 |
+| RK4 | 4 | 0.408 | 0.194 | — |
+
+Euler and RK4 are statistically indistinguishable, and the ordering is not
+monotone in integrator order. The integrator shifts survival by ≤0.10 while the
+effect itself destroys 60–80% of streamlines. Truncation error does not behave
+like this: **the dominant error is model error, not numerical error**, which is
+consistent with RK4 converging at observed order 4.00 on this same pipeline.
+(Measured on `UF_right` with ~6× fewer arms and the flicker-inclusive departure
+definition; it supports "not ordered by integrator order", not a stronger claim.)
 
 These remain **qualitative** figures, and seeding from a bundle's own mask is a
 far easier problem than the whole-brain submission the challenge is designed
