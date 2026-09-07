@@ -41,16 +41,19 @@ with the refinement parameter is not a fixed problem to converge to.
 ![Right uncinate fasciculus: ours against the ISMRM ground truth](img/bundle_uf_right.png)
 
 *The seed region. Grey is the ISMRM ground-truth `UF_right` bundle, red is ours,
-segmented by the scorer's own head/tail and containment test. Shown only to establish what the
-convergence ladders are tracking through — it is a validation figure and the
-ladders do not depend on it.*
+segmented by the scorer's full definition (head/tail endpoints, containment, and
+any inclusion or length criteria the bundle declares). Shown only to establish
+what the convergence ladders are tracking through — it is a validation figure and
+the ladders do not depend on it.*
 
 !!! note "Do not read this as an accuracy claim"
-    Applying the scorer's full definition (endpoint pair plus containment) leaves
-    streamlines that are 98.5% inside the ground-truth envelope, but that number
-    describes the survivors of a filter that discards most of what was produced.
-    Measured on the unfiltered output, **62% of `UF_right` streamline length
-    leaves the bundle corridor**. See
+    Convergence is *solution verification* — it shows the discretisation is solved
+    correctly, not that the answer is anatomically right. Those are independent,
+    and this pipeline is demonstrably good at the first and middling at the
+    second: the same tracker that converges at observed order 4.00 recovers
+    **49% of the `UF_right` ground-truth volume**, with 75% of its streamline
+    length falling inside that bundle. Whole-brain, it scores mean F1 0.350.
+    The limit is the single-tensor model, not the numerics. See
     [ISMRM Scoring](ISMRM_SCORING_ANALYSIS.md#reconstruction-against-ground-truth).
 
 ### The error metric

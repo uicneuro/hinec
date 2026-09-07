@@ -23,43 +23,99 @@ original 2015 scoring system).
 
 ## Reconstruction against ground truth
 
-Each bundle below is seeded from its own ISMRM mask and then **segmented the way
-the scorer defines a bundle**: one endpoint in each of the head and tail ROIs,
-and every point inside the containment corridor. Grey is the ground-truth
-tractogram; colour is ours.
+Each bundle below is seeded from its own ISMRM mask and then segmented by the
+**full scorer definition** taken from `config_file_segmentation.json`: one
+endpoint in each of the head and tail ROIs, every point inside the containment
+corridor, plus any inclusion mask and length bounds that bundle declares
+(`Cingulum_right` carries `length_x`, `CC_u_shaped` an inclusion mask and three
+length bounds). Grey is the ground-truth tractogram; colour is ours.
 
-!!! note "These are the streamlines that meet the definition, not everything produced"
-    The counts in each caption say how many of the produced streamlines survive
-    that test, and how much of the produced length leaves the corridor. Both
-    numbers are large: the tracker generates far more than the definition
-    accepts. Read the figure as *what the scorer would count*, not as the
-    tracker's raw output.
+Two different things are reported, and conflating them flatters the result:
 
-    Showing the raw output instead is not more informative, because the
-    containment corridor is a permissive gate rather than a bundle shape — for
-    `UF_right` it is 2.5× the volume of the ground-truth bundle and 60% of it is
-    space the ground truth never enters. Streamlines merely clipped to that
-    corridor spread through the empty 60%, agreeing with the ground truth over
-    only 62–93% of their length against 94–100% for the segmented bundles.
+- **coverage of the ground truth** — what fraction of the true bundle's volume our
+  streamlines occupy. This is the recall-like number and the honest headline.
+- **length inside the ground truth** — what fraction of our streamline length falls
+  within the true bundle. This is precision-like, and it is always the prettier
+  of the two.
 
-**How much the tracker overproduces:**
-
-| bundle | produced | meet the definition | length outside the corridor | agreement with GT |
+| bundle | produced | meets full definition | covers GT volume | length inside GT |
 |---|--:|--:|--:|--:|
-| CC_u_shaped | 16287 | 5656 (35%) | 26% | 99% |
-| BPS_right | 7810 | 1173 (15%) | 43% | 99% |
-| ILF_right | 2394 | 718 (30%) | 42% | 95% |
-| Cingulum_right | 5450 | 585 (11%) | 53% | 100% |
-| UF_right | 1398 | 363 (26%) | 62% | 98% |
-| SLF_right | 3901 | 365 (9%) | 59% | 94% |
+| CC_u_shaped | 39959 | 9864 | 53% | 87% |
+| BPS_right | 17210 | 1771 | 31% | 87% |
+| ILF_right | 6404 | 1541 | 52% | 75% |
+| Cingulum_right | 14074 | 1940 | 46% | 94% |
+| UF_right | 4693 | 995 | 49% | 75% |
+| SLF_right | 10620 | 1350 | 37% | 71% |
 
-Two honest headlines sit in that table. The streamlines that meet the definition
-agree with the ground truth over 94–100% of their length — the reconstruction is
-good. But only **9–35% of what the tracker produces** meets it, and between a
-quarter and two thirds of produced length leaves the bundle it was seeded in. The streamlines are typically correct along the bundle and then
-continue past its end onto whichever tract is locally strongest — a crossing
-problem, not a termination one. `field: csd` is the intended remedy and has not
-yet been evaluated here.
+**We reconstruct between a third and a half of each bundle**, and what we do
+reconstruct sits mostly inside the true bundle (71–94%). Earlier versions of this
+page quoted 94–100% "agreement"; that was the precision-like quantity measured
+against the *corridor* rather than the ground truth, and it should not have been
+the headline.
+
+!!! warning "The `produced` column is not a failure rate"
+    It is dominated by a seeding choice. These runs seed uniformly inside each
+    bundle's containment corridor, and that corridor is far larger than the
+    bundle: for `Cingulum_right` it is 38188 voxels against the 8070 the bundle
+    actually occupies, so **79% of the corridor is other tissue**. 62% of the
+    seeds therefore start off-bundle, and 93% of those leave the corridor —
+    which is the *correct* behaviour for a tracker following the fibres that are
+    really there. Seeds that do start inside the true bundle stay contained at
+    41%, against 7% for the rest. Only a whole-brain run gives this denominator
+    a meaning; see below.
+
+## Whole-brain benchmark
+
+`config/ismrm_wholebrain.yml` produces one whole-brain tractogram and lets the
+scorer segment all 26 bundles out of it, which is what the challenge is designed
+for and what makes the numbers comparable to a published submission.
+
+| metric | value |
+|---|--:|
+| streamlines | 60209 |
+| mean F1 | 0.350 |
+| mean overlap (OL) | 0.323 |
+| mean overreach (OR\_gt) | 0.283 |
+| valid bundles found | 22 of 26 |
+| valid streamlines | 31641 (53%) |
+| invalid streamlines | 28568 |
+
+DTI with an accurate integrator finds most of the bundles and gets about half its
+streamlines accepted. That is a middling result, and the reason is structural
+rather than numerical.
+
+## Why streamlines leave the bundle
+
+The direction field is not the weak link. Sampled along the ground truth,
+the interpolated field the tracker actually follows sits 5.6–9.1° from the true
+tract direction, and RK4 on it converges at observed order 4.00
+(`docs/CONVERGENCE.md`). The failures are not integration error.
+
+Taking the 715 `Cingulum_right` streamlines that demonstrably ran along the
+bundle and then left it, and classifying the voxel where each one first departed
+by more than 45°:
+
+| what the tensor looks like where it departs | share | interpretation |
+|---|--:|---|
+| planar (C_P > 0.12), FA normal | 27% | two fibre populations in one voxel |
+| FA collapsed below 0.08 | 9% | too little anisotropy to define a direction |
+| linear (median C_L 0.191), FA normal (0.184) | 65% | a confident single direction belonging to another bundle |
+
+The median departure is at z = 48, on the dorsal arc, not at the bend — only 42%
+occur in the bend band at all.
+
+This matters for what to do next. `field: csd` resolves multiple fibre
+orientations per voxel and should recover a useful part of the 27%. It cannot
+address the 65%: CSD separates fibres by *orientation*, and two bundles running
+tangentially share one orientation, so nothing local distinguishes them. That
+needs non-local information — global tractography, anatomical priors, or
+bundle-level regularisation.
+
+One further property makes small errors expensive. A streamline is a path
+integral, so a direction error is not averaged away by later steps: once a
+streamline transfers onto a neighbouring tract, every subsequent step correctly
+follows *that* tract. A field with 6° median error still yields 46% coverage
+because the rare large errors are absorbing.
 
 These remain **qualitative** figures, and seeding from a bundle's own mask is a
 far easier problem than the whole-brain submission the challenge is designed
