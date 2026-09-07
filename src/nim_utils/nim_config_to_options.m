@@ -96,6 +96,14 @@ function options = nim_config_to_options(config)
     options.roi_filter_dilate = t.filter.roi_dilate;
     options.endpoints_in      = t.filter.endpoints_in;
     options.contained_in      = t.filter.contained_in;
+    options.any_in            = t.filter.any_in;
+    options.length            = t.filter.length;
+    options.length_x          = t.filter.length_x;
+    options.length_y          = t.filter.length_y;
+    options.length_z          = t.filter.length_z;
+    options.length_x_abs      = t.filter.length_x_abs;
+    options.length_y_abs      = t.filter.length_y_abs;
+    options.length_z_abs      = t.filter.length_z_abs;
 
     % --- output -------------------------------------------------------------
     options.output_arc_step = t.output.arc_step;

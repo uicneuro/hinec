@@ -99,6 +99,14 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 | `roi_dilate` | numeric | `0` | all | Dilate the include/exclude masks by this many voxels before testing. |
 | `endpoints_in` | list | `[]` | all | Two regions; keep a track only if one END lands in the first and the other END in the second, either way round. This is an ENDPOINT test, not a waypoint test - include_roi asks whether a track passes through a region, this asks where it stops. It is half of how the ISMRM 2015 scorer defines a bundle (head + tail). |
 | `contained_in` | list | `[]` | all | Keep a track only if EVERY point lies inside these regions. The other half of the ISMRM bundle definition (all_mask): a streamline that wanders outside the corridor is not that bundle, however it ends. |
+| `any_in` | list | `[]` | all | Keep a track only if it touches these regions in AT LEAST ONE point (the scorer's any_mask). Weaker than include_roi with mode all: one region, one point. |
+| `length` | list | `[]` | all | Keep tracks whose total length in MILLIMETRES is within [min max]. Millimetres, not voxels - the scorer measures in RAS mm. |
+| `length_x` | list | `[]` | all | Keep tracks whose NET displacement along x is within [min max] mm. Net: a track that doubles back cancels itself out. |
+| `length_y` | list | `[]` | all | Keep tracks whose NET displacement along y is within [min max] mm. |
+| `length_z` | list | `[]` | all | Keep tracks whose NET displacement along z is within [min max] mm. |
+| `length_x_abs` | list | `[]` | all | Keep tracks whose TOTAL travel along x is within [min max] mm. Total: a track that doubles back adds to it. |
+| `length_y_abs` | list | `[]` | all | Keep tracks whose TOTAL travel along y is within [min max] mm. |
+| `length_z_abs` | list | `[]` | all | Keep tracks whose TOTAL travel along z is within [min max] mm. |
 
 #### `tractography.output`
 

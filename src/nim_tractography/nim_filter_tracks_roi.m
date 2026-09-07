@@ -25,7 +25,22 @@ function [tracks, stats] = nim_filter_tracks_roi(tracks, nim, options)
     exc = get_opt(options, 'exclude_roi', {});
     eps = get_opt(options, 'endpoints_in', {});
     con = get_opt(options, 'contained_in', {});
-    if isempty(inc) && isempty(exc) && isempty(eps) && isempty(con), return; end
+    anyi = get_opt(options, 'any_in', {});
+
+    % Per-dimension and total length criteria, in MILLIMETRES - the scorer
+    % converts to RAS mm (sft.to_rasmm()) before measuring, so voxel units would
+    % be wrong by the voxel size (2x on this data).
+    Lspec = struct( ...
+        'total',  {num_opt(options, 'length')}, ...
+        'net',    {{num_opt(options,'length_x'),     num_opt(options,'length_y'),     num_opt(options,'length_z')}}, ...
+        'abs',    {{num_opt(options,'length_x_abs'), num_opt(options,'length_y_abs'), num_opt(options,'length_z_abs')}});
+    have_len = ~isempty(Lspec.total) || ...
+               any(~cellfun(@isempty, Lspec.net)) || any(~cellfun(@isempty, Lspec.abs));
+
+    if isempty(inc) && isempty(exc) && isempty(eps) && isempty(con) && ...
+       isempty(anyi) && ~have_len
+        return;
+    end
 
     mode = lower(char(string(get_opt(options, 'roi_filter_mode', 'all'))));
     dil  = get_opt(options, 'roi_filter_dilate', 0);
@@ -67,8 +82,29 @@ function [tracks, stats] = nim_filter_tracks_roi(tracks, nim, options)
         fprintf('  contained in:\n');
         con_mask = nim_roi_mask(nim, con, dil);
     end
+    any_mask = [];
+    if ~isempty(anyi)
+        fprintf('  any (touch at least one point):\n');
+        any_mask = nim_roi_mask(nim, anyi, dil);
+    end
     stats.n_dropped_endpoints = 0;
     stats.n_dropped_contained = 0;
+    stats.n_dropped_any       = 0;
+    stats.n_dropped_length    = 0;
+
+    % Voxel -> mm. The ISMRM 2015 affine is diagonal 2 mm isotropic; a rotated
+    % affine would make a per-axis scale meaningless, so refuse rather than
+    % report a length that is quietly wrong.
+    mm = [1 1 1];
+    if have_len
+        if isfield(nim, 'hdr') && isfield(nim.hdr, 'PixelDimensions')
+            mm = double(nim.hdr.PixelDimensions(1:3));
+        else
+            error('nim_filter_tracks_roi:noVoxelSize', ...
+                ['Length criteria are specified in millimetres but the nim carries no ' ...
+                 'PixelDimensions, so voxel coordinates cannot be converted.']);
+        end
+    end
 
     keep = true(1, numel(tracks));
     for t = 1:numel(tracks)
@@ -110,6 +146,18 @@ function [tracks, stats] = nim_filter_tracks_roi(tracks, nim, options)
             end
         end
 
+        if ~isempty(any_mask) && ~any(any_mask(li))
+            keep(t) = false;
+            stats.n_dropped_any = stats.n_dropped_any + 1;
+            continue;
+        end
+
+        if have_len && ~length_ok(tr, mm, Lspec)
+            keep(t) = false;
+            stats.n_dropped_length = stats.n_dropped_length + 1;
+            continue;
+        end
+
         if ~isempty(inc_masks)
             hits = false(1, numel(inc_masks));
             for k = 1:numel(inc_masks)
@@ -128,9 +176,11 @@ function [tracks, stats] = nim_filter_tracks_roi(tracks, nim, options)
     stats.n_out = numel(tracks);
     stats.applied = true;
 
-    fprintf('  kept %d / %d tracks (dropped: %d include, %d exclude, %d containment, %d endpoints)\n', ...
+    fprintf(['  kept %d / %d tracks (dropped: %d include, %d exclude, %d containment, ' ...
+             '%d endpoints, %d any, %d length)\n'], ...
         stats.n_out, stats.n_in, stats.n_dropped_include, stats.n_dropped_exclude, ...
-        stats.n_dropped_contained, stats.n_dropped_endpoints);
+        stats.n_dropped_contained, stats.n_dropped_endpoints, ...
+        stats.n_dropped_any, stats.n_dropped_length);
     if stats.n_out == 0
         warning('nim_filter_tracks_roi:empty', ...
             ['ROI filtering removed every track. Check the include/exclude regions, ' ...
@@ -167,4 +217,42 @@ function v = get_opt(options, name, dflt)
     else
         v = dflt;
     end
+end
+
+function ok = length_ok(tr, mm, L)
+% The scorer's length criteria, in millimetres, matching scilpy's
+% filter_streamlines_by_total_length_per_dim:
+%   length_<d>      -> |sum(d)|   net displacement; a loop cancels itself out
+%   length_<d>_abs  -> sum(|d|)   total travel; a loop adds to it
+    ok = true;
+    d = diff(tr, 1, 1) .* mm(:)';           % per-step displacement, mm
+    if isempty(d), ok = false; return; end
+
+    if ~isempty(L.total)
+        tot = sum(sqrt(sum(d.^2, 2)));
+        if tot < L.total(1) || tot > L.total(2), ok = false; return; end
+    end
+    net = abs(sum(d, 1));
+    tvl = sum(abs(d), 1);
+    for k = 1:3
+        r = L.net{k};
+        if ~isempty(r) && (net(k) < r(1) || net(k) > r(2)), ok = false; return; end
+        r = L.abs{k};
+        if ~isempty(r) && (tvl(k) < r(1) || tvl(k) > r(2)), ok = false; return; end
+    end
+end
+
+function v = num_opt(options, name)
+% A [min max] pair that may arrive as a numeric vector or as a cell of strings
+% (which is what a --set override parses to).
+    v = [];
+    if ~isfield(options, name) || isempty(options.(name)), return; end
+    r = options.(name);
+    if iscell(r), r = cellfun(@(x) str2double(string(x)), r); end
+    r = double(r(:))';
+    if numel(r) ~= 2 || any(isnan(r))
+        error('nim_filter_tracks_roi:badLength', ...
+            '%s must be a [min max] pair in millimetres.', name);
+    end
+    v = r;
 end

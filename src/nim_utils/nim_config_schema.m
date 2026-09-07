@@ -82,6 +82,14 @@ e('tractography.filter.mode',           'all',         'string',  {'all','any'},
 e('tractography.filter.roi_dilate',     0,             'numeric', {}, [0 10],    {}, {'all'}, 'Dilate the include/exclude masks by this many voxels before testing.')
 e('tractography.filter.endpoints_in',   {},            'list',    {}, [],        {}, {'all'}, 'Two regions; keep a track only if one END lands in the first and the other END in the second, either way round. This is an ENDPOINT test, not a waypoint test - include_roi asks whether a track passes through a region, this asks where it stops. It is half of how the ISMRM 2015 scorer defines a bundle (head + tail).')
 e('tractography.filter.contained_in',   {},            'list',    {}, [],        {}, {'all'}, 'Keep a track only if EVERY point lies inside these regions. The other half of the ISMRM bundle definition (all_mask): a streamline that wanders outside the corridor is not that bundle, however it ends.')
+e('tractography.filter.any_in',         {},            'list',    {}, [],        {}, {'all'}, 'Keep a track only if it touches these regions in AT LEAST ONE point (the scorer''s any_mask). Weaker than include_roi with mode all: one region, one point.')
+e('tractography.filter.length',         {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose total length in MILLIMETRES is within [min max]. Millimetres, not voxels - the scorer measures in RAS mm.')
+e('tractography.filter.length_x',       {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose NET displacement along x is within [min max] mm. Net: a track that doubles back cancels itself out.')
+e('tractography.filter.length_y',       {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose NET displacement along y is within [min max] mm.')
+e('tractography.filter.length_z',       {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose NET displacement along z is within [min max] mm.')
+e('tractography.filter.length_x_abs',   {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose TOTAL travel along x is within [min max] mm. Total: a track that doubles back adds to it.')
+e('tractography.filter.length_y_abs',   {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose TOTAL travel along y is within [min max] mm.')
+e('tractography.filter.length_z_abs',   {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose TOTAL travel along z is within [min max] mm.')
 
 % --- output -----------------------------------------------------------------
 e('tractography.output.arc_step',       0,             'numeric', {}, [0 100],   {}, {'all'}, 'Resample saved streamlines to this arc-length spacing in voxels. 0 = store every integration step. Decouples file size from step size; integration accuracy is unaffected.')
