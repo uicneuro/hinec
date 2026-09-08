@@ -90,6 +90,8 @@ e('tractography.filter.length_z',       {},            'list',    {}, [],       
 e('tractography.filter.length_x_abs',   {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose TOTAL travel along x is within [min max] mm. Total: a track that doubles back adds to it.')
 e('tractography.filter.length_y_abs',   {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose TOTAL travel along y is within [min max] mm.')
 e('tractography.filter.length_z_abs',   {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose TOTAL travel along z is within [min max] mm.')
+e('tractography.debug.trace',           false,         'logical', {}, [],        {}, {'hinec'}, 'Record a PER-STEP trace of the tracker: position, direction used, interpolated FA, turn angle, nominal vs realised step arc, sign flips, and termination reason. None of this survives to the saved polyline, which output.arc_step decimates, so it cannot be reconstructed afterwards. Off by default; see nim_track_diagnose.')
+e('tractography.debug.trace_max',       200,           'numeric', {}, [0 100000], {}, {'hinec'}, 'How many seeds to trace, sampled EVENLY across the seed list (a prefix would be one corner of the volume). 0 traces every seed, which is large: budget roughly max_steps x 12 doubles per seed per direction.')
 
 % --- output -----------------------------------------------------------------
 e('tractography.output.arc_step',       0,             'numeric', {}, [0 100],   {}, {'all'}, 'Resample saved streamlines to this arc-length spacing in voxels. 0 = store every integration step. Decouples file size from step size; integration accuracy is unaffected.')

@@ -451,6 +451,29 @@ term_bwd_all = cell(num_seeds, 1);         % Backward termination reasons
 track_valid = false(num_seeds, 1);         % Track validity flags
 step_counts = zeros(num_seeds, 1);         % Step counts per seed
 boundary_times = zeros(num_seeds, 1);      % Boundary check times per seed
+trace_fwd_all = cell(num_seeds, 1);        % Per-step trace (debug.trace only)
+trace_bwd_all = cell(num_seeds, 1);
+
+% WHICH SEEDS ARE TRACED. Per-step state cannot be recovered from the saved
+% tracks: output.arc_step decimates the stored polyline, so the points on disk
+% are not the points the integrator visited, and nothing on disk records the
+% direction actually used, the sign flips, or why a track stopped. Tracing is
+% therefore done in the loop or not at all.
+%
+% Seeds are sampled EVENLY across the seed list rather than taking the first N.
+% Seed order follows the voxel scan, so a prefix is one corner of the volume and
+% would characterise one piece of anatomy instead of the run.
+do_trace_all = false(num_seeds, 1);
+if isfield(options,'trace') && ~isempty(options.trace) && options.trace
+    tmax = 200;
+    if isfield(options,'trace_max') && ~isempty(options.trace_max), tmax = options.trace_max; end
+    if tmax <= 0 || tmax >= num_seeds
+        do_trace_all(:) = true;
+    else
+        do_trace_all(round(linspace(1, num_seeds, tmax))) = true;
+    end
+    fprintf('HINEC: per-step tracing enabled for %d of %d seeds\n', nnz(do_trace_all), num_seeds);
+end
 
 % Check if Parallel Computing Toolbox is available
 use_parfor = ~isempty(ver('parallel'));
@@ -491,8 +514,10 @@ if use_parfor
         seed = seed_points(i, :);
 
         % Track in both directions
-        [track_forward, step_timing_fwd, term_fwd] = track_fiber_hinec(nim, seed, +1, options, angle_rate_deg_per_voxel);
-        [track_backward, step_timing_bwd, term_bwd] = track_fiber_hinec(nim, seed, -1, options, angle_rate_deg_per_voxel);
+        [track_forward, step_timing_fwd, term_fwd, trc_f] = track_fiber_hinec(nim, seed, +1, options, angle_rate_deg_per_voxel, do_trace_all(i));
+        [track_backward, step_timing_bwd, term_bwd, trc_b] = track_fiber_hinec(nim, seed, -1, options, angle_rate_deg_per_voxel, do_trace_all(i));
+        trace_fwd_all{i} = trc_f;
+        trace_bwd_all{i} = trc_b;
 
         % Store termination reasons
         term_fwd_all{i} = term_fwd;
@@ -555,8 +580,10 @@ else
         seed = seed_points(i, :);
 
         % Track in both directions
-        [track_forward, step_timing_fwd, term_fwd] = track_fiber_hinec(nim, seed, +1, options, angle_rate_deg_per_voxel);
-        [track_backward, step_timing_bwd, term_bwd] = track_fiber_hinec(nim, seed, -1, options, angle_rate_deg_per_voxel);
+        [track_forward, step_timing_fwd, term_fwd, trc_f] = track_fiber_hinec(nim, seed, +1, options, angle_rate_deg_per_voxel, do_trace_all(i));
+        [track_backward, step_timing_bwd, term_bwd, trc_b] = track_fiber_hinec(nim, seed, -1, options, angle_rate_deg_per_voxel, do_trace_all(i));
+        trace_fwd_all{i} = trc_f;
+        trace_bwd_all{i} = trc_b;
 
         % Store termination reasons
         term_fwd_all{i} = term_fwd;
@@ -619,6 +646,13 @@ meta = struct();
 meta.seed_index  = find(track_valid(:))';        % seed id per surviving track
 meta.seed_points = seed_points(track_valid, :);  % and its sub-voxel position
 meta.n_seeds     = num_seeds;
+if any(do_trace_all)
+    ti = find(do_trace_all(:))';
+    meta.trace = struct('seed_index', num2cell(ti), ...
+                        'seed_point', num2cell(seed_points(ti,:), 2)', ...
+                        'forward',    trace_fwd_all(ti)', ...
+                        'backward',   trace_bwd_all(ti)');
+end
 
 % Count termination reasons (aggregate from all workers)
 failure_reasons = struct();
@@ -802,7 +836,7 @@ seed_info = struct('description', description, ...
                    'voxel_spacing', voxel_spacing);
 end
 
-function [track, step_timing, termination_reason] = track_fiber_hinec(nim, seed, direction, options, angle_rate)
+function [track, step_timing, termination_reason, trace] = track_fiber_hinec(nim, seed, direction, options, angle_rate, do_trace)
 % HINEC: High-order deterministic tractography with interpolation, RK4, and ACT
 %
 % HINEC ALGORITHM ENHANCEMENTS:
@@ -820,6 +854,23 @@ function [track, step_timing, termination_reason] = track_fiber_hinec(nim, seed,
 %
 % Returns:
 %   track - Array of positions along fiber track
+
+if nargin < 6 || isempty(do_trace), do_trace = false; end
+trace = [];
+if do_trace
+    % Per-step record. Everything here is either a decision the tracker made or
+    % a quantity it computed and then discarded; none of it survives to the
+    % saved polyline, which is decimated by output.arc_step.
+    tr = struct();
+    tr.pos   = nan(options.max_steps + 1, 3);   % position BEFORE the step
+    tr.dir   = nan(options.max_steps + 1, 3);   % unit direction used for the step
+    tr.fa    = nan(options.max_steps + 1, 1);   % interpolated FA at pos
+    tr.turn  = nan(options.max_steps + 1, 1);   % deg from the previous tangent
+    tr.h     = nan(options.max_steps + 1, 1);   % arc the step was ASKED to cover
+    tr.chord = nan(options.max_steps + 1, 1);   % arc it actually covered
+    tr.flip  = false(options.max_steps + 1, 1); % sign flip applied to the NEXT direction
+    ns = 0;
+end
 
 % Initialize position and streamline
 current_pos = seed;
@@ -843,11 +894,11 @@ if nargout > 1
 end
 
 % Get initial direction using interpolation
-[dir_vec, fa_val] = interpolate_direction_trilinear(nim, current_pos, options);
+[dir_vec, fa_val, why] = interpolate_direction_trilinear(nim, current_pos, options);
 if isempty(dir_vec) || fa_val < options.termination_fa
     track = track(1:track_length, :);
     if nargout > 2
-        termination_reason = 'no_direction';
+        termination_reason = why;       % why the SEED itself was unusable
     end
     return;
 end
@@ -871,6 +922,17 @@ has_parcellation = isfield(nim, 'dilated_brain_mask');
 while true
     if nargout > 1
         step_timing.step_count = step_timing.step_count + 1;
+    end
+
+    if do_trace
+        ns = ns + 1;
+        tr.pos(ns,:) = current_pos;
+        tr.dir(ns,:) = dir_vec;
+        tr.fa(ns)    = fa_val;
+        if have_prev_dir
+            % Both tangents are sign-aligned, so this is in [0, 90].
+            tr.turn(ns) = acosd(min(abs(dot(prev_dir, dir_vec)), 1));
+        end
     end
 
     % Check termination criteria BEFORE advancing
@@ -951,6 +1013,11 @@ while true
             termination_reason = 'rkf_failure';
         end
         break;
+    end
+
+    if do_trace
+        tr.h(ns)     = h_used;
+        tr.chord(ns) = norm(next_pos - current_pos);
     end
 
     % Check if next position is valid (within volume bounds)
@@ -1035,10 +1102,10 @@ while true
     current_pos = next_pos;
 
     % Get new direction using interpolation
-    [new_dir, fa_val] = interpolate_direction_trilinear(nim, current_pos, options, dir_vec);
+    [new_dir, fa_val, why] = interpolate_direction_trilinear(nim, current_pos, options, dir_vec);
     if isempty(new_dir)
         if nargout > 2
-            termination_reason = 'no_direction';
+            termination_reason = why;   % 'fa' | 'outside_domain' | 'no_direction'
         end
         break;
     end
@@ -1047,9 +1114,11 @@ while true
     % v1 is a line field, so this alignment is what makes the turn between
     % consecutive tangents well defined - and it is why that turn can never
     % exceed 90 degrees.
-    if dot(dir_vec, new_dir) < 0
+    flipped = dot(dir_vec, new_dir) < 0;
+    if flipped
         new_dir = -new_dir;
     end
+    if do_trace, tr.flip(ns) = flipped; end
     prev_dir      = dir_vec;
     last_step_arc = h_used;
     have_prev_dir = true;
@@ -1058,6 +1127,18 @@ end
 
 % Trim track array to actual length
 track = track(1:track_length, :);
+
+if do_trace
+    k = max(ns, 0);
+    trace = struct('pos', tr.pos(1:k,:), 'dir', tr.dir(1:k,:), 'fa', tr.fa(1:k), ...
+                   'turn', tr.turn(1:k), 'h', tr.h(1:k), 'chord', tr.chord(1:k), ...
+                   'flip', tr.flip(1:k), 'n_steps', k, 'direction', direction);
+    if nargout > 2
+        trace.termination = termination_reason;
+    else
+        trace.termination = '';
+    end
+end
 end
 
 function name = get_integration_method_name(order)
@@ -1346,7 +1427,7 @@ end
 end
 
 
-function [direction, fa_value] = interpolate_direction_trilinear(nim, pos, options, ref_dir)
+function [direction, fa_value, why] = interpolate_direction_trilinear(nim, pos, options, ref_dir)
 % HINEC: Fast interpolation of direction and FA using pre-created griddedInterpolant.
 % field='csd' -> nearest-peak selection then plain spatial interpolation; dti -> plain
 % weighted DTI interpolation; else plain trilinear of the principal eigenvector.
@@ -1371,6 +1452,13 @@ if nargin < 4, ref_dir = []; end
 
 direction = [];
 fa_value = 0;
+% WHY the lookup failed, so the caller can name the termination correctly.
+% Previously every failure here surfaced as 'no_direction', which merged two
+% unrelated causes - the position leaving the interpolation domain, and FA
+% falling under the termination floor - into one label. On the cingulum that
+% single label covered 769 of 800 traced arms while reporting zero 'fa'
+% terminations, which made the termination statistics useless for diagnosis.
+why = 'no_direction';
 
 dims = size(nim.FA);
 
@@ -1385,6 +1473,7 @@ end
 
 if any(pos < margin) || pos(1) > dims(1)-margin+1 || ...
    pos(2) > dims(2)-margin+1 || pos(3) > dims(3)-margin+1
+    why = 'outside_domain';
     return;
 end
 
@@ -1393,13 +1482,19 @@ end
 try
     fa_value = nim.FA_interp(pos(1), pos(2), pos(3));
 catch
+    why = 'outside_domain';
     return;
 end
 
 % Check for NaN (outside bounds) or too low FA
-if isnan(fa_value) || fa_value < options.termination_fa
+if isnan(fa_value)
     fa_value = 0;
+    why = 'outside_domain';
     return;
+end
+if fa_value < options.termination_fa
+    why = 'fa';
+    return;      % keep fa_value: the caller reports the value that stopped it
 end
 
 % Direction source. DTI is PURE INTERPOLATION of the principal eigenvector - it

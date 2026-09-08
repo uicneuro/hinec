@@ -108,6 +108,13 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 | `length_y_abs` | list | `[]` | all | Keep tracks whose TOTAL travel along y is within [min max] mm. |
 | `length_z_abs` | list | `[]` | all | Keep tracks whose TOTAL travel along z is within [min max] mm. |
 
+#### `tractography.debug`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `trace` | logical | `false` | hinec | Record a PER-STEP trace of the tracker: position, direction used, interpolated FA, turn angle, nominal vs realised step arc, sign flips, and termination reason. None of this survives to the saved polyline, which output.arc_step decimates, so it cannot be reconstructed afterwards. Off by default; see nim_track_diagnose. |
+| `trace_max` | numeric | `200` | hinec | How many seeds to trace, sampled EVENLY across the seed list (a prefix would be one corner of the volume). 0 traces every seed, which is large: budget roughly max_steps x 12 doubles per seed per direction. |
+
 #### `tractography.output`
 
 | Key | Type | Default | Applies to | Description |

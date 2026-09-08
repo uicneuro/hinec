@@ -105,6 +105,10 @@ function options = nim_config_to_options(config)
     options.length_y_abs      = t.filter.length_y_abs;
     options.length_z_abs      = t.filter.length_z_abs;
 
+    % --- debug ----------------------------------------------------------------
+    options.trace     = t.debug.trace;
+    options.trace_max = t.debug.trace_max;
+
     % --- output -------------------------------------------------------------
     options.output_arc_step = t.output.arc_step;
 

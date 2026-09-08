@@ -393,6 +393,9 @@ end
 if roi_filter_stats.applied && isfield(track_meta, 'seed_index')
     track_meta.seed_index  = track_meta.seed_index(roi_filter_stats.keep);
     track_meta.seed_points = track_meta.seed_points(roi_filter_stats.keep, :);
+    % track_meta.trace is deliberately NOT subset here. A trace is indexed by
+    % SEED and records what the tracker did, including for streamlines the ROI
+    % filter later discards - which are exactly the ones worth diagnosing.
 end
 if roi_filter_stats.applied && isempty(tracks)
     error('runTractography:emptyAfterRoiFilter', ...
