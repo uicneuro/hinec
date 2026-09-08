@@ -97,9 +97,9 @@ e('tractography.debug.trace_max',       200,           'numeric', {}, [0 100000]
 e('tractography.output.arc_step',       0,             'numeric', {}, [0 100],   {}, {'all'}, 'Resample saved streamlines to this arc-length spacing in voxels. 0 = store every integration step. Decouples file size from step size; integration accuracy is unaffected.')
 
 % --- csd (field: csd only) --------------------------------------------------
-e('tractography.csd.lmax',              6,             'numeric', {}, [2 16],    {'csd_lmax'}, {'hinec','mmf'}, 'Spherical harmonic order for CSD.')
+e('tractography.csd.lmax',              4,             'numeric', {}, [2 16],    {'csd_lmax'}, {'hinec','mmf'}, 'Spherical harmonic order for CSD. Default 4, set from the data rather than convention: with the 32 directions of this acquisition lmax=6 needs 28 coefficients from 32 measurements and the response falls to r_4 = -0.035 against r_0 = 2.73, so deconvolution divides by a near-zero and amplifies noise - its primary FOD peak misses the tensor v1 by 26.6 deg in UNAMBIGUOUS single-fibre voxels, against 6.6 deg at lmax=4. lmax=2 spans exactly the tensor and cannot represent a crossing at all.')
 e('tractography.csd.max_peaks',         3,             'numeric', {}, [1 10],    {'csd_max_peaks'}, {'hinec','mmf'}, 'Maximum FOD peaks retained per voxel.')
-e('tractography.csd.peak_thresh',       0.5,           'numeric', {}, [0 1],     {'csd_peak_thresh'}, {'hinec','mmf'}, 'Relative amplitude threshold for accepting an FOD peak.')
+e('tractography.csd.peak_thresh',       0.2,           'numeric', {}, [0 1],     {'csd_peak_thresh'}, {'hinec','mmf'}, 'Minimum FOD peak amplitude as a fraction of the voxel maximum. The old default of 0.5 required a second fibre population to be at least half as strong as the first, which discards ordinary unequal crossings; MRtrix uses 0.1 for the equivalent. Peaks must now also be local maxima of the FOD, so a lower threshold admits genuine fibres rather than points on the shoulder of the first peak.')
 e('tractography.csd.peak_min_sep',      45,            'numeric', {}, [0 180],   {'csd_peak_min_sep'}, {'hinec','mmf'}, 'Minimum angular separation between FOD peaks (degrees).')
 e('tractography.csd.n_iter',            50,            'numeric', {}, [1 1000],  {}, {'hinec','mmf'}, 'CSD deconvolution iterations.')
 

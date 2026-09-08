@@ -332,7 +332,9 @@ if strcmp(fld, 'csd') && ~isfield(nim, 'peaks')
         if isfield(Sc, 'fod_sh'), nim.fod_sh = Sc.fod_sh; end
     else
         fprintf('field=csd: computing CSD FOD peaks (nim_csd)...\n');
-        csd_opts = struct('lmax', 6, 'n_iter', 50, 'peak_thresh', 0.5, ...
+        % lmax 4 and peak_thresh 0.2 are set from this acquisition, not convention;
+        % see nim_config_schema for the measurements behind both.
+        csd_opts = struct('lmax', 4, 'n_iter', 50, 'peak_thresh', 0.2, ...
                           'peak_min_sep', 45, 'max_peaks', 3);
         csd_keys = {'lmax', 'n_iter', 'peak_thresh', 'peak_min_sep', 'max_peaks'};
         for ci = 1:numel(csd_keys)

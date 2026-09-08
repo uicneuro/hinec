@@ -15,12 +15,12 @@ function nim = nim_csd(nim, options)
 %   nim     - struct with .img (or .img_bi + .img_b0), .bval, .bvec, .evec,
 %             .eval, .FA, .mask.
 %   options - struct; uses:
-%       .lmax          SH order (default 6; capped by #directions)
+%       .lmax          SH order (default 4; capped by #directions)
 %       .sf_fa         FA threshold for single-fiber response voxels (0.7)
 %       .fod_lambda    non-negativity regularization weight (1.0)
 %       .fod_thresh    FOD amplitude treated as "negative" (0.1 * mean)
 %       .n_iter        CSD iterations (50)
-%       .peak_thresh   min peak amplitude, fraction of max FOD (0.5)
+%       .peak_thresh   min peak amplitude, fraction of max FOD (0.2)
 %       .peak_min_sep  min angular peak separation, degrees (45)
 %       .max_peaks     max peaks kept per voxel (3)
 %       .response      [optional] precomputed zonal response r_l (row) to skip est.
@@ -32,7 +32,7 @@ o = @(f,d) getdef(options,f,d);
 sf_fa      = o('sf_fa',0.7);
 fod_lambda = o('fod_lambda',1.0);
 n_iter     = o('n_iter',50);
-peak_thresh= o('peak_thresh',0.5);
+peak_thresh= o('peak_thresh',0.2);
 peak_sep   = o('peak_min_sep',45);
 max_peaks  = o('max_peaks',3);
 
@@ -47,7 +47,7 @@ g = bvec(dw,:);                           % DW directions
 g = g ./ max(sqrt(sum(g.^2,2)),1e-9);
 ndir = size(g,1);
 
-lmax = o('lmax', 6);
+lmax = o('lmax', 4);   % see nim_config_schema: lmax 6 overfits 32 directions
 while (lmax+1)*(lmax+2)/2 > ndir && lmax > 2, lmax = lmax - 2; end   % cap by #dirs
 fprintf('CSD: %d DW dirs, lmax=%d (%d SH coeffs)\n', ndir, lmax, (lmax+1)*(lmax+2)/2);
 
@@ -119,13 +119,21 @@ end
 % ---- peak extraction --------------------------------------------------------
 Up = sphere_dirs(600);                    % finer grid for peaks
 Bp = real_sh_basis(Up, lmax);
+% Neighbour lists on the sampling grid, so a peak can be required to be a LOCAL
+% MAXIMUM. Without this, peak finding degenerates into "well separated samples
+% above a threshold": on a smooth single-fibre FOD the shoulder of the one true
+% peak sits above threshold and further than peak_min_sep from its summit, so it
+% is accepted as a second fibre. That reported >= 2 peaks in 100% of brain voxels
+% at every lmax - including lmax=2, where a degree-2 FOD is a quadratic form and
+% cannot have two maxima at all. Computed once here, not per voxel.
+NBidx = grid_neighbours(Up, 10);
 peaks  = zeros([dims, max_peaks, 3]);
 npeaks = zeros(dims);
 peak_w = zeros([dims, max_peaks]);
 for jj = 1:numel(vidx)
     v = vidx(jj);
     amp = Bp * Fsh(:, v);
-    [pk_dirs, pk_amp] = find_peaks(Up, amp, peak_thresh, peak_sep, max_peaks);
+    [pk_dirs, pk_amp] = find_peaks(Up, amp, peak_thresh, peak_sep, max_peaks, NBidx);
     m = size(pk_dirs,1);
     [x,y,z] = ind2sub(dims, v);
     for k = 1:m
@@ -231,11 +239,20 @@ ph = ga*k;
 U = [rho.*cos(ph), rho.*sin(ph), z];
 end
 
-function [dirs, amps] = find_peaks(U, amp, thr, sep_deg, maxp)
-% local maxima of amp over directions U (undirected: fold to a hemisphere).
+function [dirs, amps] = find_peaks(U, amp, thr, sep_deg, maxp, NBidx)
+% Local maxima of amp over directions U (undirected: antipodes are folded by the
+% separation test, since an FOD built from even harmonics is antipodally
+% symmetric).
+%
+% A candidate must be a LOCAL MAXIMUM on the sampling grid - greater than or
+% equal to each of its nearest neighbours - before the amplitude threshold and
+% the separation test are applied. Dropping that requirement turns this function
+% into "pick well-separated bright samples", which reports a second fibre on the
+% flank of every single-fibre voxel.
 mx = max(amp);
 if mx <= 0, dirs = zeros(0,3); amps = []; return; end
-cand = find(amp > thr*mx);
+islocal = amp >= max(amp(NBidx), [], 2);
+cand = find(amp > thr*mx & islocal);
 [~, ord] = sort(amp(cand), 'descend');
 cand = cand(ord);
 dirs = zeros(0,3); amps = [];
@@ -254,3 +271,12 @@ end
 end
 
 function val = getdef(s,f,d), if isfield(s,f)&&~isempty(s.(f)), val=s.(f); else, val=d; end, end
+
+function NBidx = grid_neighbours(U, K)
+% K angularly-nearest neighbours of each sampling direction, undirected. Built
+% once for the whole volume: doing it per voxel would be O(N^2) per voxel.
+    D = abs(U*U');                 % undirected similarity; 1 = same axis
+    D(1:size(D,1)+1:end) = -1;     % exclude self
+    [~, ord] = sort(D, 2, 'descend');
+    NBidx = ord(:, 1:K);
+end

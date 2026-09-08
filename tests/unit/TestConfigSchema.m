@@ -65,9 +65,9 @@ classdef TestConfigSchema < matlab.unittest.TestCase
             expected = { ...
                 'tractography.field',                   'dti';  % hinec.m:113
                 'tractography.seeding.fa_min',          0.05;   % runTractography.m:162
-                'tractography.csd.lmax',                6;      % runTractography.m:282
+                'tractography.csd.lmax',                4;      % runTractography.m
                 'tractography.csd.n_iter',              50;
-                'tractography.csd.peak_thresh',         0.5;
+                'tractography.csd.peak_thresh',         0.2;
                 'tractography.csd.peak_min_sep',        45;
                 'tractography.csd.max_peaks',           3;
                 'tractography.mmf.anchor',              0;      % mmf_connframe.m:29

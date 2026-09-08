@@ -125,9 +125,9 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `lmax` | numeric | `6` | hinec, mmf | Spherical harmonic order for CSD. |
+| `lmax` | numeric | `4` | hinec, mmf | Spherical harmonic order for CSD. Default 4, set from the data rather than convention: with the 32 directions of this acquisition lmax=6 needs 28 coefficients from 32 measurements and the response falls to r_4 = -0.035 against r_0 = 2.73, so deconvolution divides by a near-zero and amplifies noise - its primary FOD peak misses the tensor v1 by 26.6 deg in UNAMBIGUOUS single-fibre voxels, against 6.6 deg at lmax=4. lmax=2 spans exactly the tensor and cannot represent a crossing at all. |
 | `max_peaks` | numeric | `3` | hinec, mmf | Maximum FOD peaks retained per voxel. |
-| `peak_thresh` | numeric | `0.5` | hinec, mmf | Relative amplitude threshold for accepting an FOD peak. |
+| `peak_thresh` | numeric | `0.2` | hinec, mmf | Minimum FOD peak amplitude as a fraction of the voxel maximum. The old default of 0.5 required a second fibre population to be at least half as strong as the first, which discards ordinary unequal crossings; MRtrix uses 0.1 for the equivalent. Peaks must now also be local maxima of the FOD, so a lower threshold admits genuine fibres rather than points on the shoulder of the first peak. |
 | `peak_min_sep` | numeric | `45` | hinec, mmf | Minimum angular separation between FOD peaks (degrees). |
 | `n_iter` | numeric | `50` | hinec, mmf | CSD deconvolution iterations. |
 
