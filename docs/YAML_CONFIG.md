@@ -46,7 +46,7 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `algorithm` | string | `hinec` | all | Tracking algorithm. |
+| `algorithm` | string | `hinec` | all | Tracking algorithm. template = the minimal worked example of the tracker interface (docs/TRACKER_INTERFACE.md). |
 | `field` | string | `dti` | hinec, mmf | Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks; dwi = frame AND connection curvature fitted DIRECTLY to the raw DW signal (mmf only, see nim_mmf_from_dwi). The dwi route never forms a tensor or an FOD: it fits e1 and the curvature vector kappa jointly to the centred log-signal over a 3x3x3 neighbourhood, so curvature is a parameter of the signal model rather than a derivative of an already-fitted direction field. Measured against the ISMRM-2015 geometry it retains 0.89 of the individual-fibre curvature against 0.65 for the DTI route. |
 | `act` | logical | `false` | hinec | Anatomically constrained tracking using WM/GM/CSF masks. |
 | `diagnostics` | logical | `true` | all | Write per-run diagnostic reports. |

@@ -45,7 +45,7 @@ e('preprocessing.use_t1_registration',  false,         'logical', {}, [],       
 e('preprocessing.register_to_mni',      false,         'logical', {}, [],       {}, {'n/a'}, 'Register to MNI space.')
 
 % ------------------------------------------------------------------ tractography
-e('tractography.algorithm',             'hinec',       'string',  {'hinec','standard','mmf'}, [], {}, {'all'}, 'Tracking algorithm.')
+e('tractography.algorithm',             'hinec',       'string',  {'hinec','standard','mmf','template'}, [], {}, {'all'}, 'Tracking algorithm. template = the minimal worked example of the tracker interface (docs/TRACKER_INTERFACE.md).')
 e('tractography.field',                 'dti',         'string',  {'dti','csd','dwi'}, [],  {}, {'hinec','mmf'}, 'Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks; dwi = frame AND connection curvature fitted DIRECTLY to the raw DW signal (mmf only, see nim_mmf_from_dwi). The dwi route never forms a tensor or an FOD: it fits e1 and the curvature vector kappa jointly to the centred log-signal over a 3x3x3 neighbourhood, so curvature is a parameter of the signal model rather than a derivative of an already-fitted direction field. Measured against the ISMRM-2015 geometry it retains 0.89 of the individual-fibre curvature against 0.65 for the DTI route.')
 e('tractography.act',                   false,         'logical', {}, [],       {'act_enabled'}, {'hinec'}, 'Anatomically constrained tracking using WM/GM/CSF masks.')
 

@@ -67,6 +67,7 @@ nav:
     - Run Directory System: RUN_DIRECTORY_SYSTEM.md
   - Tractography:
     - Methods Overview: TRACTOGRAPHY_METHODS.md
+    - Writing a Tracker: TRACKER_INTERFACE.md
     - MMF Connection-Form: MMF_TRACTOGRAPHY.md
     - Standard (FACT): TRACTOGRAPHY.md
     - High-Order Methods: High_Order.md

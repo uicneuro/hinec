@@ -344,7 +344,17 @@ fprintf('==========================\n');
 % Generate timestamp for output filename
 timestamp = datestr(now, 'yyyy-mm-dd_HH_MM_SS');
 
-
+% Log the hand-off. Everything the tracker will receive - every nim field and
+% every option, with size, origin and meaning - goes to the log and to
+% tractography/tracker_input.txt, so a new tracker can be written against what
+% a run actually passes rather than against a description of it. The contract
+% is documented in docs/TRACKER_INTERFACE.md.
+if use_run_dir
+    tracker_input_file = fullfile(run_info.tractography_dir, 'tracker_input.txt');
+else
+    tracker_input_file = '';
+end
+nim_describe_tracker_input(nim, options, algorithm, tracker_input_file);
 
 track_meta = struct();   % populated by hinec; empty for other trackers
 if strcmpi(algorithm, 'mmf')
@@ -364,6 +374,15 @@ elseif strcmpi(algorithm, 'hinec')
     [tracks, track_meta] = nim_tractography_hinec(nim, options);
     elapsed_time = toc;
     output_filename = sprintf('tracks_hinec_%s.mat', timestamp);
+elseif strcmpi(algorithm, 'template')
+    % The worked example of the tracker interface. A new algorithm is added by
+    % copying nim_tractography_template.m and adding one branch here - see
+    % docs/TRACKER_INTERFACE.md.
+    fprintf('Running the template tracker (Euler on the interpolated principal eigenvector)...\n');
+    tic;
+    [tracks, track_meta] = nim_tractography_template(nim, options);
+    elapsed_time = toc;
+    output_filename = sprintf('tracks_template_%s.mat', timestamp);
 else
     fprintf('Running standard FACT tractography...\n');
     tic;
@@ -374,6 +393,11 @@ end
 
 fprintf('Tractography completed in %.1f seconds\n', elapsed_time);
 fprintf('Generated %d tracks\n', length(tracks));
+
+% Check the tracker honoured the output contract before anything downstream
+% trusts it. A tracker that returns the wrong shape fails here, with the rule
+% it broke, rather than somewhere inside the ROI filter or the TRK converter.
+nim_check_tracker_output(tracks, track_meta);
 
 if isempty(tracks)
     error('No tracks generated! Check FA threshold and seed mask.');

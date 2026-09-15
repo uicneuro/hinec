@@ -38,6 +38,13 @@ their spatial relationship. Per-bundle comparisons against ground truth are in
 | `standard` | `nim_tractography_standard.m` | single tensor | Euler (FACT) | none (discrete voxel tensor) | dti |
 | `hinec` | `nim_tractography_hinec.m` | tensor **or** CSD FOD | Euler / RK2 / RK4 / RKF45 | trilinear \| cubic \| spline | dti \| csd |
 | `mmf` | `nim_tractography_mmf_connframe.m` | tensor **or** CSD FOD | RK4 or RKF45 on the frame system | connection 1-form field | dti \| csd |
+| `template` | `nim_tractography_template.m` | single tensor | Euler | trilinear dyadic | dti |
+
+`template` is not a research method: it is the ≈100-line worked example of the tracker
+interface, kept runnable so a new algorithm can be started by copying it. The contract every
+tracker follows — what `runTractography` hands over, what must come back — is in
+[Writing your own tracker](TRACKER_INTERFACE.md) and is logged by every run as
+`tractography/tracker_input.txt`.
 
 ### `standard` — FACT
 
@@ -193,7 +200,10 @@ python scripts/run_pft_dipy.py --out tracks.trk [--density 1] [--seed wm|interfa
 Every tracker returns the same structure: `tracks` is a cell array; each cell is an `N×3`
 matrix of **voxel-space** coordinates giving the *complete* trajectory (not just endpoints);
 `N` varies per fiber. Saved under `<run_dir>/tractography/tracks_<algorithm>_<timestamp>.mat`
-together with `options`, `elapsed_time`, and `algorithm`.
+together with `options`, `elapsed_time`, `algorithm` and `track_meta` (the tracker's `meta`:
+`seed_index`, `seed_points`, `n_seeds`, optional `trace`). Point order within a track is
+`[backward half reversed; seed; forward half]`. The full contract, including what a tracker
+receives, is in [Writing your own tracker](TRACKER_INTERFACE.md).
 
 ---
 
