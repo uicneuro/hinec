@@ -81,16 +81,33 @@ function P = nim_parcellation_from_masks(mask_dirs, ref_nii, target_dims)
     end
 
     % How much did the label volume have to throw away?
+    %
+    % PER REGION, not just in aggregate. The aggregate overlap count says the
+    % label volume is lossy; the per-region retention says WHICH regions it
+    % destroyed, and the answer is not uniform. On the ISMRM bundle masks the
+    % median region keeps 43% of its voxels and CC_u_shaped keeps 1% - 1275 of
+    % 106502 - because every other bundle crossing the callosum is smaller and
+    % wins those voxels. A caller handed that region from .labels is working with
+    % a different structure than the one it asked for, so the number has to be
+    % available to warn with rather than merely printed once at build time.
     stack = cat(4, vols{:});
     n_per = sum(stack, 4);
+    retained = zeros(1, numel(files));
+    for f = 1:numel(files)
+        retained(f) = nnz(P.labels == uint16(f)) / max(sizes(f), 1);
+    end
     P.overlap = struct( ...
         'n_regions',        numel(files), ...
         'voxels_labelled',  sum(n_per(:) > 0), ...
         'voxels_multi',     sum(n_per(:) > 1), ...
         'max_regions_per_voxel', max(n_per(:)), ...
-        'region_sizes',     containers.Map(names, num2cell(sizes)));
+        'region_sizes',     containers.Map(names, num2cell(sizes)), ...
+        'retained',         containers.Map(names, num2cell(retained)));
 
     fprintf('parcellation from masks: %d regions, %d labelled voxels, %d in >1 region (%.1f%%), max %d regions on one voxel\n', ...
         P.overlap.n_regions, P.overlap.voxels_labelled, P.overlap.voxels_multi, ...
         100*P.overlap.voxels_multi/max(P.overlap.voxels_labelled,1), P.overlap.max_regions_per_voxel);
+    [worst, wi] = min(retained);
+    fprintf('  label volume retains a median %.0f%% of each region; worst %s at %.0f%%. Use the masks, not the labels.\n', ...
+        100*median(retained), names{wi}, 100*worst);
 end

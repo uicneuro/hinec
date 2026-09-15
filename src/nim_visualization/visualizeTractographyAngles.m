@@ -242,7 +242,7 @@ for i = 1:num_angles
     % Plot region overlay if filtering by region
     if options.show_region && ~isempty(options.region_ids) && isfield(nim, 'parcellation_mask')
         for r = 1:length(options.region_ids)
-            plot_region_overlay(nim.parcellation_mask, options.region_ids(r), options.region_alpha);
+            plot_region_overlay(nim, options.region_ids(r), options.region_alpha);
         end
     end
 
@@ -675,11 +675,11 @@ end
 end
 
 
-function plot_region_overlay(parcellation_mask, region_id, alpha_value)
+function plot_region_overlay(nim, region_id, alpha_value)
 % Plot the parcellation region as a 3D overlay
 % COORDINATE FIX: isosurface returns (col, row, slice), tracks use (row, col, slice)
 
-region_mask = parcellation_mask == region_id;
+region_mask = nim_region_mask(nim, region_id);   % true extent, overlaps intact
 
 if sum(region_mask(:)) > 100
     try

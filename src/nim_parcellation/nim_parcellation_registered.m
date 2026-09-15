@@ -236,8 +236,11 @@ try
     fprintf(fid, '\n');
     
     % Parcellation statistics
-    unique_labels = unique(nim.parcellation_mask(:));
-    num_labels = length(unique_labels) - 1;
+    % From the label map: a region whose voxels were all claimed by overlapping
+    % neighbours still exists, and counting what survives the label volume
+    % under-reports the parcellation.
+    unique_labels = nim_region_ids(nim);
+    num_labels = numel(unique_labels);
     num_voxels = sum(nim.parcellation_mask(:) > 0);
     
     fprintf(fid, 'Parcellation Statistics:\n');

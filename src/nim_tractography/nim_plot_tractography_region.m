@@ -67,7 +67,7 @@ if region_id < 1 || region_id > max(nim.parcellation_mask(:))
 end
 
 % Check if region exists
-region_voxels = sum(nim.parcellation_mask(:) == region_id);
+region_voxels = nnz(nim_region_mask(nim, region_id));   % overlaps intact
 if region_voxels == 0
     error('Region %d does not exist in parcellation mask', region_id);
 end
@@ -75,7 +75,7 @@ end
 fprintf('Filtering tracks for region %d...\n', region_id);
 
 % Filter tracks based on region
-filtered_tracks = filter_tracks_by_region(tracks, nim.parcellation_mask, region_id, options);
+filtered_tracks = filter_tracks_by_region(tracks, nim, region_id, options);
 
 if isempty(filtered_tracks)
     warning('No tracks found for region %d with current filter settings', region_id);
@@ -106,7 +106,7 @@ hold on;
 
 % Show region overlay if requested
 if options.show_region
-    plot_region_overlay(nim.parcellation_mask, region_id, options.region_alpha);
+    plot_region_overlay(nim, region_id, options.region_alpha);
 end
 
 % Show anatomical background (FA slices)
@@ -139,8 +139,20 @@ hold off;
 fprintf('Visualization complete for region %d\n', region_id);
 end
 
-function filtered_tracks = filter_tracks_by_region(tracks, parcellation_mask, region_id, options)
-% Filter tracks based on their relationship to the specified region
+function filtered_tracks = filter_tracks_by_region(tracks, nim, region_id, options)
+% Membership by the region's TRUE mask, not by a per-point label.
+%
+% This used to read one label per track point out of the parcellation volume and
+% compare it to region_id. A label volume has a single owner per voxel, so a
+% track running through a voxel this region shares with another was credited to
+% whichever region won the tie - and regions that lose ties are largely absent
+% (on the ISMRM bundle masks the label volume keeps a median 43% of a region and
+% as little as 1%). Testing the region's own mask counts the track for every
+% region it genuinely passes through.
+R = nim_region_lookup(nim);
+region_mask = nim_region_mask(nim, region_id);
+dims = size(region_mask);
+
 filtered_tracks = cell(length(tracks), 1);
 track_count = 0;
 
@@ -149,92 +161,56 @@ for i = 1:length(tracks)
     if size(track, 1) < options.min_track_length
         continue; % Skip tracks that are too short
     end
-    
-    % Get parcellation labels along the track
-    track_labels = get_track_parcellation_labels(track, parcellation_mask);
-    
-    % Apply filtering based on mode
+
+    [in_reg, in_any] = track_membership(track, region_mask, R.any, dims);
+    if ~any(in_any), continue; end
+
     include_track = false;
-    
     switch options.filter_mode
         case 'pass_through'
-            % Track passes through the region at any point
-            include_track = any(track_labels == region_id);
-            
+            include_track = any(in_reg);
         case 'start_in'
-            % Track starts in the region
-            valid_labels = track_labels(track_labels > 0);
-            if ~isempty(valid_labels)
-                include_track = valid_labels(1) == region_id;
-            end
-            
+            k = find(in_any, 1, 'first');    % first point inside ANY region
+            include_track = in_reg(k);
         case 'end_in'
-            % Track ends in the region
-            valid_labels = track_labels(track_labels > 0);
-            if ~isempty(valid_labels)
-                include_track = valid_labels(end) == region_id;
-            end
-            
+            k = find(in_any, 1, 'last');
+            include_track = in_reg(k);
         case 'connect_to'
-            % Track connects the region to any other region
-            valid_labels = track_labels(track_labels > 0);
-            if ~isempty(valid_labels)
-                unique_regions = unique(valid_labels);
-                include_track = ismember(region_id, unique_regions) && length(unique_regions) > 1;
-            end
+            include_track = any(in_reg) && numel(R.touched(track)) > 1;
     end
 
-    % Apply minimum overlap constraint with enhanced filtering
     if include_track && options.min_overlap > 0
-        region_points = sum(track_labels == region_id);
-        total_points = length(track_labels);
-        overlap_ratio = region_points / total_points;
-
-        % For pass_through mode, be more strict - require either:
-        % 1. Track starts or ends in the region (meaningful connection), OR
-        % 2. Track has substantial overlap (>= min_overlap)
+        overlap_ratio = sum(in_reg) / numel(in_reg);
         if strcmp(options.filter_mode, 'pass_through')
-            valid_labels = track_labels(track_labels > 0);
-            starts_or_ends_in_region = false;
-            if ~isempty(valid_labels)
-                starts_or_ends_in_region = (valid_labels(1) == region_id) || (valid_labels(end) == region_id);
-            end
-
-            % Include if it starts/ends in region OR has substantial overlap
-            include_track = starts_or_ends_in_region || (overlap_ratio >= options.min_overlap);
+            ends_here = in_reg(find(in_any, 1, 'first')) || in_reg(find(in_any, 1, 'last'));
+            include_track = ends_here || overlap_ratio >= options.min_overlap;
         else
-            % For other modes, use standard overlap check
             include_track = overlap_ratio >= options.min_overlap;
         end
     end
-    
+
     if include_track
         track_count = track_count + 1;
         filtered_tracks{track_count} = track;
     end
 end
-
-% Trim to actual size
 filtered_tracks = filtered_tracks(1:track_count);
 end
 
-function track_labels = get_track_parcellation_labels(track, parcellation_mask)
-% Get parcellation labels for each point along the track
-track_labels = zeros(size(track, 1), 1);
-
-for i = 1:size(track, 1)
-    pos = round(track(i, :));
-    
-    % Check bounds
-    if all(pos >= 1) && all(pos <= size(parcellation_mask))
-        track_labels(i) = parcellation_mask(pos(1), pos(2), pos(3));
-    end
-end
+function [in_reg, in_any] = track_membership(track, region_mask, any_mask, dims)
+% Per-point membership of a track in one region and in any region.
+    v = round(track);
+    ok = all(v >= 1, 2) & v(:,1) <= dims(1) & v(:,2) <= dims(2) & v(:,3) <= dims(3);
+    in_reg = false(size(track,1), 1); in_any = in_reg;
+    if ~any(ok), return; end
+    li = sub2ind(dims, v(ok,1), v(ok,2), v(ok,3));
+    in_reg(ok) = region_mask(li);
+    in_any(ok) = any_mask(li);
 end
 
-function plot_region_overlay(parcellation_mask, region_id, alpha_value)
-% Plot the parcellation region as a 3D overlay
-region_mask = parcellation_mask == region_id;
+function plot_region_overlay(nim, region_id, alpha_value)
+% Plot the parcellation region as a 3D overlay, using its true extent
+region_mask = nim_region_mask(nim, region_id);
 
 % Create isosurface of the region
 if sum(region_mask(:)) > 100 % Only if region has sufficient voxels
@@ -337,11 +313,13 @@ switch color_mode
     case 'region'
         % Random color based on most common region
         if isfield(nim, 'parcellation_mask')
-            track_labels = get_track_parcellation_labels(track, nim.parcellation_mask);
-            valid_labels = track_labels(track_labels > 0);
-            if ~isempty(valid_labels)
-                mode_label = mode(valid_labels);
-                rng(mode_label); % Consistent color for same region
+            % Dominant region by TRUE membership. A per-voxel label would name
+            % whichever region won the tie, so a track running mostly inside a
+            % region that loses ties would be coloured as its neighbour.
+            RL = cached_lookup(nim);
+            dom = dominant_region(track, RL);
+            if ~isempty(dom)
+                rng(dom); % Consistent color for same region
                 color = rand(1, 3) * 0.8 + 0.2;
             else
                 color = [0.5, 0.5, 0.5];
@@ -448,4 +426,29 @@ if ~isempty(tracks)
 end
 
 fprintf('=====================================\n');
+end
+
+function RL = cached_lookup(nim)
+% One region lookup per parcellation, reused across tracks.
+    persistent L key
+    k = [size(nim.parcellation_mask), double(max(nim.parcellation_mask(:))), ...
+         double(sum(nim.parcellation_mask(:) > 0))];
+    if isempty(L) || ~isequal(key, k)
+        L = nim_region_lookup(nim); key = k;
+    end
+    RL = L;
+end
+
+function id = dominant_region(track, RL)
+% The region containing the most points of this track, overlaps allowed.
+    id = [];
+    v = round(track); d = RL.dims;
+    ok = all(v >= 1, 2) & v(:,1) <= d(1) & v(:,2) <= d(2) & v(:,3) <= d(3);
+    if ~any(ok), return; end
+    li = sub2ind(d, v(ok,1), v(ok,2), v(ok,3));
+    best = 0;
+    for i = 1:numel(RL.ids)
+        n = sum(RL.masks{i}(li));
+        if n > best, best = n; id = RL.ids(i); end
+    end
 end

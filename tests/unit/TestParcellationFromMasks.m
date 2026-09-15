@@ -157,6 +157,59 @@ classdef TestParcellationFromMasks < matlab.unittest.TestCase
                 ['nim_roi_mask returned the label-volume remnant of "big" (its ' ...
                  'non-overlapping part) instead of the region as defined.']);
         end
+
+        function perRegionLossIsRecorded(tc)
+            % The aggregate overlap count says the label volume is lossy. It does
+            % not say WHICH regions it destroyed, and that is not uniform: on the
+            % real ISMRM masks the median region keeps 43% of its voxels while
+            % CC_u_shaped keeps 1%. Without a per-region figure there is nothing
+            % to warn a caller with.
+            A = eye(4);
+            big   = false(8,8,8); big(2:7,2:7,2:7) = true;    % 216
+            small = false(8,8,8); small(3:5,3:5,3:5) = true;  %  27, inside big
+            tc.writeMask('big', big, A, false);
+            tc.writeMask('small', small, A, false);
+            ref = tc.writeMask('ref', zeros(8,8,8), A, false, tc.Ref);
+            P = nim_parcellation_from_masks({tc.Tmp}, ref, [8 8 8]);
+
+            tc.assertTrue(isfield(P.overlap, 'retained'), ...
+                'per-region retention must be reported.');
+            r = P.overlap.retained;
+            tc.verifyEqual(r('small'), 1, 'AbsTol', 1e-12, ...
+                'the smallest region wins its voxels outright and loses nothing.');
+            % big loses exactly the 27 voxels small took: 189/216
+            tc.verifyEqual(r('big'), 189/216, 'AbsTol', 1e-12, ...
+                'the larger region must report the fraction the label volume kept.');
+        end
+
+        function labelVolumeFallbackIsNotSilent(tc)
+            % A region served from the label volume comes back with holes, and
+            % the holes are invisible in the result - the mask is simply smaller
+            % than the region, and every count taken from it is wrong the same
+            % way. Falling back must therefore say so.
+            A = eye(4);
+            big   = false(8,8,8); big(2:7,2:7,2:7) = true;
+            small = false(8,8,8); small(3:5,3:5,3:5) = true;
+            tc.writeMask('big', big, A, false);
+            tc.writeMask('small', small, A, false);
+            ref = tc.writeMask('ref', zeros(8,8,8), A, false, tc.Ref);
+            P = nim_parcellation_from_masks({tc.Tmp}, ref, [8 8 8]);
+
+            % roi_masks deliberately WITHOUT 'big', so the lookup must fall back
+            only_small = containers.Map('KeyType','char','ValueType','any');
+            only_small('small') = P.masks('small');
+            nim = struct('FA', zeros(8,8,8), 'parcellation_mask', P.labels, ...
+                         'atlas_labels', struct('map', P.map), ...
+                         'roi_masks', only_small, 'roi_overlap', P.overlap);
+
+            tc.verifyWarning(@() evalc_mask(@() nim_roi_mask(nim, {'big'}, 0)), ...
+                'nim_roi_mask:labelFallback', ...
+                'falling back to the label volume must warn - the loss is invisible otherwise.');
+            % and it really is the hollowed version
+            m = evalc_mask(@() nim_roi_mask(nim, {'big'}, 0));
+            tc.verifyEqual(sum(m(:)), 189, ...
+                'the fallback should have returned the label-volume remnant.');
+        end
     end
 end
 

@@ -72,7 +72,15 @@ function [mask, info] = nim_roi_mask(nim, roi_spec, dilate)
         if have_true_masks && isKey(nim.roi_masks, names{i})
             m = logical(nim.roi_masks(names{i}));
         end
-        if isempty(m), m = (P == idx(i)); end
+        if isempty(m)
+            % FALLBACK: the label volume. One owner per voxel, so a region that
+            % shares voxels with anything else comes back hollowed out. This is
+            % never silent, because the hole is invisible in the result - the
+            % mask is simply smaller than the region, and every count computed
+            % from it is wrong in the same direction.
+            m = (P == idx(i));
+            warn_label_fallback(nim, names{i}, sum(m(:)));
+        end
         per_label(i) = sum(m(:));
         mask = mask | m;
     end
@@ -196,4 +204,29 @@ end
 function s = truncate(s, n)
     s = char(s);
     if numel(s) > n, s = [s(1:n-3) '...']; end
+end
+
+function warn_label_fallback(nim, name, n_kept)
+% Say how much of the region the label volume is known to have discarded, when
+% the build recorded it.
+    frac = [];
+    if isfield(nim, 'roi_overlap') && isstruct(nim.roi_overlap) ...
+            && isfield(nim.roi_overlap, 'retained') ...
+            && isa(nim.roi_overlap.retained, 'containers.Map') ...
+            && isKey(nim.roi_overlap.retained, name)
+        frac = nim.roi_overlap.retained(name);
+    end
+    if ~isempty(frac) && frac < 0.99
+        warning('nim_roi_mask:labelFallback', ...
+            ['"%s" was taken from the parcellation LABEL VOLUME, which keeps only ' ...
+             '%.0f%% of it (%d voxels here). Regions overlap and a label volume ' ...
+             'gives each voxel one owner, so this mask has holes where other ' ...
+             'regions won. Provide the region in nim.roi_masks to get it whole.'], ...
+            name, 100*frac, n_kept);
+    elseif isfield(nim, 'roi_masks') && isa(nim.roi_masks, 'containers.Map')
+        warning('nim_roi_mask:labelFallback', ...
+            ['"%s" is not in nim.roi_masks, so it came from the parcellation label ' ...
+             'volume (%d voxels). If this region overlaps any other, the mask is ' ...
+             'incomplete by an unrecorded amount.'], name, n_kept);
+    end
 end

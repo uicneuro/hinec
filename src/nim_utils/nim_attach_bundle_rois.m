@@ -69,5 +69,10 @@ function nim = nim_attach_bundle_rois(nim, roi_root, ref_nii)
     end
     nim.roi_source = roi_root;
 
+    % Keep the overlap report ON the nim. It was previously computed, printed
+    % once, and discarded, which left every downstream consumer of
+    % nim.parcellation_mask unable to tell that its regions are incomplete.
+    nim.roi_overlap = P.overlap;
+
     fprintf('  %d bundle labels, %d addressable ROIs\n', P.map.Count, nim.roi_masks.Count);
 end

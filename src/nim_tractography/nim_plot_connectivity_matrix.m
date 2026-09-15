@@ -32,9 +32,28 @@ if ~isfield(nim, 'parcellation_mask')
 end
 
 % Get unique parcellation labels
-parcel_labels = unique(nim.parcellation_mask(:));
-parcel_labels = parcel_labels(parcel_labels > 0); % Remove background
-n_regions = length(parcel_labels);
+% Region membership that lets a voxel belong to SEVERAL regions.
+%
+% This used to read `unique(nim.parcellation_mask(:))` and then take one label
+% per track point. A label volume has one owner per voxel, but anatomy does not:
+% on the ISMRM bundle masks 84.8% of labelled voxels lie in two or more bundles
+% and one lies in ten. Under the old lookup a streamline ending in a voxel shared
+% by the corpus callosum and the cingulum was credited to whichever region won
+% the tie, so edges were attributed to the wrong pair and the regions that lose
+% ties (CC_u_shaped keeps 1% of its voxels in the label volume) were effectively
+% absent from the matrix.
+R = nim_region_lookup(nim);
+parcel_labels = R.ids(:);
+n_regions = numel(parcel_labels);
+if R.n_labelled > 0
+    fprintf('Connectivity: %d regions, %d of %d labelled voxels shared by >1 region (%.1f%%)\n', ...
+        n_regions, R.n_multi, R.n_labelled, 100*R.n_multi/R.n_labelled);
+end
+if ~all(R.exact)
+    warning('nim_plot_connectivity_matrix:approxRegions', ...
+        ['%d of %d regions have no true mask and fall back to the label volume, ' ...
+         'so their extent is whatever no other region claimed.'], nnz(~R.exact), n_regions);
+end
 
 fprintf('Computing connectivity matrix for %d regions...\n', n_regions);
 
@@ -51,24 +70,31 @@ for i = 1:length(tracks)
         continue;
     end
     
-    % Get parcellation labels along track
-    track_labels = get_track_labels(track, nim.parcellation_mask);
-    
-    % Find start and end regions
-    [start_region, end_region] = get_track_endpoints(track_labels, parcel_labels);
-    
-    if ~isempty(start_region) && ~isempty(end_region) && start_region ~= end_region
-        % Add connection
-        start_idx = find(parcel_labels == start_region);
-        end_idx = find(parcel_labels == end_region);
-        
-        connectivity_matrix(start_idx, end_idx) = connectivity_matrix(start_idx, end_idx) + 1;
-        
-        if options.symmetric
-            connectivity_matrix(end_idx, start_idx) = connectivity_matrix(end_idx, start_idx) + 1;
+    % Every region containing each ENDPOINT, not one label per endpoint.
+    a = R.at(track(1, :));
+    b = R.at(track(end, :));
+
+    if ~isempty(a) && ~isempty(b)
+        % A streamline whose endpoint sits in overlapping regions is evidence for
+        % each pair it could join. Crediting only one would pick a winner
+        % arbitrarily; crediting all of them is what the masks actually say.
+        added = false;
+        for ra = a(:)'
+            for rb = b(:)'
+                if ra == rb, continue; end
+                start_idx = find(parcel_labels == ra, 1);
+                end_idx   = find(parcel_labels == rb, 1);
+                if isempty(start_idx) || isempty(end_idx), continue; end
+                connectivity_matrix(start_idx, end_idx) = connectivity_matrix(start_idx, end_idx) + 1;
+                if options.symmetric
+                    connectivity_matrix(end_idx, start_idx) = connectivity_matrix(end_idx, start_idx) + 1;
+                end
+                added = true;
+            end
         end
-        
-        valid_tracks = valid_tracks + 1;
+        if added
+            valid_tracks = valid_tracks + 1;
+        end
     end
 end
 
@@ -135,42 +161,3 @@ ylabel('Total Connections');
 
 fprintf('Connectivity analysis complete\n');
 end
-
-function track_labels = get_track_labels(track, parcellation_mask)
-% Get parcellation labels along a track
-track_labels = zeros(size(track, 1), 1);
-
-for i = 1:size(track, 1)
-    pos = round(track(i, :));
-    
-    % Check bounds
-    if all(pos >= 1) && all(pos <= size(parcellation_mask))
-        track_labels(i) = parcellation_mask(pos(1), pos(2), pos(3));
-    end
-end
-end
-
-function [start_region, end_region] = get_track_endpoints(track_labels, parcel_labels)
-% Find start and end regions of a track
-start_region = [];
-end_region = [];
-
-% Find first non-zero label
-valid_labels = track_labels(track_labels > 0);
-if isempty(valid_labels)
-    return;
-end
-
-start_region = valid_labels(1);
-
-% Find last non-zero label
-end_region = valid_labels(end);
-
-% Ensure labels are in our parcellation
-if ~ismember(start_region, parcel_labels)
-    start_region = [];
-end
-if ~ismember(end_region, parcel_labels)
-    end_region = [];
-end
-end 

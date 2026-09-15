@@ -307,7 +307,10 @@ end
 function plot_all_parcels(nim, opts)
 % Plot all parcels sequentially in separate figures
 
-num_parcels = max(nim.parcellation_mask(:));
+% Iterate the parcellation's OWN region list. max() over the label volume both
+% assumes contiguous ids and silently skips any region that lost all its voxels
+% to an overlapping neighbour.
+parcel_ids = nim_region_ids(nim);
 figindex = opts.figindex;
 
 % Use aggressive downsampling for all parcels to avoid memory issues
@@ -315,8 +318,8 @@ if opts.downsample_factor < 3
     opts.downsample_factor = 3;
 end
 
-for parcel_id = 1:num_parcels
-  if sum(nim.parcellation_mask(:) == parcel_id) > 0
+for parcel_id = parcel_ids(:)'
+  if nnz(nim_region_mask(nim, parcel_id)) > 0
     sub_opts = opts;
     sub_opts.parcel_id = parcel_id;
     sub_opts.figindex = figindex;
