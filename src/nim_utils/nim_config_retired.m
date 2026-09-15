@@ -21,6 +21,7 @@ r('swing_ratio_max',    'Never read by any tracker.')
 r('transport_gate',     'Never read by any tracker.')
 r('transport_strength', 'Never read by any tracker.')
 r('bishop_eps',         'Referenced only in a comment; no tracker reads it as an option.')
+r('frame_sel_power',    ['Removed with the alignment-weighted denoise it controlled. Same mechanism as the retired sel_power: a free exponent with no principled value. Measured against ground-truth curvature it also did nothing - correlation 0.217 to 0.239 across sel 0 to 64, while every setting suppressed curvature ~17x below the true 0.1538/vox.'])
 
 % --- fa_threshold: the subtle one. Verified per tracker:
 %       hinec    (:188) - fprintf only

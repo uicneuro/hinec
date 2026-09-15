@@ -17,7 +17,7 @@ equation* rather than by re-sampling a direction field at each step.
 | | |
 |---|---|
 | **Dispatch** | `algorithm: mmf` → `runTractography` → `nim_tractography_mmf_connframe` |
-| **Geometry build** | `nim_mmf_geometry` (`main.m` Step 2b) → stored into the `nim` |
+| **Geometry build** | `nim_mmf_geometry`, called by `runTractography` **step 3**, every `mmf` run |
 | **Configs** | `config/mmf_dti.yml` (DTI field), `config/mmf_csd.yml` (CSD field) |
 | **Reference** | Chun & Peng, in preparation. Equation numbers below follow that formulation; the equations themselves are written out on this page. |
 
@@ -45,20 +45,30 @@ $$
 
 The connection coefficients are the **curvature** \( \kappa = \nabla_{e_1} e_1 \)
 (with \( \omega_{12} = \kappa\cdot e_2 \), \( \omega_{13} = \kappa\cdot e_3 \)) and the
-**torsion** \( \tau = \omega_{23}(e_1) \). Because those are properties of the *space*
-(they depend only on the tensor/FOD field, not on any particular streamline), HINEC builds
-them **once** and stores them in the `nim`, exactly like FA or the eigenvectors.
+**torsion** \( \tau = \omega_{23}(e_1) \). Those are properties of the *space*: they
+depend only on the direction field, not on any particular streamline, so HINEC builds the
+whole field **once per run**, before any streamline starts, and the tracer only samples it.
+They are **not** part of the `nim` on disk — they depend on `tractography.field`, and the
+nim is the dataset. The build costs 4.9 s (DTI) / 8.1 s (CSD), which is why it is redone
+every run instead of being cached and version-stamped.
 
 ---
 
 ## Stage 1 — Building the geometry (`nim_mmf_geometry`)
 
-Called from `main.m` **Step 2b**, right after `nim_dt_spd`/`nim_eig`/`nim_fa`:
+Called from `runTractography` **step 3**, after the direction field (step 2) and only when
+`algorithm: mmf` — `hinec` and `standard` never build it:
 
 ```matlab
-%% Step 2b: MMF moving-frame geometry (frame field + connection 1-form) baked into the nim
-nim = nim_mmf_geometry(nim, config.tractography);   % honours frame_sel_power / field
+%% Step 3 - geometry: MMF moving frames + connection 1-form (Eq 6-9), mmf ONLY
+if strcmpi(algorithm, 'mmf')
+    nim = nim_mmf_geometry(nim, options);   % honours field; no denoising parameter
+end
 ```
+
+With `field: dwi` the frame and curvature come from `nim_mmf_from_dwi`, which step 2
+(`nim_field`) runs; `nim_mmf_geometry` only **consumes** `nim.mmf_e1_dwi` /
+`nim.mmf_kappa_dwi` and errors if they are absent.
 
 The build follows the Frenet construction of the formulation (steps 1–3, Eq. 6–9):
 
@@ -66,12 +76,13 @@ The build follows the Frenet construction of the formulation (steps 1–3, Eq. 6
 The raw tangent is the tensor principal eigenvector (DTI) or, when a CSD FOD peak field is
 present *and* requested, the **dominant FOD peak** (so `field: csd` genuinely builds the
 connection from CSD data — see [CSD field](#csd-field-multiple-pathways) below). It is then
-denoised by an **alignment-selective** filter — *not* an isotropic Gaussian
-(`mmf_traj_denoise`): each 3×3×3 neighbour is weighted by \( |n\cdot e_1|^{\text{sel}} \),
-so aligned neighbours dominate and misaligned (crossing) neighbours get ≈0 weight. This
-denoises without blurring across crossings. The selectivity is `mmf.frame_sel_power`
-(default 16). This is MMF's own knob for building the frame field; it is unrelated to the
-`sel_power` term that has been removed from the `hinec` tracker.
+used directly, with **no denoising step**. An alignment-selective filter used to sit here
+(`mmf_traj_denoise`, each 3×3×3 neighbour weighted \( |n\cdot e_1|^{\text{sel}} \) with
+selectivity `mmf.frame_sel_power`), but that was the same mechanism as the `sel_power` term
+removed from `hinec` — a free exponent with no principled value — and it has been removed
+with it. Measured against the curvature of the ISMRM ground-truth curves on 5699
+`Cingulum_right` voxels, the exponent changed nothing: correlation with the true curvature
+was 0.229 / 0.239 / 0.224 / 0.217 at sel 0 / 2 / 16 / 64.
 
 **2. Curvature vector \( \kappa = \nabla_{e_1} e_1 \) (Eq. 7 source).**
 Computed basis-free through the connection form itself: with a reference-axis frame
@@ -87,18 +98,17 @@ projection** (Eq. 6, `mmf_reference_axis_frame`), which is robust to the
 **4. Torsion \( \tau = \omega_{23}(e_1) \) (Eq. 9).**
 A second pass of `nim_connection_form` on the completed Frenet frame gives the torsion.
 
-**Stored into the `nim`:**
+**Returned on the `nim` for this run** (in memory only — never saved to disk):
 
 | Field | Shape | Meaning |
 |---|---|---|
 | `nim.mmf_frames` | `[X Y Z 3 3]` | frame field, `(:,:,:,c,i)` = component *c* of \(e_i\) |
 | `nim.mmf_kappa`  | `[X Y Z 3]`   | curvature vector \( \nabla_{e_1} e_1 \) |
 | `nim.mmf_tau`    | `[X Y Z]`     | torsion \( \omega_{23}(e_1) \) |
-| `nim.mmf_field`  | `'dti'`\|`'csd'` | which field the geometry was **actually** built from |
-| `nim.mmf_built`  | `true`        | build flag |
 
-The build is wrapped in a `try/catch` in `main.m`; if it fails, the tracker rebuilds it
-on demand.
+There are no build/version stamps (`mmf_built`, `mmf_field`, `mmf_geom_version` are gone):
+the geometry is rebuilt unconditionally on every `mmf` run, so there is nothing to
+invalidate. The log line says which field it was actually built from.
 
 ### The connection 1-form (`nim_connection_form`)
 
@@ -129,9 +139,8 @@ get the directional derivative of \(e_i\) along \(e_k\), then dot with \(e_j\).
 
 ## Stage 2 — Tracing (`nim_tractography_mmf_connframe`)
 
-The tracer reads the precomputed geometry from the `nim` (rebuilding it if absent, or if it
-was baked for a different `field` — e.g. DTI geometry baked by `main.m` but this is a CSD
-run). It wraps each stored field in a `griddedInterpolant` and traces:
+The geometry arrives already built by step 3 — the tracer never builds it and asserts that
+`nim.mmf_frames` is present. It wraps each field in a `griddedInterpolant` and traces:
 
 1. **Seeds** are placed on the seed mask (`seeding.density` sub-voxel offsets, on a
    deterministic lattice). For DTI, each
@@ -220,7 +229,6 @@ Paths below are canonical config paths under `tractography:`; defaults come from
 | `integrator.step` | `0.2` | step in voxels (initial step for `rkf45`) |
 | `interpolation.method` | `trilinear` | kernel used to sample the stored connection field |
 | `mmf.anchor` | `0` | `0` = pure Eq.10-11; `>0` re-anchors `e1` to the field |
-| `mmf.frame_sel_power` | `16` | alignment selectivity of the tangent denoise when building the frames |
 | `termination.angle_max` | `225` | turn budget in degrees **per voxel of arc** |
 | `termination.fa_min` | `0.10` | FA floor for propagation |
 | `termination.min_arc` | `15` | minimum track arc length, in **voxels** |

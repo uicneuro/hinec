@@ -70,8 +70,7 @@ classdef TestConfigSchema < matlab.unittest.TestCase
                 'tractography.csd.peak_thresh',         0.2;
                 'tractography.csd.peak_min_sep',        45;
                 'tractography.csd.max_peaks',           3;
-                'tractography.mmf.anchor',              0;      % mmf_connframe.m:29
-                'tractography.mmf.frame_sel_power',     16};    % mmf_connframe.m:25
+                'tractography.mmf.anchor',              0};     % mmf_connframe.m
             for i = 1:size(expected, 1)
                 path = expected{i,1}; want = expected{i,2};
                 idx = find(strcmp({S.path}, path), 1);
@@ -92,9 +91,8 @@ classdef TestConfigSchema < matlab.unittest.TestCase
             % DTI. HINEC is interpolation + integration only; the key is retired
             % and the tracker must not reference it at all.
             S = nim_config_schema();
-            tc.verifyEmpty(find(contains({S.path}, 'sel_power') & ...
-                                ~contains({S.path}, 'frame_sel_power'), 1), ...
-                'sel_power must not be in the schema.');
+            tc.verifyEmpty(find(contains({S.path}, 'sel_power'), 1), ...
+                'No sel_power-family key may remain in the schema.');
             R = nim_config_retired();
             tc.verifyTrue(any(strcmp({R.key}, 'sel_power')), ...
                 'sel_power must be listed as retired.');
@@ -106,13 +104,32 @@ classdef TestConfigSchema < matlab.unittest.TestCase
                 'The sel_power DTI interpolation path is still present.');
         end
 
-        function mmfKeepsItsOwnFrameSelectivity(tc)
-            % frame_sel_power is mmf's and is unaffected by removing sel_power.
+        function frameSelPowerIsGoneToo(tc)
+            % frame_sel_power was the same mechanism as sel_power, living inside
+            % the MMF geometry: each 3x3x3 neighbour weighted |n.e1|^sel when
+            % denoising the tangent field. It is removed, not merely defaulted.
+            %
+            % It was measured against the curvature of the ISMRM ground-truth
+            % curves before removal. The exponent changed nothing (correlation
+            % 0.217-0.239 across sel 0 to 64) and every setting suppressed
+            % curvature roughly 17x below the true 0.1538/vox, because the
+            % direction field's own error (8-22 deg) is the size of the turn per
+            % voxel being differentiated (8.8 deg).
             S = nim_config_schema();
-            i = find(strcmp({S.path}, 'tractography.mmf.frame_sel_power'), 1);
-            tc.assertNotEmpty(i);
-            tc.verifyEqual(S(i).algos, {'mmf'});
-            tc.verifyEqual(double(S(i).default), 16);
+            tc.verifyEmpty(find(strcmp({S.path}, 'tractography.mmf.frame_sel_power'), 1), ...
+                'frame_sel_power must not be in the schema.');
+            R = nim_config_retired();
+            tc.verifyTrue(any(strcmp({R.key}, 'frame_sel_power')), ...
+                'frame_sel_power must be listed as retired so old configs are told why.');
+            for f = {'nim_calculation/nim_mmf_geometry.m', ...
+                     'nim_tractography/nim_tractography_mmf_connframe.m'}
+                src = fileread(fullfile(tc.Root, 'src', f{1}));
+                body = regexprep(src, '(?m)^\s*%.*$', '');   % ignore commentary
+                tc.verifyFalse(contains(body, 'frame_sel_power'), ...
+                    sprintf('%s still reads frame_sel_power.', f{1}));
+                tc.verifyFalse(contains(body, 'mmf_traj_denoise'), ...
+                    sprintf('%s still calls the alignment-weighted denoise.', f{1}));
+            end
         end
 
         % ---------------------------------------------------------- parser

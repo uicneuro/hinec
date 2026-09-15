@@ -310,17 +310,20 @@ set true.
 | `.fod_sh` | double | — | Spherical harmonic FOD coefficients | `nim_csd` |
 | `.response` | — | — | Estimated response function | `nim_csd` |
 
-These are computed by `runTractography` on demand and cached as `<source>_csd.mat`.
+These are computed per run by `runTractography` step 2 (`nim_field`) and cached
+as `<source>_csd.mat` (the fit costs ~2 min). They are never written into the
+nim on disk.
 
 #### Moving-Frame Fields (`algorithm: mmf`)
+
+Built per run by `runTractography` step 3 (`nim_mmf_geometry`, ~5 s), only when
+`algorithm: mmf`. Never written into the nim on disk; there are no build stamps.
 
 | Field | Type | Dimensions | Description | Populated By |
 |---|---|---|---|---|
 | `.mmf_frames` | double | [X, Y, Z, 3, 3] | Frame field {e1, e2, e3} | `nim_mmf_geometry` |
 | `.mmf_kappa` | double | [X, Y, Z, 3] | Curvature vector de1/ds | `nim_mmf_geometry` |
 | `.mmf_tau` | double | [X, Y, Z] | Torsion, omega_23(e1) | `nim_mmf_geometry` |
-| `.mmf_field` | char | — | Which field the geometry was built from (`dti` or `csd`) | `nim_mmf_geometry` |
-| `.mmf_built` | logical | — | Geometry present | `nim_mmf_geometry` |
 | `.mmf_peakdirs`, `.mmf_kappa_p`, `.mmf_npeaks`, `.mmf_multi` | — | — | Per-peak variants, CSD field only | `nim_mmf_geometry` |
 
 #### Parcellation Fields
@@ -359,8 +362,6 @@ nim_dt_spd          → .DT (6-element tensor per voxel)
 nim_eig             → .evec (eigenvectors), .eval (eigenvalues)
     |
 nim_fa              → .FA (fractional anisotropy map)
-    |
-nim_mmf_geometry    → .mmf_frames, .mmf_kappa, .mmf_tau, .mmf_built
     |
 nim_registration    → .registration (transforms, quality metrics)   [optional]
     |
@@ -665,7 +666,7 @@ tractography:
   csd:
     lmax, max_peaks, peak_thresh, peak_min_sep, n_iter
   mmf:
-    anchor, frame_sel_power
+    anchor
   diagnostics: true|false
 ```
 

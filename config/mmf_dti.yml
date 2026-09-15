@@ -1,7 +1,7 @@
 # GENUINE MMF connection-form tractography (Chun & Peng, in preparation).
 # algorithm: 'mmf' is the ONE selector -> nim_tractography_mmf_connframe (pure connection-form):
 # - nim_mmf_geometry builds the moving-frame field + connection 1-form into the nim
-# (Eq 6-9): e1 = trajectory-dependent (frame_sel_power) denoised tangent, e2 = de1/ds
+# (Eq 6-9): e1 = sign-consistent principal direction (no denoising), e2 = de1/ds
 # (Frenet normal, Eq 7), e3 = e1 x e2, [omega] = d[A]A^T, curvature + torsion.
 # - the tracer advances dx/ds = e1 while the FULL frame is evolved by the structure
 # equation (Eq 10-11), driven by the interpolated connection field.
@@ -23,3 +23,8 @@ tractography:
     angle_max: 225
     max_arc: 600
 
+  mmf:
+    anchor: 0.25         # re-anchor e1 toward the field each step. The schema default
+                         # 0 (pure Eq.10-11) scores whole-brain F1 0.30; 0.25 scores
+                         # 0.39-0.40. Stated here so no MMF config silently runs the
+                         # setting that is not the one the results were produced with.

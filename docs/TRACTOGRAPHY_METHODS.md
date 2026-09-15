@@ -76,9 +76,12 @@ theory applies to it.
     eigenvector per voxel and so nothing to disambiguate; the term simply bent a
     single-valued field toward the current heading, making the ODE direction-dependent
     (\( dx/ds = v(x, dx/ds) \)) and putting it outside classical order theory. It is gone
-    from `hinec`. MMF keeps its own, separate `mmf.frame_sel_power` for building the frame
-    field. Nearest-peak selection under `field: csd` is retained because it is structural,
-    not a tunable steering term.
+    from `hinec`, and `mmf.frame_sel_power` — the same mechanism inside the MMF geometry,
+    weighting each neighbour by \( |n\cdot e_1|^{sel} \) when denoising the tangent field —
+    has been removed with it. Measured against the curvature of the ISMRM ground-truth
+    curves, the exponent changed nothing (correlation 0.217–0.239 across sel 0 to 64).
+    Nearest-peak selection under `field: csd` is retained because it is structural, not a
+    tunable steering term.
 
 !!! note "Renaming (July 2026)"
     `hinec` is the tracker previously **mislabelled** `algorithm: mmf` with
@@ -88,8 +91,8 @@ theory applies to it.
 ### `mmf` — connection-form Method of Moving Frames
 
 Chun & Peng (in preparation). Builds an orthonormal **moving-frame
-field** {e1, e2, e3} plus its **connection 1-form** (curvature + torsion) into the `nim`
-(`main.m` Step 2b), then traces by evolving a carried frame with the connection structure
+field** {e1, e2, e3} plus its **connection 1-form** (curvature + torsion) from the
+direction field at the start of each run (`runTractography` step 3), then traces by evolving a carried frame with the connection structure
 equation — not by re-sampling a direction field. `field: csd` builds a *per-peak*
 connection, giving multiple pathways through crossings. Full internals:
 **[MMF Connection-Form Tractography](MMF_TRACTOGRAPHY.md)**.

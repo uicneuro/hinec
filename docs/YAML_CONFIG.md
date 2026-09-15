@@ -47,7 +47,7 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
 | `algorithm` | string | `hinec` | all | Tracking algorithm. |
-| `field` | string | `dti` | hinec, mmf | Direction source: DTI principal eigenvector, or CSD FOD peaks. |
+| `field` | string | `dti` | hinec, mmf | Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks; dwi = frame AND connection curvature fitted DIRECTLY to the raw DW signal (mmf only, see nim_mmf_from_dwi). The dwi route never forms a tensor or an FOD: it fits e1 and the curvature vector kappa jointly to the centred log-signal over a 3x3x3 neighbourhood, so curvature is a parameter of the signal model rather than a derivative of an already-fitted direction field. Measured against the ISMRM-2015 geometry it retains 0.89 of the individual-fibre curvature against 0.65 for the DTI route. |
 | `act` | logical | `false` | hinec | Anatomically constrained tracking using WM/GM/CSF masks. |
 | `diagnostics` | logical | `true` | all | Write per-run diagnostic reports. |
 
@@ -136,7 +136,6 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
 | `anchor` | numeric | `0` | mmf | Re-anchor strength of e1 toward the field tangent. 0 = pure connection-form evolution. |
-| `frame_sel_power` | numeric | `16` | mmf | Directional selectivity used when building the moving frame. |
 
 ### `preprocessing`
 
@@ -180,7 +179,6 @@ naming its replacement.
 | `csd_peak_thresh` | `tractography.csd.peak_thresh` |
 | `csd_peak_min_sep` | `tractography.csd.peak_min_sep` |
 | `mmf_anchor` | `tractography.mmf.anchor` |
-| `frame_sel_power` | `tractography.mmf.frame_sel_power` |
 | `enable_diagnostics` | `tractography.diagnostics` |
 | `integration_order: 1\|2\|4\|5` | `integrator.method: euler\|rk2\|rk4\|rkf45` |
 | `max_steps` | `termination.max_arc` (converted as `max_steps x step`) |
@@ -212,6 +210,7 @@ ignored with a warning rather than silently accepted.
 | `transport_gate` | Never read by any tracker. |
 | `transport_strength` | Never read by any tracker. |
 | `bishop_eps` | Referenced only in a comment; no tracker reads it as an option. |
+| `frame_sel_power` | Removed with the alignment-weighted denoise it controlled. Same mechanism as the retired sel_power: a free exponent with no principled value. Measured against ground-truth curvature it also did nothing - correlation 0.217 to 0.239 across sel 0 to 64, while every setting suppressed curvature ~17x below the true 0.1538/vox. |
 | `fa_threshold` | Functionally dead: printed by hinec/standard, and only a seed-mask fallback in mmf/highorder that never fires because runTractography always supplies a seed mask. Use termination.fa_min to stop tracking, or seeding.fa_min to restrict seeding. NOTE: in 5 of the 12 original configs fa_threshold and termination_fa held DIFFERENT values, so they were never interchangeable. |
 | `order` | Legacy backward-compatibility key, read by no tracker as an option. |
 | `sel_power` | Removed. HINEC is now pure interpolation + integration. It biased interpolation toward the incoming direction (weight = alignment^sel_power), which has no justification for DTI (one eigenvector per voxel, nothing to disambiguate) and made the ODE direction-dependent. For CSD, nearest-peak selection is retained because it is structural, but the alignment exponent is gone. |

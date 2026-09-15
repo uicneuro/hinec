@@ -117,6 +117,11 @@ stay directly comparable.
   stepping via `integrator: rk4|rkf45`. `mmf_csd` builds a per-peak connection → multiple
   pathways through crossings. See [docs/MMF_TRACTOGRAPHY.md](../docs/MMF_TRACTOGRAPHY.md).
 
+> These four are **generic** tracker configs: one `algorithm`/`field` pair each,
+> schema defaults everywhere else. They are *not* the setup the ISMRM-2015 scores
+> were produced with — that is the `ismrm_wholebrain` family below. Use them to
+> exercise a tracker; use `ismrm_wholebrain*` to produce a number.
+
 **hinec DTI variants** — same tracker, distinct *reusable* knob-sets (the `_<variant>` suffix):
 
 | Config | What makes it distinct |
@@ -125,6 +130,39 @@ stay directly comparable.
 | `hinec_dti_cubic_recall` | cubic + aggressive termination (`termination_fa 0.05`, `angle 60`) to push coverage/recall |
 | `hinec_dti_euler` | Euler (`integrator.method: euler`) + trilinear — didactic / FACT-vs-high-order comparison |
 | `hinec_dti_fast` | RK2 (`integrator.method: rk2`), coarse steps & seeding — quick parameter screening |
+
+### The scored family — `ismrm_wholebrain*.yml`  (for `run_tractography.sh`)
+
+The configs behind every ISMRM-2015 number in the repo. All four share ONE set of
+thresholds, seeding and output (`seeding.fa_min 0.10` / `termination.fa_min 0.08`,
+`density 1`, `angle_max 225`, `max_arc 400`, `min_arc 15`, `arc_step 0.5`, RK4 at
+step 0.25) and differ on exactly two axes — a 2×2 of `algorithm` × `field`:
+
+| Config | `algorithm` | `field` | kernel | Note |
+|---|---|---|---|---|
+| `ismrm_wholebrain.yml` | `hinec` | `dti` | `spline` (C²) | **The report's method** — RK4 on the interpolated field. Whole-brain F1 **0.350**. |
+| `ismrm_wholebrain_csd.yml` | `hinec` | `csd` | `spline` (C²) | Same tracker on FOD peaks. F1 0.346. |
+| `ismrm_wholebrain_mmf.yml` | `mmf` | `dti` | `cubic` (C¹) | Connection-form tracer, `mmf.anchor: 0.25`. F1 **0.401**. |
+| `ismrm_wholebrain_mmf_csd.yml` | `mmf` | `csd` | `cubic` (C¹) | Per-peak connection form. F1 0.391. |
+
+MMF uses `cubic` because it samples κ, for which the tracer supports cubic or
+linear only; that is the one unavoidable difference between the rows.
+
+`seeding.roi: []` (whole brain) is the point of these configs — the scorer segments
+26 bundles out of ONE tractogram, so only a whole-brain run has a meaningful
+denominator. For a single bundle, override it rather than editing the file:
+
+```bash
+./bin/run_tractography.sh ismrm_wholebrain     --score --set seeding.roi=UF_left
+./bin/run_tractography.sh ismrm_wholebrain_mmf --score --set seeding.roi=UF_left
+```
+
+The number then lives in `scoring/renauld2023/bundle.txt`, not in `mean_f1` — see
+[docs/TRACTOGRAPHY.md](../docs/TRACTOGRAPHY.md) § *Bundle (ROI) tractography*.
+
+`config/reference.yml` is the companion sweep base for the convergence/interpolation
+ladders of [docs/CONVERGENCE.md](../docs/CONVERGENCE.md); it is cited by name in the
+report, so neither it nor `ismrm_wholebrain.yml` is renamed.
 
 ### Dataset configs — `<dataset>[_variant].yml`  (for `run_hinec.sh`)
 
@@ -225,14 +263,13 @@ tractography:
 
   # --- field: csd only ---
   csd:
-    lmax: 6
+    lmax: 4
     max_peaks: 3
-    peak_thresh: 0.5
+    peak_thresh: 0.2
     peak_min_sep: 45
 
   # --- algorithm: mmf only ---
   mmf:
-    frame_sel_power: 16
     anchor: 0
 ```
 

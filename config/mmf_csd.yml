@@ -19,3 +19,8 @@ tractography:
     angle_max: 225
     max_arc: 600
 
+  mmf:
+    anchor: 0.25         # re-anchor e1 toward the field each step. The schema default
+                         # 0 (pure Eq.10-11) scores whole-brain F1 0.30; 0.25 scores
+                         # 0.39-0.40. Stated here so no MMF config silently runs the
+                         # setting that is not the one the results were produced with.

@@ -377,20 +377,20 @@ are interchangeable upstream of tractography.
 
 ### `nim_mmf_geometry(nim, options)`
 
-Builds the moving-frame geometry over the whole domain and stores it in the `nim`
-(Chun & Peng, in preparation). Constructs the denoised tangent field $e_1$, the
+Builds the moving-frame geometry over the whole domain into the in-memory `nim`
+(Chun & Peng, in preparation). Called by `runTractography` step 3, per run, only
+for `algorithm: mmf`; the result is never saved with the nim. Constructs the denoised tangent field $e_1$, the
 Frenet normal $e_2 = (de_1/ds)/\lVert de_1/ds \rVert$ with a reference-axis
 fallback where the curvature vanishes, $e_3 = e_1 \times e_2$, and the connection
 1-form of the frame field.
 
 | Option | Default | Description |
 |---|---|---|
-| `frame_sel_power` | 16 | Trajectory-dependent denoising selectivity |
 | `field` | `'dti'` | `'csd'` builds the per-peak connection from FOD peaks instead |
 
 **Returns** `nim` with `.mmf_frames` `[X Y Z 3 3]`, `.mmf_kappa` `[X Y Z 3]`,
-`.mmf_tau` `[X Y Z]`, `.mmf_built` and `.mmf_field` (stamped from what was
-actually built, so the tracer can tell DTI geometry from CSD geometry).
+`.mmf_tau` `[X Y Z]` (plus per-peak `.mmf_peakdirs`, `.mmf_kappa_p`, `.mmf_multi`
+for `field: csd`).
 
 ### `nim_build_frames(nim, options)` and `nim_connection_form(frames, mask, options)`
 
@@ -638,7 +638,6 @@ a per-peak connection yields multiple pathways through a crossing.
 | `integrator.step_min` / `step_max` | `step_min` / `step_max` | 0.02 / 0.5 | Adaptive step bounds |
 | `interpolation.method` | `interp_method` | `'trilinear'` | How $\kappa$, $\tau$ and $e_1$ are sampled; peak *directions* always use nearest neighbor, since sign ambiguity breaks under averaging |
 | `mmf.anchor` | `mmf_anchor` | 0 | Re-anchor strength of $e_1$ toward the field tangent; 0 is the pure connection-form evolution |
-| `mmf.frame_sel_power` | `frame_sel_power` | 16 | Selectivity used when building the frames |
 
 Requires `nim.evec`, `.FA` and `.mask`; `field: 'csd'` additionally requires
 `nim.peaks` and `nim.npeaks`. The geometry is rebuilt in place if it is absent or

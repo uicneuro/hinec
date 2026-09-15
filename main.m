@@ -250,19 +250,6 @@ nim = nim_dt_spd(nim);
 nim = nim_eig(nim);
 nim = nim_fa(nim);
 
-%% Step 2b: MMF moving-frame geometry (frame field + connection 1-form) baked into the
-%% nim, so tractography (algorithm 'mmf') can trace through it without rebuilding it.
-%% Property of the space -> built once here, like FA/evec (Chun-Peng steps 1-3).
-try
-    if exist('config','var') && isstruct(config) && isfield(config,'tractography')
-        nim = nim_mmf_geometry(nim, config.tractography);   % honour frame_sel_power / field
-    else
-        nim = nim_mmf_geometry(nim);
-    end
-catch ME
-    warning('nim_mmf_geometry failed (%s); MMF tractography will build it on demand.', ME.message);
-end
-
 %% Step 3: Registration (if enabled)
 registration_data = [];
 if options.enable_registration

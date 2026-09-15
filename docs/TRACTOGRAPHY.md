@@ -99,6 +99,119 @@ Within each seeded voxel, `seeding.density` seeds are placed by
 
 See [Seeding Strategy](SEEDING_STRATEGY.md) for the full account.
 
+## Bundle (ROI) tractography
+
+Everything below is a property of the **seeding and the scorer**, not of the
+direction rule, so it holds for all three trackers.
+
+Seed inside one bundle instead of the whole brain by overriding `seeding.roi` on
+a scored config — no new YAML, no edit to the file:
+
+```bash
+./bin/run_tractography.sh ismrm_wholebrain     --score --set seeding.roi=UF_left   # RK4 on the interpolated field
+./bin/run_tractography.sh ismrm_wholebrain_mmf --score --set seeding.roi=UF_left   # MMF connection form
+```
+
+Each invocation makes its own tagged run dir (`run_<ts>_ismrm_wholebrain_roiUF_left/`),
+records the override in `overrides.txt`, and scores it. ~50 s for a bundle.
+
+### Where the number is
+
+```
+<run_dir>/scoring/renauld2023/bundle.txt
+```
+
+```
+  bundle                      VS       TP       FP       FN       OL    OR_gt       f1
+  UF_left                   1492     9195     8098     3221    0.741    0.652    0.619
+```
+
+That row — the seeded bundle's `bundle_wise` entry, written by
+`bin/run_ismrm_scoring.sh` (via `scripts/ismrm_report_scores.py`) and printed at
+the end of the scoring log — is the result of a bundle run.
+
+**`mean_f1` is not.** The scorer averages over all 26 bundles of one tractogram.
+Seeding in one bundle leaves most of them empty by construction — the UF_left run
+above populated 7 of 26, all of them bundles whose containment corridor overlaps
+UF_left's — so its `mean_f1` of 0.0738 is a statement about the seed mask, not
+about the tracking. Quoting it against a whole-brain `mean_f1` compares two
+different quantities.
+
+### Why the bundle row is the same number a whole-brain run gives
+
+Seeds are a deterministic lattice (`nim_seed_offsets`; no RNG), the trackers keep
+no state across seeds, and the scorer credits a streamline to bundle B only if
+its **whole length** lies inside B's `all_mask`. A streamline the scorer counts
+for B was therefore seeded inside B's mask — that is, inside the ROI run's seed
+set. So the `bundle_wise[B]` row of a run seeded only in B **must equal** the row
+of a whole-brain run with identical settings. There is no legitimate
+"ROI vs whole-brain disagree"; if the rows differ, the settings differed.
+
+Verified with UF_left, `ismrm_wholebrain_mmf` (mmf / dti / cubic, `mmf.anchor: 0.25`):
+
+| run | VS | TP | FP | FN | OL | f1 |
+|---|---|---|---|---|---|---|
+| ROI-seeded, `--set seeding.roi=UF_left` (run 20260915_151019) | 1492 | 9195 | 8098 | 3221 | 0.741 | 0.619 |
+| whole brain (run 20260909_182013, `mean_f1` 0.4007) | 1492 | 9195 | 8098 | 3221 | 0.741 | 0.619 |
+
+The guarantee covers the **seeded** bundle only. The other rows of an ROI run are
+a strict subset of their whole-brain counterparts (same run pair: ILF_left VS 551
+vs 1829, CC_temporal 208 vs 1720) — those bundles were reached from UF_left's
+seeds alone, not from their own.
+
+This identity is also how an earlier apparent contradiction was resolved: the
+0.4007 whole-brain run had been launched with `--set mmf.anchor=0.25`, recorded
+only in its `overrides.txt`, while the ROI runs it was compared against used the
+schema default 0 (which scores VS 441 / f1 0.513 on UF_left, 0.3038 whole brain).
+A parameter that lives in an override file is a parameter the next reader cannot
+see, so `mmf.anchor: 0.25` is now written in `config/ismrm_wholebrain_mmf*.yml`
+and `config/mmf_{dti,csd}.yml` — the settings differed, the identity did not fail.
+
+### The five-bundle curvature ladder
+
+The bundles used to test tracking against curvature, ordered by the voxel-averaged
+curvature of the ground-truth field inside each (κ in 1/mm; the GT p99.9 over the
+whole phantom is 0.209 /mm):
+
+| bundle | κ (/mm) | radius 1/κ | VS | f1 |
+|---|---|---|---|---|
+| `CP` | 0.082 | 12 mm | **0** | — |
+| `UF_left` | 0.069 | 14 mm | 1492 | 0.619 |
+| `CA` | 0.062 | 16 mm | **0** | — |
+| `CC_u_shaped` | 0.046 | 22 mm | 9885 | 0.636 |
+| `ILF_left` | 0.040 | 25 mm | 1829 | 0.609 |
+
+(VS and f1 from the whole-brain `ismrm_wholebrain_mmf` run 20260909_182013; by the
+identity above, a per-bundle run reproduces each row exactly.)
+
+CP and CA producing nothing is **the finding**, not a run that failed to
+complete: they are the two tightest-curvature bundles of the set and both are
+thin, low-FA commissural structures. The ladder exists to make that the measured
+statement rather than an impression, and κ along individual streamlines is the
+next thing to plot against these ground-truth values.
+
+### The names `seeding.roi` accepts
+
+The scorer's own names, resolved by `nim_roi_mask` against `nim.roi_masks` (built
+by `nim_attach_bundle_rois` from the challenge's `ROI/` directory):
+
+- the **26 bundle names** of `all_masks/` — `UF_left`, `ILF_left`, `CA`, `CP`,
+  `CC_u_shaped`, `Cingulum_right`, `SLF_left`, `Fornix`, `MCP`, … — these are the
+  containment corridors, and they are also the names of the `bundle_wise` rows;
+- the **endpoint gates** of `endpoints/` — usually `<bundle>_head` /
+  `<bundle>_tail` (`UF_left_head`, `ILF_left_tail`), with a few named for the
+  structure they gate (`brainstem`, `pons`, `occipital_left`) — and the
+  `any_masks/` inclusion gates. These are addressable but deliberately not
+  parcellation labels, and they score under their parent bundle's row;
+- JHU atlas indices and aliases (`41`, `SLF_L`) still resolve, for nims whose
+  parcellation is the atlas rather than the challenge ROIs. They are **not**
+  like-for-like with the bundle of the same name: JHU label 47 ("Uncinate
+  fasciculus R") is 24 voxels against the bundle mask's 1503.
+
+Multiple names combine: `--set seeding.roi=[UF_left,ILF_left]`, or a block list in
+a config. `seeding.roi_dilate` grows the mask by that many voxels — leave it at 0
+for the challenge corridors, which are already generous.
+
 ## The propagation mask
 
 Where a track may **go** is not where it may **start**. The propagation domain

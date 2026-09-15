@@ -46,7 +46,7 @@ e('preprocessing.register_to_mni',      false,         'logical', {}, [],       
 
 % ------------------------------------------------------------------ tractography
 e('tractography.algorithm',             'hinec',       'string',  {'hinec','standard','mmf'}, [], {}, {'all'}, 'Tracking algorithm.')
-e('tractography.field',                 'dti',         'string',  {'dti','csd'}, [],  {}, {'hinec','mmf'}, 'Direction source: DTI principal eigenvector, or CSD FOD peaks.')
+e('tractography.field',                 'dti',         'string',  {'dti','csd','dwi'}, [],  {}, {'hinec','mmf'}, 'Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks; dwi = frame AND connection curvature fitted DIRECTLY to the raw DW signal (mmf only, see nim_mmf_from_dwi). The dwi route never forms a tensor or an FOD: it fits e1 and the curvature vector kappa jointly to the centred log-signal over a 3x3x3 neighbourhood, so curvature is a parameter of the signal model rather than a derivative of an already-fitted direction field. Measured against the ISMRM-2015 geometry it retains 0.89 of the individual-fibre curvature against 0.65 for the DTI route.')
 e('tractography.act',                   false,         'logical', {}, [],       {'act_enabled'}, {'hinec'}, 'Anatomically constrained tracking using WM/GM/CSF masks.')
 
 % --- integrator -------------------------------------------------------------
@@ -105,7 +105,8 @@ e('tractography.csd.n_iter',            50,            'numeric', {}, [1 1000], 
 
 % --- mmf (algorithm: mmf only) ----------------------------------------------
 e('tractography.mmf.anchor',            0,             'numeric', {}, [0 1],     {'mmf_anchor'}, {'mmf'}, 'Re-anchor strength of e1 toward the field tangent. 0 = pure connection-form evolution.')
-e('tractography.mmf.frame_sel_power',   16,            'numeric', {}, [0 256],   {'frame_sel_power'}, {'mmf'}, 'Directional selectivity used when building the moving frame.')
+
+
 
 % --- diagnostics ------------------------------------------------------------
 e('tractography.diagnostics',           true,          'logical', {}, [],        {'enable_diagnostics'}, {'all'}, 'Write per-run diagnostic reports.')

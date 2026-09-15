@@ -6,6 +6,12 @@
 # original 2015 scoring data is also present) runs the dedicated 2015 scorer
 # for a cross-check. Writes everything under <run_dir>/scoring/.
 #
+# Finally reports the number the run actually produced (scripts/ismrm_report_scores.py):
+# whole-brain runs get mean_f1/VB; a run seeded with `--set seeding.roi=<bundle>`
+# gets that bundle's bundle_wise row (VS TP FP FN OL OR_gt f1), also written to
+# <run_dir>/scoring/renauld2023/bundle.txt - its mean_f1 averages 24 empty
+# bundles and is not comparable to anything.
+#
 # Usage:
 #   ./bin/run_ismrm_scoring.sh <hinec_run_dir>
 #
@@ -72,7 +78,7 @@ echo "========================================"
 # as the saved TRK reference so scilpy's space-compatibility check against
 # the ROI masks (which live in scoring T1 space) passes.
 echo ""
-echo "[1/3] Converting tracks to TRK (RAS world space)..."
+echo "[1/4] Converting tracks to TRK (RAS world space)..."
 SCORING_T1="$SCORING_RENAULD/t1.nii.gz"
 TRK_REF_ARGS=()
 if [[ -f "$SCORING_T1" ]]; then
@@ -83,7 +89,7 @@ fi
 
 # Step 2: Renauld 2023 scoring (scilpy)
 echo ""
-echo "[2/3] Renauld 2023 scoring (scilpy)..."
+echo "[2/4] Renauld 2023 scoring (scilpy)..."
 if [[ -d "$SCORING_RENAULD" ]] && [[ -f "$SCORING_RENAULD/config_file_segmentation.json" ]]; then
     RENAULD_OUT="$SCORING_DIR/renauld2023"
     rm -rf "$RENAULD_OUT"
@@ -105,7 +111,7 @@ fi
 
 # Step 3: Original 2015 dedicated scorer (optional)
 echo ""
-echo "[3/3] Original 2015 dedicated scorer..."
+echo "[3/4] Original 2015 dedicated scorer..."
 if [[ -d "$SCORING_2015" ]] && [[ -f "$SCORING_2015/gt_bundles_attributes.json" ]] && [[ -f "$DEDICATED_SCORER" ]]; then
     LEGACY_OUT="$SCORING_DIR/dedicated2015"
     rm -rf "$LEGACY_OUT"
@@ -119,9 +125,22 @@ else
     echo "  (Expected $SCORING_2015/gt_bundles_attributes.json and $DEDICATED_SCORER)"
 fi
 
+# Step 4: Report the number this run actually produced. A run seeded with
+# `--set seeding.roi=<bundle>` is scored on ONE bundle - its mean_f1 averages 24
+# empty bundles and means nothing - so print that bundle's bundle_wise row and
+# save it to scoring/renauld2023/bundle.txt. Whole-brain runs get mean_f1 etc.
+echo ""
+echo "[4/4] Report..."
+if [[ -f "$SCORING_DIR/renauld2023/results.json" ]]; then
+    "$VENV/bin/python" "$REPO_ROOT/scripts/ismrm_report_scores.py" "$RUN_DIR"
+else
+    echo "  Skipped: no $SCORING_DIR/renauld2023/results.json"
+fi
+
 echo ""
 echo "========================================"
 echo "Scoring complete"
 echo "========================================"
 echo "Renauld 2023 metrics: $SCORING_DIR/renauld2023/results.json"
+[[ -f "$SCORING_DIR/renauld2023/bundle.txt" ]] && echo "Seeded bundle row:    $SCORING_DIR/renauld2023/bundle.txt"
 [[ -d "$SCORING_DIR/dedicated2015" ]] && echo "2015 dedicated metrics: $SCORING_DIR/dedicated2015/scores/"

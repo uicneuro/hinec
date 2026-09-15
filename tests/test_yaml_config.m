@@ -83,16 +83,18 @@ fprintf('\nTest 5: RKF45 parameter validation...\n');
 try
     config_rkf = load_config_yaml('config/hinec_dti.yml');
 
-    % Verify RKF45 parameters are present
-    assert(isfield(config_rkf.tractography.integrator, 'tolerance'), 'RKF tolerance field');
-    assert(isfield(config_rkf.tractography, 'rkf_safety'), 'RKF safety field');
-    assert(isfield(config_rkf.tractography, 'step_min'), 'Step min field');
-    assert(isfield(config_rkf.tractography, 'step_max'), 'Step max field');
+    % Verify RKF45 parameters are present (nested under integrator: since the
+    % schema; the flat rkf_* names are legacy aliases that migrate on load)
+    integ = config_rkf.tractography.integrator;
+    assert(isfield(integ, 'tolerance'), 'RKF tolerance field');
+    assert(isfield(integ, 'safety'),    'RKF safety field');
+    assert(isfield(integ, 'step_min'),  'Step min field');
+    assert(isfield(integ, 'step_max'),  'Step max field');
 
     % Verify constraints
-    assert(config_rkf.tractography.rkf_tolerance > 0, 'RKF tolerance positive');
-    assert(config_rkf.tractography.step_min < config_rkf.tractography.step_max, 'Step bounds');
-    assert(config_rkf.tractography.rkf_safety > 0 && config_rkf.tractography.rkf_safety <= 1, 'Safety factor range');
+    assert(integ.tolerance > 0, 'RKF tolerance positive');
+    assert(integ.step_min < integ.step_max, 'Step bounds');
+    assert(integ.safety > 0 && integ.safety <= 1, 'Safety factor range');
 
     fprintf('  ✓ RKF45 parameters validated\n');
 catch ME
@@ -109,10 +111,11 @@ config_precise = load_config_yaml('config/hinec_dti.yml');
 fprintf('\n  Parameter Comparison:\n');
 fprintf('  %-20s %10s %10s %10s\n', 'Parameter', 'Default', 'Fast', 'Precise');
 fprintf('  %-20s %10s %10s %10s\n', repmat('-', 1, 20), repmat('-', 1, 10), repmat('-', 1, 10), repmat('-', 1, 10));
-fprintf('  %-20s %10d %10d %10d\n', 'integration_order', config_default.tractography.integration_order, config_fast.tractography.integration_order, config_precise.tractography.integration_order);
-fprintf('  %-20s %10.2f %10.2f %10.2f\n', 'step_size', config_default.tractography.step_size, config_fast.tractography.step_size, config_precise.tractography.step_size);
-fprintf('  %-20s %10d %10d %10d\n', 'seed_density', config_default.tractography.seed_density, config_fast.tractography.seed_density, config_precise.tractography.seed_density);
-fprintf('  %-20s %10.2f %10.2f %10.2f\n', 'termination_fa', config_default.tractography.termination_fa, config_fast.tractography.termination_fa, config_precise.tractography.termination_fa);
+t_def = config_default.tractography; t_fast = config_fast.tractography; t_prec = config_precise.tractography;
+fprintf('  %-20s %10s %10s %10s\n', 'integrator.method', t_def.integrator.method, t_fast.integrator.method, t_prec.integrator.method);
+fprintf('  %-20s %10.2f %10.2f %10.2f\n', 'integrator.step', t_def.integrator.step, t_fast.integrator.step, t_prec.integrator.step);
+fprintf('  %-20s %10d %10d %10d\n', 'seeding.density', t_def.seeding.density, t_fast.seeding.density, t_prec.seeding.density);
+fprintf('  %-20s %10.2f %10.2f %10.2f\n', 'termination.fa_min', t_def.termination.fa_min, t_fast.termination.fa_min, t_prec.termination.fa_min);
 
 %% Summary
 fprintf('\n========================================\n');

@@ -69,13 +69,23 @@ classdef TestBundleGates < matlab.unittest.TestCase
             tc.verifyEmpty(kept, 'Both endpoints in head must not satisfy a head/tail pair.');
         end
 
-        function containmentRejectsASingleExcursion(tc)
+        function aSingleExcursionIsNotStrictlyContained(tc)
+            % The SCORER's rule is all-or-nothing, and that rule is still what
+            % n_strict_contained reports - it is the scorer-comparable number.
+            % What changed is that the streamline is no longer thrown away for
+            % it: the excursion is cut and the valid part kept. Both facts are
+            % asserted here so neither can drift.
             inside  = tc.line3([6 20 5], [34 20 5], 60);
             strayer = inside;
             strayer(30, 2) = 30;                 % one point outside the corridor
             [kept, st] = tc.filt({inside, strayer}, struct('contained_in', {{'corridor'}}));
-            tc.verifyEqual(numel(kept), 1, 'One excursion outside the corridor must disqualify.');
-            tc.verifyEqual(st.n_dropped_contained, 1);
+            tc.verifyEqual(st.n_strict_contained, 1, ...
+                'one excursion must disqualify a track from being STRICTLY contained.');
+            tc.verifyEqual(numel(kept), 2, ...
+                'but the straying track must survive in truncated form, not be discarded.');
+            tc.verifyEqual(st.n_truncated_contained, 1);
+            tc.verifyLessThan(size(kept{2},1), size(inside,1), ...
+                'the surviving remnant must be shorter than the original.');
         end
 
         function gatesCombine(tc)
@@ -84,8 +94,46 @@ classdef TestBundleGates < matlab.unittest.TestCase
             outside = good; outside(30,2) = 30;            % right endpoints, leaves corridor
             [kept, st] = tc.filt({good, wrongEnd, outside}, ...
                 struct('endpoints_in', {{'head','tail'}}, 'contained_in', {{'corridor'}}));
+            % 'outside' is now truncated rather than dropped, and its truncated
+            % form no longer reaches the tail, so the endpoint gate removes it.
             tc.verifyEqual(numel(kept), 1, 'Only the track satisfying BOTH gates should survive.');
-            tc.verifyEqual(st.n_dropped_contained + st.n_dropped_endpoints, 2);
+            tc.verifyEqual(st.n_strict_contained, 2, ...
+                'good and wrongEnd lie wholly inside; only outside strays.');
+            tc.verifyEqual(st.n_dropped_endpoints, 2);
+        end
+
+        function containmentTruncatesInsteadOfDiscarding(tc)
+            % The scorer's rule is all-or-nothing: every point inside, or the
+            % streamline is not that bundle. That is right for SCORING and wrong
+            % for keeping data - a track that follows the corridor for most of its
+            % length and strays briefly used to lose all of it. On Cingulum_right
+            % containment alone rejects 80% of produced streamlines, and it
+            % rejects hardest the further a tracker explores.
+            %
+            % So the excursion is cut and the longest inside-run kept, while the
+            % strict count stays available for scorer-comparable reporting.
+            inside_a = tc.line3([6 20 5], [20 20 5], 40);    % inside the corridor
+            outside  = tc.line3([20 20 5], [20 30 5], 20);   % strays out (y>24)
+            inside_b = tc.line3([20 30 5], [30 30 5], 20);
+            strayer  = [inside_a; outside(2:end,:); inside_b(2:end,:)];
+            clean    = tc.line3([6 20 5], [34 20 5], 60);
+
+            [kept, st] = tc.filt({clean, strayer}, struct('contained_in', {{'corridor'}}));
+            tc.verifyNumElements(kept, 2, ...
+                'the straying track must be kept in truncated form, not discarded.');
+            tc.verifyEqual(st.n_strict_contained, 1, ...
+                'exactly one track lies wholly inside and must be reported as strict.');
+            tc.verifyEqual(st.n_truncated_contained, 1, ...
+                'the straying track must be reported as truncated.');
+
+            % and what survives really is the inside portion
+            lens = cellfun(@(p) size(p,1), kept);
+            [~, shorter] = min(lens);
+            v = round(kept{shorter});
+            m = tc.Nim.roi_masks('corridor');
+            idx = sub2ind(size(tc.Nim.FA), v(:,1), v(:,2), v(:,3));
+            tc.verifyTrue(all(m(idx)), ...
+                'every point of the truncated track must lie inside the corridor.');
         end
     end
 end

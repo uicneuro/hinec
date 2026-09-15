@@ -125,5 +125,4 @@ function options = nim_config_to_options(config)
 
     % --- mmf ----------------------------------------------------------------
     options.mmf_anchor      = t.mmf.anchor;
-    options.frame_sel_power = t.mmf.frame_sel_power;
 end

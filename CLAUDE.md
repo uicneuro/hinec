@@ -71,7 +71,7 @@ results = runtests('tests/unit/TestNimFa.m');
 - `src/nim_tractography/` — three trackers, one shared nim:
   - `nim_tractography_standard` — FACT (discrete voxel tensors, no interpolation).
   - `nim_tractography_hinec` — **interpolated streamline tractography**: the direction field is interpolated as the DYADIC `v1*v1'` (sign-invariant - v1 is a line field) with kernel `interpolation.method` (`trilinear`|`cubic`|`spline`), `field: dti` (principal eigenvector) OR `field: csd` (FOD peaks, nearest-peak selection by incoming tangent), `integrator.method` euler/rk2/rk4/rkf45, optional ACT (`act`, default FALSE). This is the interpolated tracker (what was previously mislabelled `mmf` + `integrator: rkf45`). Configs: `config/hinec_dti.yml`, `config/hinec_csd.yml`.
-  - `nim_tractography_mmf_connframe` — **GENUINE Method of Moving Frames** (Chun & Peng, in preparation): `nim_mmf_geometry` builds the moving-frame field + connection 1-form (curvature+torsion; per-peak for CSD → multiple pathways) into the nim (`main.m` Step 2b, Eq 6-9); the tracer evolves the carried frame by the structure equation and advances `dx/ds=e1` (Eq 10-11). Selected by `algorithm: 'mmf'`; the direction comes purely from the connection form, while `integrator` (`rk4` fixed | `rkf45` adaptive Dormand-Prince) is the numerical stepping scheme. Options: `field` (`dti`|`csd`), `integrator`, `mmf_anchor` (0 = pure Eq.10-11), `frame_sel_power`. Configs: `config/mmf_dti.yml`, `config/mmf_csd.yml`.
+  - `nim_tractography_mmf_connframe` — **GENUINE Method of Moving Frames** (Chun & Peng, in preparation): `nim_mmf_geometry` builds the moving-frame field + connection 1-form (curvature+torsion; per-peak for CSD → multiple pathways) from the direction field (Eq 6-9). It is **not** stored in the nim — `runTractography` **step 3** builds it every run and only when `algorithm: mmf` (4.9 s dti / 8.1 s csd); the tracer asserts it arrived, evolves the carried frame by the structure equation and advances `dx/ds=e1` (Eq 10-11). Selected by `algorithm: 'mmf'`; the direction comes purely from the connection form, while `integrator` (`rk4` fixed | `rkf45` adaptive Dormand-Prince) is the numerical stepping scheme. Options: `field` (`dti`|`csd`), `integrator`, `mmf_anchor` (0 = pure Eq.10-11), `frame_sel_power`. Configs: `config/mmf_dti.yml`, `config/mmf_csd.yml`.
   - Dispatch by `algorithm:` (`standard`|`hinec`|`mmf`). `field: csd` requires FOD peaks — `runTractography` computes them via `nim_csd`, cached as `<source>_csd.mat` (`csd_lmax`/`csd_max_peaks`/`csd_peak_thresh`/`csd_peak_min_sep`).
 - `src/nim_challenges/nim_irontract_submit.m` — IronTract Challenge submission packager.
 - `src/nim_visualization/` — 3D viewer (`visualizeTractography`), interactive slice viewer (`visualizeTractographySlices`), and the server-side cache pipeline (`generateSlices` → `generateTractographySliceCache` → `TractographyCacheManager`) feeding the Python `FastTractographyViewer`.
@@ -107,6 +107,66 @@ results = runtests('tests/unit/TestNimFa.m');
 - **FSL**: required for preprocessing; must be initialized in the shell before `matlab -batch` runs.
 - **`lib/bfgs/`** is vendored (BFGS solver used by tensor fitting).
 - Python: `scripts/FastTractographyViewer.py`, `scripts/tractography_slice_gui.py`, `scripts/hinec_to_trk.py`, `scripts/validate_ismrm_tractography.py`. `requirements.txt` covers these.
+
+## Debugging protocol — FOLLOW THIS WHENEVER ASKED TO DEBUG
+
+Aggregate statistics are not debugging. "27% of derailments happen at planar
+voxels" says nothing about why any particular streamline went wrong. Do this
+instead, in order, and do not skip to step 5:
+
+1. **Instrument.** Record the decision at every step: position, the inputs the
+   code read, the alternatives it had, what it chose, and why it stopped.
+   `debug.trace` does this for both trackers (`nim_tractography_hinec` and
+   `nim_tractography_mmf_connframe`). Never infer from saved output what can be
+   recorded directly — the saved polyline is decimated by `output.arc_step` and
+   does not contain the directions actually used.
+
+2. **Locate the exact failure.** For INDIVIDUAL cases, find the precise step
+   index and voxel where the output first goes wrong — the step where the
+   streamline turns the wrong way or enters the wrong place. Not a distribution
+   over voxels: the specific coordinate.
+
+3. **Dump the decision state there.** At that step print everything the code
+   saw and did: the direction it took, the direction it should have taken, every
+   candidate available, the field values, the thresholds, the modulation. Print
+   the neighbouring steps too, so the run-up is visible.
+
+4. **Explain the decision from the recorded inputs.** State why the code chose
+   what it chose, in terms of the numbers it actually read. If the inputs do not
+   explain the choice, the instrumentation is incomplete — go back to step 1.
+
+5. **Only then generalise.** Count how often that specific cause occurs across
+   the population, and check the count against the mechanism from step 4.
+
+Report actual coordinates and actual numbers for named streamlines. A finding
+that cannot be pointed at on a specific streamline at a specific voxel is not
+yet a finding.
+
+### Before stating a CAUSE, run the discriminating test
+
+Measurements in this project have held up; explanations of them repeatedly have
+not. Every retraction in this codebase's history came from reporting a cause that
+was merely CONSISTENT with a measurement, before running the check that would
+have falsified it. The failures were always one of these:
+
+- **wrong population** - a statistic computed over voxels when it should have
+  been over points, or vice versa (FA "0.121" in the cingulum limb was an
+  envelope average; weighted by where the bundle actually is it is 0.245).
+- **mismatched positions** - comparing two quantities evaluated at different
+  places (a tracker direction at a continuous position against a tensor at the
+  rounded voxel; they differ by tens of degrees).
+- **the instrument as its own reference** - using CSD's peak count to decide how
+  many crossings exist, when CSD's ability to see them is the question. Use an
+  INDEPENDENT witness (tensor planarity) instead.
+- **a label read without checking what set it** - 'no_direction' and 'outside'
+  each covered several unrelated causes; the statistics built on them were
+  meaningless until the labels were separated.
+- **no ablation** - asserting a component causes an effect without turning it
+  off and re-measuring.
+
+So: state what result would prove the explanation WRONG, run that, and only then
+report a cause. If it has not been run, write "consistent with" and not
+"because".
 
 ## Things that bite
 

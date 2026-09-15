@@ -1,11 +1,17 @@
 classdef TestRoiSeeding < matlab.unittest.TestCase
-    % Phase 1: ROI seeding and include/exclude track filtering.
-    % Uses a small self-contained nim so the tests stay fast and do not depend
-    % on the 260 MB ISMRM nim being present.
+    % ROI seeding, include/exclude track filtering, and the ROI <-> whole-brain
+    % identity that ROI scoring rests on (plans/NEXT_STEPS.md A0): the tracks of
+    % an ROI-seeded run are EXACTLY the tracks of a whole-brain run whose seeds
+    % lie in the ROI - same count, bit-identical polylines - for every tracker.
+    % Uses small self-contained nims so the tests stay fast and do not depend on
+    % the 260 MB ISMRM nim being present.
 
     properties
         Root
         Nim
+        TrackNim   % phantom carrying a direction field, for the tracking tests
+        SeedW      % whole-brain seed mask on that phantom
+        SeedR      % a proper subset of it (the "ROI")
     end
 
     methods (TestClassSetup)
@@ -14,6 +20,7 @@ classdef TestRoiSeeding < matlab.unittest.TestCase
             tc.Root = fullfile(here, '..', '..');
             addpath(fullfile(tc.Root, 'src', 'nim_utils'));
             addpath(fullfile(tc.Root, 'src', 'nim_tractography'));
+            addpath(fullfile(tc.Root, 'src', 'nim_calculation'));
 
             % 20x20x20 volume with three labelled blocks and a label map.
             d = [20 20 20];
@@ -34,6 +41,11 @@ classdef TestRoiSeeding < matlab.unittest.TestCase
             n.mask = ones(d);
             n.atlas_labels = struct('map', m, 'atlas_type', 'jhu');
             tc.Nim = n;
+
+            % Separate phantom for the ROI <-> whole-brain identity (A0). It
+            % needs a direction field, which the parcellation phantom above has
+            % no use for.
+            [tc.TrackNim, tc.SeedW, tc.SeedR] = TestRoiSeeding.trackingPhantom();
         end
     end
 
@@ -183,6 +195,76 @@ classdef TestRoiSeeding < matlab.unittest.TestCase
                 '4 seeds in a voxel should be well separated');
         end
 
+        % ------------------------------------ ROI <-> whole-brain identity
+        function hinecRoiTracksAreExactlyTheWholeBrainSubset(tc)
+            % THE result ROI seeding rests on (NEXT_STEPS A0): seeds are a
+            % deterministic lattice (nim_seed_offsets; density 1 = the voxel
+            % centre) and the trackers keep no cross-seed state, so seeding a
+            % subset R of the whole-brain mask W must reproduce EXACTLY the
+            % whole-brain streamlines whose seed lies in R - same count,
+            % bit-identical polylines. That is what makes an ROI run's
+            % bundle_wise row equal the whole-brain run's (verified on real
+            % data: UF_left, VS 1492 / TP 9195 / FP 8098 / FN 3221 both ways),
+            % and it is the gate for every Phase B edit. hinec is the spine, so
+            % it gets the direct check: pair the two runs by SEED, using the
+            % per-track seed the tracker reports.
+            o = TestRoiSeeding.trackerOptions(tc.Root, 'hinec', {});
+            [TW, MW] = TestRoiSeeding.runTracker(tc.TrackNim, o, tc.SeedW);
+            TR       = TestRoiSeeding.runTracker(tc.TrackNim, o, tc.SeedR);
+            tc.assertNotEmpty(TR, 'the ROI run produced no tracks - nothing was tested');
+
+            inR = TestRoiSeeding.seedsIn(MW.seed_points, tc.SeedR);
+            tc.verifyEqual(numel(TR), nnz(inR), sprintf( ...
+                ['ROI-seeded run produced %d tracks, but %d of the %d whole-brain ' ...
+                 'tracks were seeded inside the ROI.'], numel(TR), nnz(inR), numel(TW)));
+
+            expected = TW(inR);
+            seeds    = MW.seed_points(inR, :);
+            for i = 1:min(numel(TR), numel(expected))
+                if ~isequal(TR{i}, expected{i})
+                    tc.verifyFail(sprintf( ...
+                        ['ROI track %d (seed [%s]) differs from its whole-brain ' ...
+                         'counterpart: %s'], i, num2str(seeds(i,:), '%.4f '), ...
+                        TestRoiSeeding.trackDiff(TR{i}, expected{i})));
+                    break
+                end
+            end
+        end
+
+        function theIdentityCheckCanFail(tc)
+            % Negative control. The assertion above is worth having only if a
+            % settings difference between the two runs breaks it - which is
+            % exactly the failure it exists to catch: the "ROI vs whole-brain
+            % disagree" confusion was a whole-brain run carrying an extra
+            % --set that the ROI runs did not. A different integration step
+            % must make the paired polylines differ.
+            oW = TestRoiSeeding.trackerOptions(tc.Root, 'hinec', {});
+            oR = TestRoiSeeding.trackerOptions(tc.Root, 'hinec', {'integrator.step=0.4'});
+            [TW, MW] = TestRoiSeeding.runTracker(tc.TrackNim, oW, tc.SeedW);
+            TR       = TestRoiSeeding.runTracker(tc.TrackNim, oR, tc.SeedR);
+            inR = TestRoiSeeding.seedsIn(MW.seed_points, tc.SeedR);
+            tc.verifyFalse(isequal(TR, TW(inR)), ...
+                ['two runs with DIFFERENT integrator steps produced identical ' ...
+                 'polylines - the identity assertion cannot fail, so it tests nothing.']);
+        end
+
+        function standardRoiTracksAreExactlyTheWholeBrainSubset(tc)
+            % FACT reports no per-track seed, so the same identity is checked as
+            % a partition (see verifyPartitionIdentity).
+            o = TestRoiSeeding.trackerOptions(tc.Root, 'standard', {});
+            tc.verifyPartitionIdentity(tc.TrackNim, o);
+        end
+
+        function mmfRoiTracksAreExactlyTheWholeBrainSubset(tc)
+            o = TestRoiSeeding.trackerOptions(tc.Root, 'mmf', {});
+            % The connection-form tracer CONSUMES the moving-frame geometry;
+            % building it is runTractography's step 3, so build it here.
+            w = warning('off','all'); cw = onCleanup(@() warning(w)); %#ok<NASGU>
+            nim = tc.TrackNim;
+            evalc('nim = nim_mmf_geometry(nim, o);');
+            tc.verifyPartitionIdentity(nim, o);
+        end
+
         % ------------------------------------------------------------ config
         function roiKeysAreInTheSchemaAndReachableFromCli(tc)
             S = nim_config_schema();
@@ -202,4 +284,115 @@ classdef TestRoiSeeding < matlab.unittest.TestCase
             tc.verifyEqual(o.include_roi{1}, 'SLF_R');
         end
     end
+
+    methods (Access = private)
+        function verifyPartitionIdentity(tc, nim, o)
+            % Identity check for the trackers that report no per-track seed.
+            % Seeds are enumerated in find(seed_mask) order, so the seeds of a
+            % run on R and a run on its complement Rc = W \ R are complementary
+            % ordered subsequences of the whole-brain run's. Hence the two runs
+            % must reproduce the whole-brain tracks exactly, track for track and
+            % in order - which is the A0 identity plus the statement that no
+            % whole-brain track is left over.
+            Rc = tc.SeedW & ~tc.SeedR;
+            TW = TestRoiSeeding.runTracker(nim, o, tc.SeedW);
+            TR = TestRoiSeeding.runTracker(nim, o, tc.SeedR);
+            TC = TestRoiSeeding.runTracker(nim, o, Rc);
+            tc.assertNotEmpty(TR, 'the ROI run produced no tracks - nothing was tested');
+            tc.verifyEqual(numel(TW), numel(TR) + numel(TC), sprintf( ...
+                ['%s: whole-brain produced %d tracks; the two halves of the same ' ...
+                 'seed mask produced %d + %d - seeding does not partition.'], ...
+                o.algorithm, numel(TW), numel(TR), numel(TC)));
+            i = 1; j = 1;
+            for k = 1:numel(TW)
+                if i <= numel(TR) && isequal(TW{k}, TR{i})
+                    i = i + 1;
+                elseif j <= numel(TC) && isequal(TW{k}, TC{j})
+                    j = j + 1;
+                else
+                    ref = TR{min(i, numel(TR))};
+                    tc.verifyFail(sprintf( ...
+                        ['%s: whole-brain track %d matches neither the next ROI track ' ...
+                         '(%d of %d) nor the next complement track (%d of %d). Against ' ...
+                         'the ROI one: %s'], o.algorithm, k, i, numel(TR), j, numel(TC), ...
+                        TestRoiSeeding.trackDiff(TW{k}, ref)));
+                    return
+                end
+            end
+            tc.verifyEqual([i-1, j-1], [numel(TR), numel(TC)], sprintf( ...
+                '%s: not every ROI / complement track appeared in the whole-brain run.', ...
+                o.algorithm));
+        end
+    end
+
+    methods (Static, Access = private)
+
+        function [nim, W, R] = trackingPhantom()
+            % A circular direction field inside an annulus: curved, so a changed
+            % integrator setting visibly moves the polylines (the negative
+            % control needs that), and small enough to track three times per
+            % tracker in a couple of seconds.
+            d = [20 20 20]; c = 10.5;
+            [X, Y, ~] = ndgrid(1:d(1), 1:d(2), 1:d(3));
+            dx = X - c; dy = Y - c; r = sqrt(dx.^2 + dy.^2); r(r < 1e-9) = 1e-9;
+            evec = zeros([d 3 3]);
+            evec(:,:,:,1,1) = -dy ./ r;  evec(:,:,:,2,1) = dx ./ r;   % e1 circular
+            evec(:,:,:,1,2) =  dx ./ r;  evec(:,:,:,2,2) = dy ./ r;   % e2 radial
+            evec(:,:,:,3,3) = 1;
+            FA = 0.02 * ones(d); FA(r > 3 & r < 9) = 0.6;             % trackable annulus
+            nim = struct('FA', FA, 'evec', evec, ...
+                'eval', repmat(reshape([3 1 1],1,1,1,3), [d 1]), 'mask', true(d));
+            W = false(d); W(:,:,10) = true; W = W & (FA > 0.4);  % 224 voxels, one slice
+            R = false(d); R(:,1:10,:) = true; R = R & W;         % half of them
+        end
+
+        function o = trackerOptions(root, algorithm, extra)
+            % Options come through the SHIPPED surface - load_config_yaml ->
+            % nim_config_apply_overrides -> nim_config_to_options - so what is
+            % pinned is the option path run_tractography.sh actually uses.
+            sets = [{sprintf('algorithm=%s', algorithm), 'seeding.density=1', ...
+                     'integrator.method=rk4', 'integrator.step=0.5', ...
+                     'termination.angle_max=60', 'termination.max_arc=25', ...
+                     'termination.min_arc=0', 'termination.fa_min=0.1', ...
+                     'diagnostics=false'}, extra];
+            w = warning('off','all'); cw = onCleanup(@() warning(w)); %#ok<NASGU>
+            evalc(['cfg = load_config_yaml(fullfile(root, ''config'', ''hinec_dti.yml''));' ...
+                   'cfg = nim_config_apply_overrides(cfg, sets);']);
+            o = nim_config_to_options(cfg);
+            o.wm_mask = []; o.gm_mask = []; o.csf_mask = [];
+            o.enable_diagnostics = false;
+        end
+
+        function [tracks, meta] = runTracker(nim, o, seed_mask)
+            o.seed_mask = seed_mask;
+            meta = struct();
+            switch char(o.algorithm)
+                case 'hinec',    evalc('[tracks, meta] = nim_tractography_hinec(nim, o);');
+                case 'mmf',      evalc('[tracks, meta] = nim_tractography_mmf_connframe(nim, o);');
+                case 'standard', evalc('tracks = nim_tractography_standard(nim, o);');
+                otherwise, error('TestRoiSeeding:algorithm', 'unknown algorithm %s', o.algorithm);
+            end
+        end
+
+        function tf = seedsIn(pts, M)
+            % seed_density 1 puts one seed at each voxel CENTRE, so rounding
+            % recovers the voxel that produced it exactly.
+            d = size(M); p = round(pts);
+            ok = all(p >= 1, 2) & all(p <= d, 2);
+            tf = false(size(pts, 1), 1);
+            tf(ok) = M(sub2ind(d, p(ok,1), p(ok,2), p(ok,3)));
+        end
+
+        function s = trackDiff(a, b)
+            if size(a, 1) ~= size(b, 1)
+                s = sprintf('lengths differ, %d vs %d points', size(a,1), size(b,1));
+                return
+            end
+            k = find(any(a ~= b, 2), 1);
+            if isempty(k), s = 'identical'; return; end
+            s = sprintf('first differing point %d of %d: [%s] vs [%s]', ...
+                k, size(a,1), num2str(a(k,:), '%.6f '), num2str(b(k,:), '%.6f '));
+        end
+    end
+
 end

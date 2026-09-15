@@ -213,16 +213,16 @@ where:
 - $\mathbf{V} = [\mathbf{v}_1 \; \mathbf{v}_2 \; \mathbf{v}_3]$ are eigenvectors (fiber directions)
 - $\mathbf{\Lambda} = \mathrm{diag}(\lambda_1, \lambda_2, \lambda_3)$ are eigenvalues
 
-#### **Moving-Frame Geometry (`nim_mmf_geometry`)**
+#### **Moving-Frame Geometry (`nim_mmf_geometry`) — not here**
 
-Immediately after the eigendecomposition, `main.m` builds the moving-frame field and its
-connection 1-form into the `nim`. This is a property of the direction field, not of any
-individual streamline, so it is computed once here rather than per track: $\mathbf{e}_1$ is
-the denoised tangent, $\mathbf{e}_2 = d\mathbf{e}_1/ds$ the Frenet normal,
-$\mathbf{e}_3 = \mathbf{e}_1 \times \mathbf{e}_2$, and the connection
-$[\omega] = d[A]\,A^\top$ carries curvature and torsion. The `mmf` tracker traces through this
-field; the other trackers ignore it. Failure here is non-fatal — the tracker rebuilds the
-geometry on demand.
+The moving-frame field and its connection 1-form are **not** part of the `nim`. They depend
+on `tractography.field`, and `main.m` reads no tractography config: the nim on disk is the
+dataset. `runTractography` builds them in **step 3**, every run, and only when
+`algorithm: mmf` — $\mathbf{e}_1$ is the tangent field, $\mathbf{e}_2 = d\mathbf{e}_1/ds$ the
+Frenet normal, $\mathbf{e}_3 = \mathbf{e}_1 \times \mathbf{e}_2$, and the connection
+$[\omega] = d[A]\,A^\top$ carries curvature and torsion. It is a property of the direction
+field, not of any individual streamline, so it is built once per run before any streamline
+starts, at a cost of 4.9 s (DTI) / 8.1 s (CSD). `hinec` and `standard` never touch it.
 
 For the derivation see Chun & Peng, in preparation, and
 [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md).
@@ -363,17 +363,20 @@ where:
 
 ```
                         main.m                          runTractography.m
-  ┌─────────────────────────────────────────────┐   ┌────────────────────────┐
-  │ nim_read                                    │   │ seed mask resolution   │
-  │   → nim_dt_spd → nim_eig → nim_fa           │   │   → tracker dispatch   │
-  │   → nim_mmf_geometry  (frame + connection)  │──▶│   → ROI filtering      │
-  │   → nim_registration  (optional, needs T1)  │   │   → arc resampling     │
-  │   → nim_parcellation                        │   │   → tracks_*.mat       │
-  │   → mask improvement                        │   └────────────────────────┘
-  │   → tissue segmentation (WM/GM/CSF for ACT) │                │
-  │   → nim_save                                │                ▼
-  └─────────────────────────────────────────────┘        visualization /
-             ▲                                            scoring / export
+  ┌─────────────────────────────────────────────┐   ┌──────────────────────────────┐
+  │ nim_read                                    │   │ 1 load nim                   │
+  │   → nim_dt_spd → nim_eig → nim_fa           │   │ 2 field     nim_field        │
+  │   → nim_registration  (optional, needs T1)  │──▶│ 3 geometry  nim_mmf_geometry │
+  │   → nim_parcellation                        │   │             (mmf only)       │
+  │   → mask improvement                        │   │ 4 seeds                      │
+  │   → tissue segmentation (WM/GM/CSF for ACT) │   │ 5 track     tracker dispatch │
+  │   → nim_save   (the DATASET, nothing that   │   │ 6 filter    ROI / arc step   │
+  │                 depends on tractography:)   │   │ 7 save      tracks_*.mat     │
+  └─────────────────────────────────────────────┘   └──────────────────────────────┘
+             ▲                                                   │
+             │                                                   ▼
+             │                                           visualization /
+             │                                            scoring / export
              │
    nim_preprocessing (FSL): b0 → brain extraction → denoise → fieldmap
                           → motion → eddy → T1 registration → atlas

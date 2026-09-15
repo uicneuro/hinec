@@ -94,14 +94,25 @@ addpath('src/nim_calculation');
 
 fprintf('=== HINEC Tractography Pipeline ===\n');
 
-%% Load data
+% THE PIPELINE, IN ORDER. Everything that depends on config.tractography happens
+% here, never in main.m: the nim on disk is the DATASET and nothing else.
+%
+%   1  load nim     the dataset (img, evec/eval, FA, masks, parcellation, roi_masks)
+%   2  field        nim_field         dti | csd | dwi   (csd cached to <nim>_csd.mat)
+%   3  geometry     nim_mmf_geometry  ONLY when algorithm == mmf (4.9 s dti / 8.1 s csd)
+%   4  seeds        where streamlines start: roi | brain mask | parcellation | FA
+%   5  track        hinec (RK4 on the interpolated field) | mmf (Eq 10-11) | standard (FACT)
+%   6  filter       nim_filter_tracks_roi, nim_resample_track_arc
+%   7  save         tracks + options + track_meta, and the IronTract submission
+
+%% Step 1 - load nim (the dataset)
 fprintf('Loading data from %s...\n', data_path);
 if ~exist(data_path, 'file')
     error('Data file not found: %s', data_path);
 end
 load(data_path, 'nim');
 
-%% Check required fields
+% Required dataset fields
 if ~isfield(nim, 'evec')
     error('Eigenvectors not found. Please run main() first to generate DTI data.');
 end
@@ -109,7 +120,7 @@ if ~isfield(nim, 'FA')
     error('FA not found. Please run main() first to generate DTI data.');
 end
 
-%% Set tractography parameters
+%% Tractography options for THIS run (config -> the flat names the trackers take)
 if use_config
     fprintf('Loading tractography parameters from YAML config...\n');
     % The config is the canonical nested schema; nim_config_to_options is the
@@ -144,7 +155,23 @@ else
     options.interp_method = 'none';
 end
 
-%% CENTRALIZED SEEDING STRATEGY
+%% Step 2 - field: the direction model this run tracks on (dti | csd | dwi)
+% Per-run, never baked into the nim. nim_field owns the sidecar cache (<nim>_csd.mat)
+% and the rule for when a field is worth caching at all; see its header.
+fprintf('\n=== Direction field ===\n');
+nim = nim_field(nim, options, data_path);
+
+%% Step 3 - geometry: MMF moving frames + connection 1-form (Eq 6-9), mmf ONLY
+% Built every mmf run, unconditionally: it costs seconds, it depends on
+% config.tractography, and hinec/standard never look at it.
+if strcmpi(algorithm, 'mmf')
+    fprintf('\n=== MMF connection geometry ===\n');
+    t_geom = tic;
+    nim = nim_mmf_geometry(nim, options);
+    fprintf('MMF geometry built in %.1f seconds\n', toc(t_geom));
+end
+
+%% Step 4 - seeds: where streamlines start
 % All seeding decisions happen here - nim_tractography_standard.m only executes
 fprintf('\n=== Configuring Seeding Strategy ===\n');
 
@@ -251,7 +278,10 @@ fprintf('✓ Seed voxels: %d (%.1f%% of volume)\n', ...
     seed_voxel_count, 100 * seed_voxel_count / numel(nim.FA));
 options.seed_mask = seed_mask;
 
-%% ACT Configuration: Add tissue masks if available
+%% Step 4b - ACT masks (WM/GM/CSF). Not seeding: the other nim-derived input the
+% tracker takes, used for the termination half of ACT. Kept here so the seeding
+% statistics printed below report the final numbers.
+% ACT Configuration: Add tissue masks if available
 fprintf('\n=== Anatomically Constrained Tractography (ACT) Configuration ===\n');
 act_enabled = ~isfield(options,'act_enabled') || ~isequal(options.act_enabled, 0) && ~isequal(options.act_enabled, false);
 if act_enabled && isfield(nim, 'wm_mask') && isfield(nim, 'gm_mask') && isfield(nim, 'csf_mask')
@@ -310,60 +340,22 @@ fprintf('Estimated total seeds: %d\n', estimated_seeds);
 fprintf('Expected tracks: ~%d (bidirectional from each seed)\n', estimated_seeds * 2);
 fprintf('==========================\n');
 
-%% Run tractography (algorithm-dependent)
+%% Step 5 - track: integrate the streamlines (algorithm-dependent)
 % Generate timestamp for output filename
 timestamp = datestr(now, 'yyyy-mm-dd_HH_MM_SS');
 
 
-% CSD FOD peaks are needed by ANY tracker running field=csd (hinec AND mmf), so
-% provision them BEFORE the algorithm dispatch. Compute with nim_csd when the config
-% sets field=csd, cached next to the source nim (<source>_csd.mat) so it is computed
-% once per preprocessed dataset and reused by every tractography config.
-fld = 'dti';
-if isfield(options, 'field') && ~isempty(options.field)
-    fld = lower(char(string(options.field)));
-end
-if strcmp(fld, 'csd') && ~isfield(nim, 'peaks')
-    csd_cache = regexprep(data_path, '\.mat$', '_csd.mat');
-    if isfile(csd_cache)
-        fprintf('field=csd: loading cached CSD FOD from %s\n', csd_cache);
-        Sc = load(csd_cache);
-        nim.peaks = Sc.peaks; nim.npeaks = Sc.npeaks; nim.peak_w = Sc.peak_w;
-        if isfield(Sc, 'fod_sh'), nim.fod_sh = Sc.fod_sh; end
-    else
-        fprintf('field=csd: computing CSD FOD peaks (nim_csd)...\n');
-        % lmax 4 and peak_thresh 0.2 are set from this acquisition, not convention;
-        % see nim_config_schema for the measurements behind both.
-        csd_opts = struct('lmax', 4, 'n_iter', 50, 'peak_thresh', 0.2, ...
-                          'peak_min_sep', 45, 'max_peaks', 3);
-        csd_keys = {'lmax', 'n_iter', 'peak_thresh', 'peak_min_sep', 'max_peaks'};
-        for ci = 1:numel(csd_keys)
-            ck = ['csd_' csd_keys{ci}];
-            if isfield(options, ck) && ~isempty(options.(ck))
-                csd_opts.(csd_keys{ci}) = options.(ck);
-            end
-        end
-        nim = nim_csd(nim, csd_opts);
-        try
-            peaks = nim.peaks; npeaks = nim.npeaks; peak_w = nim.peak_w; %#ok<NASGU>
-            if isfield(nim, 'fod_sh')
-                fod_sh = nim.fod_sh; %#ok<NASGU>
-                save(csd_cache, 'peaks', 'npeaks', 'peak_w', 'fod_sh', '-v7.3');
-            else
-                save(csd_cache, 'peaks', 'npeaks', 'peak_w', '-v7.3');
-            end
-            fprintf('  cached CSD FOD -> %s\n', csd_cache);
-        catch
-            % non-fatal: proceed without caching
-        end
-    end
-end
 
 track_meta = struct();   % populated by hinec; empty for other trackers
 if strcmpi(algorithm, 'mmf')
     fprintf('Running MMF connection-frame tractography (moving frames + connection 1-form)...\n');
     tic;
-    tracks = nim_tractography_mmf_connframe(nim, options);
+    [tracks, mmf_info] = nim_tractography_mmf_connframe(nim, options);
+    % Carry the per-step trace out with the tracks, the same way hinec does.
+    % Without this the tracer records it and runTractography throws it away.
+    if isstruct(mmf_info) && isfield(mmf_info, 'trace')
+        track_meta.trace = mmf_info.trace;
+    end
     elapsed_time = toc;
     output_filename = sprintf('tracks_mmf_%s.mat', timestamp);
 elseif strcmpi(algorithm, 'hinec')
@@ -387,7 +379,8 @@ if isempty(tracks)
     error('No tracks generated! Check FA threshold and seed mask.');
 end
 
-%% ROI filtering (include / exclude waypoints), applied before saving.
+%% Step 6 - filter and decimate
+% ROI filtering (include / exclude waypoints), applied before saving.
 % No-op unless filter.include_roi or filter.exclude_roi is set.
 [tracks, roi_filter_stats] = nim_filter_tracks_roi(tracks, nim, options);
 % Keep per-track metadata aligned with the surviving tracks, otherwise
@@ -405,7 +398,7 @@ if roi_filter_stats.applied && isempty(tracks)
          'filter.roi_filter_dilate, or check the region names.'], roi_filter_stats.n_in);
 end
 
-%% Output decimation. Applied AFTER ROI filtering, because filtering tests which
+% Output decimation. Applied AFTER ROI filtering, because filtering tests which
 % voxels a track visits and needs the full-resolution polyline to do that; a
 % decimated track could skip a voxel it actually passed through.
 if isfield(options, 'output_arc_step') && ~isempty(options.output_arc_step) ...
@@ -417,14 +410,14 @@ if isfield(options, 'output_arc_step') && ~isempty(options.output_arc_step) ...
         options.output_arc_step, pts_before, pts_after, 100 * pts_after / max(pts_before, 1));
 end
 
-%% Compute statistics
+%% Step 7 - save
+% Statistics first, so the diagnostics file and the log agree.
 track_lengths = cellfun(@(x) size(x, 1), tracks);
 fprintf('\nTrack Statistics:\n');
 fprintf('  Mean length: %.1f points\n', mean(track_lengths));
 fprintf('  Max length: %d points\n', max(track_lengths));
 fprintf('  Min length: %d points\n', min(track_lengths));
 
-%% Save results
 if use_run_dir
     output_dir = run_info.tractography_dir;
     fprintf('\nUsing run directory for tractography output\n');
@@ -462,7 +455,7 @@ if use_run_dir
     fprintf('Diagnostics saved to %s\n', diagnostics_file);
 end
 
-%% IronTract Challenge Submission (if enabled)
+% IronTract Challenge submission packaging (part of step 7; no-op unless enabled)
 if enable_irontract
     fprintf('\n=== IronTract Challenge Submission ===\n');
     fprintf('Generating submission files...\n');
