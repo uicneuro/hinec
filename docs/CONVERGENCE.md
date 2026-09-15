@@ -12,7 +12,10 @@ the rate of each.
     $2.01$, RK4 $\mathbf{4.00}$ with a $C^2$ spline interpolant. Under spatial
     refinement the order is $\approx 2.25$. **Spatial resolution is the binding
     constraint**: past a moderately coarse step there is little left to gain from
-    refining time.
+    refining time. The same orders hold across eight bundles, including the
+    most curved ones, and the ladder is unchanged when the reference is replaced
+    by an **independent integrator** (`ode113`): the solver converges to the true
+    solution of its ODE, not merely to itself.
 
 !!! note "Scope — verification, not validation"
     Verification asks whether the equations are being solved correctly.
@@ -52,7 +55,7 @@ the ladders do not depend on it.*
     and this pipeline is demonstrably good at the first and middling at the
     second: the same tracker that converges at observed order 4.00 recovers
     **49% of the `UF_right` ground-truth volume**, with 75% of its streamline
-    length falling inside that bundle. Whole-brain, it scores mean F1 0.350.
+    length falling inside that bundle. Whole-brain, it scores mean F1 0.346.
     The limit is the single-tensor model, not the numerics. See
     [ISMRM Scoring](ISMRM_SCORING_ANALYSIS.md#reconstruction-against-ground-truth).
 
@@ -128,6 +131,119 @@ distribution converges rather than a well-behaved majority.
 
 ---
 
+## The same ladder on curved and irregular bundles
+
+The `UF_right` result above could be a property of one gently curved bundle. The
+same time ladder was therefore run on eight bundles chosen for curvature and
+awkward geometry — anterior commissure (`CA`), posterior commissure (`CP`),
+fornix, left inferior longitudinal fasciculus, both uncinates, the left
+brainstem projection (`BPS_left`) and the U-shaped callosal fibres
+(`CC_u_shaped`) — with 13 rungs from $h = 4$ to $0.0625$
+(ratio $\sqrt 2$), spline interpolation, and a shared RK4 $h = 1/64$ reference
+per bundle. Seed density 1 per voxel, FA > 0.15, window ±10 voxels.
+
+| bundle | seeds | Euler | RK2 | RK4 spline | RK4 median at $h=0.5$ |
+|---|--:|:--:|:--:|:--:|--:|
+| CA | 427 | 1.01 | 2.02 | 4.05 | 1.49e-5 |
+| CP | 1869 | 1.00 | 2.02 | 4.02 | 1.24e-5 |
+| Fornix | 3965 | 1.00 | 2.01 | 4.01 | 1.35e-5 |
+| ILF_left | 1850 | 1.00 | 2.01 | 3.98 | 1.21e-5 |
+| UF_left | 1208 | 1.00 | 2.01 | 4.00 | 1.53e-5 |
+| UF_right | 1478 | 1.00 | 2.01 | 4.00 | 2.29e-5 |
+| BPS_left | 6509 | 1.00 | 2.01 | 3.98 | 2.27e-5 |
+| CC_u_shaped | 14509 | 1.00 | 2.01 | 3.98 | 2.32e-05 |
+
+*Observed order = slope of $\log(\text{median})$ against $\log h$ over the
+rungs $h \le 0.5$. Every ladder is monotone over that range.*
+
+![Step-refinement ladders on eight bundles](img/convergence_bundles.png)
+
+The orders do not move with curvature, and they should not: the order of a
+Runge–Kutta method is a property of the integrator on a smooth field. Curvature
+enters the error *constant* — the vertical offset of each line — not the
+exponent. What curvature does change is the step at which a given accuracy is
+reached: for Euler the largest step with median error below 0.05 voxels ranges
+from 0.19 (`UF_right`) to 0.31 (`CP`). At $h = 4$ the coarse end of every
+ladder is pre-asymptotic (curved lines at the left of the figure), which is why
+the fit is restricted to $h \le 0.5$.
+
+Individual streamlines do exist whose error is not monotone in $h$: on the
+`UF_right` RK4 rung $h = 0.71 \to 0.5$, 40 of 1525 seeds got *worse* on
+refinement. Their departure points sit at near-planar tensors — median
+$\lambda_2/\lambda_1$ 0.84, against 0.68 over all points the bundle traverses
+(rank-sum $p = 3\times10^{-6}$) — where the principal direction of the
+interpolated dyadic is ill-conditioned and a small change in the path flips
+which eigenvector wins. They are a property of the field, not the integrator,
+and do not survive the median.
+
+---
+
+## An independent reference
+
+Every ladder above measures distance to *our own* tracker at a small step. A
+systematic error shared by every rung — a bias in the direction field, a
+sign-alignment rule, an off-by-half-step in the sampling — would be invisible to
+such a ladder, which would still report perfect slopes. This is the sense in
+which self-convergence shows consistency but not correctness.
+
+To close that gap the same spline dyadic field was handed to MATLAB's `ode113`
+(variable-order Adams–Bashforth–Moulton, `AbsTol = RelTol = 10^{-13}`), which
+shares no code with `rk4_integration_step`: no fixed step, no tableau, no
+sign-alignment logic beyond the one-line `dot(v, v_prev) < 0` flip inside the
+right-hand side. Each ladder rung on `UF_right` (400 seeds, same ±10-voxel
+window) was then measured against both references.
+
+| method | $h$ | vs `ode113` | vs RK4 $h = 1/64$ |
+|---|--:|--:|--:|
+| Euler | 0.5 | 1.3512e-1 | 1.3512e-1 |
+| Euler | 0.0625 | 1.7453e-2 | 1.7453e-2 |
+| RK2 | 0.5 | 3.6051e-3 | 3.6051e-3 |
+| RK2 | 0.0625 | 5.4716e-5 | 5.4716e-5 |
+| RK4 spline | 0.5 | 2.6717e-5 | 2.6717e-5 |
+| RK4 spline | 0.0625 | 6.0485e-9 | 6.0845e-9 |
+| **fitted order** ($h \le 0.5$) | | **0.984 / 2.012 / 4.014** | **0.984 / 2.012 / 4.014** |
+
+![The UF_right ladder against ode113 and against our own reference](img/convergence_ode113.png)
+
+The two columns agree to three or four significant digits at every rung, and
+the RK4 $h = 1/64$ reference itself sits a median $1.4\times10^{-10}$ voxels
+(p95 $3\times10^{-8}$) from the `ode113` solution. The tracker converges to the
+solution of the ODE it claims to solve, at the rate it claims. The remaining
+question — whether that ODE is the right one for the anatomy — is validation and
+is not addressed here.
+
+### The one seed that disagrees
+
+Of the 400 seeds, one differs from `ode113` by 2.9 voxels (the next-worst seven
+are all below $5\times10^{-3}$). It is seed 467 at voxel `[25 53 22]`, backward
+half only. The two integrators agree to $6\times10^{-6}$ voxels until arc
+$-0.66$ and separate within the next 0.15 voxels of arc, where the streamline
+is at $z \approx 21.4$, between
+
+- voxel `(25,53,22)`: FA 0.612, $\mathbf v_1 = [-0.09,\ 0.40,\ 0.91]$, and
+- voxel `(25,53,21)`: **in mask, FA 0, all eigenvalues 0,
+  $\mathbf v_1 = [1, 0, 0]$** — a placeholder written where the tensor fit was
+  skipped (its $b_0$ signal is 30 against 67 next door, below the fit threshold).
+
+The interpolated dyadic between a real direction and the placeholder passes
+through an exact eigenvalue crossing — $\lambda_1 - \lambda_2$ is 1.06 at
+$z = 22$, 0.031 at $z = 21.4$, 0.37 at $z = 21.2$ — with the principal axis
+rotating through ~90° across it. The right-hand side of the ODE is discontinuous
+there, and two correct integrators may legitimately leave on different branches.
+The FA stop does not intervene because FA is interpolated linearly from 0.612 to
+0 and is still 0.25 at the crossing.
+
+This is not an integrator error. It is a data-preparation defect: **3219**
+in-mask voxels carry the `[1 0 0]` placeholder (2965 of them on the mask's outer
+shell, 3183 adjacent to a voxel with FA ≥ 0.15), so any streamline that grazes
+the mask edge sees a spurious $x$-axis direction bleed into the interpolant. The
+fix is one line in `nim_field` — zero the dyadic where the tensor is zero, so the
+field decays to nothing at the edge instead of rotating toward $x$ — but it
+changes tracking near the boundary and needs a re-score before it is adopted.
+It is recorded here as an open finding.
+
+---
+
 ## Refinement in space
 
 The direction field is sampled on a grid of spacing $1/u$ voxels before the
@@ -194,11 +310,13 @@ results constrain what the numbers above can mean.
 
 ## Threats to validity
 
-- **One bundle, one subject.** All results are the right uncinate fasciculus of
-  the ISMRM 2015 phantom. Nothing here establishes generality.
-- **Self-convergence, not accuracy.** The reference is our own refined solution.
-  The pipeline converges to *something*; that it is the right thing is a
-  separate claim.
+- **One subject.** Every result is from the ISMRM 2015 phantom. The time ladder
+  has been repeated on eight bundles; the space ladder and the `ode113`
+  cross-check are `UF_right` only.
+- **Verification, not accuracy.** The `ode113` cross-check shows the tracker
+  converges to the true solution of its ODE, which removes the "converges only
+  to itself" objection. It says nothing about whether that ODE — the principal
+  eigenvector of a single tensor — is the right model of the tissue.
 - **The spatial ladder is not fully asymptotic.** Local order is still rising at
   the finest rung, so 2.25 is a lower bound.
 - **Termination is quantised to one step.** Measured arc-length difference is
@@ -208,9 +326,10 @@ results constrain what the numbers above can mean.
 - **MMF is untested here.** The angle criterion in
   `nim_tractography_mmf_connframe` is covered only by a source-text check, not a
   behavioural test.
-- **The whole-brain benchmark has not been run.** Every ISMRM score collected so
-  far comes from a single-ROI submission, which is not a valid use of a scorer
-  that segments a whole-brain tractogram into 26 bundles.
+- **Mask-edge placeholders.** 3219 in-mask voxels carry a zero tensor with a
+  default `[1 0 0]` eigenvector (see [the one seed that disagrees](#the-one-seed-that-disagrees)).
+  Streamlines that graze the mask edge integrate through a discontinuous field
+  there. The median statistics are unaffected; individual streamlines can be.
 
 ---
 
@@ -226,6 +345,17 @@ results constrain what the numbers above can mean.
 # space ladder, one rung — add
     --set upsample=0.5
 ```
+
+```bash
+# curved-bundle ladders: same command with --set seeding.roi=<CA|CP|Fornix|ILF_left|UF_left|UF_right|BPS_left|CC_u_shaped>
+# and --set termination.max_arc=20, for h = 4, 2.83, 2, ..., 0.0625; reference at 0.015625
+```
+
+The `ode113` cross-check builds the identical `griddedInterpolant(..., 'spline')`
+dyadic field, takes the principal direction with `nim_principal_dir`, and
+integrates from each seed in both directions with `odeset('AbsTol',1e-13,'RelTol',1e-13)`;
+each ladder rung is then compared to `deval` of that solution at its own nominal
+arcs, using the same ±10-voxel window.
 
 Analysis is `nim_convergence_error(test_run, reference_run, struct('prefix_arc', 10))`,
 which returns per-seed errors so a fixed population can be intersected across

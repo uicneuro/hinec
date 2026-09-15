@@ -72,13 +72,13 @@ for and what makes the numbers comparable to a published submission.
 
 | metric | value |
 |---|--:|
-| streamlines | 60209 |
-| mean F1 | 0.350 |
-| mean overlap (OL) | 0.323 |
-| mean overreach (OR\_gt) | 0.283 |
+| streamlines | 60932 |
+| mean F1 | 0.346 |
+| mean overlap (OL) | 0.322 |
+| mean overreach (OR\_gt) | 0.288 |
 | valid bundles found | 22 of 26 |
-| valid streamlines | 31641 (53%) |
-| invalid streamlines | 28568 |
+| valid streamlines | 31681 (52%) |
+| invalid streamlines | 29251 |
 
 DTI with an accurate integrator finds most of the bundles and gets about half its
 streamlines accepted. That is a middling result, and the reason is structural
