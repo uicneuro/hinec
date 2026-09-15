@@ -856,6 +856,18 @@ function [track, step_timing, termination_reason, trace] = track_fiber_hinec(nim
 %   track - Array of positions along fiber track
 
 if nargin < 6 || isempty(do_trace), do_trace = false; end
+% CSF tolerance, in VOXELS OF ARC. A fixed constant, not a configuration knob:
+% it was chosen by measurement and there is no reason for a user to retune it.
+% Discarding on any single CSF voxel deletes 27% of the ISMRM ground-truth
+% Cingulum_right streamlines; at 3 voxels the ground truth loses 1.7% while 60%
+% of our own streamlines are still cut, the widest separation over runs 1..5.
+% (Tests override the field directly to exercise other values.)
+if ~isfield(options, 'act_csf_run') || isempty(options.act_csf_run)
+    options.act_csf_run = 3;
+end
+csf_arc = 0;      % ARC (voxels) travelled inside CSF, not a step count
+csf_pts = 0;      % points appended during that excursion, for truncation
+in_gm   = false;  % has the streamline reached a valid (grey-matter) stop zone
 trace = [];
 if do_trace
     % Per-step record. Everything here is either a decision the tracker made or
@@ -869,6 +881,8 @@ if do_trace
     tr.h     = nan(options.max_steps + 1, 1);   % arc the step was ASKED to cover
     tr.chord = nan(options.max_steps + 1, 1);   % arc it actually covered
     tr.flip  = false(options.max_steps + 1, 1); % sign flip applied to the NEXT direction
+    tr.tissue = cell(options.max_steps + 1, 1); % ACT tissue class at the step
+    tr.act    = cell(options.max_steps + 1, 1); % what ACT decided to do about it
     ns = 0;
 end
 
@@ -1049,49 +1063,72 @@ while true
         end
     end
 
-    % HINEC ACT: Check tissue type at next position
+    % HINEC ACT: tissue at the next position, and what to do about it.
+    %
+    % BOTH RULES HERE WERE MEASURED AGAINST THE GROUND TRUTH, because the
+    % obvious ones destroy it. On Cingulum_right:
+    %
+    %   CSF. Discarding a track on ANY contact with a CSF voxel throws away 27%
+    %   of the ground-truth streamlines - only 3.5% of ground-truth bundle
+    %   voxels are labelled CSF, but tracks are long enough that a quarter of
+    %   them clip one. Requiring a sustained run separates the two populations
+    %   instead: at a run of 3 the ground truth loses 1.7% while 60% of our own
+    %   streamlines are still discarded, the widest margin over runs 1..5.
+    %
+    %   GM is NOT a stop. Grey matter appears in the INTERIOR of 68% of
+    %   ground-truth streamlines, so terminating on contact truncates two thirds
+    %   of them mid-bundle. But 64% of ground-truth ENDPOINTS are in grey
+    %   matter, so it is exactly where a streamline should be allowed to end.
+    %   GM therefore marks a valid place to stop, and tracking continues until
+    %   something else stops it - which in cortex is the FA floor, immediately.
     tissue_type = check_tissue_type(next_pos, options, dims);
+    act_action = 'continue';
 
-    % ACT termination logic
-    if strcmp(tissue_type, 'CSF')
-        % Entered CSF - invalid termination, discard track
-        % Set track_length to 0 to signal invalid track
-        track_length = 0;
-        if nargout > 2
-            termination_reason = 'csf';
+    switch tissue_type
+    case 'CSF'
+        % ARC, not steps. A budget counted in steps scales with the step size -
+        % at h = 0.5 a two-voxel speck of CSF is four steps, so a threshold meant
+        % as "three voxels" fires after one and a half. This is the same trap the
+        % angle criterion has (see nim_angle_limit): the budget must come from
+        % the arc the step covers, not from the number of steps taken.
+        csf_arc = csf_arc + h_used;
+        if csf_arc >= options.act_csf_run
+            % TRUNCATE, do not discard.
+            %
+            % Entering CSF invalidates what comes AFTER it, not what came
+            % before. A streamline that follows its bundle for forty voxels and
+            % then clips a ventricle has forty good voxels; throwing all of them
+            % away because of the last two is the same all-or-nothing mistake
+            % that makes the containment gate discard whole streamlines for a
+            % single stray point. Drop the CSF excursion and keep the prefix.
+            track_length = max(track_length - csf_pts, 0);
+            if nargout > 2, termination_reason = 'csf'; end
+            act_action = 'truncate';
+            if do_trace, tr.tissue{ns} = tissue_type; tr.act{ns} = act_action; end
+            break;
         end
-        break;
-
-    elseif strcmp(tissue_type, 'GM')
-        % Reached gray matter - valid termination point
-        % Add final position in GM and stop tracking
+        % brief contact: a mask artefact, not an anatomical exit
+        act_action = 'csf_tolerated';
         track_length = track_length + 1;
         track(track_length, :) = next_pos;
-        if nargout > 2
-            termination_reason = 'gm';
-        end
+        csf_pts = csf_pts + 1;
+
+    case 'OUTSIDE'
+        if nargout > 2, termination_reason = 'outside'; end
+        act_action = 'stop';
+        if do_trace, tr.tissue{ns} = tissue_type; tr.act{ns} = act_action; end
         break;
 
-    elseif strcmp(tissue_type, 'OUTSIDE')
-        % Left brain volume - stop tracking
-        if nargout > 2
-            termination_reason = 'outside';
-        end
-        break;
-
-    elseif strcmp(tissue_type, 'WM') || strcmp(tissue_type, 'UNKNOWN')
-        % White matter or no ACT - continue tracking normally
-        % Add position to streamline
+    otherwise                                   % WM, GM, UNKNOWN
+        csf_arc = 0; csf_pts = 0;
         track_length = track_length + 1;
         track(track_length, :) = next_pos;
-
-    else
-        % Unknown tissue type - stop tracking
-        if nargout > 2
-            termination_reason = 'unknown';
+        if strcmp(tissue_type, 'GM')
+            in_gm = true;                       % a valid place to end, if we end
+            act_action = 'gm_valid_stop';
         end
-        break;
     end
+    if do_trace, tr.tissue{ns} = tissue_type; tr.act{ns} = act_action; end
 
     % If track was invalidated by CSF, exit immediately
     if track_length == 0
@@ -1128,11 +1165,33 @@ end
 % Trim track array to actual length
 track = track(1:track_length, :);
 
+% NEVER END IN CSF, whatever stopped the streamline.
+%
+% The CSF budget above only fires while tracking continues, and it usually does
+% not get the chance: CSF is isotropic, so a streamline entering it falls under
+% the FA floor within a step or two and terminates there. The result is a track
+% whose LAST point sits in cerebrospinal fluid, which is anatomically impossible
+% however it got there. Trimming trailing CSF points is the termination-time
+% counterpart of the propagation rule, and it costs nothing when the track ends
+% in tissue.
+if ~isempty(track) && ~isempty(options.csf_mask)
+    d3 = size(nim.FA);
+    while size(track, 1) >= 1
+        w = round(track(end, :));
+        if any(w < 1) || w(1) > d3(1) || w(2) > d3(2) || w(3) > d3(3), break; end
+        if ~options.csf_mask(sub2ind(d3, w(1), w(2), w(3))), break; end
+        track(end, :) = [];
+    end
+    track_length = size(track, 1);
+end
+
 if do_trace
     k = max(ns, 0);
     trace = struct('pos', tr.pos(1:k,:), 'dir', tr.dir(1:k,:), 'fa', tr.fa(1:k), ...
                    'turn', tr.turn(1:k), 'h', tr.h(1:k), 'chord', tr.chord(1:k), ...
-                   'flip', tr.flip(1:k), 'n_steps', k, 'direction', direction);
+                   'flip', tr.flip(1:k), 'n_steps', k, 'direction', direction, ...
+                   'tissue', {tr.tissue(1:k)}, 'act', {tr.act(1:k)}, ...
+                   'ended_in_gm', in_gm);
     if nargout > 2
         trace.termination = termination_reason;
     else
@@ -1637,8 +1696,13 @@ end
 % CSD: at each stencil voxel select the FOD peak nearest v, then aligned-voxel weighted blend.
 % cub=true -> tricubic (4x4x4) spatial stencil; false -> trilinear (identical to prior behavior).
 function [d,ok]=interp_peak_traj_h(P,NP,x,v,dims,cub)
+% Resolve a multi-peak field to one direction: at each stencil voxel take the
+% peak best aligned with the incoming tangent v (nearest-peak rule, i.e. the
+% smallest available turn), then blend those choices with the spatial stencil
+% weights. An argmax over the peaks the DATA provides; no fitted weight.
 d=[0 0 0]; ok=false;
 if nargin<6, cub=false; end
+
 if any(x<1)||x(1)>dims(1)||x(2)>dims(2)||x(3)>dims(3), return; end
 x0=floor(x); fr=x-x0; ix=x0(1); iy=x0(2); iz=x0(3);
 if ix<1||iy<1||iz<1||ix>=dims(1)||iy>=dims(2)||iz>=dims(3), return; end
@@ -1652,13 +1716,13 @@ for a=1:numel(ox)
   for c=1:numel(oz)
    sp=wgx(a)*wgy(b)*wgz(c);
    ux=ix+ox(a); uy=iy+oy(b); uz=iz+oz(c); np=NP(ux,uy,uz); if np<1, continue; end
-   bestpk=[0 0 0]; bestal=-1;
+   bestpk=[0 0 0]; bestal=-1; found=false;
    for p=1:np
      pk=[P(ux,uy,uz,p,1),P(ux,uy,uz,p,2),P(ux,uy,uz,p,3)]; nn=norm(pk); if nn<1e-9, continue; end
      pk=pk/nn; if pk*v'<0, pk=-pk; end; al=pk*v';
-     if al>bestal, bestal=al; bestpk=pk; end
+     if al>bestal, bestal=al; bestpk=pk; found=true; end
    end
-   if bestal<0, continue; end
+   if ~found || bestal<0, continue; end
    w=sp; acc=acc+w*bestpk; wsum=wsum+abs(w);   % plain spatial weight - no alignment exponent
   end
  end
@@ -1678,3 +1742,4 @@ if nim.NP(vp(1),vp(2),vp(3))>=1
   if norm(d)<1e-6, d=[]; else, d=d/norm(d); end
 end
 end
+
