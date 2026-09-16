@@ -2,24 +2,23 @@
 
 ## Researchers
 
-<div class="grid cards" markdown>
+<div class="team" markdown>
 
 - ![Taehyun Han](img/team_han.jpg){ .team-photo }
 
     **Taehyun Han** &nbsp;한태현
 
-    Undergraduate, Yonsei University. Dual major in Nano Science and
-    Engineering (Integrated Science and Engineering Division, Underwood
-    International College) and Computer Science and Engineering (College of
-    Computing).
+    Undergraduate, Yonsei University<br>
+    Nano Science and Engineering, Underwood International College<br>
+    Computer Science and Engineering, College of Computing
 
 - ![Sehun Chun](img/team_chun.jpg){ .team-photo }
 
     **Sehun Chun** &nbsp;천세훈
 
-    Associate Professor of Applied Mathematics,
-    Underwood International College, Yonsei University.
-    Director of the HINEC project.
+    Director, HINEC project<br>
+    Associate Professor of Applied Mathematics<br>
+    Underwood International College, Yonsei University
 
     [sites.google.com/site/uicschun](https://sites.google.com/site/uicschun/)
 
@@ -27,17 +26,16 @@
 
 ## Advisory Faculty Board
 
-<div class="grid cards" markdown>
+<div class="team" markdown>
 
 - ![Hae-Jeong Park](img/team_park.jpg){ .team-photo }
 
     **Hae-Jeong Park** &nbsp;박해정
 
-    Professor, Graduate School of Medical Science and Engineering;
-    Department of Nuclear Medicine, College of Medicine; and the
-    interdisciplinary Cognitive Science program, Yonsei University.
-
-    Principal Investigator, Monet Lab.
+    Professor, Yonsei University<br>
+    Graduate School of Medical Science and Engineering<br>
+    Department of Nuclear Medicine, College of Medicine<br>
+    Principal Investigator, Monet Lab
 
     [neuroimage.yonsei.ac.kr](http://neuroimage.yonsei.ac.kr/principle-investigator/)
 
@@ -45,10 +43,10 @@
 
     **Vinoth Jagaroo**
 
-    Associate Professor of Cognitive Neuroscience, Brain-Behavioral Sciences,
-    Emerson College. Affiliate Faculty and Clinical Instructor, Neuroanatomy &
-    Neuroscience, The Behavioral Neuroscience Ph.D. Program, Graduate Medical
-    Sciences, Boston University Chobanian & Avedisian School of Medicine.
+    Associate Professor of Cognitive Neuroscience, Emerson College<br>
+    Brain-Behavioral Sciences<br>
+    Affiliate Faculty, Behavioral Neuroscience Ph.D. Program<br>
+    Boston University Chobanian & Avedisian School of Medicine
 
     [sites.bu.edu/jagaroo](https://sites.bu.edu/jagaroo/)
 
@@ -56,12 +54,10 @@
 
     **Linyu Peng** &nbsp;彭 林玉
 
-    Associate Professor (PI), Department of Mechanical Engineering,
-    Keio University.
-
-    Adjunct Researcher, Institute for Applied Mathematics and Sciences,
-    Waseda University. Part-time Lecturer, Faculty of Science and Engineering,
-    Waseda University.
+    Associate Professor (PI), Keio University<br>
+    Department of Mechanical Engineering<br>
+    Adjunct Researcher, Institute for Applied Mathematics and Sciences<br>
+    Waseda University
 
     [peng.mech.keio.ac.jp](http://www.peng.mech.keio.ac.jp/faculty/index.html)
 
