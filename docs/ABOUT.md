@@ -16,9 +16,10 @@
 
     **Sehun Chun** &nbsp;천세훈
 
-    Director, HINEC project<br>
-    Associate Professor of Applied Mathematics<br>
-    Underwood International College, Yonsei University
+    Associate Professor of Applied Mathematics, Yonsei University<br>
+    Underwood International College
+
+    Director, HINEC project
 
     [sites.google.com/site/uicschun](https://sites.google.com/site/uicschun/)
 
@@ -34,7 +35,8 @@
 
     Professor, Yonsei University<br>
     Graduate School of Medical Science and Engineering<br>
-    Department of Nuclear Medicine, College of Medicine<br>
+    Department of Nuclear Medicine, College of Medicine
+
     Principal Investigator, Monet Lab
 
     [neuroimage.yonsei.ac.kr](http://neuroimage.yonsei.ac.kr/principle-investigator/)
@@ -44,9 +46,11 @@
     **Vinoth Jagaroo**
 
     Associate Professor of Cognitive Neuroscience, Emerson College<br>
-    Brain-Behavioral Sciences<br>
-    Affiliate Faculty, Behavioral Neuroscience Ph.D. Program<br>
-    Boston University Chobanian & Avedisian School of Medicine
+    Brain-Behavioral Sciences
+
+    Affiliate Faculty and Clinical Instructor, Boston University<br>
+    Neuroanatomy & Neuroscience, Behavioral Neuroscience Ph.D. Program<br>
+    Chobanian & Avedisian School of Medicine
 
     [sites.bu.edu/jagaroo](https://sites.bu.edu/jagaroo/)
 
@@ -55,9 +59,11 @@
     **Linyu Peng** &nbsp;彭 林玉
 
     Associate Professor (PI), Keio University<br>
-    Department of Mechanical Engineering<br>
-    Adjunct Researcher, Institute for Applied Mathematics and Sciences<br>
-    Waseda University
+    Department of Mechanical Engineering
+
+    Adjunct Researcher and Part-time Lecturer, Waseda University<br>
+    Institute for Applied Mathematics and Sciences<br>
+    Faculty of Science and Engineering
 
     [peng.mech.keio.ac.jp](http://www.peng.mech.keio.ac.jp/faculty/index.html)
 
