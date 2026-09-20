@@ -25,8 +25,8 @@ assumes.
 | 4 | *(in `runTractography`)* | decide **where** seeds may go: brain mask ∩ FA ≥ `seeding.fa_min`, or the ROI in `seeding.roi` | `options.seed_mask` |
 | 4b | *(in `runTractography`)* | copy the WM/GM/CSF masks over when `act: true` | `options.wm_mask`, `gm_mask`, `csf_mask` (or `[]`) |
 | **5** | **`nim_tractography_<algorithm>`** | **integrate streamlines** | — |
-| 6 | `nim_filter_tracks_roi`, `nim_resample_track_arc` | ROI filtering, then decimation to `output.arc_step` | — |
-| 7 | `save` | `tracks`, `options`, `elapsed_time`, `algorithm`, `track_meta` → `tractography/tracks_<algorithm>_<timestamp>.mat` | — |
+| 6 | `nim_filter_tracks_roi`, `nim_resample_track_arc` | ROI **selection** (keep/drop flags only — nothing is removed or cut), then decimation to `output.arc_step` | — |
+| 7 | `save` | `tracks`, `options`, `elapsed_time`, `algorithm`, `track_meta` → `tractography/tracks_<algorithm>_<timestamp>.mat` — always the **full** tractogram; when a `filter.*` key is set, the selection goes beside it as `tractography/roi_selection.mat` (`keep`, the kept `tracks`, subset `track_meta`, per-criterion drop counts in `stats`) | — |
 
 Two consequences worth stating:
 
@@ -199,8 +199,8 @@ meta   : struct, may be struct() with no fields. Recognised fields:
 `runTractography` runs `nim_check_tracker_output` on the return values before
 anything downstream touches them; a wrong shape fails there with the rule it
 broke (`tracker:outputContract`). Note that `seed_index` and `seed_points` are
-indexed by **kept track**, not by seed — the ROI filter in step 6 subsets them
-alongside `tracks`, which only works if they are already aligned.
+indexed by **track**, not by seed — `roi_selection.mat` subsets them
+alongside its `tracks`, which only works if they are already aligned.
 
 `meta` is saved verbatim as `track_meta` in the output `.mat`, so anything
 else you put in it (termination-reason counts, timings) is preserved.

@@ -77,7 +77,9 @@ points, default 3). Raise either to demand more than a glancing intersection.
     To restrict which streamlines are *produced*, use the tractography config —
     `seeding.roi` to seed inside a region, `filter.include_roi` for a waypoint
     test, and `filter.endpoints_in` / `filter.contained_in` for the endpoint and
-    containment tests the ISMRM scorer uses. See
+    containment tests the ISMRM scorer uses. `filter.*` keys select, they do not
+    discard: `tracks.mat` keeps the full tractogram (that is what gets scored)
+    and the selection is saved beside it as `roi_selection.mat`. See
     [ISMRM Scoring](ISMRM_SCORING_ANALYSIS.md).
 
 ---

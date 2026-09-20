@@ -11,6 +11,11 @@ function [tracks, stats] = nim_filter_tracks_roi(tracks, nim, options)
 %
 % With no include/exclude set, tracks are returned untouched.
 %
+% This is SELECTION only: a track is kept or dropped whole. No criterion edits
+% a track's geometry - what survives is exactly what the tracker produced.
+% The caller keeps the full tractogram and stores this selection beside it
+% (stats.keep), so the drop counts here are the yield, not a lost quantity.
+%
 % Combined with ROI seeding this gives both requested behaviours:
 %   seed_roi: X                       -> tracks seeded in X (bidirectional, so
 %                                        this already recovers tracks THROUGH X)
@@ -91,8 +96,7 @@ function [tracks, stats] = nim_filter_tracks_roi(tracks, nim, options)
     stats.n_dropped_contained = 0;
     stats.n_dropped_any       = 0;
     stats.n_dropped_length    = 0;
-    stats.n_strict_contained    = 0;   % passed containment untouched (scorer's rule)
-    stats.n_truncated_contained = 0;   % kept, but cut at an excursion
+    stats.n_strict_contained  = 0;   % every point inside (the scorer's rule)
 
     % Voxel -> mm. The ISMRM 2015 affine is diagonal 2 mm isotropic; a rotated
     % affine would make a per-axis scale meaningless, so refuse rather than
@@ -115,8 +119,6 @@ function [tracks, stats] = nim_filter_tracks_roi(tracks, nim, options)
 
         li = track_linear_indices(tr, dims);
         if isempty(li), keep(t) = false; continue; end
-        li_seq = track_indices_ordered(tr, dims);   % in path order, for run detection
-        if isempty(li_seq), keep(t) = false; continue; end
 
         if ~isempty(exc_mask) && any(exc_mask(li))
             keep(t) = false;
@@ -125,39 +127,16 @@ function [tracks, stats] = nim_filter_tracks_roi(tracks, nim, options)
         end
 
         if ~isempty(con_mask)
-            % TRUNCATE to the longest run inside, rather than discarding.
-            %
-            % The scorer's own rule is all-or-nothing: every point must lie in the
-            % corridor. That is the right definition for SCORING and the wrong one
-            % for keeping data - a streamline that follows its bundle for forty
-            % voxels and strays for two loses all forty. Measured on
-            % Cingulum_right, containment alone rejects 80% of what the tracker
-            % produces, and it rejects harder the further a tracker explores: 88%
-            % for the shape-modulated MMF hybrid against 80% for DTI, which is
-            % most of why the hybrid's in-definition count falls while its
-            % coverage of the bundle rises.
-            %
-            % So the excursion is cut and the longest contiguous inside-run kept.
-            % stats.n_strict_contained still records how many would have passed
-            % untouched, so the scorer-comparable number is never lost.
-            inside = false(size(li_seq));
-            ok_seq = li_seq > 0;
-            inside(ok_seq) = con_mask(li_seq(ok_seq));
-            if all(inside)
+            % All-or-nothing, as the scorer defines it: every visited voxel
+            % inside the corridor, or the track is not that bundle. A point
+            % outside the volume counts as outside the corridor.
+            n_in_vol = sum(all(round(tr) >= 1, 2) & all(round(tr) <= dims, 2));
+            if n_in_vol == size(tr, 1) && all(con_mask(li))
                 stats.n_strict_contained = stats.n_strict_contained + 1;
             else
-                d = diff([false; inside(:); false]);
-                st = find(d == 1); en = find(d == -1) - 1;
-                [runlen, b] = max(en - st + 1);
-                if isempty(runlen) || runlen < 2
-                    keep(t) = false;
-                    stats.n_dropped_contained = stats.n_dropped_contained + 1;
-                    continue;
-                end
-                tracks{t} = tr(st(b):en(b), :);
-                tr = tracks{t};
-                li = track_linear_indices(tr, dims);
-                stats.n_truncated_contained = stats.n_truncated_contained + 1;
+                keep(t) = false;
+                stats.n_dropped_contained = stats.n_dropped_contained + 1;
+                continue;
             end
         end
 
@@ -212,10 +191,6 @@ function [tracks, stats] = nim_filter_tracks_roi(tracks, nim, options)
         stats.n_out, stats.n_in, stats.n_dropped_include, stats.n_dropped_exclude, ...
         stats.n_dropped_contained, stats.n_dropped_endpoints, ...
         stats.n_dropped_any, stats.n_dropped_length);
-    if ~isempty(con_mask)
-        fprintf('  containment: %d passed whole, %d truncated at an excursion\n', ...
-            stats.n_strict_contained, stats.n_truncated_contained);
-    end
     if stats.n_out == 0
         warning('nim_filter_tracks_roi:empty', ...
             ['ROI filtering removed every track. Check the include/exclude regions, ' ...
@@ -235,20 +210,6 @@ function li = track_linear_indices(tr, dims)
     v = v(inb, :);
     if isempty(v), li = []; return; end
     li = unique(sub2ind(dims, v(:,1), v(:,2), v(:,3)));
-end
-
-function li = track_indices_ordered(tr, dims)
-% Voxel indices in PATH ORDER, with out-of-volume points marked 0. Unlike
-% track_linear_indices this keeps duplicates and sequence, which is what a
-% contiguous-run test needs.
-    v = round(tr);
-    inb = v(:,1) >= 1 & v(:,1) <= dims(1) & ...
-          v(:,2) >= 1 & v(:,2) <= dims(2) & ...
-          v(:,3) >= 1 & v(:,3) <= dims(3);
-    li = zeros(size(v,1), 1);
-    if ~any(inb), li = []; return; end
-    li(inb) = sub2ind(dims, v(inb,1), v(inb,2), v(inb,3));
-    li(~inb) = 0;
 end
 
 function li = voxel_index(p, dims)

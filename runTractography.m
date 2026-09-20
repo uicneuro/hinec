@@ -102,7 +102,7 @@ fprintf('=== HINEC Tractography Pipeline ===\n');
 %   3  geometry     nim_mmf_geometry  ONLY when algorithm == mmf (4.9 s dti / 8.1 s csd)
 %   4  seeds        where streamlines start: roi | brain mask | parcellation | FA
 %   5  track        hinec (RK4 on the interpolated field) | mmf (Eq 10-11) | standard (FACT)
-%   6  filter       nim_filter_tracks_roi, nim_resample_track_arc
+%   6  select       nim_filter_tracks_roi (selection only), nim_resample_track_arc
 %   7  save         tracks + options + track_meta, and the IronTract submission
 
 %% Step 1 - load nim (the dataset)
@@ -403,26 +403,22 @@ if isempty(tracks)
     error('No tracks generated! Check FA threshold and seed mask.');
 end
 
-%% Step 6 - filter and decimate
-% ROI filtering (include / exclude waypoints), applied before saving.
-% No-op unless filter.include_roi or filter.exclude_roi is set.
-[tracks, roi_filter_stats] = nim_filter_tracks_roi(tracks, nim, options);
-% Keep per-track metadata aligned with the surviving tracks, otherwise
-% track_meta.seed_index would point at the pre-filter ordering.
-if roi_filter_stats.applied && isfield(track_meta, 'seed_index')
-    track_meta.seed_index  = track_meta.seed_index(roi_filter_stats.keep);
-    track_meta.seed_points = track_meta.seed_points(roi_filter_stats.keep, :);
-    % track_meta.trace is deliberately NOT subset here. A trace is indexed by
-    % SEED and records what the tracker did, including for streamlines the ROI
-    % filter later discards - which are exactly the ones worth diagnosing.
-end
-if roi_filter_stats.applied && isempty(tracks)
+%% Step 6 - ROI selection and decimate
+% ROI selection (include / exclude waypoints, endpoint pair, containment,
+% length). No-op unless a filter.* key is set.
+%
+% Selection does NOT change what is saved as the tractogram. tracks.mat always
+% holds everything the tracker produced, so the scorer sees the unselected run
+% and the yield (how many failed each criterion) stays in the data. The
+% selection is written beside it as roi_selection.mat (step 7).
+[~, roi_filter_stats] = nim_filter_tracks_roi(tracks, nim, options);
+if roi_filter_stats.applied && ~any(roi_filter_stats.keep)
     error('runTractography:emptyAfterRoiFilter', ...
-        ['ROI filtering removed all %d tracks. Loosen filter.include_roi, raise ' ...
+        ['ROI selection matched none of the %d tracks. Loosen filter.include_roi, raise ' ...
          'filter.roi_filter_dilate, or check the region names.'], roi_filter_stats.n_in);
 end
 
-% Output decimation. Applied AFTER ROI filtering, because filtering tests which
+% Output decimation. Applied AFTER ROI selection, because selection tests which
 % voxels a track visits and needs the full-resolution polyline to do that; a
 % decimated track could skip a voxel it actually passed through.
 if isfield(options, 'output_arc_step') && ~isempty(options.output_arc_step) ...
@@ -456,6 +452,27 @@ save(fullfile(output_dir, output_filename), 'tracks', 'options', 'elapsed_time',
 fprintf('\nResults saved to %s/%s\n', output_dir, output_filename);
 fprintf('Algorithm used: %s\n', algorithm);
 
+% ROI selection, beside the full tractogram. The file name deliberately does
+% not match tracks*.mat, which is what run_ismrm_scoring.sh converts - the
+% selection is never what gets scored.
+if roi_filter_stats.applied
+    roi_selection = struct();
+    roi_selection.keep   = roi_filter_stats.keep(:);
+    roi_selection.tracks = tracks(roi_filter_stats.keep);
+    roi_selection.stats  = rmfield(roi_filter_stats, 'keep');
+    roi_selection.track_meta = track_meta;
+    if isfield(track_meta, 'seed_index')
+        roi_selection.track_meta.seed_index  = track_meta.seed_index(roi_filter_stats.keep);
+        roi_selection.track_meta.seed_points = track_meta.seed_points(roi_filter_stats.keep, :);
+    end
+    % track_meta.trace is indexed by SEED and is left whole: it records what the
+    % tracker did for the tracks selection rejected, which are the ones worth
+    % diagnosing.
+    save(fullfile(output_dir, 'roi_selection.mat'), 'roi_selection', '-v7.3');
+    fprintf('ROI selection saved to %s/roi_selection.mat (%d of %d tracks)\n', ...
+        output_dir, roi_filter_stats.n_out, roi_filter_stats.n_in);
+end
+
 % Save diagnostic information if using run directory
 if use_run_dir
     diagnostics_file = fullfile(run_info.diagnostics_dir, 'track_statistics.txt');
@@ -467,6 +484,10 @@ if use_run_dir
     fprintf(fid, 'Algorithm: %s\n\n', algorithm);
     fprintf(fid, 'Track Statistics:\n');
     fprintf(fid, '  Total tracks: %d\n', length(tracks));
+    if roi_filter_stats.applied
+        fprintf(fid, '  ROI selection: %d kept of %d (see roi_selection.mat)\n', ...
+            roi_filter_stats.n_out, roi_filter_stats.n_in);
+    end
     fprintf(fid, '  Mean length: %.1f points\n', mean(track_lengths));
     fprintf(fid, '  Max length: %d points\n', max(track_lengths));
     fprintf(fid, '  Min length: %d points\n', min(track_lengths));

@@ -306,7 +306,7 @@ from canonical config path to the flat option names the tracker reads lives in
 | `tractography.termination.angle_max` | `angle_thresh` | turn budget per voxel transition |
 | `tractography.termination.max_arc` | `max_steps` (derived) | see the caveat below |
 | `tractography.termination.min_arc` | `min_length` | discard shorter tracks, in voxels |
-| `tractography.filter.*` | — | applied by `runTractography` after tracking |
+| `tractography.filter.*` | — | ROI selection by `runTractography` after tracking; full tractogram still saved, selection in `roi_selection.mat` |
 | `tractography.output.arc_step` | `output_arc_step` | resample saved polylines |
 | `tractography.diagnostics` | `enable_diagnostics` | timing and failure reports |
 
