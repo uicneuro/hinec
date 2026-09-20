@@ -182,16 +182,11 @@ Output → `hinec_runs/<run>_sift/`. With `--score`, runs the
 
 ## PFT — external baseline (DIPY)
 
-`scripts/run_pft_dipy.py` — **Particle Filtering Tractography** (Girard 2014) via DIPY, the
-winning ISMRM-2015 approach per Renauld 2023: CSD FOD + probabilistic tracking + CMC
-anatomical priors + particle-filter backtracking. It exists as a **comparison baseline** for
-the recall/overlap deficit of deterministic tracking, and emits a `.trk` (RAS world) for the
-same scilpy scorer. Tissue masks are the DWI-space masks from HINEC preprocessing (no
-T1→DWI registration to misalign).
-
-```bash
-python scripts/run_pft_dipy.py --out tracks.trk [--density 1] [--seed wm|interface] [--rng K]
-```
+**Particle Filtering Tractography** (Girard 2014) via DIPY was used as an external
+comparison baseline for the recall and overlap of deterministic tracking. It uses
+CSD FOD, probabilistic tracking, CMC anatomical priors, and particle-filter
+backtracking. The experimental comparison script is kept with local research
+tools and is not part of the supported HINEC commands.
 
 ---
 
@@ -266,7 +261,7 @@ See also [Run Directory System](RUN_DIRECTORY_SYSTEM.md) and
 | Crossings resolved by FOD | `hinec` + `field: csd` (`config/hinec_csd.yml`) |
 | Intrinsic curvature/torsion geometry | `mmf` (`config/mmf_dti.yml` / `mmf_csd.yml`) |
 | Cut overreach after tracking | any of the above, then [`run_sift.sh`](#sift-tractogram-filtering) |
-| Probabilistic recall reference | PFT baseline (`scripts/run_pft_dipy.py`) |
+| Probabilistic recall reference | External PFT comparison (research result only) |
 
 [YAML Config](YAML_CONFIG.md) documents every parameter; it is generated from
 `src/nim_utils/nim_config_schema.m`, the single source of truth for the config surface.

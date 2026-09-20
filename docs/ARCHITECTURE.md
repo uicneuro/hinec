@@ -200,15 +200,14 @@ hinec/
 │   ├── viewSlices.sh               #   Fast Python viewer launcher
 │   └── download.sh                 #   Sample data download
 │
-├── scripts/                        # Auxiliary scripts
+├── scripts/                        # Supported user and pipeline scripts
 │   ├── FastTractographyViewer.py   #   Python fast slice viewer GUI
 │   ├── tractography_slice_gui.py   #   Slice viewer GUI (Python)
 │   ├── hinec_to_trk.py             #   HINEC-to-TRK format converter
 │   ├── validate_ismrm_tractography.py  # ISMRM validation
 │   ├── build_ismrm_scoring_config.py   # Scorer configuration
 │   ├── compare_ismrm_results.py    #   Cross-run score comparison
-│   ├── run_pft_dipy.py             #   DIPY PFT reference tracking
-│   ├── diagnose_irontract.m        #   IronTract diagnostics
+│   ├── ismrm_report_scores.py      #   Score summary for whole-brain or ROI runs
 │   └── generate_presentation_figures.m # Presentation figures
 │
 ├── tests/                          # Test suites

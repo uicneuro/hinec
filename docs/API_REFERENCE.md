@@ -1025,7 +1025,8 @@ NeuroImage.
 | `validate_ismrm_tractography.py` | Validate against the ISMRM 2015 ground truth |
 | `compare_ismrm_results.py` | Compare scoring results across runs |
 | `build_ismrm_scoring_config.py` | Build the scilpy scorer configuration |
-| `run_pft_dipy.py` | DIPY particle-filtering tractography, for comparison |
+| `ismrm_report_scores.py` | Print the relevant whole-brain or seeded-bundle score |
+| `generate_presentation_figures.m` | Generate presentation figures from the included MATLAB presentation code |
 
 `requirements.txt` covers the Python dependencies.
 

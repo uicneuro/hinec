@@ -143,3 +143,6 @@ data/irontract/*
 
 # Planning / spec documents — working artifacts, never shipped
 plans/
+
+# Research utilities kept only in this working copy
+/local_tools/
