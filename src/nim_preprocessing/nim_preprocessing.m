@@ -9,6 +9,7 @@ function nim_preprocessing(file_prefix, varargin)
 %     .run_motion_correction - Boolean flag for motion correction (default: true)
 %     .run_eddy - Boolean flag for eddy current correction (default: true)
 %     .improve_mask - Boolean flag for mask improvement (default: true)
+%     .mask_file - Optional .nii/.nii.gz mask on the raw DWI grid
 %     .atlas_type - Atlas type (default: 'HarvardOxford')
 %     .phase_encoding_direction - Phase encoding axis for eddy (e.g. 'j-', default: "")
 %     .total_readout_time - Readout time in seconds for each acquisition (default: [])
@@ -69,6 +70,7 @@ default_options = struct(...
     'eddy_method', 'auto', ...
     'run_eddy', true, ...
     'improve_mask', true, ...
+    'mask_file', '', ...
     'atlas_type', 'HarvardOxford', ...
     'phase_encoding_direction', "", ...
     'total_readout_time', [], ...
@@ -126,6 +128,9 @@ if options.run_fieldmap_correction
 end
 fprintf('  Eddy correction: %s (%s)\n', char(string(options.run_eddy)), options.eddy_method);
 fprintf('  Mask improvement: %s\n', char(string(options.improve_mask)));
+if ~isempty(options.mask_file)
+    fprintf('  Supplied mask: %s\n', options.mask_file);
+end
 fprintf('  Atlas type: %s\n', options.atlas_type);
 if isfield(options, 'use_t1_registration') && options.use_t1_registration
     fprintf('  T1 integration: enabled (%s)\n', options.t1_file);
@@ -197,7 +202,14 @@ try
     fprintf('\n=== Step 2: Brain Extraction ===\n');
     step_start = tic;
 
-    if isfield(options, 'use_t1_registration') && options.use_t1_registration && isfield(options, 't1_available') && options.t1_available
+    if isfield(options, 'mask_file') && ~isempty(options.mask_file)
+        supplied_mask = char(options.mask_file);
+        brain_mask_file = [file_prefix '_M_initial.nii.gz'];
+        preproc_prepare_supplied_mask(supplied_mask, dwi_raw_file, brain_mask_file);
+        fprintf('Using dataset-supplied mask: %s\n', supplied_mask);
+        preprocessing_report.supplied_brain_mask = supplied_mask;
+        preprocessing_report.t1_brain_extraction = false;
+    elseif isfield(options, 'use_t1_registration') && options.use_t1_registration && isfield(options, 't1_available') && options.t1_available
         fprintf('Using T1-based brain extraction for improved accuracy...\n');
 
         % Perform T1 brain extraction first
@@ -438,8 +450,12 @@ try
     % Copy current processed DWI to final location
     copyfile(current_dwi_file, output_file);
 
-    % Copy final b-vectors
-    copyfile(current_bvec_file, final_bvec_file);
+    % Copy final b-vectors only when a correction step produced a different
+    % file. With motion and eddy disabled, current_bvec_file already is the
+    % canonical destination and MATLAB rejects copying a file onto itself.
+    if ~strcmp(current_bvec_file, final_bvec_file)
+        copyfile(current_bvec_file, final_bvec_file);
+    end
     
     preprocessing_report.steps_completed{end+1} = 'copy_final_data';
     

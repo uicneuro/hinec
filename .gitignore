@@ -146,3 +146,27 @@ plans/
 
 # Research utilities kept only in this working copy
 /local_tools/
+
+# New dataset downloads are local by default. Keep the shipped examples and
+# the existing public ISMRM README; its data remain excluded by the rules above.
+/data/*
+!/data/original_sample/
+!/data/parcellation_sample/
+!/data/ismrm2015/
+
+# Local agent settings, Python environments and tool caches
+/.codex/
+/.agents/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+
+# MATLAB crash reports and local session state
+matlab_crash_dump*
+hs_err_pid*.log
+matlab.prf

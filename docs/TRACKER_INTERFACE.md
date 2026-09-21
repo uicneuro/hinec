@@ -263,3 +263,18 @@ quickest way to know a new tracker is at least well-formed.
 - [ ] `error`s with the config key when a field it needs is missing
 - [ ] registered in the schema enum and the step-5 dispatch; has a config
 - [ ] `runtests('tests/unit/TestTrackerInterface.m')` passes
+
+### Short tractlet stitching
+
+`algorithm: stitching` dispatches to `nim_tractography_stitching(nim, options)`.
+`options.stitching` contains the schema-defined fragment and graph settings.
+`stitching.geometry: mmf` requests `nim_mmf_geometry` in pipeline step 3, using
+`field: dti` or `field: csd`. This is independent of the `mmf` tracker selection.
+See [STITCHING.md](STITCHING.md) for supported kernels/integration and units.
+
+For assembled chains, `meta.seed_index` and `meta.seed_points` identify the first
+source fragment. `meta.fragment_seed_indices` preserves all contributing seeds,
+and `meta.graph.fragment_ids` preserves the assembly provenance. With tracing,
+`meta.fragments` stores the original fragments; graph endpoint IDs `2*i-1` and
+`2*i` refer to the first and last point of fragment `i`. These chains remain
+ordinary finite N-by-3 voxel-coordinate polylines at the output boundary.

@@ -125,4 +125,5 @@ function options = nim_config_to_options(config)
 
     % --- mmf ----------------------------------------------------------------
     options.mmf_anchor      = t.mmf.anchor;
+    options.stitching       = t.stitching;
 end

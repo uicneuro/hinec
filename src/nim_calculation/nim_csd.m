@@ -163,6 +163,28 @@ S = l1+l2+l3; Sg=S; Sg(Sg<=0)=1; cl = (l1-l2)./Sg;
 sf = brain & (nim.FA > sf_fa) & (cl > 0.4);
 idx = find(sf);
 if numel(idx) < 20, sf = brain & (nim.FA > sf_fa-0.15); idx = find(sf); end
+if numel(idx) < 20
+    % Physical phantoms and low-anisotropy in-vivo acquisitions can have no
+    % voxel near the conventional FA=0.7 response threshold. Returning an
+    % all-zero response in that case silently destroys the entire FOD field.
+    % Fall back to the most line-like 5% of valid brain tensors. FA*cl ranks
+    % jointly by anisotropy and prolate shape while keeping at least 20 voxels
+    % for a stable average. This only changes the otherwise-degenerate case.
+    valid = brain & isfinite(nim.FA) & isfinite(cl) & (S > 0);
+    cand = find(valid);
+    score = nim.FA(cand) .* max(cl(cand), 0);
+    [~, order] = sort(score, 'descend');
+    nsel = min(numel(cand), max(20, ceil(0.05 * nnz(brain))));
+    idx = cand(order(1:nsel));
+    warning('nim_csd:adaptiveResponse', ...
+        ['Fewer than 20 voxels met the fixed single-fiber response thresholds. ' ...
+         'Using the top %d/%d valid brain tensors ranked by FA*linearity.'], ...
+        nsel, nnz(brain));
+end
+if isempty(idx)
+    error('nim_csd:noResponseVoxels', ...
+        'No valid tensor voxels are available to estimate the CSD response.');
+end
 dims = size(nim.FA);
 e1 = nim.evec(:,:,:,:,1);
 

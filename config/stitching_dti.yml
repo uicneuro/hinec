@@ -1,0 +1,31 @@
+# Experimental short-tractlet graph assembly. See docs/STITCHING.md.
+tractography:
+  algorithm: stitching
+  field: dti
+  act: false
+  integrator:
+    method: rk2
+    step: 0.25
+  interpolation:
+    method: trilinear
+    upsample: 1
+  stitching:
+    geometry: direction
+    fragment_arc: 3
+    min_fragment_arc: 1
+    join_radius: 1
+    join_angle: 30
+    bridge_angle: 45
+    neighbors: 16
+    max_fragments: 200000
+  seeding:
+    density: 8
+    fa_min: 0.10
+    roi: []
+  termination:
+    fa_min: 0.08
+    angle_max: 225
+    min_arc: 15
+    max_arc: 400
+  output:
+    arc_step: 0

@@ -164,7 +164,7 @@ nim = nim_field(nim, options, data_path);
 %% Step 3 - geometry: MMF moving frames + connection 1-form (Eq 6-9), mmf ONLY
 % Built every mmf run, unconditionally: it costs seconds, it depends on
 % config.tractography, and hinec/standard never look at it.
-if strcmpi(algorithm, 'mmf')
+if strcmpi(algorithm, 'mmf') || (strcmpi(algorithm, 'stitching') && strcmpi(options.stitching.geometry,'mmf'))
     fprintf('\n=== MMF connection geometry ===\n');
     t_geom = tic;
     nim = nim_mmf_geometry(nim, options);
@@ -374,6 +374,12 @@ elseif strcmpi(algorithm, 'hinec')
     [tracks, track_meta] = nim_tractography_hinec(nim, options);
     elapsed_time = toc;
     output_filename = sprintf('tracks_hinec_%s.mat', timestamp);
+elseif strcmpi(algorithm, 'stitching')
+    fprintf('Running short-tractlet stitching...\n');
+    tic;
+    [tracks, track_meta] = nim_tractography_stitching(nim, options);
+    elapsed_time = toc;
+    output_filename = sprintf('tracks_stitching_%s.mat', timestamp);
 elseif strcmpi(algorithm, 'template')
     % The worked example of the tracker interface. A new algorithm is added by
     % copying nim_tractography_template.m and adding one branch here - see

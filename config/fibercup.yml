@@ -1,0 +1,47 @@
+# fibercup — dataset config for the physical FiberCup phantom.
+#
+# The released input is an already averaged, stationary physical-phantom DWI
+# (64 directions + b0, b=1500, 3 mm isotropic) without reverse phase encoding,
+# readout metadata, field map, or T1. The full run_hinec pipeline is still used
+# to build the mask, tensor, FA, dataset nim, and initial HINEC tractography.
+# Motion/eddy correction and denoising are disabled because applying them to the
+# released averaged volume would change the benchmark data without the required
+# acquisition metadata. Field-map correction auto-skips when no map is present.
+#
+# ./bin/run_hinec.sh data/fibercup/hinec_pipeline/fibercup \
+#   fibercup.mat config/fibercup.yml
+
+preprocessing:
+  run_denoising: false
+  run_motion_correction: false
+  run_eddy: false
+  improve_mask: true
+  mask_file: data/fibercup/fibercup_M.nii.gz
+  atlas_type: jhu
+  t1_available: false
+  use_t1_registration: false
+  register_to_mni: false
+
+tractography:
+  algorithm: hinec
+  field: dti
+  act: false
+  integrator:
+    method: rk4
+    step: 0.1666666667
+  interpolation:
+    method: spline
+  seeding:
+    density: 8
+    strategy: uniform
+    fa_min: 0
+  termination:
+    fa_min: 0.1
+    angle_max: 270
+    max_arc: 60
+    min_arc: 6.666666667
+  output:
+    arc_step: 0
+  csd:
+    lmax: 8
+    peak_thresh: 0.1

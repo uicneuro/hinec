@@ -278,3 +278,11 @@ Every key, its type, range and default is generated from the schema
 [docs/YAML_CONFIG.md](../docs/YAML_CONFIG.md) — that file is the reference, and
 this one is the orientation. Configs are validated on load; unknown keys and
 retired keys are reported rather than silently accepted.
+
+### Experimental tractlet stitching
+
+`stitching_dti`, `stitching_csd`, `stitching_mmf_dti`, and `stitching_mmf_csd`
+generate short tractlets and assemble compatible endpoints. The `mmf` variants
+use connection geometry inside fragments and at joins. Begin with an ROI;
+these presets use eight seeds per voxel and an explicit fragment memory budget.
+See [the stitching design](../docs/STITCHING.md).

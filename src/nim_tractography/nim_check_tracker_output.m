@@ -66,7 +66,11 @@ if isempty(mf)
 else
     fprintf('meta:   %s\n', strjoin(mf', ', '));
     if isfield(meta, 'n_seeds')
-        fprintf('  %d of %d seeds produced a track that passed min_arc\n', T, meta.n_seeds);
+        if isfield(meta,'fragment_seed_indices')
+            fprintf('  %d assembled chains from %d seed locations; per-chain source seeds are in meta.fragment_seed_indices\n',T,meta.n_seeds);
+        else
+            fprintf('  %d of %d seeds produced a track that passed min_arc\n', T, meta.n_seeds);
+        end
     end
 end
 fprintf('===========================================\n');

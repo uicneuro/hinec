@@ -47,7 +47,7 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
 | `algorithm` | string | `hinec` | all | Tracking algorithm. template = the minimal worked example of the tracker interface (docs/TRACKER_INTERFACE.md). |
-| `field` | string | `dti` | hinec, mmf | Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks; dwi = frame AND connection curvature fitted DIRECTLY to the raw DW signal (mmf only, see nim_mmf_from_dwi). The dwi route never forms a tensor or an FOD: it fits e1 and the curvature vector kappa jointly to the centred log-signal over a 3x3x3 neighbourhood, so curvature is a parameter of the signal model rather than a derivative of an already-fitted direction field. Measured against the ISMRM-2015 geometry it retains 0.89 of the individual-fibre curvature against 0.65 for the DTI route. |
+| `field` | string | `dti` | hinec, mmf, stitching | Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks; dwi = frame AND connection curvature fitted DIRECTLY to the raw DW signal (mmf only, see nim_mmf_from_dwi). The dwi route never forms a tensor or an FOD: it fits e1 and the curvature vector kappa jointly to the centred log-signal over a 3x3x3 neighbourhood, so curvature is a parameter of the signal model rather than a derivative of an already-fitted direction field. Measured against the ISMRM-2015 geometry it retains 0.89 of the individual-fibre curvature against 0.65 for the DTI route. |
 | `act` | logical | `false` | hinec | Anatomically constrained tracking using WM/GM/CSF masks. |
 | `diagnostics` | logical | `true` | all | Write per-run diagnostic reports. |
 
@@ -55,7 +55,7 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `method` | string | `rk4` | hinec, mmf | Numerical stepping scheme. NOTE: this is a method NAME, not an order claim. rkf45 here is Dormand-Prince: it advances on the 5th-order solution and uses the embedded 4th-order one only to size the next step. |
+| `method` | string | `rk4` | hinec, mmf, stitching | Numerical stepping scheme. NOTE: this is a method NAME, not an order claim. rkf45 here is Dormand-Prince: it advances on the 5th-order solution and uses the embedded 4th-order one only to size the next step. |
 | `step` | numeric | `0.2` | all | Integration step in voxels. Fixed step, or the initial step for rkf45. |
 | `tolerance` | numeric | `0.01` | hinec, mmf | Adaptive error tolerance in voxels. rkf45 ONLY. |
 | `step_min` | numeric | `0.01` | hinec, mmf | Minimum adaptive step. rkf45 ONLY. |
@@ -67,7 +67,7 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `method` | string | `trilinear` | hinec, mmf | Spatial interpolation kernel for the direction field. These differ in SMOOTHNESS, which caps how much of an integrator formal order is reachable: a Runge-Kutta method of order p needs a right-hand side with p continuous derivatives. trilinear is C0 (kinked at every voxel face), cubic is C1 (Keys cubic convolution, NOT a spline - its second derivative jumps), spline is C2 (a genuine cubic spline). Measured here: RK4 reaches observed order 2.00 on trilinear, 3.06 on cubic and 4.00 on spline - one order per continuous derivative, on an unchanged tableau. |
+| `method` | string | `trilinear` | hinec, mmf, stitching | Spatial interpolation kernel for the direction field. These differ in SMOOTHNESS, which caps how much of an integrator formal order is reachable: a Runge-Kutta method of order p needs a right-hand side with p continuous derivatives. trilinear is C0 (kinked at every voxel face), cubic is C1 (Keys cubic convolution, NOT a spline - its second derivative jumps), spline is C2 (a genuine cubic spline). Measured here: RK4 reaches observed order 2.00 on trilinear, 3.06 on cubic and 4.00 on spline - one order per continuous derivative, on an unchanged tableau. |
 | `upsample` | numeric | `1` | hinec, mmf | Spatial sampling factor for the direction field: the field is sampled on a grid of spacing 1/upsample voxels before the interpolants are built. 1 = the acquisition grid. Above 1 refines toward the continuous field the samples imply; BELOW 1 coarsens, discarding spatial information, which is how the space axis of a convergence study is swept. The coordinate frame is unchanged, so positions, step sizes and lengths stay in native voxel units and runs at different factors are directly comparable. Note the u -> infinity limit is the native-resolution interpolant, not ground-truth anatomy. |
 
 #### `tractography.seeding`
@@ -125,17 +125,35 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `lmax` | numeric | `4` | hinec, mmf | Spherical harmonic order for CSD. Default 4, set from the data rather than convention: with the 32 directions of this acquisition lmax=6 needs 28 coefficients from 32 measurements and the response falls to r_4 = -0.035 against r_0 = 2.73, so deconvolution divides by a near-zero and amplifies noise - its primary FOD peak misses the tensor v1 by 26.6 deg in UNAMBIGUOUS single-fibre voxels, against 6.6 deg at lmax=4. lmax=2 spans exactly the tensor and cannot represent a crossing at all. |
-| `max_peaks` | numeric | `3` | hinec, mmf | Maximum FOD peaks retained per voxel. |
-| `peak_thresh` | numeric | `0.2` | hinec, mmf | Minimum FOD peak amplitude as a fraction of the voxel maximum. The old default of 0.5 required a second fibre population to be at least half as strong as the first, which discards ordinary unequal crossings; MRtrix uses 0.1 for the equivalent. Peaks must now also be local maxima of the FOD, so a lower threshold admits genuine fibres rather than points on the shoulder of the first peak. |
-| `peak_min_sep` | numeric | `45` | hinec, mmf | Minimum angular separation between FOD peaks (degrees). |
-| `n_iter` | numeric | `50` | hinec, mmf | CSD deconvolution iterations. |
+| `lmax` | numeric | `4` | hinec, mmf, stitching | Spherical harmonic order for CSD. Default 4, set from the data rather than convention: with the 32 directions of this acquisition lmax=6 needs 28 coefficients from 32 measurements and the response falls to r_4 = -0.035 against r_0 = 2.73, so deconvolution divides by a near-zero and amplifies noise - its primary FOD peak misses the tensor v1 by 26.6 deg in UNAMBIGUOUS single-fibre voxels, against 6.6 deg at lmax=4. lmax=2 spans exactly the tensor and cannot represent a crossing at all. |
+| `max_peaks` | numeric | `3` | hinec, mmf, stitching | Maximum FOD peaks retained per voxel. |
+| `peak_thresh` | numeric | `0.2` | hinec, mmf, stitching | Minimum FOD peak amplitude as a fraction of the voxel maximum. The old default of 0.5 required a second fibre population to be at least half as strong as the first, which discards ordinary unequal crossings; MRtrix uses 0.1 for the equivalent. Peaks must now also be local maxima of the FOD, so a lower threshold admits genuine fibres rather than points on the shoulder of the first peak. |
+| `peak_min_sep` | numeric | `45` | hinec, mmf, stitching | Minimum angular separation between FOD peaks (degrees). |
+| `n_iter` | numeric | `50` | hinec, mmf, stitching | CSD deconvolution iterations. |
 
 #### `tractography.mmf`
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
 | `anchor` | numeric | `0` | mmf | Re-anchor strength of e1 toward the field tangent. 0 = pure connection-form evolution. |
+
+#### `tractography.stitching`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `geometry` | string | `direction` | stitching | Local fragment evolution: direction or MMF connection geometry. |
+| `fragment_arc` | numeric | `3` | stitching | Total bidirectional fragment arc in voxels; 3 is 6 mm at 2 mm resolution. |
+| `min_fragment_arc` | numeric | `1` | stitching | Discard local fragments shorter than this voxel arc before graph assembly. |
+| `join` | logical | `true` | stitching | Enable endpoint stitching. False is the fragment-only ablation. |
+| `join_radius` | numeric | `1` | stitching | Maximum endpoint gap in voxels. |
+| `join_angle` | numeric | `30` | stitching | Maximum endpoint tangent and forward-gap alignment angle, degrees. |
+| `bridge_angle` | numeric | `45` | stitching | Maximum bridge tangent disagreement with the local field, degrees. |
+| `search` | string | `knn` | stitching | Endpoint search: knn caps before compatibility; forward searches the full forward cone and caps compatible candidates across distance/direction sectors. |
+| `neighbors` | numeric | `16` | stitching | Endpoint candidate budget: raw nearest endpoints for knn; compatible sector-balanced endpoints for forward. |
+| `curvature_tolerance` | numeric | `0.25` | stitching | Maximum MMF endpoint curvature difference, inverse voxels. |
+| `torsion_tolerance` | numeric | `0.5` | stitching | Maximum MMF endpoint torsion difference when curvature is nonzero, inverse voxels. |
+| `max_curvature` | numeric | `0.5` | stitching | Cap on local MMF evolution curvature, inverse voxels. |
+| `max_fragments` | numeric | `200000` | stitching | Fail before generation if seed count times possible peaks exceeds this explicit memory budget. |
 
 ### `preprocessing`
 
@@ -146,6 +164,7 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 | `run_motion_correction` | logical | `true` | - | Run motion correction (FSL). |
 | `run_eddy` | logical | `true` | - | Run eddy-current correction (FSL). |
 | `improve_mask` | logical | `true` | - | Refine the brain mask using FA. |
+| `mask_file` | string | `` | - | Optional dataset-supplied brain or tracking mask. Empty runs the normal T1/DWI brain extraction stage. |
 | `atlas_type` | string | `jhu` | - | Atlas used for parcellation. |
 | `bundle_roi_dir` | string | `` | - | Optional directory of bundle masks to use as the parcellation INSTEAD of the atlas, e.g. data/ismrm2015/scoring_data_Renauld2023/ROI. Must contain all_masks/ (containment corridors, which become the labels) and may contain endpoints/ and any_masks/ (gates, addressable by name but not labels). The atlas parcellation is preserved as parcellation_mask_<atlas_type> rather than discarded. Empty = atlas only. Set this when ROIs should be addressed by the names a scorer uses: an atlas label and a bundle of the same name are not the same region. |
 | `t1_available` | logical | `false` | - | A T1 volume is present alongside the DWI. |

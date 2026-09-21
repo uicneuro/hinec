@@ -161,6 +161,10 @@ function s = format_value(v)
         else
             s = sprintf('cell {%d}', numel(v));
         end
+    elseif isstruct(v) && isscalar(v)
+        names=fieldnames(v); values=cell(size(names));
+        for i=1:numel(names),values{i}=[names{i} '=' format_value(v.(names{i}))];end
+        s=['{' strjoin(values', ', ') '}'];
     elseif isstruct(v)
         s = sprintf('struct (%d fields)', numel(fieldnames(v)));
     else
@@ -227,7 +231,7 @@ function [groups, d] = nim_dictionary()
                     'wm_mask','gm_mask','csf_mask','wm_mask_file','gm_mask_file','csf_mask_file'}});
     groups(end+1) = struct('title', 'direction field - nim_field, step 2, per run (field: csd | dwi)', ...
         'fields', {{'peaks','npeaks','peak_w','fod_sh','mmf_e1_dwi','mmf_kappa_dwi','mmf_dwi_resid'}});
-    groups(end+1) = struct('title', 'geometry - nim_mmf_geometry, step 3, per run (algorithm: mmf only)', ...
+    groups(end+1) = struct('title', 'geometry - nim_mmf_geometry, step 3, per run (mmf tracker or stitching.geometry=mmf)', ...
         'fields', {{'mmf_frames','mmf_kappa','mmf_tau','mmf_peakdirs','mmf_kappa_p','mmf_npeaks','mmf_multi'}});
 end
 
@@ -284,6 +288,7 @@ function [groups, d] = options_dictionary()
     d.csd_peak_thresh  = {'tractography.csd.peak_thresh', 'relative amplitude below which a peak is dropped'};
     d.csd_peak_min_sep = {'tractography.csd.peak_min_sep', 'minimum angle between peaks (degrees)'};
     d.csd_n_iter       = {'tractography.csd.n_iter', 'CSD iterations'};
+    d.stitching = {'tractography.stitching', 'Short-fragment geometry and bounded endpoint graph options; see docs/STITCHING.md'};
     d.mmf_anchor = {'tractography.mmf.anchor', 'mmf only: 0 = pure connection-form evolution (Eq 10-11); >0 re-anchors the carried frame to the field'};
     d.trace     = {'tractography.debug.trace', 'record a per-step trace (position, direction, FA, turn, stop reason) into meta.trace'};
     d.trace_max = {'tractography.debug.trace_max', 'how many seeds to trace, sampled evenly (0 = all)'};
@@ -302,6 +307,7 @@ function [groups, d] = options_dictionary()
     groups(end+1) = struct('title', 'field construction (consumed in step 2, not by the tracker)', 'fields', ...
         {{'csd_lmax','csd_max_peaks','csd_peak_thresh','csd_peak_min_sep','csd_n_iter'}});
     groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_anchor'}});
+    groups(end+1) = struct('title', 'stitching', 'fields', {{'stitching'}});
     groups(end+1) = struct('title', 'post-processing (steps 6-7, not read by the tracker)', 'fields', ...
         {{'include_roi','exclude_roi','roi_filter_mode','roi_filter_dilate','endpoints_in','contained_in','any_in', ...
           'length','length_x','length_y','length_z','length_x_abs','length_y_abs','length_z_abs','output_arc_step'}});
