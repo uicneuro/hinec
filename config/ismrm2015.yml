@@ -19,6 +19,12 @@ preprocessing:
   # is 24 voxels on this grid against the ISMRM bundle-density mask's 1503, a Dice
   # of 0.018. The JHU parcellation is preserved as parcellation_mask_jhu.
   bundle_roi_dir: data/ismrm2015/scoring_data_Renauld2023/ROI
+  # Field-map (FUGUE) correction, from the challenge README (challenge_data/README.txt):
+  # phase direction Y, dwell time 1 ms. Before 2026-09-29 the generic 0.58 ms default
+  # was used AND the Hz map reached FUGUE as if rad/s, so ~94% of the simulated
+  # distortion stayed in the DWI. Polarity y verified against GT (y- is worse).
+  dwell_time: 0.001
+  phase_encoding_dir: y
 
 tractography:
   integrator:

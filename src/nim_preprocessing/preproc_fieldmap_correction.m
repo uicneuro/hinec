@@ -114,16 +114,18 @@ end
 %% Process field map
 fprintf('Processing field map...\n');
 
-% Convert units if needed
-if strcmp(opts.units, 'rad/s')
-    fprintf('Converting field map from rad/s to Hz...\n');
-    cmd = sprintf('%s/bin/fslmaths %s -div 6.28318 %s', fsl_path, fieldmap_file, fmap_processed);
+% FUGUE's --loadfmap expects the field in RAD/S. Passing an Hz map makes every
+% shift 2*pi too small; that bug left the ISMRM 2015 DWI with ~94% of its
+% simulated distortion (found 2026-09-29).
+if strcmp(opts.units, 'Hz')
+    fprintf('Converting field map from Hz to rad/s for FUGUE...\n');
+    cmd = sprintf('%s/bin/fslmaths %s -mul 6.28318530718 %s', fsl_path, fieldmap_file, fmap_processed);
     [status, result] = system(cmd);
     if status ~= 0
         error('Failed to convert field map units: %s', result);
     end
 else
-    % Copy field map to processing location
+    % Already rad/s: copy field map to processing location
     copyfile(fieldmap_file, fmap_processed);
 end
 
@@ -145,8 +147,8 @@ if opts.smooth_sigma > 0
     end
 end
 
-% Skip phase unwrapping for Hz field maps (they are already unwrapped frequency maps)
-fprintf('Skipping phase unwrapping (Hz field maps are already unwrapped)...\n');
+% Skip phase unwrapping: the map is a frequency map (now in rad/s), already unwrapped
+fprintf('Skipping phase unwrapping (frequency field maps are already unwrapped)...\n');
 copyfile(fmap_processed, fmap_unwrapped);
 
 %% Apply distortion correction using FUGUE
@@ -168,6 +170,18 @@ switch opts.phase_dir
         fugue_dir = 'z-';
     otherwise
         error('Unsupported phase encoding direction: %s', opts.phase_dir);
+end
+
+% Report the largest shift this correction will apply, so a units or dwell error
+% is visible in the log: shift [voxels] = field [rad/s] / (2*pi) * dwell * N_phase.
+pe_axis = find('xyz' == fugue_dir(1));
+[st_n, n_pe] = system(sprintf('%s/bin/fslval %s dim%d', fsl_path, dwi_file, pe_axis));
+[st_r, rng] = system(sprintf('%s/bin/fslstats %s -R', fsl_path, fmap_unwrapped));
+if st_n == 0 && st_r == 0
+    fr = sscanf(rng, '%f');
+    max_shift = max(abs(fr)) / (2*pi) * opts.dwell_time * str2double(strtrim(n_pe));
+    fprintf('Largest distortion shift to be corrected: %.2f voxels along %s (dwell %.6f s, %d lines)\n', ...
+        max_shift, fugue_dir, opts.dwell_time, round(str2double(strtrim(n_pe))));
 end
 
 % Apply FUGUE correction

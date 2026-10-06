@@ -47,6 +47,17 @@ if nargin >= 3
         % Extract preprocessing options from config
         if isfield(config, 'preprocessing')
             options.preprocessing_options = config.preprocessing;
+            % Honor the configured registration flags rather than infer them
+            % from T1 availability (which previously forced a human MNI path).
+            if isfield(config.preprocessing, 'use_t1_registration')
+                options.enable_registration = config.preprocessing.use_t1_registration;
+            end
+            if isfield(config.preprocessing, 'register_to_mni')
+                options.register_to_mni = config.preprocessing.register_to_mni;
+            end
+            if isfield(config.preprocessing, 'atlas_type')
+                options.atlas_type = config.preprocessing.atlas_type;
+            end
         end
 
         % Check for T1 in preprocessing config
@@ -88,9 +99,23 @@ end
 % Check if using run directory organization
 use_run_dir = ~isempty(fieldnames(run_info));
 
+external_atlas = ''; external_labels = '';
+if isfield(options, 'preprocessing_options')
+    pp = options.preprocessing_options;
+    if isfield(pp, 'atlas_file'), external_atlas = pp.atlas_file; end
+    if isfield(pp, 'atlas_labels_file'), external_labels = pp.atlas_labels_file; end
+end
+if ~isempty(external_labels) && isempty(external_atlas)
+    error('nim:externalAtlasRequired', 'atlas_labels_file requires atlas_file.');
+end
+
 %% Check if COMPLETE output .mat already exists - skip everything if so
 % First check if final .mat output already exists
 if isfile(nimpath)
+    if ~isempty(external_atlas)
+        error('main:externalAtlasCachedOutput', ...
+            'Output already exists. Use a new output MAT path to apply atlas_file instead of reusing cached anatomy.');
+    end
     fprintf('\n========================================\n');
     fprintf('SKIPPING ALL PROCESSING - OUTPUT EXISTS\n');
     fprintf('========================================\n');
@@ -123,6 +148,17 @@ if isfile(preprocessed_dwi)
 
     if isfile(preprocessed_mask)
         fprintf('Found brain mask: %s\n', preprocessed_mask);
+    else
+        % nim_read needs <prefix>_M.nii.gz. Externally preprocessed data (e.g. PreQual)
+        % arrives without one, so make it here with the pipeline's own brain
+        % extraction, exactly as handle_preprocessed_data does.
+        fprintf('No brain mask found - generating %s\n', preprocessed_mask);
+        [mask_dir, ~, ~] = fileparts(imgpath_char);
+        if isempty(mask_dir)
+            mask_dir = pwd;
+        end
+        addpath('src/nim_preprocessing/');   % this branch runs before the addpath block below
+        preproc_brain_extraction(preprocessed_dwi, mask_dir, preprocessed_mask);
     end
 
     % Copy to run directory if using one
@@ -136,6 +172,16 @@ if isfile(preprocessed_dwi)
         dest_dwi = fullfile(run_info.intermediate_dir, [base_name '.nii.gz']);
         copyfile(preprocessed_dwi, dest_dwi);
         fprintf('  Copied: %s -> %s\n', preprocessed_dwi, dest_dwi);
+
+        % The gradient table travels with the DWI copy: registration reads the
+        % b-values next to the file it is given (extract_reference_volumes).
+        for grad_ext = {'.bval', '.bvec'}
+            src_grad = [imgpath_char grad_ext{1}];
+            if isfile(src_grad)
+                copyfile(src_grad, fullfile(run_info.intermediate_dir, [base_name grad_ext{1}]));
+                fprintf('  Copied: %s\n', src_grad);
+            end
+        end
 
         % Copy brain mask if exists
         if isfile(preprocessed_mask)
@@ -270,7 +316,12 @@ if options.enable_registration
         reg_options.registration_method = options.registration_method;
         reg_options.register_to_mni = options.register_to_mni;
         reg_options.force_recompute = options.force_recompute_registration;
-        
+        % The registered parcellation reads its atlas from these options; without
+        % this, preprocessing.atlas_type was silently ignored and JHU-tract used.
+        if isfield(options, 'atlas_type') && ~isempty(options.atlas_type)
+            reg_options.atlas_type = options.atlas_type;
+        end
+
         registration_data = nim_registration(img_file, t1_file, reg_options);
     end
     
@@ -288,8 +339,20 @@ else
 end
 
 %% Parcellation: Load or generate as needed
-if options.enable_registration
+if ~isempty(external_atlas)
+    [nim.parcellation_mask, nim.atlas_labels] = nim_prepare_external_atlas( ...
+        external_atlas, img_file, parcellation_mask_file, external_labels);
+    nim.atlas_type = 'external';
+    atlas_labels = nim.atlas_labels;
+    nim.atlas_labels_file = fullfile(fileparts(parcellation_mask_file), 'external_atlas_labels.mat');
+    save(nim.atlas_labels_file, 'atlas_labels');
+elseif options.enable_registration
     fprintf('\n=== Running Enhanced Parcellation with Registration ===\n');
+    % Also applies when registration_data came from a cache written before
+    % atlas_type was passed through.
+    if isfield(options, 'atlas_type') && ~isempty(options.atlas_type)
+        registration_data.options.atlas_type = options.atlas_type;
+    end
     nim = nim_parcellation_registered(nim, registration_data, parcellation_mask_file);
 else
     fprintf('\n=== Parcellation ===\n');
@@ -334,8 +397,11 @@ end
 % Store parcellation mask file path for reference
 nim.parcellation_mask_file = parcellation_mask_file;
 
-% Load parcellation labels
-nim = nim_load_labels(nim);
+% Explicit external/bundle maps are authoritative. A stale human-atlas XML
+% beside a cached DWI must never overwrite those names.
+if ~isfield(nim, 'atlas_labels') || ~isfield(nim.atlas_labels, 'map')
+    nim = nim_load_labels(nim);
+end
 
 %% Step 5: Brain mask improvement using FA data (final step)
 fprintf("Improving brain mask using FA data...\n");
@@ -604,7 +670,11 @@ function preproc_options = setup_preprocessing_options(options, t1_available, t1
     % Add T1 integration
     preproc_options.t1_available = t1_available;
     preproc_options.t1_file = t1_file;
-    preproc_options.use_t1_registration = t1_available;
+    if isfield(preproc_options, 'use_t1_registration')
+        preproc_options.use_t1_registration = preproc_options.use_t1_registration && t1_available;
+    else
+        preproc_options.use_t1_registration = t1_available;
+    end
 end
 
 function print_pipeline_summary(options, registration_data, imgpath, nimpath, run_info)

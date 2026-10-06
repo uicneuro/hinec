@@ -23,7 +23,12 @@ end
 % Extract just the filename part from file_prefix to avoid duplicate directory paths
 [~, filename_only] = fileparts(file_prefix);
 t1_to_dwi_mat = fullfile(output_dir, [filename_only '_T1_to_dwi.mat']);
-t1_to_dwi_output = fullfile(output_dir, [filename_only '_T1_to_dwi']);
+% epi_reg registers the EPI TO the structural: <out>.mat maps DWI -> T1. It was
+% previously written under the _T1_to_dwi name and applied as T1 -> DWI, which
+% puts T1-space images (brain mask, atlases) in the wrong place. Keep epi_reg's
+% own output under an honest name and derive T1 -> DWI by inversion.
+dwi_to_t1_output = fullfile(output_dir, [filename_only '_dwi_to_T1']);
+dwi_to_t1_mat = [dwi_to_t1_output '.mat'];
 
 % Use FSL epi_reg for boundary-based registration
 % epi_reg handles EPI distortions and provides robust T1-EPI registration
@@ -32,7 +37,7 @@ t1_to_dwi_output = fullfile(output_dir, [filename_only '_T1_to_dwi']);
 % --t1brain: Brain-extracted T1
 % --out: Output prefix
 cmd = sprintf('%s/bin/epi_reg --epi=%s --t1=%s --t1brain=%s --out=%s', ...
-    fsl_path, dwi_ref_file, t1_file, t1_brain_file, t1_to_dwi_output);
+    fsl_path, dwi_ref_file, t1_file, t1_brain_file, dwi_to_t1_output);
 
 fprintf('Running: %s\n', cmd);
 [status, cmdout] = system(cmd);
@@ -41,9 +46,13 @@ if status ~= 0
     error('T1-DWI registration failed: %s', cmdout);
 end
 
-% Verify transformation matrix was created
-if ~isfile(t1_to_dwi_mat)
-    error('T1-DWI registration failed: transformation matrix not found at %s', t1_to_dwi_mat);
+% Verify epi_reg's matrix, then invert it to T1 -> DWI
+if ~isfile(dwi_to_t1_mat)
+    error('T1-DWI registration failed: transformation matrix not found at %s', dwi_to_t1_mat);
+end
+[status, cmdout] = system(sprintf('%s/bin/convert_xfm -omat %s -inverse %s', fsl_path, t1_to_dwi_mat, dwi_to_t1_mat));
+if status ~= 0 || ~isfile(t1_to_dwi_mat)
+    error('Could not invert the DWI->T1 matrix: %s', cmdout);
 end
 
 % Check registration quality by examining the transformation matrix

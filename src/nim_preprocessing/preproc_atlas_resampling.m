@@ -14,6 +14,20 @@ function [parcellation_mask_output, atlas_labels_file] = preproc_atlas_resamplin
 
 fprintf('Step 8: Atlas registration to DWI space...\n');
 
+% A user-supplied atlas is already on the DWI grid. Do not enter any FSL
+% atlas-selection or human-template registration branch, even with a T1.
+if isfield(options, 'atlas_file') && ~isempty(options.atlas_file)
+    parcellation_mask_output = fullfile(output_dir, 'parcellation_mask.nii.gz');
+    atlas_labels_file = [file_prefix '_atlas_labels.mat'];
+    label_source = '';
+    if isfield(options, 'atlas_labels_file'), label_source = options.atlas_labels_file; end
+    [~, atlas_labels] = nim_prepare_external_atlas(options.atlas_file, reference_file, ...
+        parcellation_mask_output, label_source);
+    save(atlas_labels_file, 'atlas_labels');
+    fprintf('Using external DWI-aligned atlas: %s\n', options.atlas_file);
+    return;
+end
+
 % Ensure FSL is available
 fsl_path = getenv('FSLDIR');
 if isempty(fsl_path)

@@ -69,6 +69,7 @@ nav:
     - Stitching (experimental): STITCHING.md
   - Configuration:
     - YAML Config: YAML_CONFIG.md
+    - External Atlases: EXTERNAL_ATLASES.md
     - Changelog: CHANGELOG_YAML.md
   - Visualization:
     - Visualization Guide: VISUALIZATION_GUIDE.md

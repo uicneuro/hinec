@@ -59,19 +59,27 @@ cmd_bet = sprintf('%s/bin/bet %s %s -f 0.5 -B -m', fsl_path, t1_file, ...
     strrep(t1_brain, '.nii.gz', ''));
 [status, cmdout] = system(cmd_bet);
 
-if status ~= 0
-    warning('T1 brain extraction failed: %s', cmdout);
-    t1_brain = t1_file; % Use original if brain extraction fails
+if status ~= 0 || ~isfile(t1_brain)
+    % No silent fallback: registering the whole-head T1 to the brain template is
+    % the same template/input mismatch that corrupted the registration.
+    error('register_t1_to_mni:bet', 'T1 brain extraction failed: %s', cmdout);
 end
 
 % Step 2: Linear registration (FLIRT)
 fprintf('    Running linear registration (FLIRT)...\n');
 t1_to_mni_linear = [registration_data.output_prefix '_t1_to_mni_linear.nii.gz'];
 
+% Brain-extracted T1 must be registered to the BRAIN template: against the
+% whole-head template FLIRT scales the brain up to fill the skull (MASiVar pilot:
+% x1.6 scaling and ~90 deg axis swap). Same recipe as preproc_t1_mni_registration.
+mni_brain_template = regexprep(mni_template, '(\.nii)?(\.gz)?$', '_brain.nii.gz');
+if ~isfile(mni_brain_template)
+    error('register_t1_to_mni:brainTemplate', 'Brain template not found: %s', mni_brain_template);
+end
 cmd_flirt = sprintf(['%s/bin/flirt -in %s -ref %s -out %s -omat %s ' ...
                     '-cost corratio -dof 12 -searchrx -90 90 ' ...
                     '-searchry -90 90 -searchrz -90 90 -interp trilinear'], ...
-                    fsl_path, t1_brain, mni_template, t1_to_mni_linear, t1_to_mni_transform);
+                    fsl_path, t1_brain, mni_brain_template, t1_to_mni_linear, t1_to_mni_transform);
 
 [status, cmdout] = system(cmd_flirt);
 if status ~= 0
@@ -89,20 +97,29 @@ if strcmp(options.t1_mni_reg_type, 'nonlinear')
         fnirt_config = '';
     end
     
+    % FNIRT follows FSL's standard recipe (as preproc_t1_mni_registration): the
+    % WHOLE-HEAD T1 as input, and the config's own reference and reference mask
+    % (MNI152_T1_2mm + its dilated brain mask). Overriding --ref with the 1 mm
+    % template paired it with the config's 2 mm mask. The warp is defined on the
+    % 2 mm grid; applywarp resamples it onto any output grid.
+    fnirt_ref = fullfile(fsl_path, 'data', 'standard', 'MNI152_T1_2mm.nii.gz');
+    fnirt_ref_mask = fullfile(fsl_path, 'data', 'standard', 'MNI152_T1_2mm_brain_mask_dil.nii.gz');
+    jacobian_file = regexprep(t1_to_mni_warp, '(\.nii)?(\.gz)?$', '_jacobian.nii.gz');
+
     % Run FNIRT
     if isempty(fnirt_config)
         cmd_fnirt = sprintf(['%s/bin/fnirt --in=%s --ref=%s --aff=%s ' ...
-                            '--iout=%s --fout=%s --jout=%s --refmask=%s/data/standard/MNI152_T1_2mm_brain_mask_dil ' ...
+                            '--iout=%s --fout=%s --jout=%s --refmask=%s ' ...
                             '--warpres=10,10,10 --subsamp=8,4,2,1 --miter=5,5,5,5 --lambda=240,120,90,30 ' ...
                             '--ssqlambda=1 --regmod=bending_energy --estint=1,1,1 --applyrefmask=0,0,1 ' ...
                             '--applyinmask=0,0,1 --verbose'], ...
-                            fsl_path, t1_file, mni_template, t1_to_mni_transform, ...
-                            registered_t1_mni, t1_to_mni_warp, mni_to_t1_warp, fsl_path);
+                            fsl_path, t1_file, fnirt_ref, t1_to_mni_transform, ...
+                            registered_t1_mni, t1_to_mni_warp, jacobian_file, fnirt_ref_mask);
     else
-        cmd_fnirt = sprintf(['%s/bin/fnirt --in=%s --ref=%s --aff=%s ' ...
+        cmd_fnirt = sprintf(['%s/bin/fnirt --in=%s --aff=%s ' ...
                             '--config=%s --iout=%s --fout=%s --jout=%s'], ...
-                            fsl_path, t1_file, mni_template, t1_to_mni_transform, ...
-                            fnirt_config, registered_t1_mni, t1_to_mni_warp, mni_to_t1_warp);
+                            fsl_path, t1_file, t1_to_mni_transform, ...
+                            fnirt_config, registered_t1_mni, t1_to_mni_warp, jacobian_file);
     end
     
     [status, cmdout] = system(cmd_fnirt);

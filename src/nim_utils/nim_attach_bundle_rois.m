@@ -44,7 +44,9 @@ function nim = nim_attach_bundle_rois(nim, roi_root, ref_nii)
     if isfield(nim, 'parcellation_mask') && ~isempty(nim.parcellation_mask)
         prev = 'atlas';
         if isfield(nim, 'atlas_type') && ~isempty(nim.atlas_type)
-            prev = lower(char(nim.atlas_type));
+            % atlas_type can contain characters invalid in a field name
+            % ('JHU-tract' -> 'jhu_tract'); 'jhu' and 'external' are unchanged.
+            prev = matlab.lang.makeValidName(lower(char(nim.atlas_type)));
         end
         nim.(sprintf('parcellation_mask_%s', prev)) = nim.parcellation_mask;
         if isfield(nim, 'atlas_labels')

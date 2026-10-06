@@ -90,6 +90,20 @@ end
 
 end
 
+function ref = step_target_space(transform, registration_data)
+% The image whose grid a single transform step maps onto.
+switch transform
+    case {'dti_to_t1', 'mni_to_t1'}
+        ref = registration_data.input.t1_file;
+    case 't1_to_mni'
+        ref = registration_data.input.mni_template;
+    case 't1_to_dti'
+        ref = registration_data.input.dwi_file;
+    otherwise
+        error('Cannot determine target space for transform: %s', transform);
+end
+end
+
 function validate_transform_inputs(input_file, registration_data, transform_chain)
 % Validate transformation inputs
 
@@ -181,24 +195,35 @@ for i = 1:length(transform_chain)
     if i == length(transform_chain)
         next_file = options.output_file;
     else
-        [pth, nam, ext] = fileparts(current_file);
-        next_file = fullfile(pth, sprintf('%s_temp_%d%s', nam, i, ext));
+        % Intermediate files go next to the OUTPUT, never next to the input (the
+        % input can be a read-only atlas inside $FSLDIR).
+        out_dir = fileparts(options.output_file);
+        [~, nam] = fileparts(regexprep(current_file, '(\.nii)?(\.gz)?$', ''));
+        next_file = fullfile(out_dir, sprintf('%s_temp_%d.nii.gz', nam, i));
         temp_files{end+1} = next_file;
     end
     
+    % Each step resamples onto ITS OWN target space; only the last step uses the
+    % requested output space. (Using the final space for every step put e.g. the
+    % MNI->T1 step of {'mni_to_t1','t1_to_dti'} on the DWI grid instead of the T1 grid.)
+    step_options = options;
+    if i < length(transform_chain)
+        step_options.reference_space = step_target_space(transform, registration_data);
+    end
+
     % Apply specific transform
     switch transform
         case 'dti_to_t1'
-            apply_dti_to_t1_fsl(current_file, next_file, registration_data, options, fsl_path);
-            
+            apply_dti_to_t1_fsl(current_file, next_file, registration_data, step_options, fsl_path);
+
         case 't1_to_dti'
-            apply_t1_to_dti_fsl(current_file, next_file, registration_data, options, fsl_path);
-            
+            apply_t1_to_dti_fsl(current_file, next_file, registration_data, step_options, fsl_path);
+
         case 't1_to_mni'
-            apply_t1_to_mni_fsl(current_file, next_file, registration_data, options, fsl_path);
-            
+            apply_t1_to_mni_fsl(current_file, next_file, registration_data, step_options, fsl_path);
+
         case 'mni_to_t1'
-            apply_mni_to_t1_fsl(current_file, next_file, registration_data, options, fsl_path);
+            apply_mni_to_t1_fsl(current_file, next_file, registration_data, step_options, fsl_path);
             
         otherwise
             error('Unknown transform: %s', transform);
@@ -275,7 +300,7 @@ if strcmp(t1_mni_data.type, 'nonlinear') && isfield(t1_mni_data, 'forward_warp')
     % Use nonlinear warp
     cmd = sprintf('%s/bin/applywarp --ref=%s --in=%s --warp=%s --out=%s --interp=%s', ...
         fsl_path, options.reference_space, input_file, t1_mni_data.forward_warp, ...
-        output_file, options.interpolation);
+        output_file, get_applywarp_interpolation(options.interpolation));
 else
     % Use linear transform
     interp_method = get_fsl_interpolation(options.interpolation);
@@ -306,7 +331,7 @@ cleanup_inverse_mat = '';
 if strcmp(t1_mni_data.type, 'nonlinear') && isfield(t1_mni_data, 'inverse_warp')
     cmd = sprintf('%s/bin/applywarp --ref=%s --in=%s --warp=%s --out=%s --interp=%s', ...
         fsl_path, options.reference_space, input_file, t1_mni_data.inverse_warp, ...
-        output_file, options.interpolation);
+        output_file, get_applywarp_interpolation(options.interpolation));
 else
     % Linear inverse path: compute inverse of the forward linear matrix on the
     % fly, then apply via flirt -applyxfm.
@@ -339,6 +364,20 @@ if status ~= 0
     error('FSL MNI to T1 transform failed: %s', cmdout);
 end
 
+end
+
+function interp_method = get_applywarp_interpolation(interpolation)
+% applywarp names differ from flirt's: nn | trilinear | sinc | spline.
+switch lower(interpolation)
+    case 'linear'
+        interp_method = 'trilinear';
+    case 'nearest'
+        interp_method = 'nn';
+    case 'spline'
+        interp_method = 'spline';
+    otherwise
+        error('nim_apply_transforms:interp', 'Unknown interpolation method: %s', interpolation);
+end
 end
 
 function interp_method = get_fsl_interpolation(interpolation)

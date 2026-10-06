@@ -19,10 +19,25 @@ end
 
 b0_file = fullfile(output_dir, [dwi_name '_b0' dwi_ext]);
 
-% Use FSL to extract first volume (assumed to be b0 or low b-value)
+% Pick the b0 from the b-values (same rule as nim_read: b < 5), not volume 0:
+% many acquisitions do not start with a b0 (MASiVar: the only b0 is volume 32).
+b0_index = 0;
+bval_file = fullfile(dwi_dir, [dwi_name '.bval']);
+if isfile(bval_file)
+    bvals = load(bval_file);
+    first_b0 = find(bvals(:) < 5, 1);
+    if isempty(first_b0)
+        error('extract_reference_volumes:noB0', 'No b0 volume (b < 5) in %s', bval_file);
+    end
+    b0_index = first_b0 - 1;                    % fslroi is 0-based
+else
+    warning('No b-value file next to %s; assuming volume 0 is a b0', dwi_file);
+end
+fprintf('    b0 volume index (0-based): %d\n', b0_index);
+
 fsl_path = getenv('FSLDIR');
 if ~isempty(fsl_path)
-    cmd_extract = sprintf('%s/bin/fslroi %s %s 0 1', fsl_path, dwi_file, b0_file);
+    cmd_extract = sprintf('%s/bin/fslroi %s %s %d 1', fsl_path, dwi_file, b0_file, b0_index);
     [status, cmdout] = system(cmd_extract);
 
     if status ~= 0

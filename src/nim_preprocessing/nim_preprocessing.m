@@ -183,6 +183,16 @@ for i = 1:length(input_files)
 end
 
 preprocessing_report.input_files = containers.Map(input_descriptions, input_files);
+has_external_atlas = isfield(options, 'atlas_file') && ~isempty(options.atlas_file);
+if isfield(options, 'atlas_labels_file') && ~isempty(options.atlas_labels_file) && ~has_external_atlas
+    error('nim:externalAtlasRequired', 'atlas_labels_file requires atlas_file.');
+end
+if has_external_atlas
+    label_source = '';
+    if isfield(options, 'atlas_labels_file'), label_source = options.atlas_labels_file; end
+    % Fail before denoising/corrections if the supplied anatomy is incompatible.
+    nim_prepare_external_atlas(options.atlas_file, dwi_raw_file, '', label_source);
+end
 current_dwi_file = dwi_raw_file;
 current_bvec_file = bvec_file;
 
@@ -210,29 +220,36 @@ try
         preprocessing_report.supplied_brain_mask = supplied_mask;
         preprocessing_report.t1_brain_extraction = false;
     elseif isfield(options, 'use_t1_registration') && options.use_t1_registration && isfield(options, 't1_available') && options.t1_available
-        fprintf('Using T1-based brain extraction for improved accuracy...\n');
+        % The DWI mask comes from the pipeline's own b0 brain extraction. The T1 is
+        % still brain-extracted and registered (later steps use it), and the T1 mask
+        % mapped into DWI space is only used as a check of that registration: a T1
+        % mask transferred by a failed or mis-directed epi_reg produced an EMPTY DWI
+        % mask that the pipeline then used (ds000030 pilot, 2026-09-27).
+        fprintf('Brain mask from b0 (BET); T1 extracted and registered for later steps...\n');
+        brain_mask_file = preproc_brain_extraction(b0_file, output_dir, [file_prefix '_M_initial.nii.gz']);
 
-        % Perform T1 brain extraction first
         [t1_brain_file, t1_brain_mask_file] = preproc_t1_brain_extraction(options.t1_file, output_dir);
-
-        % Create T1-DWI registration for mask transfer
-        fprintf('Registering T1 brain mask to DWI space...\n');
         t1_to_dwi_mat = preproc_t1_dwi_registration(b0_file, options.t1_file, t1_brain_file, output_dir, file_prefix);
 
-        % Transform T1 brain mask to DWI space
-        brain_mask_file = [file_prefix '_M_initial.nii.gz'];
+        % Registration check: Dice of the T1 brain mask in DWI space vs the b0 mask
+        t1_mask_in_dwi = [file_prefix '_T1mask_in_dwi.nii.gz'];
         fsl_path = getenv('FSLDIR');
-        cmd_transform = sprintf('%s/bin/flirt -in %s -ref %s -applyxfm -init %s -interp nearestneighbour -out %s', ...
-            fsl_path, t1_brain_mask_file, b0_file, t1_to_dwi_mat, brain_mask_file);
-
-        fprintf('Running: %s\n', cmd_transform);
-        [status, cmdout] = system(cmd_transform);
-
-        if status ~= 0
-            fprintf('T1 brain mask transformation failed, falling back to DWI-based extraction: %s\n', cmdout);
-            brain_mask_file = preproc_brain_extraction(b0_file, output_dir, brain_mask_file);
+        [status, cmdout] = system(sprintf('%s/bin/flirt -in %s -ref %s -applyxfm -init %s -interp nearestneighbour -out %s', ...
+            fsl_path, t1_brain_mask_file, b0_file, t1_to_dwi_mat, t1_mask_in_dwi));
+        dice = NaN;
+        if status == 0 && isfile(t1_mask_in_dwi)
+            a = niftiread(t1_mask_in_dwi) > 0;
+            b = niftiread(brain_mask_file) > 0;
+            dice = 2 * nnz(a & b) / max(nnz(a) + nnz(b), 1);
         else
-            fprintf('✓ T1-derived brain mask successfully transferred to DWI space\n');
+            fprintf('  T1 mask transfer failed: %s\n', cmdout);
+        end
+        preprocessing_report.t1_dwi_registration_dice = dice;
+        if ~(dice >= 0.7)
+            fprintf(2, ['WARNING: T1->DWI registration check failed (Dice of T1 brain mask in DWI vs b0 mask = %.2f < 0.70).\n' ...
+                        '         Steps that use the T1->DWI matrix (tissue masks for ACT, preprocessing-stage atlas) are unreliable for this scan.\n'], dice);
+        else
+            fprintf('  ✓ T1->DWI registration check: Dice %.2f\n', dice);
         end
 
         preprocessing_report.t1_brain_extraction = true;
@@ -244,6 +261,19 @@ try
         initial_brain_mask_file = [file_prefix '_M_initial.nii.gz'];
         brain_mask_file = preproc_brain_extraction(b0_file, output_dir, initial_brain_mask_file);
         preprocessing_report.t1_brain_extraction = false;
+    end
+
+    % Hard stop on an unusable mask: an empty or implausible mask must never be
+    % carried into the tensor fit and tracking (it was, for 34 min, before this check).
+    mask_vox = nnz(niftiread(brain_mask_file) > 0);
+    mask_frac = mask_vox / numel(niftiread(b0_file));
+    fprintf('  Brain mask: %d voxels (%.1f%% of the field of view)\n', mask_vox, 100 * mask_frac);
+    if mask_vox == 0
+        error('nim_preprocessing:emptyMask', 'Brain mask is empty: %s', brain_mask_file);
+    end
+    if ~(isfield(options, 'mask_file') && ~isempty(options.mask_file)) && (mask_frac < 0.01 || mask_frac > 0.80)
+        error('nim_preprocessing:implausibleMask', ...
+            'Brain mask covers %.1f%% of the field of view (expected 1-80%%): %s', 100 * mask_frac, brain_mask_file);
     end
 
     preprocessing_report.initial_brain_mask_file = brain_mask_file;
@@ -493,8 +523,13 @@ try
         end
 
         % T1-MNI registration
-        fprintf('Performing T1-MNI registration...\n');
-        mni_to_t1_warp = preproc_t1_mni_registration(options.t1_file, t1_brain_file, output_dir, file_prefix);
+        mni_to_t1_warp = '';
+        if ~has_external_atlas || (isfield(options, 'register_to_mni') && options.register_to_mni)
+            fprintf('Performing T1-MNI registration...\n');
+            mni_to_t1_warp = preproc_t1_mni_registration(options.t1_file, t1_brain_file, output_dir, file_prefix);
+        else
+            fprintf('External atlas: no T1-MNI registration requested.\n');
+        end
 
         % Update preprocessing report
         preprocessing_report.t1_brain_file = t1_brain_file;

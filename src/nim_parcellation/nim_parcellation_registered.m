@@ -127,6 +127,19 @@ std_volume = std(label_volumes);
 fprintf('  Mean region volume: %.0f voxels\n', mean_volume);
 fprintf('  Volume variability: %.1f%%\n', 100 * std_volume / mean_volume);
 
+%% Step 4b: Region names
+% Put the atlas's label file next to the mask as atlas_labels.xml, exactly as the
+% header-based path (nim_parcellation) does, so nim_load_labels attaches names and
+% seeding.roi can address regions by name.
+labels_xml = get_atlas_labels_xml(atlas_type);
+if ~isempty(labels_xml)
+    copyfile(labels_xml, fullfile(fileparts(parcellation_mask_file), 'atlas_labels.xml'));
+    fprintf('  ✓ Labels file: %s\n', labels_xml);
+else
+    fprintf('  (no label file for atlas %s)\n', atlas_type);
+end
+nim.atlas_type = atlas_type;
+
 %% Step 5: Store registration information in nim structure
 fprintf('Step 5: Storing registration metadata...\n');
 
@@ -155,6 +168,24 @@ fprintf('Parcellation mask: %s\n', parcellation_mask_file);
 % Generate quality report
 generate_parcellation_quality_report(nim, registration_data, parcellation_mask_file);
 
+end
+
+function labels_xml = get_atlas_labels_xml(atlas_type)
+% FSL label file for the atlas. nim_load_labels maps XML index -> voxel value
+% directly, which is right only where the XML index EQUALS the voxel value:
+% JHU-labels.xml does (index 4 = Body of corpus callosum = value 4). JHU-tracts
+% and HarvardOxford XMLs number from 0 while their voxels start at 1, so their
+% names would be shifted by one region - no label file for those.
+fsl_path = getenv('FSLDIR');
+switch lower(atlas_type)
+    case 'jhu'
+        labels_xml = fullfile(fsl_path, 'data', 'atlases', 'JHU-labels.xml');
+    otherwise
+        labels_xml = '';
+end
+if ~isempty(labels_xml) && ~isfile(labels_xml)
+    labels_xml = '';
+end
 end
 
 function mni_atlas_file = get_mni_atlas_file(atlas_type)

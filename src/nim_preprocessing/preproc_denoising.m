@@ -56,9 +56,11 @@ fprintf('Using MRtrix3 dwidenoise (MP-PCA method)...\n');
 % Check if MRtrix3 is available
 [status, ~] = system('which dwidenoise');
 if status ~= 0
-    fprintf('⚠ MRtrix3 not found, falling back to Gaussian smoothing\n');
-    denoised_file = denoise_gaussian(dwi_file, denoised_file);
-    return;
+    % No silent substitution: Gaussian smoothing is a different operation, and the
+    % run would otherwise differ from its config without anyone noticing. Put MRtrix3
+    % on the PATH, or choose denoise_method: gaussian explicitly.
+    error('preproc_denoising:noDwidenoise', ...
+        'denoise_method is dwidenoise but MRtrix3 dwidenoise is not on the PATH (choose denoise_method: gaussian explicitly to smooth instead)');
 end
 
 % Define noise map output
@@ -75,9 +77,7 @@ tic;
 elapsed_time = toc;
 
 if status ~= 0
-    fprintf('⚠ MRtrix3 dwidenoise failed, falling back to FSL-based denoising\n');
-    denoised_file = denoise_fsl_susan(dwi_file, denoised_file);
-    return;
+    error('preproc_denoising:dwidenoiseFailed', 'MRtrix3 dwidenoise failed: %s', cmdout);
 end
 
 fprintf('  Processing time: %.1f seconds\n', elapsed_time);
@@ -160,8 +160,8 @@ if license('test', 'image_toolbox')
     fprintf('Using MATLAB Image Processing Toolbox...\n');
     denoise_matlab_nlmeans(dwi_file, denoised_file);
 else
-    fprintf('⚠ Image Processing Toolbox not available, falling back to Gaussian smoothing\n');
-    denoised_file = denoise_gaussian(dwi_file, denoised_file);
+    error('preproc_denoising:noNlmeans', ...
+        'denoise_method is nlmeans but the Image Processing Toolbox is not available (choose denoise_method: gaussian explicitly to smooth instead)');
 end
 
 end
