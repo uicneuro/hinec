@@ -1,0 +1,40 @@
+# ds000206 — dataset config for the OpenNeuro ds000206 traveling-heads study (5 people x 8 sites,
+# Siemens GD31 + Philips GD33). Every site acquired 2.0 mm isotropic DWI, so the voxel-unit
+# tracking settings below mean the same physical thing at every site.
+#
+# Physical protocol (other datasets can be scaled to match it in mm):
+#   step 0.2 vox = 0.40 mm | 1 seed per voxel = 1 seed / 8.0 mm^3 | max_arc 100 vox = 200 mm
+#   min_arc 0 | angle_max 0 (no curvature stop) | seed FA >= 0.05 | stop below FA 0.10
+# Per-scan atlas/mask paths are added per run, not here.
+#
+# ./bin/run_hinec.sh <prefix> <out>.mat config/ds000206.yml
+#
+# Only non-default values appear here; everything else comes from nim_config_schema defaults.
+
+preprocessing:
+  run_denoising: true
+  denoise_method: dwidenoise
+  run_motion_correction: true
+  run_eddy: false
+  use_t1_registration: false
+  register_to_mni: false
+
+tractography:
+  algorithm: hinec
+  field: dti
+  act: false
+  integrator:
+    method: rk4
+    step: 0.2
+  interpolation:
+    method: cubic
+  seeding:
+    density: 1
+    fa_min: 0.05
+  termination:
+    fa_min: 0.10
+    angle_max: 0
+    max_arc: 100
+    min_arc: 0
+  output:
+    arc_step: 0

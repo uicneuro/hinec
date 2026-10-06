@@ -171,6 +171,7 @@ report, so neither it nor `ismrm_wholebrain.yml` is renamed.
 | `ismrm2015.yml` | ISMRM-2015 phantom, no T1 registration |
 | `ismrm2015_t1reg.yml` | ISMRM-2015 phantom **with** T1→MNI registration |
 | `irontract.yml` | IronTract Challenge dataset |
+| `ds000206.yml` | OpenNeuro ds000206 traveling-heads study (2 mm isotropic, multi-site); a physical-unit reference protocol |
 
 ### Default
 
