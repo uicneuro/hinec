@@ -468,25 +468,7 @@ per bundle (`bundle_bps_right`, `bundle_cc_u_shaped`, `bundle_cingulum_right`,
 
 ---
 
-## 9. Presentation and Publication Figures
-
-### Method Comparison Visualizations
-
-The `src/nim_presentation/` module provides scripts for generating publication-quality comparison figures:
-
-```matlab
-% Compare integration methods (Euler vs RK2 vs RK4 vs RKF45)
-visualize_integration_methods;
-
-% Compare interpolation methods (none vs trilinear vs cubic)
-visualize_interpolation_methods;
-
-% Example tractography visualization
-visualize_tractography_example;
-
-% Slice-based comparison
-visualize_tractography_slice;
-```
+## 9. Publication Figures
 
 ### Export Settings for Publications
 

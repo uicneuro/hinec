@@ -12,6 +12,5 @@ launchers or provide documented commands for working with their outputs.
 | `validate_ismrm_tractography.py` | Run standalone ISMRM validation diagnostics. |
 | `FastTractographyViewer.py` | View a generated slice cache; launched by `bin/viewSlices.sh`. |
 | `tractography_slice_gui.py` | Open the interactive MATLAB slice-viewer controls. |
-| `generate_presentation_figures.m` | Generate figures using `src/nim_presentation/`. |
 
 Private experiments and one-off diagnostics are kept outside this directory.

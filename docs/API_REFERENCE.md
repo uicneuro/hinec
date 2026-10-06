@@ -120,15 +120,6 @@ runTractography('output/sample.mat', config, run_info);
 
 ---
 
-### `runhinec`
-
-**File**: `runhinec.m`
-
-Demo **script** (not a function). Loads `sample_parcellated.mat` from the working
-directory and calls `nim_plot(nim, 'mode', 'parcels')`.
-
----
-
 ## 2. Configuration (`src/nim_utils/`)
 
 `nim_config_schema` is the single source of truth for the configuration surface.
@@ -643,14 +634,6 @@ Requires `nim.evec`, `.FA` and `.mask`; `field: 'csd'` additionally requires
 `nim.peaks` and `nim.npeaks`. The geometry is rebuilt in place if it is absent or
 was baked for a different field. **Returns** `[tracks, info]`.
 
-### `nim_tractography_highorder(data_path, varargin)`
-
-Superseded predecessor of the `hinec` tracker, kept for reference. Options
-`order` (3), `step_size` (0.2), `fa_threshold` (0.1), `angle_thresh` (60),
-`max_steps` (5000), `min_length` (10), `termination_fa` (0.05), `interp_method`
-(`"spline"`), `seed_density` (1). Not reachable from `algorithm:` — new work
-should use `nim_tractography_hinec`.
-
 ### Tractography support functions
 
 #### `nim_seed_offsets(density)`
@@ -816,20 +799,6 @@ heatmap, histogram, node strengths, summary.
 
 Masks vectors by `FA > 0.2` and overlays them on an FA background.
 
-### `nim_excitation_time_map(nim, seed_points, varargin)`
-
-Excitation propagation time from `seed_points` ($N \times 3$), with velocity
-shaped by DTI anisotropy.
-
-| Field | Default | Description |
-|---|---|---|
-| `conduction_speed` | 1.0 | Base conduction speed |
-| `fa_scaling` | true | Scale velocity by FA |
-| `max_time` | 100 | Time cap |
-| `method` | `"fast_marching"` | `'fast_marching'` or `'dijkstra'` |
-
-**Returns** `[time_map, velocity_field]`.
-
 ---
 
 ## 11. Visualization (`src/nim_visualization/`)
@@ -986,11 +955,8 @@ superior–inferior.
 | `zwuni` | `(N)` | `[z, w]`: $N+1$ uniform nodes on $[-1, 1]$ and their weights |
 | `nim_vis_eig` | `(nim, plane, slice, opts)` | Eigenvector figure for one slice; returns the figure handle |
 | `nim_vis_fa` | `(nim, plane, slice, opts)` | FA figure for one slice; returns the figure handle |
-| `plot_nim_interp` | `(grid, indx, indy, indz)` | Plots an interpolated grid produced by `nim_interp` |
 
-`hdr.m`, `gen_vis_eig.m` and `runnimplot.m` are **scripts**, not functions:
-plotting defaults, a batch of `nim_vis_eig` exports, and a `nim_plot` example
-respectively.
+`hdr.m` is a **script**, not a function: it sets plotting defaults.
 
 ---
 
@@ -1026,7 +992,6 @@ NeuroImage.
 | `compare_ismrm_results.py` | Compare scoring results across runs |
 | `build_ismrm_scoring_config.py` | Build the scilpy scorer configuration |
 | `ismrm_report_scores.py` | Print the relevant whole-brain or seeded-bundle score |
-| `generate_presentation_figures.m` | Generate presentation figures from the included MATLAB presentation code |
 
 `requirements.txt` covers the Python dependencies.
 

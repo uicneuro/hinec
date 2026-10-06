@@ -628,9 +628,6 @@ end
 path = char(string_path);  % Convert if needed
 ```
 
-See `docs/STRING_CHAR_FIXES.md` in the repository for the string/char
-post-mortem; it is a development note and is not part of this site.
-
 ### No Tracks Generated
 
 **Symptom**: `runTractography` produces 0 tracks

@@ -6,7 +6,7 @@ function md = nim_config_docs(out_file)
 %
 % The reference is GENERATED, so it cannot drift from the code. Every documented
 % key exists in nim_config_schema, and every schema key is documented, by
-% construction. tests/unit/TestConfigDocs.m regenerates and diffs to enforce it.
+% construction. Regenerate it whenever the schema changes.
 %
 % Covers all three tractography algorithms in one table, marking which of them
 % actually reads each parameter - previously the docs described only hinec, under

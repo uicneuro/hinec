@@ -32,7 +32,6 @@ Input (NIfTI)
 |---|---|---|
 | `main.m` | Core pipeline: preprocessing through tissue segmentation | Process raw or preprocessed dMRI data |
 | `runTractography.m` | Seeding, tracker dispatch, ROI filtering | Run fiber tracking on a processed `nim` |
-| `runhinec.m` | Scratch script | Load a processed `.mat` and plot it |
 | `bin/run_hinec.sh` | Full pipeline launcher | Preprocess and track in one background job |
 | `bin/run_tractography.sh` | Tractography-only launcher | Iterate tracking configs on a built `nim` |
 | `bin/run_ismrm_scoring.sh` | Scoring | Convert tracks to TRK and run the scilpy scorer |
@@ -46,7 +45,6 @@ Input (NIfTI)
 hinec/
 ├── main.m                          # Core pipeline entry point
 ├── runTractography.m               # Tractography entry point
-├── runhinec.m                      # Scratch plotting script
 ├── README.md                       # Project overview
 ├── mkdocs.yml                      # Documentation site configuration
 ├── requirements.txt                # Python dependencies (viewer, scoring, TRK export)
@@ -93,8 +91,7 @@ hinec/
 │   │   ├── preproc_t1_dwi_registration.m #  epi_reg T1-DWI alignment
 │   │   ├── preproc_t1_mni_registration.m #  FLIRT+FNIRT T1-MNI alignment
 │   │   ├── preproc_atlas_resampling.m    #  Atlas to DWI space
-│   │   ├── preproc_cleanup.m       #     Intermediate file removal
-│   │   └── preprocessing_config_example.m # Config template
+│   │   └── preproc_cleanup.m       #     Intermediate file removal
 │   │
 │   ├── nim_registration/           #   Multi-modal image registration
 │   │   ├── nim_registration.m      #     Registration orchestrator
@@ -115,7 +112,7 @@ hinec/
 │   │   ├── nim_tractography_standard.m    # FACT
 │   │   ├── nim_tractography_hinec.m       # Interpolated streamlines
 │   │   ├── nim_tractography_mmf_connframe.m # Connection-form MMF
-│   │   ├── nim_tractography_highorder.m   # Legacy high-order methods
+│   │   ├── nim_tractography_stitching.m   # Tractlet stitching (experimental)
 │   │   ├── mmf_bishop_update.m            # Bishop frame update
 │   │   ├── mmf_gram_schmidt.m             # Frame reorthonormalization
 │   │   ├── mmf_reference_axis_frame.m     # Reference-axis frame
@@ -126,8 +123,7 @@ hinec/
 │   │   ├── nim_plot_tractography.m        # 3D track visualization
 │   │   ├── nim_plot_tractography_region.m # Region-filtered visualization
 │   │   ├── nim_plot_connectivity_matrix.m # Connectivity matrix
-│   │   ├── nim_plot_vector_field.m        # Eigenvector field display
-│   │   └── nim_excitation_time_map.m      # Excitation propagation
+│   │   └── nim_plot_vector_field.m        # Eigenvector field display
 │   │
 │   ├── nim_visualization/          #   Tractography viewers and slice cache
 │   │   ├── visualizeTractography.m        # Unified 3D viewer (4 modes)
@@ -140,17 +136,10 @@ hinec/
 │   │   ├── TractographyCacheManager.m     # Cache metadata management
 │   │   ├── buildOptimizedTrackSliceLookup.m # Vectorized slice lookup
 │   │   ├── optimizedSliceRenderer.m       # Slice renderer
-│   │   ├── launchFastViewer.m             # MATLAB-to-Python bridge
-│   │   └── testFastViewer.m               # Fast viewer test suite
+│   │   └── launchFastViewer.m             # MATLAB-to-Python bridge
 │   │
 │   ├── nim_plots/                  #   General plotting
 │   │   └── nim_plot.m              #     Consolidated eigenvector/parcel plotter
-│   │
-│   ├── nim_presentation/           #   Research figure generation
-│   │   ├── visualize_tractography_example.m
-│   │   ├── visualize_integration_methods.m
-│   │   ├── visualize_interpolation_methods.m
-│   │   └── visualize_tractography_slice.m
 │   │
 │   ├── nim_utils/                  #   Utilities
 │   │   ├── nim_read.m              #     NIfTI file reader
@@ -180,12 +169,9 @@ hinec/
 │   │   ├── vector_to_color.m       #     Direction-to-RGB mapping
 │   │   ├── nim_vis_eig.m           #     Eigenvector visualization helper
 │   │   ├── nim_vis_fa.m            #     FA visualization helper
-│   │   ├── gen_vis_eig.m           #     Eigenvector figure generation
 │   │   ├── hdr.m                   #     NIfTI header utilities
 │   │   ├── zwgll.m                 #     Gauss-Lobatto-Legendre nodes
-│   │   ├── zwuni.m                 #     Uniform quadrature nodes
-│   │   ├── plot_nim_interp.m       #     Interpolation result plotting
-│   │   └── runnimplot.m            #     Plot workflow runner
+│   │   └── zwuni.m                 #     Uniform quadrature nodes
 │   │
 │   └── nim_challenges/             #   Challenge/benchmark submissions
 │       └── nim_irontract_submit.m  #     IronTract challenge formatter
@@ -197,8 +183,7 @@ hinec/
 │   ├── run_visualization.sh        #   Headless figure export
 │   ├── run_generateSlices.sh       #   Slice cache generator
 │   ├── run_sift.sh                 #   Track filtering
-│   ├── viewSlices.sh               #   Fast Python viewer launcher
-│   └── download.sh                 #   Sample data download
+│   └── viewSlices.sh               #   Fast Python viewer launcher
 │
 ├── scripts/                        # Supported user and pipeline scripts
 │   ├── FastTractographyViewer.py   #   Python fast slice viewer GUI
@@ -207,8 +192,7 @@ hinec/
 │   ├── validate_ismrm_tractography.py  # ISMRM validation
 │   ├── build_ismrm_scoring_config.py   # Scorer configuration
 │   ├── compare_ismrm_results.py    #   Cross-run score comparison
-│   ├── ismrm_report_scores.py      #   Score summary for whole-brain or ROI runs
-│   └── generate_presentation_figures.m # Presentation figures
+│   └── ismrm_report_scores.py      #   Score summary for whole-brain or ROI runs
 │
 ├── tests/                          # Test suites
 │   ├── unit/                       #   Unit tests (config schema, angle limit,

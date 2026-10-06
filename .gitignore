@@ -131,12 +131,6 @@ docs/figs/
 figures/
 *.fig
 
-# Internal research notes not in the mkdocs nav (not user-facing docs)
-docs/INTERP_GAIN_AT_OPTIMUM.md
-
-# Personal discussion / reference notes — not part of the code repo
-DiscussionWithPeng_Winter2026.pdf
-
 # Local datasets (sorted into the new data/ layout) — large binaries, never commit
 data/covid/*
 data/irontract/*
@@ -146,6 +140,7 @@ plans/
 
 # Research utilities kept only in this working copy
 /local_tools/
+/report/
 
 # New dataset downloads are local by default. Keep the shipped examples and
 # the existing public ISMRM README; its data remain excluded by the rules above.

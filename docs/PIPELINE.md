@@ -16,8 +16,7 @@ them:
 | `bin/run_hinec.sh` | Full pipeline: builds a run directory, then chains `main` and `runTractography` in one `matlab -batch` process |
 | `bin/run_tractography.sh` | Tractography only, against an already-preprocessed `nim` |
 
-`runhinec.m` is a short scratch script that loads a processed `.mat` and plots it; it is not
-part of the pipeline. Visualization entry points live in `src/nim_visualization/`.
+Visualization entry points live in `src/nim_visualization/`.
 
 ## Pipeline Stages
 

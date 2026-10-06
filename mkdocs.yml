@@ -48,15 +48,6 @@ extra_javascript:
   - javascripts/mathjax.js
   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
-# Internal working notes, kept in the repo but not published: a product spec for
-# the viewer, a bug post-mortem, a talk outline, and a leftover scratch page.
-# They are development artefacts, not user documentation.
-exclude_docs: |
-  PRD_FastTractographySliceViewer.md
-  STRING_CHAR_FIXES.md
-  presentation_outline.md
-  index_test.md
-
 nav:
   - Home: index.md
   - Getting Started: USER_GUIDE.md
@@ -75,6 +66,7 @@ nav:
     - RKF45 Usage: RKF_Usage.md
     - Seeding Strategy: SEEDING_STRATEGY.md
     - Implementation Workflow: hinec_tractography.md
+    - Stitching (experimental): STITCHING.md
   - Configuration:
     - YAML Config: YAML_CONFIG.md
     - Changelog: CHANGELOG_YAML.md
