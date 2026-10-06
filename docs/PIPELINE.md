@@ -413,7 +413,7 @@ where:
 
 **External Software:**
 
-- **SPM12** — NIfTI I/O and an optional registration backend. Not vendored here; install it
+- **SPM12** — NIfTI I/O and image sampling. Not vendored here; install it
   at `lib/spm12/`, the path `main.m` adds.
 - **FSL** — required for preprocessing, and must be initialized in the shell before
   `matlab -batch` runs.

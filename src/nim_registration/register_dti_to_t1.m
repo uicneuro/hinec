@@ -38,9 +38,6 @@ switch lower(options.registration_method)
     case 'fsl'
         registration_data = register_dti_to_t1_fsl(registration_data, options, ...
             dti_to_t1_matrix, dti_to_t1_transform, registered_b0, t1_in_dti);
-    case 'spm'
-        registration_data = register_dti_to_t1_spm(registration_data, options, ...
-            dti_to_t1_matrix, registered_b0, t1_in_dti);
     otherwise
         error('Unknown registration method: %s', options.registration_method);
 end
@@ -153,65 +150,5 @@ if isfile(t1_brain) && ~strcmp(t1_brain, t1_file)
 end
 
 fprintf('    ✓ DTI->T1 registration successful\n');
-
-end
-
-function registration_data = register_dti_to_t1_spm(registration_data, options, ...
-    dti_to_t1_matrix, registered_b0, t1_in_dti)
-% Register DTI to T1 using SPM tools
-
-fprintf('  Using SPM for DTI->T1 registration...\n');
-
-b0_file = registration_data.reference_volumes.b0_file;
-t1_file = registration_data.input.t1_file;
-
-try
-    % Load images into SPM format
-    VG = spm_vol(t1_file);  % Reference (T1)
-    VF = spm_vol(b0_file);  % Source (b0)
-    
-    fprintf('    Running SPM coregistration...\n');
-    
-    % Set up coregistration parameters
-    flags = struct();
-    flags.cost_fun = 'nmi';  % Normalized mutual information
-    flags.sep = [4 2];       % Multi-resolution sampling
-    flags.tol = [0.02 0.02 0.02 0.001 0.001 0.001]; % Tolerance
-    flags.fwhm = [7 7];      % Smoothing
-    
-    % Run coregistration
-    M = spm_coreg(VG, VF, flags);
-    
-    % Create full transformation matrix
-    dti_to_t1_transform_matrix = M * VF.mat / VG.mat;
-    
-    % Save transformation matrix
-    save(dti_to_t1_matrix, 'dti_to_t1_transform_matrix');
-    
-    % Apply transformation to create registered b0
-    fprintf('    Creating registered b0 image...\n');
-    
-    % Update header with new transformation
-    VF_reg = VF;
-    VF_reg.fname = registered_b0;
-    VF_reg.mat = dti_to_t1_transform_matrix * VF.mat;
-    
-    % Write registered image
-    VF_reg = spm_create_vol(VF_reg);
-    for i = 1:VF_reg.dim(3)
-        img = spm_slice_vol(VF, spm_matrix([0 0 i]), VF_reg.dim(1:2), 1);
-        spm_write_plane(VF_reg, img, i);
-    end
-    
-    % Store in registration data
-    registration_data.transforms.dti_to_t1_matrix = dti_to_t1_transform_matrix;
-    registration_data.transforms.dti_to_t1_file = dti_to_t1_matrix;
-    registration_data.registered_images.b0_in_t1 = registered_b0;
-    
-    fprintf('    ✓ SPM registration successful\n');
-    
-catch ME
-    error('SPM registration failed: %s', ME.message);
-end
 
 end

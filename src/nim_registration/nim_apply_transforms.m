@@ -14,7 +14,7 @@ function output_file = nim_apply_transforms(input_file, registration_data, trans
 %     .output_file - Output file path (auto-generated if not specified)
 %     .interpolation - 'linear', 'nearest', 'spline' (default: 'linear')
 %     .reference_space - Reference image for output space
-%     .method - 'fsl', 'spm' (default: same as registration)
+%     .method - 'fsl' (default: same as registration)
 %
 % Returns:
 %   output_file - Path to transformed output file
@@ -45,8 +45,6 @@ end
 switch lower(options.method)
     case 'fsl'
         output_file = apply_transforms_fsl(input_file, registration_data, transform_chain, options);
-    case 'spm'
-        output_file = apply_transforms_spm(input_file, registration_data, transform_chain, options);
     otherwise
         error('Unknown transformation method: %s', options.method);
 end
@@ -394,13 +392,5 @@ switch lower(interpolation)
         warning('Unknown interpolation method: %s, using trilinear', interpolation);
         interp_method = 'trilinear';
 end
-
-end
-
-function output_file = apply_transforms_spm(input_file, registration_data, transform_chain, options)
-% Apply transformation chain using SPM tools
-
-fprintf('Using SPM for transformation...\n');
-error('SPM transformation chain not implemented yet');
 
 end

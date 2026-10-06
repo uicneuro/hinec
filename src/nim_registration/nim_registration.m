@@ -11,7 +11,7 @@ function registration_data = nim_registration(dwi_file, t1_file, varargin)
 %     .output_dir - Output directory (default: same as DWI file)
 %     .register_to_mni - Boolean for MNI registration (default: true)
 %     .mni_template - Path to MNI template (default: FSL MNI152)
-%     .registration_method - 'fsl' or 'spm' (default: 'fsl')
+%     .registration_method - 'fsl' (the only supported backend)
 %     .dti_reg_dof - DOF for DTI->T1 registration (default: 6 for rigid)
 %     .t1_mni_reg_type - 'linear' or 'nonlinear' (default: 'nonlinear')
 %     .force_recompute - Force recomputation of existing transforms (default: false)
@@ -153,12 +153,15 @@ if options.register_to_mni && ~isfile(options.mni_template)
     error('MNI template not found: %s', options.mni_template);
 end
 
-% Check FSL availability for FSL-based registration
-if strcmp(options.registration_method, 'fsl')
-    fsl_path = getenv('FSLDIR');
-    if isempty(fsl_path)
-        error('FSL not found. Please set FSLDIR environment variable or use registration_method = ''spm''');
-    end
+% FSL is the only registration backend: SPM could register but could not
+% apply the resulting transform chain, so it was removed.
+if ~strcmpi(options.registration_method, 'fsl')
+    error('nim_registration:method', 'Unsupported registration_method ''%s''; only ''fsl'' is supported.', ...
+        options.registration_method);
+end
+fsl_path = getenv('FSLDIR');
+if isempty(fsl_path)
+    error('FSL not found. Please set the FSLDIR environment variable.');
 end
 
 % Create output directory if it doesn't exist

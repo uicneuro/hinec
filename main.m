@@ -7,7 +7,7 @@ function main(imgpath, nimpath, varargin)
 %   t1_file - Path to T1 anatomical file (optional)
 %   options - Structure with processing options (optional):
 %     .enable_registration - Enable multi-modal registration (default: false if no T1, true if T1 provided)
-%     .registration_method - 'fsl' or 'spm' (default: 'fsl')
+%     .registration_method - 'fsl' (the only supported backend)
 %     .register_to_mni - Register to MNI space (default: true if registration enabled)
 %     .force_recompute_registration - Force recomputation of registration (default: false)
 %     .preprocessing_options - Options for preprocessing (see nim_preprocessing)

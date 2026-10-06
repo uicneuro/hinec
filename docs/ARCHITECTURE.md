@@ -95,8 +95,8 @@ hinec/
 │   │
 │   ├── nim_registration/           #   Multi-modal image registration
 │   │   ├── nim_registration.m      #     Registration orchestrator
-│   │   ├── register_dti_to_t1.m    #     DTI-to-T1 (FLIRT/SPM)
-│   │   ├── register_t1_to_mni.m    #     T1-to-MNI (FLIRT+FNIRT/SPM)
+│   │   ├── register_dti_to_t1.m    #     DTI-to-T1 (FLIRT)
+│   │   ├── register_t1_to_mni.m    #     T1-to-MNI (FLIRT+FNIRT)
 │   │   ├── nim_apply_transforms.m  #     Transform chain application
 │   │   ├── extract_reference_volumes.m    # Reference volume extraction
 │   │   ├── compute_registration_quality.m # Quality assessment
@@ -490,7 +490,7 @@ Multi-modal registration chain when a T1 anatomical image is available:
 DWI native space  <--FLIRT 6DOF-->  T1 native space  <--FLIRT+FNIRT-->  MNI standard space
 ```
 
-- DTI-to-T1: Uses FLIRT (correlation ratio) or SPM coregistration
+- DTI-to-T1: Uses FLIRT (correlation ratio)
 - T1-to-MNI: Linear (FLIRT 12 DOF) + optional nonlinear (FNIRT)
 - Quality assessed via normalized mutual information (NMI)
 

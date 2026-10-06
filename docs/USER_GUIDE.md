@@ -36,7 +36,7 @@ export PATH=$FSLDIR/bin:$PATH
 
 ### SPM12
 
-Used for NIfTI I/O and as an optional registration backend. SPM12 is **not** vendored in this
+Used for NIfTI I/O and image sampling. SPM12 is **not** vendored in this
 repository: install it at `lib/spm12/`, which is the path `main.m` adds with
 `addpath(genpath('lib/spm12'))`.
 
@@ -690,7 +690,6 @@ Regenerating masks you already have will not fix the first case.
 1. Check registration quality metrics (NMI scores)
 2. Provide a T1 image for better registration accuracy
 3. Verify T1 and DWI are from the same subject/session
-4. Try different registration method (FSL vs SPM)
 
 ---
 
