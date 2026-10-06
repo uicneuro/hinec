@@ -201,7 +201,7 @@ streamlines entering one voxel from different approach directions follow *differ
 curvatures → different continuations. That is how a single moving-frame formulation resolves
 crossings into multiple pathways.
 
-`runTractography` computes/loads the FOD peaks (via `nim_csd`, cached as `<source>_csd.mat`)
+`runTractography` computes/loads the FOD peaks (via `nim_csd`, cached as `<source>_csd_<settings>.mat`)
 before tracking — see [CSD](TRACTOGRAPHY_METHODS.md#csd-fod-reconstruction).
 
 ---

@@ -8,7 +8,8 @@
 #     <run_dir>   an existing tractography run dir (with tractography/tracks*.mat).
 #     --score     score the filtered result with bin/run_ismrm_scoring.sh.
 #     --set k=v   nim_sift options (sift_batch_frac, sift_n_iter, sift_min_keep).
-#     --csd <f>   FOD source (peak_w). Default: data/ismrm2015/ismrm2015_csd.mat.
+#     --csd <f>   FOD source (peak_w). Default: the newest CSD cache nim_field wrote
+#                 beside the nim (data/ismrm2015/ismrm2015_csd_*.mat).
 #
 # Requires a CSD FOD field (nim.peak_w). Output: hinec_runs/<run>_sift/.
 
@@ -17,7 +18,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$REPO_ROOT"
 escape_matlab_string() { printf "%s" "${1//\'/\'\'}"; }
 
 [[ $# -ge 1 ]] || { sed -n '2,15p' "$0" >&2; exit 1; }
-POS=(); do_score=false; sets=(); csd="data/ismrm2015/ismrm2015_csd.mat"; nim="data/ismrm2015/ismrm2015.mat"
+POS=(); do_score=false; sets=(); csd=""; nim="data/ismrm2015/ismrm2015.mat"
 src_rundir=""
 while [[ $# -gt 0 ]]; do case "$1" in
     --score|-s) do_score=true; shift;;
@@ -27,6 +28,11 @@ while [[ $# -gt 0 ]]; do case "$1" in
     *) POS+=("$1"); shift;;
 esac; done
 src_rundir="${POS[0]:?need a run dir}"
+if [[ -z "$csd" ]]; then
+    # nim_field names its cache by CSD settings: <nim>_csd_<settings>.mat
+    csd=$(ls -t "${nim%.mat}"_csd_*.mat 2>/dev/null | head -1 || true)
+    [[ -n "$csd" ]] || csd="${nim%.mat}_csd.mat"
+fi
 
 tracks_mat=$(ls -t "$src_rundir"/tractography/tracks*.mat 2>/dev/null | head -1 || true)
 [[ -n "$tracks_mat" ]] || { echo "Error: no tracks*.mat in $src_rundir/tractography/" >&2; exit 1; }

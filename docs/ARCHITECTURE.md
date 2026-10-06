@@ -294,7 +294,7 @@ set true.
 | `.response` | — | — | Estimated response function | `nim_csd` |
 
 These are computed per run by `runTractography` step 2 (`nim_field`) and cached
-as `<source>_csd.mat` (the fit costs ~2 min). They are never written into the
+as `<source>_csd_<settings>.mat`, one file per CSD setting combination (the fit costs ~2 min). They are never written into the
 nim on disk.
 
 #### Moving-Frame Fields (`algorithm: mmf`)
@@ -409,7 +409,7 @@ nim_read
               |
               +---> runTractography (resolves the seed mask, then dispatches)
               |         |
-              |         +---> nim_csd (if field: csd; cached as <source>_csd.mat)
+              |         +---> nim_csd (if field: csd; cached as <source>_csd_*.mat)
               |         |
               |         +---> nim_tractography_standard (requires: .evec, .FA, .mask)
               |         |         OR
@@ -804,7 +804,7 @@ additionally needs tkinter, which normally ships with Python.
 | Pattern | Description | Example |
 |---|---|---|
 | `{name}.mat` | Processed nim structure | `ismrm2015.mat` |
-| `{name}_csd.mat` | Cached CSD FOD peaks | `ismrm2015_csd.mat` |
+| `{name}_csd_<settings>.mat` | Cached CSD FOD peaks, keyed by CSD settings | `ismrm2015_csd_lmax_….mat` |
 | `{name}_WM_mask.nii.gz` and friends | Tissue masks for ACT | `sample_GM_mask.nii.gz` |
 | `tracks_{algo}_{timestamp}.mat` | Tractography results | `tracks_hinec_2025-01-15_14_30_00.mat` |
 

@@ -117,6 +117,7 @@ function options = nim_config_to_options(config)
     options.enable_diagnostics = t.diagnostics;
 
     % --- csd ----------------------------------------------------------------
+    options.csd_peaks_file   = t.csd.peaks_file;
     options.csd_lmax         = t.csd.lmax;
     options.csd_max_peaks    = t.csd.max_peaks;
     options.csd_peak_thresh  = t.csd.peak_thresh;

@@ -284,6 +284,7 @@ function [groups, d] = options_dictionary()
     d.length_y_abs = {'tractography.filter.length_y_abs', 'step 6: total y, mm'};
     d.length_z_abs = {'tractography.filter.length_z_abs', 'step 6: total z, mm'};
     d.csd_lmax         = {'tractography.csd.lmax', 'used by nim_field (step 2) to build nim.peaks; not read by trackers'};
+    d.csd_peaks_file   = {'tractography.csd.peaks_file', 'optional external peak MAT loaded by nim_field (step 2); empty uses native CSD'};
     d.csd_max_peaks    = {'tractography.csd.max_peaks', 'P, the peak dimension of nim.peaks'};
     d.csd_peak_thresh  = {'tractography.csd.peak_thresh', 'relative amplitude below which a peak is dropped'};
     d.csd_peak_min_sep = {'tractography.csd.peak_min_sep', 'minimum angle between peaks (degrees)'};
@@ -305,7 +306,7 @@ function [groups, d] = options_dictionary()
     groups(end+1) = struct('title', 'termination', 'fields', {{'termination_fa','angle_thresh','min_length','max_arc','max_steps'}});
     groups(end+1) = struct('title', 'ACT', 'fields', {{'act_enabled','wm_mask','gm_mask','csf_mask'}});
     groups(end+1) = struct('title', 'field construction (consumed in step 2, not by the tracker)', 'fields', ...
-        {{'csd_lmax','csd_max_peaks','csd_peak_thresh','csd_peak_min_sep','csd_n_iter'}});
+        {{'csd_lmax','csd_peaks_file','csd_max_peaks','csd_peak_thresh','csd_peak_min_sep','csd_n_iter'}});
     groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_anchor'}});
     groups(end+1) = struct('title', 'stitching', 'fields', {{'stitching'}});
     groups(end+1) = struct('title', 'post-processing (steps 6-7, not read by the tracker)', 'fields', ...

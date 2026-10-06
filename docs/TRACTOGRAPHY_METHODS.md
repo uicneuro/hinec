@@ -136,8 +136,11 @@ the DTI field are interchangeable upstream of tracking:
 
 **Provisioning & caching.** `runTractography` provisions the peaks **before** the algorithm
 dispatch, so any tracker running `field: csd` — `hinec` and `mmf` alike — gets them. The FOD
-is computed once with `nim_csd` and cached next to the source nim as `<source>_csd.mat`
-(e.g. `data/ismrm2015/ismrm2015_csd.mat`); later runs load the cache.
+is computed once with `nim_csd` and cached next to the source nim as `<source>_csd_<settings>.mat`, named by every CSD
+setting (`lmax`, `n_iter`, `peak_thresh`, `peak_min_sep`, `max_peaks`), so a run with
+different settings never reuses another run's peaks; later runs with the same settings
+load the cache. Alternatively `tractography.csd.peaks_file` supplies an external peak
+field on the same grid (see `scripts/mrtrix_peaks_to_hinec.py`).
 
 **CSD parameters** (config section `tractography.csd`):
 
@@ -244,7 +247,7 @@ done
   `VB`). Compare runs by that JSON.
 
 **Data layer vs run dirs.** The nim + preprocessed refs + CSD cache
-(`data/ismrm2015/ismrm2015_csd.mat`) live in `data/ismrm2015/`; `hinec_runs/run_*/` hold
+(`data/ismrm2015/ismrm2015_csd_*.mat`) live in `data/ismrm2015/`; `hinec_runs/run_*/` hold
 tractography **outputs only**. Never store a nim inside a run dir.
 
 See also [Run Directory System](RUN_DIRECTORY_SYSTEM.md) and

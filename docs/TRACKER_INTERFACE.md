@@ -93,9 +93,10 @@ template do — `nim_principal_dir` gives you the closed form).
 
 ### Direction-field fields — built per run by `nim_field` (step 2)
 
-Present only when the config asks for that field. Cached beside the dataset
-(`<nim>_csd.mat`, `<nim>_dwi.mat`) because they cost minutes; never saved
-inside the nim.
+Present only when the config asks for that field. Native fitted fields may be
+cached beside the dataset because they cost minutes; they are not saved inside
+the nim. For `field: csd`, `tractography.csd.peaks_file` can supply a peak MAT
+on the same voxel grid instead of fitting native CSD.
 
 | `field:` | field | layout | meaning |
 |---|---|---|---|
@@ -162,7 +163,7 @@ same for the fields a tracker is expected to honour.
 ### Present but not yours
 
 These are in the struct because one struct is handed to everything, but they
-are consumed elsewhere: `csd_*` (step 2), `include_roi`, `exclude_roi`,
+are consumed elsewhere: `csd_*`, including `csd_peaks_file` (step 2), `include_roi`, `exclude_roi`,
 `roi_filter_*`, `endpoints_in`, `contained_in`, `any_in`, `length*` (step 6),
 `output_arc_step` (step 7), `seed_roi`, `seed_roi_dilate`, `seed_roi_info`,
 `seed_fa_threshold` (already applied to `seed_mask`), `algorithm`,

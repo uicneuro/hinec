@@ -98,7 +98,7 @@ fprintf('=== HINEC Tractography Pipeline ===\n');
 % here, never in main.m: the nim on disk is the DATASET and nothing else.
 %
 %   1  load nim     the dataset (img, evec/eval, FA, masks, parcellation, roi_masks)
-%   2  field        nim_field         dti | csd | dwi   (csd cached to <nim>_csd.mat)
+%   2  field        nim_field         dti | csd | dwi   (csd cached to <nim>_csd_<settings>.mat)
 %   3  geometry     nim_mmf_geometry  ONLY when algorithm == mmf (4.9 s dti / 8.1 s csd)
 %   4  seeds        where streamlines start: roi | brain mask | parcellation | FA
 %   5  track        hinec (RK4 on the interpolated field) | mmf (Eq 10-11) | standard (FACT)
@@ -156,7 +156,7 @@ else
 end
 
 %% Step 2 - field: the direction model this run tracks on (dti | csd | dwi)
-% Per-run, never baked into the nim. nim_field owns the sidecar cache (<nim>_csd.mat)
+% Per-run, never baked into the nim. nim_field owns the sidecar cache (<nim>_csd_<settings>.mat)
 % and the rule for when a field is worth caching at all; see its header.
 fprintf('\n=== Direction field ===\n');
 nim = nim_field(nim, options, data_path);
