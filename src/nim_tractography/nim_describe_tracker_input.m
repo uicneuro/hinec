@@ -261,6 +261,9 @@ function [groups, d] = options_dictionary()
     d.seed_mask     = {'(built in runTractography step 4)', '[X Y Z] logical: seed inside these voxels. THE seed input - the tracker generates seed points from it'};
     d.seed_roi_info = {'(built in runTractography step 4)', 'voxel counts of the ROI seed mask at each masking stage'};
     d.termination_fa = {'tractography.termination.fa_min', 'stop when interpolated FA drops below this'};
+    d.termination_fa_mode = {'tractography.termination.fa_mode', 'absolute: termination_fa = fa_min | percentile: termination_fa was resolved per scan from this scan''s in-mask FA'};
+    d.termination_fa_percentile = {'tractography.termination.fa_percentile', 'percentile used when fa_mode = percentile'};
+    d.termination_fa_config = {'(runTractography step 1b)', 'configured fa_min, kept when fa_mode = percentile replaced it'};
     d.angle_thresh   = {'tractography.termination.angle_max', 'max turn in DEGREES PER VOXEL OF ARC (min radius 57.3/angle_max voxels)'};
     d.min_length     = {'tractography.termination.min_arc', 'discard tracks whose chord length is below this (voxels)'};
     d.max_arc        = {'tractography.termination.max_arc', 'stop a half-track after this arc length (voxels)'};
@@ -303,7 +306,7 @@ function [groups, d] = options_dictionary()
     groups(end+1) = struct('title', 'interpolation', 'fields', {{'interp_method','upsample'}});
     groups(end+1) = struct('title', 'seeding', 'fields', {{'seed_mask','seed_density','seed_strategy', ...
         'seed_fa_threshold','seed_roi','seed_roi_dilate','seed_roi_info'}});
-    groups(end+1) = struct('title', 'termination', 'fields', {{'termination_fa','angle_thresh','min_length','max_arc','max_steps'}});
+    groups(end+1) = struct('title', 'termination', 'fields', {{'termination_fa','termination_fa_mode','termination_fa_percentile','termination_fa_config','angle_thresh','min_length','max_arc','max_steps'}});
     groups(end+1) = struct('title', 'ACT', 'fields', {{'act_enabled','wm_mask','gm_mask','csf_mask'}});
     groups(end+1) = struct('title', 'field construction (consumed in step 2, not by the tracker)', 'fields', ...
         {{'csd_lmax','csd_peaks_file','csd_max_peaks','csd_peak_thresh','csd_peak_min_sep','csd_n_iter'}});

@@ -57,6 +57,8 @@ function options = nim_config_to_options(config)
 
     % --- termination --------------------------------------------------------
     options.termination_fa = t.termination.fa_min;
+    options.termination_fa_mode       = t.termination.fa_mode;
+    options.termination_fa_percentile = t.termination.fa_percentile;
     options.angle_thresh   = t.termination.angle_max;
     options.min_length     = t.termination.min_arc;
 

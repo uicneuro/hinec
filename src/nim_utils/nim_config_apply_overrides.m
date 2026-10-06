@@ -141,7 +141,10 @@ function v = check_override(v, entry, key)
             if ~(ischar(v) || isstring(v))
                 error('nim_config_apply_overrides:badType', '--set %s: expected a string.', key);
             end
-            v = lower(char(v));
+            v = char(v);
+            % Free-form strings include case-sensitive filesystem paths.
+            % Normalize enum values only, matching load_config_yaml.
+            if ~isempty(entry.allowed), v = lower(v); end
             if ~isempty(entry.allowed) && ~any(strcmpi(v, entry.allowed))
                 error('nim_config_apply_overrides:badValue', ...
                     '--set %s: must be one of {%s}, got "%s".', key, strjoin(entry.allowed, ', '), v);

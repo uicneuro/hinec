@@ -279,3 +279,14 @@ and `meta.graph.fragment_ids` preserves the assembly provenance. With tracing,
 `meta.fragments` stores the original fragments; graph endpoint IDs `2*i-1` and
 `2*i` refer to the first and last point of fragment `i`. These chains remain
 ordinary finite N-by-3 voxel-coordinate polylines at the output boundary.
+
+### MMF tracking progress
+
+MMF DTI and CSD runs log completed seed counts, percentage, elapsed minutes,
+throughput, and estimated remaining tracking time at approximately 30-second
+intervals, plus startup and completion. Serial runs count each completed seed;
+parallel runs send completion notifications to the client, so the count does
+not depend on worker completion order. Counts include attempted seeds that do
+not yield a retained tract. ETA covers the tracking loop only, not subsequent
+filtering, saving, or scoring. Updates occur on seed completion; a single long
+seed can delay a serial update. These messages use the existing pipeline log.

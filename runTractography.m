@@ -120,6 +120,40 @@ if ~isfield(nim, 'FA')
     error('FA not found. Please run main() first to generate DTI data.');
 end
 
+% A tractography-only run may request bundle masks that were not baked into
+% the reusable dataset nim. Attach them here so seeding and ROI filters
+% resolve the same named masks without rerunning preprocessing.
+if use_config && isfield(config, 'preprocessing') && ...
+        isfield(config.preprocessing, 'bundle_roi_dir') && ...
+        ~isempty(config.preprocessing.bundle_roi_dir)
+    roi_root = char(config.preprocessing.bundle_roi_dir);
+    already_attached = isfield(nim, 'roi_source') && ...
+        strcmp(char(nim.roi_source), roi_root) && ...
+        isfield(nim, 'roi_masks') && isa(nim.roi_masks, 'containers.Map');
+    if ~already_attached
+        refs = {};
+        [data_dir, data_name] = fileparts(data_path);
+        refs{end+1} = fullfile(data_dir, [data_name '.nii.gz']); %#ok<AGROW>
+        refs{end+1} = fullfile(data_dir, [data_name '_dwi_ref.nii.gz']); %#ok<AGROW>
+        if use_run_dir && isfield(run_info, 'intermediate_dir')
+            found = dir(fullfile(run_info.intermediate_dir, '*.nii.gz'));
+            for ii = 1:numel(found)
+                refs{end+1} = fullfile(found(ii).folder, found(ii).name); %#ok<AGROW>
+            end
+        end
+        ref_nii = '';
+        for ii = 1:numel(refs)
+            if isfile(refs{ii}), ref_nii = refs{ii}; break; end
+        end
+        if isempty(ref_nii)
+            error('runTractography:bundleRoiReference', ...
+                'bundle_roi_dir requires a DWI reference NIfTI beside the nim or in the run intermediate directory.');
+        end
+        fprintf('\n=== Attaching bundle ROIs for this tractography run ===\n');
+        nim = nim_attach_bundle_rois(nim, roi_root, ref_nii);
+    end
+end
+
 %% Tractography options for THIS run (config -> the flat names the trackers take)
 if use_config
     fprintf('Loading tractography parameters from YAML config...\n');
@@ -153,6 +187,21 @@ else
     options.min_length = 35;
     options.order = 1;
     options.interp_method = 'none';
+end
+
+%% Step 1b - per-scan FA stop threshold (tractography.termination.fa_mode = percentile)
+% Tracker-agnostic: every tracker reads options.termination_fa, so resolving it here
+% applies to all of them. The configured absolute value is kept for the record.
+if isfield(options, 'termination_fa_mode') && strcmpi(options.termination_fa_mode, 'percentile')
+    fa_all = real(double(nim.FA(:)));
+    in_brain = isfinite(fa_all);
+    if isfield(nim, 'mask') && ~isempty(nim.mask)
+        in_brain = in_brain & logical(nim.mask(:));
+    end
+    options.termination_fa_config = options.termination_fa;
+    options.termination_fa = prctile(fa_all(in_brain), options.termination_fa_percentile);
+    fprintf('  Termination FA (per scan): %.4f = %gth percentile of in-mask FA (fa_min %.2f ignored)\n', ...
+        options.termination_fa, options.termination_fa_percentile, options.termination_fa_config);
 end
 
 %% Step 2 - field: the direction model this run tracks on (dti | csd | dwi)

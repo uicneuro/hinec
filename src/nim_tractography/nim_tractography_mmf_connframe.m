@@ -142,18 +142,28 @@ alltr=cell(ns,1);
 % regions?") cannot be answered from a finished run at all.
 allterm=cell(ns,1);
 t0=tic;
+progress=nim_tracking_progress(sprintf('MMF [%s]',options.field),ns);
 if use_par
+  progress_queue=parallel.pool.DataQueue;
+  afterEach(progress_queue,@(~)progress(1,false));
   parfor i=1:ns
     [allt{i},alltr{i},allterm{i}]=track_bi(nim,seeds(i,1:3),seeds(i,4:6),options,cos_thresh,dims,do_tr(i));
     valid(i)=size(allt{i},1)>1;
+    send(progress_queue,1); % Count completions, not out-of-order seed indices.
   end
+  % Drain completion callbacks before reporting the end of tracking.
+  drawnow;
 else
   for i=1:ns
     [allt{i},alltr{i},allterm{i}]=track_bi(nim,seeds(i,1:3),seeds(i,4:6),options,cos_thresh,dims,do_tr(i));
     valid(i)=size(allt{i},1)>1;
+    progress(1,false);
   end
 end
+% The loop has returned, so all ns seeds are complete even if queue callbacks lag.
+progress(ns,true);
 fprintf('Tracking loop: %.1f s\n', toc(t0));
+fprintf('MMF [%s]: tracking finished; applying minimum-length filter to %d candidate curves...\n',options.field,nnz(valid));
 raw=allt(valid); tracks=cell(numel(raw),1); k=0;
 for i=1:numel(raw), t=raw{i}; if sum(sqrt(sum(diff(t,1,1).^2,2)))>=options.min_length, k=k+1; tracks{k}=t; end, end
 tracks=tracks(1:k);
