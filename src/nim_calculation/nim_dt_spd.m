@@ -32,7 +32,8 @@ function nim_out = nim_dt_spd(nim, opts)
     yt(v) = log(nim.img_b0(v) ./ bt(v)) ./ b(t);
     Y(:,:,:,t) = yt;
   end
-  min_samples = 7;                 % 6 tensor unknowns + 1
+  % S0 is measured, so y = log(S0/S)/b leaves exactly the 6 tensor elements
+  % unknown: a voxel is fittable when its usable gradient rows have rank 6.
   n_vox_dropped_samples = 0;       % voxels fitted with some samples left out
   n_vox_too_few = 0;               % voxels left at zero: too few usable samples
 
@@ -73,7 +74,7 @@ function nim_out = nim_dt_spd(nim, opts)
           nim.eval(x,y,z,:) = zeros(3,1);
 
         % b0 is zero or negative, or too few usable samples to fit a tensor
-        elseif nim.img_b0(x,y,z) <= 0 || nnz(valid4(x,y,z,:)) < min_samples
+        elseif nim.img_b0(x,y,z) <= 0 || ~fittable(H, valid4(x,y,z,:))
           if nim.img_b0(x,y,z) > 0
             n_vox_too_few = n_vox_too_few + 1;
           end
@@ -175,8 +176,8 @@ function nim_out = nim_dt_spd(nim, opts)
   elapsed = duration(dt_fin - dt_start, 'Format', 'hh:mm:ss');
   disp("Elapsed time: " + string(elapsed));
   if n_vox_dropped_samples > 0 || n_vox_too_few > 0
-    fprintf("Non-positive intensities: %d voxels fitted without their unusable samples; %d left at zero (< %d usable samples).\n", ...
-      n_vox_dropped_samples, n_vox_too_few, min_samples);
+    fprintf("Non-positive intensities: %d voxels fitted without their unusable samples; %d left at zero (usable gradients do not determine the tensor).\n", ...
+      n_vox_dropped_samples, n_vox_too_few);
   end
   nim.dt_dropped_sample_voxels = n_vox_dropped_samples;
   nim.dt_too_few_sample_voxels = n_vox_too_few;
@@ -184,3 +185,8 @@ function nim_out = nim_dt_spd(nim, opts)
   disp("Done.");
 end
 
+function ok = fittable(H, valid)
+% True when the usable samples determine all 6 tensor elements.
+  use = valid(:);
+  ok = nnz(use) >= 6 && (all(use) || rank(H(use,:)) == 6);
+end
