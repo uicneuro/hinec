@@ -85,6 +85,8 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
 | `fa_min` | numeric | `0.1` | all | Stop tracking below this FA. (NOT the legacy fa_threshold - see nim_config_retired.) |
+| `fa_mode` | string | `absolute` | all | How the FA stop threshold is set. absolute = stop below termination.fa_min (unchanged behaviour). percentile = stop below the termination.fa_percentile-th percentile of THIS scan's FA inside its brain mask, resolved per scan in runTractography before any tracker runs; fa_min is then ignored. Removes scanner-level FA offsets (the same absolute FA cuts different fractions of the brain on different scanners). The resolved value is logged and kept in options.termination_fa, with the configured one in options.termination_fa_config. |
+| `fa_percentile` | numeric | `26.3` | all | Percentile of the scan's in-mask FA used as the stop threshold when fa_mode = percentile. Default 26.3 = the median percentile rank of FA 0.10 over the 76 ds000206 scans (the reference protocol), so it keeps the meaning of fa_min = 0.10. |
 | `angle_max` | numeric | `225` | all | Maximum turn in DEGREES PER VOXEL OF ARC, i.e. a minimum radius of curvature R = 57.3/angle_max voxels. The default 225 is the classic 45 deg/step evaluated at the default step of 0.2. Step-invariant: the budget for one step is angle_max x the NOMINAL step arc (never the realised chord - that would make the budget method-dependent), so refining the step does not loosen the constraint. CEILING: tangents are sign-aligned because v1 is a line field, so a measured turn never exceeds 90 deg - any angle_max above 90/step is INERT, not merely loose, and 225 goes inert for any step >= 0.4. 0 disables the criterion outright, which is what a control run should use. |
 | `max_arc` | numeric | `400` | all | Maximum track arc length in voxels. Step-invariant: max_steps is derived as ceil(max_arc/step). |
 | `min_arc` | numeric | `15` | all | Discard tracks shorter than this arc length in voxels. |
@@ -125,6 +127,7 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
+| `peaks_file` | string | `` | hinec, mmf, stitching | Optional MAT file with peaks [X Y Z P 3], npeaks [X Y Z], and peak_w [X Y Z P] in dataset voxel-axis coordinates. When set, use this deterministic field instead of fitting native CSD. The file must match the dataset grid; no GT or scoring data is needed. |
 | `lmax` | numeric | `4` | hinec, mmf, stitching | Spherical harmonic order for CSD. Default 4, set from the data rather than convention: with the 32 directions of this acquisition lmax=6 needs 28 coefficients from 32 measurements and the response falls to r_4 = -0.035 against r_0 = 2.73, so deconvolution divides by a near-zero and amplifies noise - its primary FOD peak misses the tensor v1 by 26.6 deg in UNAMBIGUOUS single-fibre voxels, against 6.6 deg at lmax=4. lmax=2 spans exactly the tensor and cannot represent a crossing at all. |
 | `max_peaks` | numeric | `3` | hinec, mmf, stitching | Maximum FOD peaks retained per voxel. |
 | `peak_thresh` | numeric | `0.2` | hinec, mmf, stitching | Minimum FOD peak amplitude as a fraction of the voxel maximum. The old default of 0.5 required a second fibre population to be at least half as strong as the first, which discards ordinary unequal crossings; MRtrix uses 0.1 for the equivalent. Peaks must now also be local maxima of the FOD, so a lower threshold admits genuine fibres rather than points on the shoulder of the first peak. |
@@ -165,11 +168,16 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 | `run_eddy` | logical | `true` | - | Run eddy-current correction (FSL). |
 | `improve_mask` | logical | `true` | - | Refine the brain mask using FA. |
 | `mask_file` | string | `` | - | Optional dataset-supplied brain or tracking mask. Empty runs the normal T1/DWI brain extraction stage. |
+| `atlas_file` | string | `` | - | Optional external 3-D integer label atlas (.nii/.nii.gz), already aligned to the DWI grid. Overrides atlas_type and bypasses built-in atlas registration. Background is 0; no automatic resampling or registration. |
+| `atlas_labels_file` | string | `` | - | Optional UTF-8 TSV with index and name columns for atlas_file. Indices are actual voxel values, without offsets. Empty generates Region_<index> names. Requires atlas_file. |
 | `atlas_type` | string | `jhu` | - | Atlas used for parcellation. |
 | `bundle_roi_dir` | string | `` | - | Optional directory of bundle masks to use as the parcellation INSTEAD of the atlas, e.g. data/ismrm2015/scoring_data_Renauld2023/ROI. Must contain all_masks/ (containment corridors, which become the labels) and may contain endpoints/ and any_masks/ (gates, addressable by name but not labels). The atlas parcellation is preserved as parcellation_mask_<atlas_type> rather than discarded. Empty = atlas only. Set this when ROIs should be addressed by the names a scorer uses: an atlas label and a bundle of the same name are not the same region. |
 | `t1_available` | logical | `false` | - | A T1 volume is present alongside the DWI. |
 | `use_t1_registration` | logical | `false` | - | Register T1 to DWI space. |
 | `register_to_mni` | logical | `false` | - | Register to MNI space. |
+| `dwell_time` | numeric | `0.00058` | - | Field-map (FUGUE) correction: effective echo spacing in SECONDS (time between phase-encode lines). Set it from the acquisition; the default is a generic guess. Displacement in voxels = field[Hz] x dwell_time x phase-encode lines, so a wrong value scales the correction. ISMRM 2015: 0.001. |
+| `phase_encoding_dir` | string | `y` | - | Field-map (FUGUE) correction: phase-encoding axis and polarity (FUGUE --unwarpdir). ISMRM 2015: y (checked against GT: y- makes the distortion worse). |
+| `fieldmap_units` | string | `auto` | - | Units of the field map file. auto = from the file name (fmap_Hz / RadPerSec). Hz maps are converted to rad/s, which is what FUGUE expects. |
 
 ## Migrating from the old flat config
 
@@ -193,6 +201,7 @@ naming its replacement.
 | `seed_fa_threshold` | `tractography.seeding.fa_min` |
 | `termination_fa` | `tractography.termination.fa_min` |
 | `min_length` | `tractography.termination.min_arc` |
+| `csd_peaks_file` | `tractography.csd.peaks_file` |
 | `csd_lmax` | `tractography.csd.lmax` |
 | `csd_max_peaks` | `tractography.csd.max_peaks` |
 | `csd_peak_thresh` | `tractography.csd.peak_thresh` |
