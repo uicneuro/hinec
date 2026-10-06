@@ -10,6 +10,7 @@ launchers or provide documented commands for working with their outputs.
 | `ismrm_report_scores.py` | Print a whole-brain or seeded-bundle score; called by `bin/run_ismrm_scoring.sh`. |
 | `build_ismrm_scoring_config.py` | Prepare the merged ISMRM scorer config. |
 | `compare_ismrm_results.py` | Compare scores from completed runs. |
+| `assess_tractography.py` | Convergence / repeatability / consistency of any tracker's output (package `tract_assessment/`); launched by `bin/run_assessment.sh`, see `docs/TRACT_ASSESSMENT.md`. |
 | `validate_ismrm_tractography.py` | Run standalone ISMRM validation diagnostics. |
 | `FastTractographyViewer.py` | View a generated slice cache; launched by `bin/viewSlices.sh`. |
 | `tractography_slice_gui.py` | Open the interactive MATLAB slice-viewer controls. |

@@ -77,6 +77,7 @@ nav:
     - Distributed Workflow: DISTRIBUTED_WORKFLOW.md
   - Verification & Validation:
     - Solution Verification: CONVERGENCE.md
+    - Convergence, Repeatability, Consistency: TRACT_ASSESSMENT.md
     - ISMRM Scoring: ISMRM_SCORING_ANALYSIS.md
     - Validation Guide: VALIDATION_GUIDE.md
     - Validation Usage: VALIDATION_USAGE.md
