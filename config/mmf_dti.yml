@@ -1,7 +1,7 @@
 # Moving frames tractography (advanceFrame) on the DTI principal-eigenvector field:
 # the fibre carries an orthonormal frame that is transported by the connection
-# of the data with the closed-form exponential step (exact where the curvature is
-# constant along the fibre), CF4 (integrator rk4 -> Lie group order 4), adaptive
+# of the data with the closed-form exponential step (exact for a planar arc of
+# constant curvature at any step size), CF4 (integrator rk4 -> Lie group order 4), adaptive
 # re-anchoring to the data where the carried heading drifts. See
 # docs/MMF_TRACTOGRAPHY.md.
 #

@@ -71,9 +71,9 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %       smax   maximum arc length followed from the seed; a tract stops
 %              earlier when it leaves the domain (the last segment is cut
 %              at the boundary), when the next step would turn the frame by
-%              more than 'MaxTurn' (in a re-anchoring mode: also when the
-%              re-anchoring at its end would), or when the connection is
-%              not finite
+%              more than 'MaxTurn' (or when the data's e_1 at its end is
+%              more than 'MaxTurn' from the heading at its start), or when
+%              the connection is not finite
 %
 %   Options (name/value pairs)
 %       'Order'   1, 2 or 4 (default 4), see above
@@ -141,15 +141,19 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 means the data are singular there (crossing, isotropic
 %                 voxel). This is the frame counterpart of the angle
 %                 threshold of streamline tractography. Inf disables it.
-%                 In the re-anchoring modes the re-anchoring at the end of
-%                 a step is a rotation of the frame too: a step after which
-%                 the data's e_1 differs from the transported one by more
-%                 than MaxTurn (the drift, at most pi/2) is not taken
-%                 either, with the same reason 'turn' - the counterpart of
-%                 the angle test between consecutive directions of
-%                 streamline tracking, which a snap to the data would
-%                 otherwise bypass. A tract also stops before a step whose
-%                 connection is not finite at some stage.
+%                 The budget also applies to the heading as the data see
+%                 it: a step at whose end the data's e_1 is more than
+%                 MaxTurn (modulo sign, so at most pi/2) from the heading
+%                 at its start is not taken either, with the same reason
+%                 'turn'. In the re-anchoring modes that is the turn the
+%                 re-anchoring would realise, the counterpart of the angle
+%                 test between consecutive directions of streamline
+%                 tracking, which a snap to the data could otherwise
+%                 bypass; in 'transport' mode it stops a tract whose
+%                 transported heading the data contradict beyond the
+%                 budget (not evaluated when mf is []). A tract also stops
+%                 before a step whose connection is not finite at some
+%                 stage.
 %
 %   Outputs
 %       tracts  cell {nseed x 1} of [npts x spacedim] tract points, the
@@ -163,8 +167,9 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %               stop     cell {nseed x 1} of char, why each tract ended:
 %                        'boundary' (left the domain, last point is the cut
 %                        on the boundary), 'length' (reached smax), 'turn'
-%                        (the next step, or the re-anchoring at its end,
-%                        would turn by more than MaxTurn),
+%                        (the next step would turn by more than MaxTurn,
+%                        or the data's e_1 at its end is more than MaxTurn
+%                        from the heading at its start),
 %                        'nan' (the connection is not finite at the next
 %                        step); for 'turn' and 'nan' the last point is the
 %                        last admissible integration node
@@ -175,9 +180,8 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                        h*theta at the points (NaN at a clipped point)
 %               drift    cell, angle between the transported e_1 arriving
 %                        at a point and the data's e_1 there (modulo sign),
-%                        before any re-anchoring; 0 at the seed; in
-%                        'transport' mode NaN after the seed (not evaluated
-%                        there)
+%                        before any re-anchoring; 0 at the seed; NaN where
+%                        there is no data frame (mf = [])
 %               reanchored
 %                        cell, logical per point: the frame stored at the
 %                        point is the data frame (re-anchored) rather than
@@ -205,8 +209,10 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %   HINEC / moving-frames tractography test domain. Created 2026-10-09;
 %   'adaptive' mode and 'ReanchorTol' added 2026-10-13. The linear-curvature
 %   step ('Model', 'linear', 2026-10-14) was removed on 2026-10-19; the version
-%   that had it is archived as MMF4vca_old.m. Since 2026-10-20 a re-anchoring
-%   larger than 'MaxTurn' stops the tract ('turn') instead of being applied.
+%   that had it is archived as MMF4vca_old.m. Since 2026-10-20 'MaxTurn' also
+%   bounds the turn of the heading as the data see it (the data's e_1 at the
+%   end of a step against the heading at its start), in every mode, so that a
+%   re-anchoring cannot exceed the budget; drift is evaluated in every mode.
 
 %% --- options --------------------------------------------------------------
 order   = 4;
@@ -375,12 +381,17 @@ for n = 1:nstep
     Ea = E(idx, :, :);
     [Xn, En, Om1, maxRot] = lieStep(Xa, Ea, h, order, omegaFcn);
     dr = NaN(numel(idx), 1);                    % drift of the transported heading at Xn
+    dt = NaN(numel(idx), 1);                    % turn of the heading over the step as the data see it
     re = false(numel(idx), 1);                  % rows whose frame is re-anchored at Xn
-    switch mode
-        case 'reanchor'                         % after every step
-            [En, dr, re] = reanchorFrames(Xn, En, evalMF, expdim, -Inf);
-        case 'adaptive'                         % only where the heading has drifted
-            [En, dr, re] = reanchorFrames(Xn, En, evalMF, expdim, reanchorTol);
+    if ~isempty(evalMF)
+        Et = evalMF(Xn(:, 1:expdim));           % the data frame at the end of the step
+        dr = headingAngle(En, Et);              % transported e_1 at Xn against the data's e_1 there
+        dt = headingAngle(Ea, Et);              % e_1 at the start of the step against the data's e_1 at its end
+        switch mode
+            case 'reanchor',  re = isfinite(dr);            % after every step (where there is a data frame)
+            case 'adaptive',  re = dr >= reanchorTol;       % only where the heading has drifted
+        end
+        En = reanchorRows(En, Et, re);
     end
     [ka, ta, th] = curvatureTwist(Om1, m);
     for q = 1:numel(idx)
@@ -394,9 +405,9 @@ for n = 1:nstep
         elseif maxRot(q) > maxTurn                                     % the step is not taken:
             stop{k}   = 'turn';                                        % too large a rotation
             active(k) = false;
-        elseif re(q) && dr(q) > maxTurn                                % the step is not taken: the
-            stop{k}   = 'turn';                                        % re-anchoring at its end would
-            active(k) = false;                                         % turn e_1 by more than MaxTurn
+        elseif dt(q) > maxTurn                                         % the step is not taken: the data's
+            stop{k}   = 'turn';                                        % e_1 at its end is more than MaxTurn
+            active(k) = false;                                         % from the heading at its start
         elseif all(Xn(q, 1:expdim) >= lims(:, 1).' & Xn(q, 1:expdim) <= lims(:, 2).')
             tracts{k}(end+1, :)    = Xn(q, :);                         %#ok<AGROW>
             frames{k}(end+1, :, :) = En(q, :, :);                      %#ok<AGROW>
@@ -634,24 +645,26 @@ E(bad, :, :) = NaN;
 end
 
 % =========================================================================
-function [E, drift, sel] = reanchorFrames(X, E, evalMF, expdim, tol)
-% Re-anchoring: the rows of E whose heading drift is tol or more (sel) are
-% replaced by the data frame at X with the sign of each vector chosen by
-% the transported frame (an even number of flips, so right-handed); tol =
-% -Inf replaces every row, tol = Inf none (the drift is at most pi/2).
-% drift is the angle between the transported e_1 and the data's e_1
-% (modulo sign) at X, for every row, before the replacement.
-[n, m, ~] = size(E);
-Et = evalMF(X(:, 1:expdim));
-g  = zeros(n, m);
-for i = 1:m
-    g(:, i) = sum(E(:, i, :) .* Et(:, i, :), 3);
+function ang = headingAngle(A, B)
+% Angle between the first vectors of the frames A and B, row by row, modulo
+% sign (the data's e_1 is a line): accurate for small angles, at most pi/2,
+% NaN where a frame is not finite.
+g   = sum(A(:, 1, :) .* B(:, 1, :), 3);
+r   = A(:, 1, :) - g .* B(:, 1, :);                 % part of e_1 normal to the other
+ang = atan2(sqrt(sum(r .^ 2, 3)), abs(g));
 end
-r     = E(:, 1, :) - g(:, 1) .* Et(:, 1, :);       % part of e_1 normal to the data's e_1
-drift = atan2(sqrt(sum(r .^ 2, 3)), abs(g(:, 1))); % accurate for small angles
-sel   = drift >= tol;
+
+function E = reanchorRows(E, Et, sel)
+% Re-anchoring: the rows sel of E are replaced by the data frames Et with
+% the sign of each vector chosen by the transported frame (an even number
+% of flips, so right-handed).
 if ~any(sel)
     return
+end
+[n, m, ~] = size(E);
+g = zeros(n, m);
+for i = 1:m
+    g(:, i) = sum(E(:, i, :) .* Et(:, i, :), 3);
 end
 s = sign(g);
 s(s == 0) = 1;

@@ -93,7 +93,8 @@ theory applies to it.
 The fibre is followed as a curve that carries its own orthonormal frame: the frame is
 transported by the connection 1-forms of the data's frame field with a closed-form
 exponential step (a rotation of the frame together with a circular arc of the position),
-exact wherever the curvature is constant along the fibre, and `integrator.method` =
+exact for a planar arc of constant curvature at any step size (to the order of the
+integrator where the fibre has torsion), and `integrator.method` =
 `euler` / `rk2` / `rk4` selects the Lie group integrator of order 1 / 2 / 4 built around it
 (`rkf45` is rejected). The direction field is the same interpolated dyadic the `hinec`
 tracker uses; the connection is a sign-aligned central difference of its principal axis,

@@ -5,8 +5,9 @@
 - `algorithm: mmf` is a permitted value again and now selects the new moving
   frames tracker `nim_tractography_mmf` (scheme `advanceFrame.m`: the carried
   orthonormal frame is transported by the connection 1-forms of the data's frame
-  field with a closed-form exponential step, exact where the curvature is
-  constant along the fibre; see [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)).
+  field with a closed-form exponential step, exact for a planar arc of
+  constant curvature at any step size, to the order of the integrator on a
+  fibre with torsion; see [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)).
   It is unrelated to the tracker removed below; only the name is reused.
   `algorithm` takes `hinec | standard | mmf | stitching | template`.
 - New group `tractography.mmf`: `mode` (`transport | reanchor | adaptive`,
@@ -20,6 +21,17 @@
 - The "used by" column of the reference changes accordingly: `debug.trace` and
   `debug.trace_max` now list `mmf`; the `csd.*` keys and the rkf45 keys
   (`integrator.tolerance`, `step_min`, `step_max`) no longer do.
+- For `algorithm: mmf`, `termination.angle_max` (through `nim_angle_limit`,
+  `min(angle_max * step, 90)` degrees per step) bounds both the rotation of a
+  frame step and the turn of the heading as the data see it (the data's `e1`
+  at the end of a step against the heading at its start, in every mode), so a
+  re-anchoring cannot exceed the budget; the 90 degree ceiling is a real cap
+  for this tracker (warning `nim_config:angleMaxCapped` instead of
+  `angleMaxInert`), and `angle_max: 0` keeps a safety ceiling of 180 degrees
+  per step at singular data (reported as `no_direction`).
+- With `algorithm: mmf`, the `debug.trace` records have the hinec layout
+  (`pos`, `dir`, `fa`, `h`, `chord`, `turn`, `flip`, `n_steps`, `termination`)
+  plus `drift`, `reanchored`, `kappa`, `s`; `nim_track_diagnose` reads both.
 - New tracker config `config/mmf_dti.yml` (CF4, spline kernel, adaptive mode).
   Output file `tracks_mmf_<timestamp>.mat`.
 

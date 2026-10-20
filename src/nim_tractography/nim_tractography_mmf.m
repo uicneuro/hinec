@@ -15,7 +15,7 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % order of the integrator, since the twist is dropped, see below) and the Lie
 % group integrators of order 1, 2 and 4 (Lie-Euler, exponential midpoint, CF4).
 % The mathematics and the verification are in the moving-frames test suite
-% (Moving Frame Tractography/matlab, doc/advanceFrame_notes.tex); this file only
+% (Moving Frame Tractography/matlab, doc/MMFtractography_notes.tex); this file only
 % connects the scheme to the voxel data of a nim.
 %
 % THE DATA'S FRAME FIELD AND CONNECTION, FROM THE VOXELS. The principal
@@ -55,10 +55,14 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % budget termination.angle_max (degrees per voxel of arc; through
 % nim_angle_limit it is min(angle_max*h, 90) degrees per step, none for
 % angle_max <= 0) is advanceFrame's 'MaxTurn', applied to the rotation
-% h*|kappa| of a step and to the re-anchoring at its end (the snap of the
-% carried heading to the data's e1, which could otherwise bypass the budget).
-% Unlike the streamline trackers, whose sign-aligned turn cannot exceed 90
-% degrees, the 90 degree ceiling is a real cap here. The curvature of the
+% h*|kappa| of a step and to the turn of the heading as the data see it: the
+% data's e1 at the end of a step against the heading at its start, in every
+% mode (in the re-anchoring modes the turn the snap to the data would realise,
+% which could otherwise bypass the budget; in transport mode the data's
+% disagreement with the carried heading). Unlike the streamline trackers,
+% whose sign-aligned turn cannot exceed 90 degrees, the 90 degree ceiling is a
+% real cap here; angle_max <= 0 keeps a ceiling of pi per step at singular
+% data, reported as 'no_direction'. The curvature of the
 % interpolated principal-axis field is large wherever the dyadic is nearly
 % degenerate (crossings, planar regions), so the budget stops more half-tracks
 % there than the node-to-node angle test of the streamline trackers does.
@@ -131,6 +135,14 @@ mode  = lower(char(string(o('mmf_mode', 'adaptive'))));
 rtol  = o('mmf_reanchor_tol', 1e-3);
 delta = o('mmf_gradient_delta', 1e-3);
 maxTurn = deg2rad(nim_angle_limit(options.angle_thresh, h));   % min(angle_max*h, 90) deg per step; Inf disables
+angle_off = ~isfinite(maxTurn);
+if angle_off
+    % The criterion is switched off, but a singular connection (|kappa| ~ 1/delta where a stage lands
+    % on a jump of e1: a crossing, a degenerate dyadic) would rotate the frame by an arbitrary angle
+    % in one exponential step and the tract would retrace itself. A step turning by more than half a
+    % turn is never resolved data, so a ceiling of pi stays; such a stop is reported as 'no_direction'.
+    maxTurn = pi;
+end
 smax  = o('max_arc', o('max_steps', 1000) * h);
 min_length     = o('min_length', 0);
 termination_fa = options.termination_fa;
@@ -150,6 +162,9 @@ if isempty(upsample) || upsample <= 0, upsample = 1; end
 v1  = reshape(nim.evec(:, :, :, :, 1), [dims 3]);
 Dc  = {v1(:,:,:,1).*v1(:,:,:,1), v1(:,:,:,2).*v1(:,:,:,2), v1(:,:,:,3).*v1(:,:,:,3), ...
        v1(:,:,:,1).*v1(:,:,:,2), v1(:,:,:,1).*v1(:,:,:,3), v1(:,:,:,2).*v1(:,:,:,3)};
+for q = 1:6
+    Dc{q}(~isfinite(Dc{q})) = 0;     % a non-finite voxel (outside the brain) would poison the whole spline field
+end
 FAg = double(nim.FA);
 gv  = {1:dims(1), 1:dims(2), 1:dims(3)};
 if abs(upsample - 1) > 1e-9
@@ -181,7 +196,8 @@ fprintf('MMF: moving frames tractography (advanceFrame), order %d, mode %s%s, %s
 % The field, as one value the local functions below receive explicitly (local
 % functions, not nested ones: advanceFrame calls the handles from inside its own
 % loops, and nested functions would share this workspace).
-fld = struct('DI', {DI}, 'FAI', FAI, 'prop', prop, 'dims', dims, 'fa_min', termination_fa, 'delta', delta);
+fld = struct('DI', {DI}, 'FAI', FAI, 'prop', prop, 'dims', dims, 'fa_min', termination_fa, 'delta', delta, ...
+             'angle_off', angle_off);
 names = reason_names();
 
 % ---- seeds -------------------------------------------------------------------
@@ -267,7 +283,7 @@ meta.seed_index  = reshape(find(kept), 1, []);
 meta.seed_points = seed_points(kept, :);
 meta.n_seeds     = n_seeds;
 meta.mmf = struct('order', order, 'mode', mode, 'reanchor_tol', rtol, 'twist', 'zero', ...
-                  'max_turn_rad', maxTurn, 'gradient_delta', delta, 'kernel', kernel, ...
+                  'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'kernel', kernel, ...
                   'reanchored_fraction', n_re / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
                   'seeds_skipped', struct('reason', {reshape(names(has), [], 1)}, 'count', {skipped_cnt(has)}));
 tt = term(alive_seed, :); tt = tt(:); tt = tt(~cellfun(@isempty, tt));
@@ -353,18 +369,23 @@ end
 function w = connection_at(X, fld)
 % Connection components w(n,i,j,k) = e_j . d e_i/dx_k of the data frames:
 % the curvature rows (i = 1) from central differences of the interpolated
-% principal axis, sign aligned; the twist row w_23 is set to zero (the
-% scheme runs with 'Twist' 'zero'). Non-finite where the point is invalid.
+% principal axis (one-sided at a face of the volume), sign aligned; the
+% twist row w_23 is set to zero (the scheme runs with 'Twist' 'zero').
+% Non-finite where the point is invalid.
 n  = size(X, 1);
 E  = frames_at(X, fld);
 e1 = reshape(E(:, 1, :), n, 3); e2 = reshape(E(:, 2, :), n, 3); e3 = reshape(E(:, 3, :), n, 3);
 w  = zeros(n, 3, 3, 3);
 for k = 1:3
-    dX = zeros(1, 3); dX(k) = fld.delta;
-    ep = e1_at(X + dX, fld); em = e1_at(X - dX, fld);
+    Xp = X; Xm = X;                                   % the stencil, one-sided at the faces of the volume
+    Xp(:, k) = min(X(:, k) + fld.delta, fld.dims(k));
+    Xm(:, k) = max(X(:, k) - fld.delta, 1);
+    ep = e1_at(Xp, fld); em = e1_at(Xm, fld);
     ep = ep .* sign(sum(ep .* e1, 2) + 1e-300);       % align the signs of the line field
     em = em .* sign(sum(em .* e1, 2) + 1e-300);
-    de1 = (ep - em) / (2 * fld.delta);
+    span = Xp(:, k) - Xm(:, k);
+    de1  = (ep - em) ./ span;
+    de1(span == 0, :) = 0;                            % a volume one voxel thick along k: no variation
     w12 = sum(e2 .* de1, 2);
     w13 = sum(e3 .* de1, 2);
     w(:, 1, 2, k) =  w12;  w(:, 2, 1, k) = -w12;
@@ -383,7 +404,8 @@ function reason = why_stopped(stop, P, F, hh, fld, xdrop)
 switch stop
     case 'boundary', reason = 'outside';
     case 'length',   reason = 'max_arc';
-    case 'turn',     reason = 'angle';
+    case 'turn'
+        if fld.angle_off, reason = 'no_direction'; else, reason = 'angle'; end   % see the ceiling at maxTurn
     otherwise
         if isempty(P), reason = 'outside'; return; end
         p   = P(end, :); e = reshape(F(size(P, 1), 1, :), 1, 3);
@@ -448,8 +470,11 @@ p1 = Dxy.^2 + Dxz.^2 + Dyz.^2;
 qm = (Dxx + Dyy + Dzz) / 3;
 diag_case = fin & p1 < 1e-24;
 if any(diag_case)
-    [~, kmax] = max([Dxx(diag_case) Dyy(diag_case) Dzz(diag_case)], [], 2);
-    vd = zeros(nnz(diag_case), 3); vd(sub2ind(size(vd), (1:nnz(diag_case))', kmax)) = 1;
+    Dd = [Dxx(diag_case) Dyy(diag_case) Dzz(diag_case)];
+    [ds, kord] = sort(Dd, 2, 'descend');
+    vd = zeros(nnz(diag_case), 3); vd(sub2ind(size(vd), (1:nnz(diag_case))', kord(:, 1))) = 1;
+    tie = (ds(:, 1) - ds(:, 2)) <= 1e-9 * max(1, abs(sum(Dd, 2)));   % the two largest entries tie
+    vd(tie, :) = NaN;                                                  % (equal-weight crossing, zero dyadic): no axis
     v(diag_case, :) = vd;
 end
 gen = fin & ~diag_case;

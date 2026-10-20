@@ -24,7 +24,7 @@ DTI, see below), so there Omega is not constant along the fibre in the carried
 frame and the step is exact only to the order of the integrator. The scheme
 itself is `advanceFrame.m`, shared with the moving-frames test suite (the
 `Moving Frame Tractography/matlab` folder), whose notes
-`doc/advanceFrame_notes.tex` give the mathematics, the gauge, the variants and
+`doc/MMFtractography_notes.tex` give the mathematics, the gauge, the variants and
 the verification on analytic fields in two and three dimensions. This page
 covers only what connects the scheme to the voxel data of a nim.
 
@@ -90,18 +90,21 @@ trackers.
 
 The angle budget `termination.angle_max` (degrees per voxel of arc, through
 `nim_angle_limit`: `min(angle_max * h, 90)` degrees per step, none for
-`angle_max <= 0`) becomes `advanceFrame`'s `MaxTurn`. It bounds two rotations:
-the rotation `h |kappa|` of a step, evaluated at every stage, and the
-re-anchoring at the end of a step in the `reanchor` and `adaptive` modes — the
-snap of the carried heading to the data's `e1`, which is the moving-frames
-counterpart of the angle between consecutive directions that the streamline
-trackers test, and which could otherwise put a kink of up to 90 degrees into a
-track where the data's direction changes abruptly (a crossing seen in DTI, an
-interface between bundles). Where the interpolated principal axis is piecewise
-constant with a swap plane, as across such an interface, the connection is
-zero except within `gradient_delta` of the plane and a step whose stages
-straddle it sees no curvature at all; the re-anchoring test is what stops the
-tract there. Unlike the streamline trackers, whose sign-aligned turn cannot
+`angle_max <= 0`) becomes `advanceFrame`'s `MaxTurn`. It bounds two turns: the
+rotation `h |kappa|` of a step, evaluated at every stage, and the turn of the
+heading as the data see it — the data's `e1` at the end of a step against the
+heading at its start (modulo sign), in every mode. In the `reanchor` and
+`adaptive` modes that is the turn a re-anchoring would realise, the
+moving-frames counterpart of the angle between consecutive directions that the
+streamline trackers test, which could otherwise put a kink of up to 90 degrees
+into a track where the data's direction changes abruptly (a crossing seen in
+DTI, an interface between bundles); in `transport` mode, which never
+re-anchors, it stops a tract whose heading the data contradict beyond the
+budget instead of letting it run through them. Where the interpolated
+principal axis is piecewise constant with a swap plane, as across such an
+interface, the connection is zero except within `gradient_delta` of the plane
+and a step whose stages straddle it sees no curvature at all; this second test
+is what stops the tract there. Unlike the streamline trackers, whose sign-aligned turn cannot
 exceed 90 degrees, the 90 degree ceiling of `nim_angle_limit` is a real cap
 here. Note also that the curvature of the interpolated principal-axis field is
 large wherever the dyadic is nearly degenerate (crossings, planar regions:
@@ -170,18 +173,22 @@ field (a line to roundoff), the sign alignment of the connection across the
 flip locus of the principal axis, the precedence of `propagation_mask` over
 the brain mask, the termination reasons (`max_arc`, `angle`, `fa`,
 `outside_mask`, `outside`) with every integrator, the angle budget on both
-the step and the re-anchoring (a 90-degree interface between bundles: the
-re-anchoring modes stop with `angle` and no track has a kink above the budget;
-transport runs through by design), the per-step trace and the rejection of
-`rkf45` and `csd`.
+the step and the data's heading (a 90-degree interface between bundles with
+the stages straddling the swap plane, and the crossing fixture at eight
+sub-voxel seed phases: every mode stops with `angle` and no track has a kink
+above the budget), the safety ceiling when the budget is disabled, the
+one-sided stencil at a volume face, a non-finite voxel in a spline field, the
+per-step trace and the rejection of `rkf45` and `csd`.
 
 On the sample dataset (`data/parcellation_sample/sample.mat`, 128 x 128 x 50,
 `config/mmf_dti.yml` at `seeding.density: 1`, 147k seeds of which 100k lie in
-tissue) the tracker produces 69k tracks of at least 15 voxels in about 11
-minutes; `hinec_dti.yml` on the same seeds gives 74k in about 10 minutes, and
-for the 68.5k seeds both keep the two tracks agree to a median nearest-node
-distance of 0.24 voxel. The moving-frames tracker stops more half-tracks on
-the angle budget (about 8% against 0.5%) for the reason given above.
+tissue) the tracker produces 69.7k tracks of at least 15 voxels in about 11
+minutes, every node inside the mask and no node-to-node turn above the budget;
+`hinec_dti.yml` on the same seeds gives 74k in about 10 minutes, and for the
+68.4k seeds both keep the two tracks agree to a median nearest-node distance of
+0.25 voxel. The half-tracks end on the FA floor (77%), the volume faces (10%,
+the slab is cut at both ends), the angle budget (9%, against 0.5% for hinec,
+for the reason given above), the mask (3%) and a missing axis (1%).
 
 ## Files
 

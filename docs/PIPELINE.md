@@ -288,7 +288,8 @@ multi-valued field to one direction — not a tunable steering term.
 **Moving frames integration** (`algorithm: mmf`) advances $d\mathbf{x}/ds = \mathbf{e}_1$ while
 transporting the whole carried frame with the connection 1-forms of the interpolated field, in
 one closed-form exponential step (a rotation of the frame together with a circular arc of the
-position, exact where the curvature is constant along the fibre). `integrator.method`
+position, exact for a planar arc of constant curvature at any step size and to the order of
+the integrator where the fibre has torsion). `integrator.method`
 `euler` / `rk2` / `rk4` selects the Lie group integrator of order 1 / 2 / 4 built around that
 step; `rkf45` is rejected, and so is `field: csd`. See
 [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md).

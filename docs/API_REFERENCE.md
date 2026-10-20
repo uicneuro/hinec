@@ -619,7 +619,9 @@ plus:
 ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle budget
 `termination.angle_max` becomes `advanceFrame`'s `MaxTurn` through
 `nim_angle_limit` (min(angle_max·h, 90) degrees per step) and bounds both the
-rotation of a step and the re-anchoring at its end. `meta` carries
+rotation of a step and the turn of the heading as the data see it (the data's
+$\mathbf{e}_1$ at the end of a step against the heading at its start, in every
+mode). `meta` carries
 `.seed_index`, `.seed_points`, `.n_seeds`; `.termination` (`reason` / `count`
 over the half-tracks of the seeds that were tracked: `max_arc`, `angle`, `fa`,
 `outside_mask`, `outside`, `outside_domain`, `no_direction`; empty when no seed

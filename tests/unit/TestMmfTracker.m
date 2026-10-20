@@ -285,9 +285,11 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             % centre: nodes 30.4 -> 30.8, stages at 30.4, 30.6, 30.8) sees no
             % curvature at all. The data's e1 at the end of that step is 90
             % degrees from the carried one; re-anchoring to it would put a 90
-            % degree kink into the track, past any budget. The re-anchoring
-            % modes must stop with 'angle' instead; transport ignores the data
-            % direction by design and runs on to the volume face.
+            % degree kink into the track, past any budget. Every mode must stop
+            % with 'angle' instead: the budget bounds the turn of the heading as
+            % the data see it (the data's e1 at the end of a step against the
+            % heading at its start), which the re-anchoring modes would realise
+            % and which transport, without re-anchoring, would run through.
             dims = [60 60 6];
             nim = struct('FA', ones(dims), 'mask', true(dims), 'evec', zeros([dims 3 3]));
             nim.evec(:, 1:30, :, 2, 1) = 1;   nim.evec(:, 1:30, :, 1, 2) = 1;
@@ -297,20 +299,15 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             o.step_size = 0.4; o.max_arc = 40; o.max_steps = 100; o.angle_thresh = 100;   % 40 deg per step
             unit = @(v) v ./ sqrt(sum(v.^2, 2));
             kink = @(t) max([0; acos(min(1, max(-1, sum(unit(diff(t(1:end-1, :), 1, 1)) .* unit(diff(t(2:end, :), 1, 1)), 2))))]);
-            for mode = {'adaptive', 'reanchor'}
+            for mode = {'adaptive', 'reanchor', 'transport'}
                 o.mmf_mode = mode{1};
                 evalc('[T, meta] = nim_tractography_mmf(nim, o);');
                 tc.assertNumElements(T, 1, mode{1});
                 tc.verifyEqual(tc.countOf(meta, 'angle'), 1, mode{1});
                 tc.verifyEqual(tc.countOf(meta, 'outside'), 1, mode{1});    % the backward half, at y = 1
-                tc.verifyLessThan(max(T{1}(:, 2)), 30.5, mode{1});
+                tc.verifyEqual(max(T{1}(:, 2)), 30.4, 'AbsTol', 1e-9, mode{1});
                 tc.verifyLessThan(kink(T{1}), 1e-9, mode{1});
             end
-            o.mmf_mode = 'transport';
-            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
-            tc.verifyEqual(meta.termination.reason, {'outside'});
-            tc.verifyEqual(meta.termination.count, 2);
-            tc.verifyGreaterThan(max(T{1}(:, 2)), 59);
         end
 
         function traceIsRecordedPerStep(tc)
@@ -430,6 +427,81 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyEqual(meta.trace(1).forward.n_steps, 0);
             tc.verifyEqual(meta.trace(1).forward.termination, 'outside_mask');
             tc.verifyEqual(meta.trace(1).backward.pos, [30 31 5]);
+        end
+
+        function crossingStopsEveryModeOnTheAngleBudget(tc)
+            % make_synthetic_nim('crossing'): a band along x (y in [27, 33]) is
+            % crossed by a band along y (x in [40, 46]) whose direction the
+            % crossing voxels carry. Seeds at sub-voxel phases (density 8), so
+            % that no stage lands within gradient_delta of the swap plane
+            % x = 39.5: the connection sees no curvature there, and only the
+            % data's e1 at the end of a step, 90 degrees from the heading, can
+            % stop the tract. hinec stops on its node-to-node angle; every
+            % mode of the frame tracker must stop as well.
+            nim = make_synthetic_nim('crossing');
+            o = tc.Opts; o.seed_mask = false(size(nim.FA)); o.seed_mask(10, 30, 3) = true;
+            o.seed_density = 8; o.step_size = 0.2; o.max_arc = 100; o.max_steps = 500;
+            o.angle_thresh = 225;                                   % 45 deg per step
+            for mode = {'adaptive', 'reanchor', 'transport'}
+                o.mmf_mode = mode{1};
+                evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+                tc.verifyEqual(meta.n_seeds, 8);
+                tc.assertNumElements(T, 8, mode{1});
+                tc.verifyEqual(tc.countOf(meta, 'angle'), 8, mode{1});   % every forward half, at x ~ 39.5
+                tc.verifyTrue(all(cellfun(@(t) max(t(:, 1)), T) < 40), mode{1});
+                tc.verifyTrue(all(cellfun(@(t) max(abs(t(:, 2) - 30)), T) < 1), mode{1});   % never turned into the other band
+            end
+        end
+
+        function disabledAngleBudgetKeepsASafetyCeiling(tc)
+            % angle_max 0 switches the criterion off (MaxTurn Inf) in every
+            % tracker. A stage landing within gradient_delta of a jump of e1
+            % then meets |kappa| ~ 1/delta, and the exponential step would
+            % rotate the frame by an arbitrary angle and retrace the track; the
+            % tracker keeps a ceiling of pi per step there and reports the stop
+            % as 'no_direction' (the data are singular), not as 'angle'. Here
+            % the step from the voxel centre with h = 0.25 puts a CF4 stage on
+            % the swap plane y = 30.5 of the two-bundle field.
+            dims = [60 60 6];
+            nim = struct('FA', ones(dims), 'mask', true(dims), 'evec', zeros([dims 3 3]));
+            nim.evec(:, 1:30, :, 2, 1) = 1;   nim.evec(:, 1:30, :, 1, 2) = 1;
+            nim.evec(:, 31:end, :, 1, 1) = 1; nim.evec(:, 31:end, :, 2, 2) = 1;
+            nim.evec(:, :, :, 3, 3) = 1;
+            o = tc.Opts; o.seed_mask = false(dims); o.seed_mask(30, 20, 3) = true;
+            o.step_size = 0.25; o.max_arc = 40; o.max_steps = 160; o.angle_thresh = 0;
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            tc.assertNumElements(T, 1);
+            tc.verifyEqual(meta.mmf.max_turn_rad, Inf);
+            tc.verifyEqual(tc.countOf(meta, 'angle'), 0);
+            tc.verifyEqual(tc.countOf(meta, 'no_direction'), 1);
+            tc.verifyEqual(tc.countOf(meta, 'outside'), 1);
+            tc.verifyLessThan(max(T{1}(:, 2)), 30.5);
+            tc.verifyTrue(all(diff(T{1}(:, 2)) > 0), 'the track retraces itself');
+        end
+
+        function nodesOnAVolumeFaceAreNotDead(tc)
+            % The difference stencil is one-sided at a face of the volume, so a
+            % seed on the face x = 1 is tracked along it.
+            dims = [20 20 60];
+            nim = tc.straightNim(dims);
+            o = tc.Opts; o.seed_mask = false(dims); o.seed_mask(1, 11, 30) = true;
+            o.max_arc = 25; o.max_steps = 100;
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            tc.verifyEqual(meta.mmf.seeds_alive, 1);
+            tc.assertNumElements(T, 1);
+            tc.verifyEqual(size(T{1}, 1), 201);
+            tc.verifyTrue(all(T{1}(:, 1) == 1));
+            tc.verifyEqual(meta.termination.reason, {'max_arc'});
+        end
+
+        function aNonFiniteVoxelDoesNotPoisonTheSplineField(tc)
+            % griddedInterpolant 'spline' is global along grid lines: one NaN
+            % voxel anywhere would make the dyadic field NaN everywhere.
+            nim = tc.Nim; nim.evec(1, 1, 1, :, :) = NaN;      % far outside the annulus
+            evalc('[T, meta] = nim_tractography_mmf(nim, tc.Opts);');
+            tc.verifyEqual(meta.mmf.seeds_alive, 1);
+            tc.assertNumElements(T, 1);
+            tc.verifyLessThan(tc.circleError(T{1}, tc.R0), 2e-5);
         end
     end
 end

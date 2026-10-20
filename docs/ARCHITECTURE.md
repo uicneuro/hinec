@@ -537,8 +537,8 @@ Three algorithms are available:
 [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)):
 
 - The fibre carries an orthonormal frame, transported by the connection 1-forms of the
-  data's frame field with a closed-form exponential step (exact where the curvature is
-  constant along the fibre); `integrator.method` `euler` / `rk2` / `rk4` selects the Lie
+  data's frame field with a closed-form exponential step (exact for a planar arc of constant
+  curvature at any step size, to the order of the integrator where the fibre has torsion); `integrator.method` `euler` / `rk2` / `rk4` selects the Lie
   group integrator of order 1 / 2 / 4 (`rkf45` is rejected)
 - Direction field: the same interpolated dyadic as `hinec` (same kernel and `upsample`);
   the connection is a sign-aligned central difference of its principal axis
