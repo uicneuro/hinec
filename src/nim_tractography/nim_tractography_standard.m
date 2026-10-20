@@ -313,7 +313,7 @@ for i = 1:size(seed_points, 1)
     % min_arc is an ARC LENGTH in voxels. It used to be defaulted at the top of
     % this file and then never read - the "no filters at all" comment below was
     % literally true, and a schema-validated key that every config sets was
-    % honoured by exactly one of the three trackers.
+    % honoured by only one of the trackers.
     if size(combined_track, 1) > 1 && ...
        sum(sqrt(sum(diff(combined_track,1,1).^2, 2))) >= options.min_length
         track_count = track_count + 1;

@@ -1,30 +1,26 @@
-# GENUINE MMF connection-form tractography (Chun & Peng, in preparation).
-# algorithm: 'mmf' is the ONE selector -> nim_tractography_mmf_connframe (pure connection-form):
-# - nim_mmf_geometry builds the moving-frame field + connection 1-form into the nim
-# (Eq 6-9): e1 = sign-consistent principal direction (no denoising), e2 = de1/ds
-# (Frenet normal, Eq 7), e3 = e1 x e2, [omega] = d[A]A^T, curvature + torsion.
-# - the tracer advances dx/ds = e1 while the FULL frame is evolved by the structure
-# equation (Eq 10-11), driven by the interpolated connection field.
-# Three orthogonal knobs: algorithm (which tracker) / field (direction source) /
-# integrator (numerical stepping scheme: rk4|rkf45).
-# 
+# Moving frames tractography (advanceFrame) on the DTI principal-eigenvector field:
+# the fibre carries an orthonormal frame that is transported by the connection
+# of the data with the closed-form exponential step (exact where the curvature is
+# constant along the fibre), CF4 (integrator rk4 -> Lie group order 4), adaptive
+# re-anchoring to the data where the carried heading drifts. See
+# docs/MMF_TRACTOGRAPHY.md.
+#
 # ./bin/run_tractography.sh mmf_dti --score
-# 
-# DTI field: the connection form is built from the tensor principal-direction field.
-# For the CSD (per-peak, multiple-pathways) variant, see mmf_csd.yml.
-# 
+#
 # Canonical nested schema. Only non-default values appear here;
 # everything else comes from nim_config_schema defaults.
 # Any parameter can be overridden on the CLI: --set <path>=<value>
 
 tractography:
   algorithm: mmf
+  integrator:
+    method: rk4
+    step: 0.2
+  interpolation:
+    method: spline        # C2 kernel: the connection is a derivative of the field
   termination:
     angle_max: 225
     max_arc: 600
-
   mmf:
-    anchor: 0.25         # re-anchor e1 toward the field each step. The schema default
-                         # 0 (pure Eq.10-11) scores whole-brain F1 0.30; 0.25 scores
-                         # 0.39-0.40. Stated here so no MMF config silently runs the
-                         # setting that is not the one the results were produced with.
+    mode: adaptive
+    reanchor_tol: 0.001

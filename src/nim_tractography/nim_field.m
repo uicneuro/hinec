@@ -6,28 +6,21 @@ function nim = nim_field(nim, options, nim_path)
 %   THE BOUNDARY RULE THIS FILE EXISTS TO ENFORCE:
 %     * the nim on disk is the DATASET (img, evec/eval, FA, masks, parcellation)
 %       and nothing else - main.m never reads config.tractography;
-%     * everything that depends on config.tractography (the field here, the MMF
-%       geometry in step 3) is built PER RUN by runTractography;
+%     * everything that depends on config.tractography (the field here) is
+%       built PER RUN by runTractography;
 %     * a per-run product is cached to a sidecar next to the nim only when it
 %       costs more than a minute to rebuild.
 %
 %   Measured on data/ismrm2015/ismrm2015.mat (90x108x90, 33 volumes):
 %     field: csd   nim_csd              122 s   -> cached by dataset and CSD settings
-%     field: dwi   nim_mmf_from_dwi     286 s   -> cached by dataset and fit settings
-%                                        (45 s per-voxel fit + 240 s of the 3
-%                                         continuity sweeps)
-%     geometry     nim_mmf_geometry     4.9 s (dti) / 8.1 s (csd)  -> never cached
 %
 %   Cases:
 %     'dti' (default) - nothing to do; the principal eigenvector is dataset (a).
 %     'csd'           - FOD peaks (nim.peaks/npeaks/peak_w, optional fod_sh) via
 %                       nim_csd or a supplied csd_peaks_file. Needed by ANY
-%                       tracker running field=csd (hinec AND mmf), so it is
-%                       provisioned before the dispatch. Supplied peaks use
+%                       tracker running field=csd (hinec and stitching), so it
+%                       is provisioned before the dispatch. Supplied peaks use
 %                       the dataset's voxel-axis direction coordinates.
-%     'dwi'           - joint frame+curvature fit to the raw DW signal
-%                       (nim.mmf_e1_dwi / mmf_kappa_dwi) via nim_mmf_from_dwi,
-%                       consumed by nim_mmf_geometry in step 3.
 %
 %   nim_path is the path of the nim on disk; the sidecars are written beside it.
 
@@ -42,8 +35,6 @@ end
 switch fld
 case 'csd'
     nim = provision_csd(nim, options, nim_path);
-case 'dwi'
-    nim = provision_dwi(nim, options, nim_path);
 otherwise
     fprintf('field=%s: principal eigenvector from the nim; nothing to provision\n', fld);
 end
@@ -52,7 +43,7 @@ end
 % ---------------------------------------------------------------------------
 
 function nim = provision_csd(nim, options, nim_path)
-% CSD FOD peaks are needed by ANY tracker running field=csd (hinec AND mmf), so
+% CSD FOD peaks are needed by ANY tracker running field=csd (hinec and stitching), so
 % provision them BEFORE the algorithm dispatch. The cached sidecar includes every
 % CSD setting, so a requested configuration never inherits stale embedded peaks.
 
@@ -133,50 +124,6 @@ else
         catch
             % non-fatal: proceed without caching
         end
-    end
-end
-end
-
-% ---------------------------------------------------------------------------
-
-function nim = provision_dwi(nim, options, nim_path)
-% Direct route: e1 and the curvature vector are fitted jointly to the raw DW
-% signal, so the curvature was never differenced out of an already-collapsed
-% direction field. nim_mmf_geometry (step 3) only CONSUMES these two fields.
-%
-% MEASURED at 286 s on data/ismrm2015/ismrm2015.mat (81328 voxels, 32 gradients:
-% 45 s of per-voxel fitting, 240 s for the 3 continuity sweeps), which is over the
-% one-minute line, so it gets a parameter-specific sidecar next to the CSD
-% one. Embedded fields cannot prove which fit settings produced them.
-
-dwi_opts = struct('termination_fa', getfield_default(options,'termination_fa',0.08), ...
-                  'continuity_sweeps', getfield_default(options,'continuity_sweeps',3), ...
-                  'continuity_weight', getfield_default(options,'continuity_weight',1.0));
-dwi_cache = field_cache_path(nim_path, 'dwi', dwi_opts, fieldnames(dwi_opts));
-if ~isempty(dwi_cache) && isfile(dwi_cache)
-    fprintf('field=dwi: loading cached DW-fitted frame from %s\n', dwi_cache);
-    Sd = load(dwi_cache);
-    nim.mmf_e1_dwi = Sd.mmf_e1_dwi; nim.mmf_kappa_dwi = Sd.mmf_kappa_dwi;
-    if isfield(Sd, 'mmf_dwi_resid'), nim.mmf_dwi_resid = Sd.mmf_dwi_resid; end
-    return;
-end
-
-fprintf('field=dwi: fitting frame + curvature to the raw DW signal (nim_mmf_from_dwi)...\n');
-t_dwi = tic;
-nim = nim_mmf_from_dwi(nim, options);
-fprintf('  nim_mmf_from_dwi: %.1f s\n', toc(t_dwi));
-if ~isempty(dwi_cache)
-    try
-        mmf_e1_dwi = nim.mmf_e1_dwi; mmf_kappa_dwi = nim.mmf_kappa_dwi; %#ok<NASGU>
-        if isfield(nim, 'mmf_dwi_resid')
-            mmf_dwi_resid = nim.mmf_dwi_resid; %#ok<NASGU>
-            save(dwi_cache, 'mmf_e1_dwi', 'mmf_kappa_dwi', 'mmf_dwi_resid', '-v7.3');
-        else
-            save(dwi_cache, 'mmf_e1_dwi', 'mmf_kappa_dwi', '-v7.3');
-        end
-        fprintf('  cached DW-fitted frame -> %s\n', dwi_cache);
-    catch
-        % non-fatal: proceed without caching
     end
 end
 end

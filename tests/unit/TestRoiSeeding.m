@@ -255,16 +255,6 @@ classdef TestRoiSeeding < matlab.unittest.TestCase
             tc.verifyPartitionIdentity(tc.TrackNim, o);
         end
 
-        function mmfRoiTracksAreExactlyTheWholeBrainSubset(tc)
-            o = TestRoiSeeding.trackerOptions(tc.Root, 'mmf', {});
-            % The connection-form tracer CONSUMES the moving-frame geometry;
-            % building it is runTractography's step 3, so build it here.
-            w = warning('off','all'); cw = onCleanup(@() warning(w)); %#ok<NASGU>
-            nim = tc.TrackNim;
-            evalc('nim = nim_mmf_geometry(nim, o);');
-            tc.verifyPartitionIdentity(nim, o);
-        end
-
         % ------------------------------------------------------------ config
         function roiKeysAreInTheSchemaAndReachableFromCli(tc)
             S = nim_config_schema();
@@ -368,7 +358,6 @@ classdef TestRoiSeeding < matlab.unittest.TestCase
             meta = struct();
             switch char(o.algorithm)
                 case 'hinec',    evalc('[tracks, meta] = nim_tractography_hinec(nim, o);');
-                case 'mmf',      evalc('[tracks, meta] = nim_tractography_mmf_connframe(nim, o);');
                 case 'standard', evalc('tracks = nim_tractography_standard(nim, o);');
                 otherwise, error('TestRoiSeeding:algorithm', 'unknown algorithm %s', o.algorithm);
             end

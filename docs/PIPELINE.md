@@ -11,7 +11,7 @@ them:
 
 | Entry point | Role |
 |---|---|
-| `main.m` | Preprocessing → tensor fit → eigendecomposition → FA → MMF geometry → optional registration → parcellation → mask improvement → tissue segmentation → save |
+| `main.m` | Preprocessing → tensor fit → eigendecomposition → FA → optional registration → parcellation → mask improvement → tissue segmentation → save |
 | `runTractography.m` | Loads the saved `nim`, resolves the seeding strategy, dispatches to a tracker, filters and writes the tracks |
 | `bin/run_hinec.sh` | Full pipeline: builds a run directory, then chains `main` and `runTractography` in one `matlab -batch` process |
 | `bin/run_tractography.sh` | Tractography only, against an already-preprocessed `nim` |
@@ -212,20 +212,6 @@ where:
 - $\mathbf{V} = [\mathbf{v}_1 \; \mathbf{v}_2 \; \mathbf{v}_3]$ are eigenvectors (fiber directions)
 - $\mathbf{\Lambda} = \mathrm{diag}(\lambda_1, \lambda_2, \lambda_3)$ are eigenvalues
 
-#### **Moving-Frame Geometry (`nim_mmf_geometry`) — not here**
-
-The moving-frame field and its connection 1-form are **not** part of the `nim`. They depend
-on `tractography.field`, and `main.m` reads no tractography config: the nim on disk is the
-dataset. `runTractography` builds them in **step 3**, every run, and only when
-`algorithm: mmf` — $\mathbf{e}_1$ is the tangent field, $\mathbf{e}_2 = d\mathbf{e}_1/ds$ the
-Frenet normal, $\mathbf{e}_3 = \mathbf{e}_1 \times \mathbf{e}_2$, and the connection
-$[\omega] = d[A]\,A^\top$ carries curvature and torsion. It is a property of the direction
-field, not of any individual streamline, so it is built once per run before any streamline
-starts, at a cost of 4.9 s (DTI) / 8.1 s (CSD). `hinec` and `standard` never touch it.
-
-For the derivation see Chun & Peng, in preparation, and
-[MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md).
-
 #### **Tissue Segmentation for ACT**
 
 `main.m` generates the WM/GM/CSF masks that Anatomically Constrained Tractography needs, and
@@ -246,7 +232,7 @@ Note that these masks are always generated; ACT is nonetheless **off by default*
 
 ### 3. Tractography
 
-`runTractography.m` makes every seeding decision, then dispatches to one of three trackers
+`runTractography.m` makes every seeding decision, then dispatches to the tracker
 selected by `tractography.algorithm`. The trackers themselves do no seeding.
 
 #### **Seeding**
@@ -271,7 +257,7 @@ exactly, so seeding is reproducible run to run.
 |---|---|---|
 | `standard` | `nim_tractography_standard` | FACT: the discrete voxel's principal eigenvector, no interpolation |
 | `hinec` | `nim_tractography_hinec` | Interpolated direction field, integrated with a Runge-Kutta method |
-| `mmf` | `nim_tractography_mmf_connframe` | The carried frame, evolved by the connection 1-form |
+| `mmf` | `nim_tractography_mmf` | The first vector of a carried orthonormal frame, transported by the connection of the interpolated field (exponential step; DTI only) |
 
 **FACT integration** advances along the voxel's own direction until the streamline crosses a
 voxel face:
@@ -299,14 +285,17 @@ With `field: csd`, the direction comes from CSD FOD peaks rather than the tensor
 nearest the incoming tangent is selected. That selection is structural — it is what reduces a
 multi-valued field to one direction — not a tunable steering term.
 
-**MMF integration** advances $d\mathbf{x}/ds = \mathbf{e}_1$ while evolving the full carried
-frame by the structure equation, driven by the interpolated connection field. Here
-`integrator` chooses only the numerical scheme (`rk4` fixed or `rkf45` adaptive
-Dormand-Prince); the direction comes entirely from the connection form.
+**Moving frames integration** (`algorithm: mmf`) advances $d\mathbf{x}/ds = \mathbf{e}_1$ while
+transporting the whole carried frame with the connection 1-forms of the interpolated field, in
+one closed-form exponential step (a rotation of the frame together with a circular arc of the
+position, exact where the curvature is constant along the fibre). `integrator.method`
+`euler` / `rk2` / `rk4` selects the Lie group integrator of order 1 / 2 / 4 built around that
+step; `rkf45` is rejected, and so is `field: csd`. See
+[MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md).
 
 #### **Termination**
 
-All three trackers share the same criteria, expressed in step-invariant units:
+All trackers share the same criteria, expressed in step-invariant units:
 
 - $\text{FA}(\mathbf{r}) < \texttt{termination.fa\_min}$
 - Curvature exceeds `termination.angle_max`, in **degrees per voxel of arc**. This fixes a
@@ -317,7 +306,7 @@ All three trackers share the same criteria, expressed in step-invariant units:
 - Arc length exceeds `termination.max_arc` voxels (`max_steps` is derived as
   $\lceil \texttt{max\_arc} / \Delta s \rceil$)
 - The streamline leaves the brain mask
-- With ACT enabled, the streamline reaches GM (accept) or CSF (reject)
+- With ACT enabled (`hinec` only), the streamline reaches GM (accept) or CSF (reject)
 
 Completed tracks shorter than `termination.min_arc` voxels of arc are discarded.
 
@@ -365,12 +354,12 @@ where:
   ┌─────────────────────────────────────────────┐   ┌──────────────────────────────┐
   │ nim_read                                    │   │ 1 load nim                   │
   │   → nim_dt_spd → nim_eig → nim_fa           │   │ 2 field     nim_field        │
-  │   → nim_registration  (optional, needs T1)  │──▶│ 3 geometry  nim_mmf_geometry │
-  │   → nim_parcellation                        │   │             (mmf only)       │
-  │   → mask improvement                        │   │ 4 seeds                      │
-  │   → tissue segmentation (WM/GM/CSF for ACT) │   │ 5 track     tracker dispatch │
-  │   → nim_save   (the DATASET, nothing that   │   │ 6 filter    ROI / arc step   │
-  │                 depends on tractography:)   │   │ 7 save      tracks_*.mat     │
+  │   → nim_registration  (optional, needs T1)  │──▶│ 3 seeds                      │
+  │   → nim_parcellation                        │   │ 4 track     tracker dispatch │
+  │   → mask improvement                        │   │ 5 filter    ROI / arc step   │
+  │   → tissue segmentation (WM/GM/CSF for ACT) │   │ 6 save      tracks_*.mat     │
+  │   → nim_save   (the DATASET, nothing that   │   │                              │
+  │                 depends on tractography:)   │   │                              │
   └─────────────────────────────────────────────┘   └──────────────────────────────┘
              ▲                                                   │
              │                                                   ▼

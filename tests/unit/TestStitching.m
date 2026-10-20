@@ -61,33 +61,18 @@ classdef TestStitching < matlab.unittest.TestCase
    directions=cellfun(@(p)(p(end,:)-p(1,:))/norm(p(end,:)-p(1,:)),t,'UniformOutput',false);
    tc.verifyLessThan(abs(dot(directions{1},directions{2})),1e-8);
   end
-  function zeroConnectionMmfPreservesStraightLines(tc)
-   [nim,o]=phantom();o.stitching.geometry='mmf';nim.mmf_kappa=zeros(18,10,10,3);nim.mmf_tau=zeros(18,10,10);
-   [t,m]=nim_tractography_stitching(nim,o);tc.verifyNotEmpty(t);tc.verifyTrue(m.torsion_available);
-   for i=1:numel(t),tc.verifyLessThan(max(abs(t{i}(:,2)-5)),1e-8);end
-  end
   function masksBlockGapBridges(tc)
    [nim,o]=phantom();nim.mask(9,:,:)=false;o.min_length=0;o.stitching.join_radius=3;
    [t,~]=nim_tractography_stitching(nim,o);
    for i=1:numel(t),tc.verifyFalse(min(t{i}(:,1))<8.5&&max(t{i}(:,1))>9.5);end
   end
-  function curvedDtiAndMmfFollowLocalCircle(tc)
+  function curvedDtiFollowsLocalCircle(tc)
    [x,y,~]=ndgrid(1:18,1:18,1:5);dx=x-9;dy=y-9;r=max(hypot(dx,dy),1);
    nim.FA=ones(18,18,5);nim.mask=r>2;nim.evec=zeros(18,18,5,3,3);
    nim.evec(:,:,:,1,1)=-dy./r;nim.evec(:,:,:,2,1)=dx./r;
-   nim.mmf_kappa=cat(4,-dx./r.^2,-dy./r.^2,zeros(size(r)));nim.mmf_tau=zeros(size(r));
    o=opts();o.seed_mask=false(size(r));o.seed_mask(14,9,3)=true;o.min_length=0;o.stitching.join=false;
-   for mode={'direction','mmf'}
-    o.stitching.geometry=mode{1};[t,~]=nim_tractography_stitching(nim,o);tc.verifyNumElements(t,1);
-    rr=hypot(t{1}(:,1)-9,t{1}(:,2)-9);tc.verifyLessThan(max(abs(rr-5)),.03);
-   end
-  end
-  function csdMmfUsesPerPeakCurvature(tc)
-   [nim,o]=phantom();o.field='csd';o.stitching.geometry='mmf';o.min_length=0;o.stitching.join=false;
-   o.seed_mask(:)=false;o.seed_mask(8,5,5)=true;
-   nim.peaks=zeros(18,10,10,2,3);nim.peaks(:,:,:,1,1)=1;nim.peaks(:,:,:,2,2)=1;nim.npeaks=2*ones(18,10,10);
-   nim.mmf_kappa=zeros(18,10,10,3);nim.mmf_kappa_p=zeros(18,10,10,2,3);
-   [t,m]=nim_tractography_stitching(nim,o);tc.verifyNumElements(t,2);tc.verifyFalse(m.torsion_available);
+   [t,~]=nim_tractography_stitching(nim,o);tc.verifyNumElements(t,1);
+   rr=hypot(t{1}(:,1)-9,t{1}(:,2)-9);tc.verifyLessThan(max(abs(rr-5)),.03);
   end
   function graphCannotCloseCycle(tc)
    o=opts();o.min_length=0;f=cell(3,1);

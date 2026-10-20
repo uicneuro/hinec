@@ -12,8 +12,8 @@ Stable geometry with unstable space is the characteristic failure the
 tract-geometry study found, so no tier may stand in for another.
 
 Streamline correspondence:
-  'seed'     both runs record the seed of every streamline (hinec, template,
-             stitching): pair by identical seed coordinate. Exact.
+  'seed'     both runs record the seed of every streamline (hinec, mmf,
+             template, stitching): pair by identical seed coordinate. Exact.
   'nearest'  otherwise: pair each streamline with its nearest neighbour by
              mean direct-flip distance (MDF). A heuristic - a pair is "the most
              similar streamline", not "the same seed" - and is labelled so.

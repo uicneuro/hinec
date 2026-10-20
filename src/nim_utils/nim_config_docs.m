@@ -60,7 +60,7 @@ function md = nim_config_docs(out_file)
     L{end+1} = '## Parameters';
     L{end+1} = '';
     L{end+1} = 'The **Applies to** column says which tracking algorithms actually read the';
-    L{end+1} = 'parameter. A key marked `hinec` is ignored by `standard` and `mmf`.';
+    L{end+1} = 'parameter. A key marked `hinec` is ignored by `standard`, `mmf` and `stitching`.';
     L{end+1} = '';
 
     % ---- group the schema by section, then group ---------------------------

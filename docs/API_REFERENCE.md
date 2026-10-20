@@ -69,8 +69,8 @@ main('data/ismrm2015/ismrm2015', 'ismrm2015.mat', config, run_info);
 
 **File**: `runTractography.m`
 
-Loads a processed `nim`, resolves the seed mask and ACT masks, dispatches to one
-of the three trackers, applies ROI filtering and output decimation, and saves.
+Loads a processed `nim`, resolves the seed mask and ACT masks, dispatches to the
+selected tracker, applies ROI filtering and output decimation, and saves.
 
 | Argument | Type | Required | Description |
 |---|---|---|---|
@@ -97,8 +97,8 @@ Again positional and type-dispatched:
 | `tracks` | Cell array of $N \times 3$ voxel-coordinate polylines |
 | `options` | The flat option struct actually handed to the tracker |
 | `elapsed_time` | Tracking wall time, seconds |
-| `algorithm` | `'standard'`, `'hinec'` or `'mmf'` |
-| `track_meta` | `.seed_index`, `.seed_points`, `.n_seeds` — populated by `hinec`, empty otherwise |
+| `algorithm` | `'standard'`, `'hinec'`, `'mmf'`, `'stitching'` or `'template'` |
+| `track_meta` | `.seed_index`, `.seed_points`, `.n_seeds` — populated by `hinec`, `mmf` (which adds `.termination` and `.mmf`), `stitching` (which adds `.fragment_seed_indices` and `.graph`) and `template`; empty for `standard` |
 
 **Seed mask priority** (first match wins, then intersected with the brain mask
 where available and with `seeding.fa_min`):
@@ -366,28 +366,6 @@ are interchangeable upstream of tractography.
     `runTractography` passes the schema's `csd.*` values, which are stricter than
     `nim_csd`'s own defaults: `peak_thresh` 0.5 and `peak_min_sep` 45.
 
-### `nim_mmf_geometry(nim, options)`
-
-Builds the moving-frame geometry over the whole domain into the in-memory `nim`
-(Chun & Peng, in preparation). Called by `runTractography` step 3, per run, only
-for `algorithm: mmf`; the result is never saved with the nim. Constructs the denoised tangent field $e_1$, the
-Frenet normal $e_2 = (de_1/ds)/\lVert de_1/ds \rVert$ with a reference-axis
-fallback where the curvature vanishes, $e_3 = e_1 \times e_2$, and the connection
-1-form of the frame field.
-
-| Option | Default | Description |
-|---|---|---|
-| `field` | `'dti'` | `'csd'` builds the per-peak connection from FOD peaks instead |
-
-**Returns** `nim` with `.mmf_frames` `[X Y Z 3 3]`, `.mmf_kappa` `[X Y Z 3]`,
-`.mmf_tau` `[X Y Z]` (plus per-peak `.mmf_peakdirs`, `.mmf_kappa_p`, `.mmf_multi`
-for `field: csd`).
-
-### `nim_build_frames(nim, options)` and `nim_connection_form(frames, mask, options)`
-
-The two components `nim_mmf_geometry` composes: the frame field, and the
-connection 1-form derived from it.
-
 ---
 
 ## 5. Preprocessing (`src/nim_preprocessing/`)
@@ -547,7 +525,7 @@ stage so an empty result can be diagnosed rather than guessed at.
 
 ## 8. Tractography (`src/nim_tractography/`)
 
-All three trackers take a `nim` struct or a path to one, plus a single flat
+Every tracker takes a `nim` struct or a path to one, plus a single flat
 `options` struct. In normal use `runTractography` produces that struct from the
 config via `nim_config_to_options`; the tables below give both the config key you
 set and the option field the tracker reads.
@@ -612,27 +590,49 @@ the streamline. This is 2–5× faster than repeated `interp3` calls. The dyadic
 not the signed eigenvector components, is what DTI tracking interpolates — see
 [MATHEMATICAL_FOUNDATIONS.md](MATHEMATICAL_FOUNDATIONS.md).
 
-### `nim_tractography_mmf_connframe(nim, options)`
+### `nim_tractography_mmf(nim, options)`
 
-Method of Moving Frames tracking (Chun & Peng, in preparation). Reads the geometry
-built by `nim_mmf_geometry`, evolves the carried frame by the structure equation
-and advances $d\mathbf{x}/ds = e_1$. The direction comes purely from the
-connection form; the integrator is only the stepping scheme. With `field: 'csd'`,
-a per-peak connection yields multiple pathways through a crossing.
+Moving frames tractography on the DTI principal-eigenvector field
+([MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)). The fibre carries an orthonormal
+frame that is transported by the connection 1-forms of the data's frame field
+with the closed-form exponential step of `advanceFrame.m` (exact for a planar
+arc of constant curvature at any step size; on a fibre with torsion, where the
+twist is dropped, exact to the order of the integrator); `integrator.method`
+selects the Lie group integrator built around that step. The direction field is the same
+interpolated dyadic $\mathbf{v}_1\mathbf{v}_1^\top$ that `hinec` uses; the
+connection (the curvature components) is a sign-aligned central difference of
+its principal axis, and the twist is dropped (`'Twist' 'zero'`). **Returns**
+`[tracks, meta]`.
+
+Reads `seeding.*`, `termination.*`, `integrator.step`, `interpolation.method`,
+`interpolation.upsample` and `debug.trace` / `debug.trace_max` as `hinec` does,
+plus:
 
 | Config key | Option field | Default | Description |
 |---|---|---|---|
-| `field` | `field` | `'dti'` | `'dti'` or `'csd'` (per-peak, multi-frame) |
-| `integrator.method` | `integrator` | `'rk4'` | `'rk4'` fixed step, or `'rkf45'` adaptive Dormand-Prince |
-| `integrator.tolerance` | `rkf_tol` | 0.02 | RKF45 error tolerance |
-| `integrator.step` | `step_size` | 0.2 | Step in voxels |
-| `integrator.step_min` / `step_max` | `step_min` / `step_max` | 0.02 / 0.5 | Adaptive step bounds |
-| `interpolation.method` | `interp_method` | `'trilinear'` | How $\kappa$, $\tau$ and $e_1$ are sampled; peak *directions* always use nearest neighbor, since sign ambiguity breaks under averaging |
-| `mmf.anchor` | `mmf_anchor` | 0 | Re-anchor strength of $e_1$ toward the field tangent; 0 is the pure connection-form evolution |
+| `field` | `field` | `'dti'` | `'dti'` only; `'csd'` is rejected (`mmf:field`) |
+| `integrator.method` | `integrator` | `'rk4'` | `euler` / `rk2` / `rk4` → Lie group order 1 / 2 / 4 (Lie-Euler, exponential midpoint, CF4); `rkf45` is rejected (`mmf:integrator`) |
+| `mmf.mode` | `mmf_mode` | `'adaptive'` | `transport` / `reanchor` / `adaptive` — how the carried frame relates to the data frame along the tract |
+| `mmf.reanchor_tol` | `mmf_reanchor_tol` | 1e-3 | Drift (radians) between the carried and the data's $\mathbf{e}_1$ at which the adaptive mode re-anchors |
+| `mmf.gradient_delta` | `mmf_gradient_delta` | 1e-3 | Central-difference step (voxels) for the derivative of the interpolated principal axis |
 
-Requires `nim.evec`, `.FA` and `.mask`; `field: 'csd'` additionally requires
-`nim.peaks` and `nim.npeaks`. The geometry is rebuilt in place if it is absent or
-was baked for a different field. **Returns** `[tracks, info]`.
+ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle budget
+`termination.angle_max` becomes `advanceFrame`'s `MaxTurn` through
+`nim_angle_limit` (min(angle_max·h, 90) degrees per step) and bounds both the
+rotation of a step and the re-anchoring at its end. `meta` carries
+`.seed_index`, `.seed_points`, `.n_seeds`; `.termination` (`reason` / `count`
+over the half-tracks of the seeds that were tracked: `max_arc`, `angle`, `fa`,
+`outside_mask`, `outside`, `outside_domain`, `no_direction`; empty when no seed
+was); `.mmf` (`order`, `mode`, `reanchor_tol`, `twist`, `max_turn_rad`,
+`gradient_delta`, `kernel`, `reanchored_fraction`, `seeds_alive`,
+`seeds_skipped` with `reason` / `count` of the seeds outside tissue or without
+a direction); and, with `debug.trace`, `.trace` (per traced seed: `seed_index`,
+`seed_point`, and `forward` / `backward` records with the fields of the hinec
+record that `nim_track_diagnose` reads — `pos`, `dir` (the carried
+$\mathbf{e}_1$), `fa`, `h`, `chord`, `turn` in degrees, `flip` (always false),
+`n_steps`, `termination` — plus `drift` to the data's $\mathbf{e}_1$,
+`reanchored`, `kappa` and `s`; a skipped seed has a zero-step record with its
+reason).
 
 ### Tractography support functions
 

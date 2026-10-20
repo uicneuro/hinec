@@ -6,9 +6,6 @@ direction field turns sharply and grows where it is straight, holding the estima
 error at a tolerance instead of at a step size you guessed. The scheme itself is derived in
 [RKF45](RKF.md).
 
-The same machinery is available in the MMF tracker (`integrator.method: rkf45` with
-`algorithm: mmf`), applied to the coupled frame system rather than to a position alone.
-
 ---
 
 ## Enabling it
@@ -50,6 +47,11 @@ All live under `tractography.integrator`; defaults are from
 
 Settings marked `rkf45` only are ignored by the fixed-step methods, by design — leaving them
 in a config that switches to `rk4` is harmless.
+
+`rkf45` is a `hinec` setting. The moving-frames tracker (`algorithm: mmf`) rejects it — its
+exponential step carries no embedded error estimate, so `euler` / `rk2` / `rk4` select its Lie
+group integrators instead ([MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)) — and `stitching`
+runs `rk2` only.
 
 ### How the knobs interact
 

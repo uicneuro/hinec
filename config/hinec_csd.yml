@@ -5,7 +5,6 @@
 # 
 # ./bin/run_tractography.sh hinec_csd --score
 # 
-# (This is the tracker that used to be mislabelled 'mmf' with integrator: 'rkf45'.)
 # 
 # Canonical nested schema. Only non-default values appear here;
 # everything else comes from nim_config_schema defaults.

@@ -1,6 +1,6 @@
 # standard_dti — FACT baseline (Fiber Assignment by Continuous Tracking), DTI-only.
 # algorithm: 'standard' = discrete voxel tracking, no interpolation, Euler stepping.
-# The deterministic sanity-check baseline; faster and coarser than hinec/mmf.
+# The deterministic sanity-check baseline; faster and coarser than hinec.
 # There is no CSD variant — FACT is DTI-only by construction.
 # 
 # ./bin/run_tractography.sh standard_dti --score

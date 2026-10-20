@@ -105,7 +105,7 @@ lib/spm12.zip
 data/ismrm2015/*
 !data/ismrm2015/README.md
 
-# ===== MMF / tractography work additions =====
+# ===== tractography work additions =====
 
 # Python bytecode caches
 __pycache__/
@@ -119,7 +119,6 @@ __pycache__/
 *.tck
 
 # LaTeX report — a deliverable, not part of the code repo
-report_mmf/
 report_convergence/
 
 # One-time DSE / exploration figures + data blobs. docs/ is the user-facing
@@ -148,6 +147,7 @@ plans/
 !/data/original_sample/
 !/data/parcellation_sample/
 !/data/ismrm2015/
+/dta/hinec_data_ismrm2015_thp/
 
 # Local agent settings, Python environments and tool caches
 /.codex/

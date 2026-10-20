@@ -8,7 +8,7 @@ function [tracks, meta] = nim_tractography_template(nim, options)
 % algorithm, copy this file, rename it nim_tractography_<name>.m, replace the
 % two marked sections (the direction rule and the stepping rule), and add
 % <name> to the algorithm enum in nim_config_schema and the dispatch in
-% runTractography step 5. Select it with  algorithm: <name>  in the YAML.
+% runTractography step 4. Select it with  algorithm: <name>  in the YAML.
 %
 % It is runnable as shipped:  algorithm: template  in any config.
 %

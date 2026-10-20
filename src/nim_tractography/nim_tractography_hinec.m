@@ -1,4 +1,4 @@
-function [tracks, meta] = nim_tractography_hinec(data_path, varargin)
+ function [tracks, meta] = nim_tractography_hinec(data_path, varargin)
 % nim_tractography_hinec: High-Order Deterministic Tractography with ACT
 %
 % HIGH-ORDER TRACTOGRAPHY IMPLEMENTATION:
@@ -380,7 +380,6 @@ fprintf('Pre-computing dilated brain mask for boundary checking...\n');
 % tracking to one voxel beyond the seed mask. Harmless for whole-brain seeding,
 % but it made ROI seeding useless: a track seeded in a bundle could not leave
 % the ROI, so lengths were capped by the ROI's extent rather than by anatomy.
-% Same convention the MMF tracker already used (nim_tractography_mmf_connframe:89).
 if isfield(options, 'propagation_mask') && ~isempty(options.propagation_mask)
     prop_mask = logical(options.propagation_mask > 0);
 else

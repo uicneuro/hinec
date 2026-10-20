@@ -10,7 +10,6 @@ tractography:
     method: trilinear
     upsample: 1
   stitching:
-    geometry: direction
     fragment_arc: 3
     min_fragment_arc: 1
     join_radius: 1

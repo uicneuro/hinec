@@ -7,7 +7,7 @@ One pipeline answers three different questions about **any** HINEC tracker
 |---|---|---|
 | **Convergence** | One input and one pipeline, run at several settings of a numerical knob (step size, seed density, …) from coarse to fine. Each level is compared with the finest level. | Does the output settle as the setting is refined? Does it settle for every streamline, or only for the typical one? |
 | **Repeatability** | The same pipeline run on independent repeats of the same subject (scan and rescan). | How much of the output survives re-acquisition? |
-| **Consistency** | Different methods or settings run on the same input (trilinear vs cubic, hinec vs mmf, DTI vs CSD). | How much does the output depend on the method you chose? |
+| **Consistency** | Different methods or settings run on the same input (trilinear vs cubic, hinec vs mmf vs standard, DTI vs CSD). | How much does the output depend on the method you chose? |
 
 All three use one comparison engine. Only the choice of which pairs to compare
 changes, along with how the result is read.
@@ -34,13 +34,13 @@ overlap; `tests/python/test_tract_assessment.py` checks this case.
 ### Streamline correspondence
 
 - **seed**: used when both runs record the seed of every streamline
-  (`meta.seed_points`: `hinec`, `template`, `stitching`, and custom `.mat` files
+  (`meta.seed_points`: `hinec`, `mmf`, `template`, `stitching`, and custom `.mat` files
   with `seed_points`). Streamlines with the same seed coordinate are paired.
   The pairing is exact. Each streamline is then split at its seed, and the two
   halves are compared at equal arc length outward from the seed. Nothing is
   assumed about step size or the integration variable, so runs with different
   `integrator.step` can be compared.
-- **nearest**: used for `standard` and `mmf`, which do not record seeds. Each
+- **nearest**: used for `standard`, which does not record seeds. Each
   streamline is paired with the streamline closest to it by mean direct-flip
   distance. This is a heuristic ("the most similar streamline", not "the same
   seed"). The report always states which mode was used.
@@ -76,7 +76,7 @@ never as zeros.
 
 # Consistency: one knob, or whole configs, on the same data
 ./bin/run_assessment.sh consistency --config hinec_dti --sweep interpolation.method=trilinear,cubic,spline
-./bin/run_assessment.sh consistency --configs hinec_dti mmf_dti standard_dti --set 'seeding.roi=[Fornix]' --set seeding.density=1
+./bin/run_assessment.sh consistency --configs hinec_dti mmf_dti hinec_csd standard_dti --set 'seeding.roi=[Fornix]' --set seeding.density=1
 
 # Repeatability: independent acquisitions, each preprocessed with run_hinec.sh and tracked
 ./bin/run_assessment.sh repeatability \
@@ -160,5 +160,5 @@ Rules that come from the study:
   its separately computed results exactly:
   - four traveling-human pairs: occupied Jaccard 0.552/0.440/0.515/0.459,
     κ<sub>w</sub> shift 2.28/2.15/4.72/5.03%, paired ρ 0.811/0.369/0.563/0.490;
-  - MADI MMF step ladders: 2/66 cubic and 7/66 trilinear seeds with p95
+  - MADI step ladders: 2/66 cubic and 7/66 trilinear seeds with p95
     separation above 1 mm at h = 0.0125.

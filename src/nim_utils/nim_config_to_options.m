@@ -36,11 +36,10 @@ function options = nim_config_to_options(config)
     options.adaptive_step = strcmp(t.integrator.method, 'rkf45') && t.integrator.adaptive;
 
     options.rkf_tolerance = t.integrator.tolerance;
-    options.rkf_tol       = t.integrator.tolerance;   % mmf spells it this way
     options.step_min      = t.integrator.step_min;
     options.step_max      = t.integrator.step_max;
     options.rkf_safety    = t.integrator.safety;
-    options.integrator    = t.integrator.method;      % mmf reads a method name
+    options.integrator    = t.integrator.method;      % stepping scheme name (hinec, stitching)
 
     % --- interpolation ------------------------------------------------------
     options.interp_method = t.interpolation.method;
@@ -127,6 +126,10 @@ function options = nim_config_to_options(config)
     options.csd_n_iter       = t.csd.n_iter;
 
     % --- mmf ----------------------------------------------------------------
-    options.mmf_anchor      = t.mmf.anchor;
+    options.mmf_mode           = t.mmf.mode;
+    options.mmf_reanchor_tol   = t.mmf.reanchor_tol;
+    options.mmf_gradient_delta = t.mmf.gradient_delta;
+
+    % --- stitching ----------------------------------------------------------
     options.stitching       = t.stitching;
 end

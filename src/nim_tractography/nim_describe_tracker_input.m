@@ -1,5 +1,5 @@
 function txt = nim_describe_tracker_input(nim, options, algorithm, out_file)
-% nim_describe_tracker_input: Log EXACTLY what a tracker is handed at step 5.
+% nim_describe_tracker_input: Log EXACTLY what a tracker is handed at step 4.
 %
 %   txt = nim_describe_tracker_input(nim, options, algorithm)
 %   txt = nim_describe_tracker_input(nim, options, algorithm, out_file)
@@ -26,7 +26,7 @@ if nargin < 4, out_file = ''; end
 L = {};
 
 % ---------------------------------------------------------------- the call
-L = put(L, '=== Tracker input (step 5 hand-off) ===');
+L = put(L, '=== Tracker input (step 4 hand-off) ===');
 L = put(L, 'Call: [tracks, meta] = nim_tractography_%s(nim, options)', lower(char(string(algorithm))));
 L = put(L, 'Coordinates: voxel space, 1-based (voxel (1,1,1) is centred at [1 1 1]);');
 L = put(L, '             positions and step sizes are in VOXELS, angles in degrees.');
@@ -103,7 +103,7 @@ L = put(L, '         seed_index  1 x T  index into the seed list of each KEPT tr
 L = put(L, '         seed_points T x 3  the seed position of each kept track');
 L = put(L, '         n_seeds     scalar number of seeds attempted');
 L = put(L, '         trace       optional per-step record (see debug.trace)');
-L = put(L, 'runTractography then applies the ROI filter (step 6), decimates to');
+L = put(L, 'runTractography then applies the ROI filter (step 5), decimates to');
 L = put(L, 'output.arc_step, and saves tracks/options/elapsed_time/algorithm/track_meta.');
 L = put(L, '=======================================');
 
@@ -210,17 +210,6 @@ function [groups, d] = nim_dictionary()
     d.npeaks     = '[X Y Z] how many of the P peaks are valid at each voxel';
     d.peak_w     = '[X Y Z P] FOD amplitude of each peak';
     d.fod_sh     = '[X Y Z C] FOD spherical-harmonic coefficients (csd.lmax)';
-    d.mmf_e1_dwi    = '[X Y Z 3] frame e1 fitted directly to the DW signal (field: dwi)';
-    d.mmf_kappa_dwi = '[X Y Z 3] curvature vector fitted with it (field: dwi)';
-    d.mmf_dwi_resid = '[X Y Z] fit residual (field: dwi)';
-    % geometry - built per run by nim_mmf_geometry (step 3), algorithm: mmf only
-    d.mmf_frames   = '[X Y Z 3 3] moving frame; mmf_frames(x,y,z,:,k) = e_k, e1 = tangent';
-    d.mmf_kappa    = '[X Y Z 3] connection curvature vector (Eq 6-9)';
-    d.mmf_tau      = '[X Y Z] torsion';
-    d.mmf_peakdirs = '[X Y Z P 3] per-peak tangents (csd: one pathway per peak)';
-    d.mmf_kappa_p  = '[X Y Z P 3] per-peak curvature vectors';
-    d.mmf_npeaks   = '[X Y Z] valid peaks per voxel (copy of npeaks)';
-    d.mmf_multi    = 'true when the per-peak geometry is present';
 
     groups = struct('title', {}, 'fields', {});
     groups(end+1) = struct('title', 'dataset - from main.m, on disk, config-independent', ...
@@ -229,10 +218,8 @@ function [groups, d] = nim_dictionary()
                     'parcellation_mask','parcellation_mask_file','atlas_labels', ...
                     'parcellation_mask_jhu','atlas_labels_jhu','atlas_type','roi_masks','roi_source', ...
                     'wm_mask','gm_mask','csf_mask','wm_mask_file','gm_mask_file','csf_mask_file'}});
-    groups(end+1) = struct('title', 'direction field - nim_field, step 2, per run (field: csd | dwi)', ...
-        'fields', {{'peaks','npeaks','peak_w','fod_sh','mmf_e1_dwi','mmf_kappa_dwi','mmf_dwi_resid'}});
-    groups(end+1) = struct('title', 'geometry - nim_mmf_geometry, step 3, per run (mmf tracker or stitching.geometry=mmf)', ...
-        'fields', {{'mmf_frames','mmf_kappa','mmf_tau','mmf_peakdirs','mmf_kappa_p','mmf_npeaks','mmf_multi'}});
+    groups(end+1) = struct('title', 'direction field - nim_field, step 2, per run (field: csd)', ...
+        'fields', {{'peaks','npeaks','peak_w','fod_sh'}});
 end
 
 function [groups, d] = options_dictionary()
@@ -241,13 +228,12 @@ function [groups, d] = options_dictionary()
 % schema paths (nim_config_schema) so the log can be traced back to the YAML.
     d = struct();
     d.algorithm  = {'tractography.algorithm', 'which tracker runTractography dispatches to'};
-    d.field      = {'tractography.field', 'direction source: dti (nim.evec) | csd (nim.peaks) | dwi (nim.mmf_e1_dwi)'};
+    d.field      = {'tractography.field', 'direction source: dti (nim.evec) | csd (nim.peaks)'};
     d.integrator        = {'tractography.integrator.method', 'stepping scheme name: euler | rk2 | rk4 | rkf45'};
     d.integration_order = {'tractography.integrator.method', 'same choice as a number: 1 | 2 | 4 | 5 (legacy selector, NOT an order claim)'};
     d.step_size    = {'tractography.integrator.step', 'step h in voxels (initial step for rkf45)'};
     d.adaptive_step = {'tractography.integrator.adaptive', 'rkf45 only: adapt h to the error estimate'};
     d.rkf_tolerance = {'tractography.integrator.tolerance', 'rkf45 only: local error tolerance in voxels'};
-    d.rkf_tol       = {'tractography.integrator.tolerance', 'same value under the name mmf reads'};
     d.step_min      = {'tractography.integrator.step_min', 'rkf45 only: smallest h'};
     d.step_max      = {'tractography.integrator.step_max', 'rkf45 only: largest h'};
     d.rkf_safety    = {'tractography.integrator.safety', 'rkf45 only: safety factor on the step update'};
@@ -258,8 +244,8 @@ function [groups, d] = options_dictionary()
     d.seed_fa_threshold = {'tractography.seeding.fa_min', 'voxels below this FA were excluded from seed_mask'};
     d.seed_roi          = {'tractography.seeding.roi', 'atlas regions the seeds were restricted to ({} = whole brain)'};
     d.seed_roi_dilate   = {'tractography.seeding.roi_dilate', 'dilation applied to those regions'};
-    d.seed_mask     = {'(built in runTractography step 4)', '[X Y Z] logical: seed inside these voxels. THE seed input - the tracker generates seed points from it'};
-    d.seed_roi_info = {'(built in runTractography step 4)', 'voxel counts of the ROI seed mask at each masking stage'};
+    d.seed_mask     = {'(built in runTractography step 3)', '[X Y Z] logical: seed inside these voxels. THE seed input - the tracker generates seed points from it'};
+    d.seed_roi_info = {'(built in runTractography step 3)', 'voxel counts of the ROI seed mask at each masking stage'};
     d.termination_fa = {'tractography.termination.fa_min', 'stop when interpolated FA drops below this'};
     d.termination_fa_mode = {'tractography.termination.fa_mode', 'absolute: termination_fa = fa_min | percentile: termination_fa was resolved per scan from this scan''s in-mask FA'};
     d.termination_fa_percentile = {'tractography.termination.fa_percentile', 'percentile used when fa_mode = percentile'};
@@ -269,23 +255,23 @@ function [groups, d] = options_dictionary()
     d.max_arc        = {'tractography.termination.max_arc', 'stop a half-track after this arc length (voxels)'};
     d.max_steps      = {'(derived) ceil(max_arc / step)', 'the same limit as a step count'};
     d.act_enabled = {'tractography.act', 'ACT requested. Trackers decide from whether the masks below are non-empty'};
-    d.wm_mask  = {'(nim.wm_mask, step 4b)', '[X Y Z] or [] - white matter'};
-    d.gm_mask  = {'(nim.gm_mask, step 4b)', '[X Y Z] or [] - grey matter: a half-track ending here is kept'};
-    d.csf_mask = {'(nim.csf_mask, step 4b)', '[X Y Z] or [] - CSF: a half-track entering here is discarded'};
-    d.include_roi       = {'tractography.filter.include_roi', 'step 6, after tracking: keep tracks touching these regions'};
-    d.exclude_roi       = {'tractography.filter.exclude_roi', 'step 6: discard tracks touching these'};
-    d.roi_filter_mode   = {'tractography.filter.mode', 'step 6: all | any of the include regions'};
-    d.roi_filter_dilate = {'tractography.filter.roi_dilate', 'step 6: dilation of the filter masks'};
-    d.endpoints_in = {'tractography.filter.endpoints_in', 'step 6: endpoint test, one end in each of two regions'};
-    d.contained_in = {'tractography.filter.contained_in', 'step 6: every point inside these regions'};
-    d.any_in       = {'tractography.filter.any_in', 'step 6: at least one point inside these regions'};
-    d.length       = {'tractography.filter.length', 'step 6: [min max] track length in mm'};
-    d.length_x = {'tractography.filter.length_x', 'step 6: [min max] net x displacement, mm'};
-    d.length_y = {'tractography.filter.length_y', 'step 6: net y, mm'};
-    d.length_z = {'tractography.filter.length_z', 'step 6: net z, mm'};
-    d.length_x_abs = {'tractography.filter.length_x_abs', 'step 6: [min max] total x travel, mm'};
-    d.length_y_abs = {'tractography.filter.length_y_abs', 'step 6: total y, mm'};
-    d.length_z_abs = {'tractography.filter.length_z_abs', 'step 6: total z, mm'};
+    d.wm_mask  = {'(nim.wm_mask, step 3b)', '[X Y Z] or [] - white matter'};
+    d.gm_mask  = {'(nim.gm_mask, step 3b)', '[X Y Z] or [] - grey matter: a half-track ending here is kept'};
+    d.csf_mask = {'(nim.csf_mask, step 3b)', '[X Y Z] or [] - CSF: a half-track entering here is discarded'};
+    d.include_roi       = {'tractography.filter.include_roi', 'step 5, after tracking: keep tracks touching these regions'};
+    d.exclude_roi       = {'tractography.filter.exclude_roi', 'step 5: discard tracks touching these'};
+    d.roi_filter_mode   = {'tractography.filter.mode', 'step 5: all | any of the include regions'};
+    d.roi_filter_dilate = {'tractography.filter.roi_dilate', 'step 5: dilation of the filter masks'};
+    d.endpoints_in = {'tractography.filter.endpoints_in', 'step 5: endpoint test, one end in each of two regions'};
+    d.contained_in = {'tractography.filter.contained_in', 'step 5: every point inside these regions'};
+    d.any_in       = {'tractography.filter.any_in', 'step 5: at least one point inside these regions'};
+    d.length       = {'tractography.filter.length', 'step 5: [min max] track length in mm'};
+    d.length_x = {'tractography.filter.length_x', 'step 5: [min max] net x displacement, mm'};
+    d.length_y = {'tractography.filter.length_y', 'step 5: net y, mm'};
+    d.length_z = {'tractography.filter.length_z', 'step 5: net z, mm'};
+    d.length_x_abs = {'tractography.filter.length_x_abs', 'step 5: [min max] total x travel, mm'};
+    d.length_y_abs = {'tractography.filter.length_y_abs', 'step 5: total y, mm'};
+    d.length_z_abs = {'tractography.filter.length_z_abs', 'step 5: total z, mm'};
     d.csd_lmax         = {'tractography.csd.lmax', 'used by nim_field (step 2) to build nim.peaks; not read by trackers'};
     d.csd_peaks_file   = {'tractography.csd.peaks_file', 'optional external peak MAT loaded by nim_field (step 2); empty uses native CSD'};
     d.csd_max_peaks    = {'tractography.csd.max_peaks', 'P, the peak dimension of nim.peaks'};
@@ -293,16 +279,18 @@ function [groups, d] = options_dictionary()
     d.csd_peak_min_sep = {'tractography.csd.peak_min_sep', 'minimum angle between peaks (degrees)'};
     d.csd_n_iter       = {'tractography.csd.n_iter', 'CSD iterations'};
     d.stitching = {'tractography.stitching', 'Short-fragment geometry and bounded endpoint graph options; see docs/STITCHING.md'};
-    d.mmf_anchor = {'tractography.mmf.anchor', 'mmf only: 0 = pure connection-form evolution (Eq 10-11); >0 re-anchors the carried frame to the field'};
+    d.mmf_mode           = {'tractography.mmf.mode', 'mmf only: transport | reanchor | adaptive (how the carried frame relates to the data frame; advanceFrame ''Mode'')'};
+    d.mmf_reanchor_tol   = {'tractography.mmf.reanchor_tol', 'mmf only: drift tolerance of the adaptive mode, radians'};
+    d.mmf_gradient_delta = {'tractography.mmf.gradient_delta', 'mmf only: central-difference step (voxels) for the connection components'};
     d.trace     = {'tractography.debug.trace', 'record a per-step trace (position, direction, FA, turn, stop reason) into meta.trace'};
     d.trace_max = {'tractography.debug.trace_max', 'how many seeds to trace, sampled evenly (0 = all)'};
-    d.output_arc_step   = {'tractography.output.arc_step', 'step 7: resample saved tracks to this arc spacing (0 = keep every step)'};
+    d.output_arc_step   = {'tractography.output.arc_step', 'step 6: resample saved tracks to this arc spacing (0 = keep every step)'};
     d.enable_diagnostics = {'tractography.diagnostics', 'extra per-run statistics in the log'};
 
     groups = struct('title', {}, 'fields', {});
     groups(end+1) = struct('title', 'identity', 'fields', {{'algorithm','field'}});
     groups(end+1) = struct('title', 'integrator', 'fields', {{'integrator','integration_order','step_size', ...
-        'adaptive_step','rkf_tolerance','rkf_tol','step_min','step_max','rkf_safety'}});
+        'adaptive_step','rkf_tolerance','step_min','step_max','rkf_safety'}});
     groups(end+1) = struct('title', 'interpolation', 'fields', {{'interp_method','upsample'}});
     groups(end+1) = struct('title', 'seeding', 'fields', {{'seed_mask','seed_density','seed_strategy', ...
         'seed_fa_threshold','seed_roi','seed_roi_dilate','seed_roi_info'}});
@@ -310,9 +298,9 @@ function [groups, d] = options_dictionary()
     groups(end+1) = struct('title', 'ACT', 'fields', {{'act_enabled','wm_mask','gm_mask','csf_mask'}});
     groups(end+1) = struct('title', 'field construction (consumed in step 2, not by the tracker)', 'fields', ...
         {{'csd_lmax','csd_peaks_file','csd_max_peaks','csd_peak_thresh','csd_peak_min_sep','csd_n_iter'}});
-    groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_anchor'}});
+    groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_mode','mmf_reanchor_tol','mmf_gradient_delta'}});
     groups(end+1) = struct('title', 'stitching', 'fields', {{'stitching'}});
-    groups(end+1) = struct('title', 'post-processing (steps 6-7, not read by the tracker)', 'fields', ...
+    groups(end+1) = struct('title', 'post-processing (steps 5-6, not read by the tracker)', 'fields', ...
         {{'include_roi','exclude_roi','roi_filter_mode','roi_filter_dilate','endpoints_in','contained_in','any_in', ...
           'length','length_x','length_y','length_z','length_x_abs','length_y_abs','length_z_abs','output_arc_step'}});
     groups(end+1) = struct('title', 'debug', 'fields', {{'trace','trace_max','enable_diagnostics'}});

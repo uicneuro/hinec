@@ -1,264 +1,193 @@
-# MMF Connection-Form Tractography
+# Moving frames tractography (`algorithm: mmf`)
 
-**Method of Moving Frames (MMF) tractography** — Chun & Peng, in preparation.
+`nim_tractography_mmf` follows a fibre as a curve that carries its own
+orthonormal frame. Where the streamline trackers integrate the direction field
+`dx/ds = v(x)` and re-read `v` from the data at every stage, the moving-frames
+tracker advances the whole frame `E = (e1; e2; e3)` with the **connection
+1-forms** of the data's frame field, evaluated on the direction of travel, and
+the position with the first frame vector:
 
-This is the *genuine* moving-frames tracker: it builds an orthonormal **moving-frame
-field** {e1, e2, e3} and its **connection 1-form** (curvature + torsion) over the whole
-brain, then traces streamlines by *evolving a carried frame with the connection structure
-equation* rather than by re-sampling a direction field at each step.
-
-!!! note "Not to be confused with the interpolated tracker"
-    The interpolated streamline tracker (spatial interpolation, RK4/RKF45, CSD-peak
-    resampling) is `algorithm: hinec` — see
-    [Tractography Methods](TRACTOGRAPHY_METHODS.md). *That* tracker was previously
-    mislabelled `mmf` + `integrator: rkf45`. The tracker documented here — `algorithm: mmf`
-    — is the real connection-form Method of Moving Frames and shares none of that code.
-
-| | |
-|---|---|
-| **Dispatch** | `algorithm: mmf` → `runTractography` → `nim_tractography_mmf_connframe` |
-| **Geometry build** | `nim_mmf_geometry`, called by `runTractography` **step 3**, every `mmf` run |
-| **Configs** | `config/mmf_dti.yml` (DTI field), `config/mmf_csd.yml` (CSD field) |
-| **Reference** | Chun & Peng, in preparation. Equation numbers below follow that formulation; the equations themselves are written out on this page. |
-
----
-
-## Why moving frames?
-
-Classical streamline tractography integrates `dx/ds = v(x)`, where `v` is a diffusion
-direction re-interpolated at every point. It carries no memory of *how* the fiber is
-turning. The Method of Moving Frames instead attaches an orthonormal frame to each point of
-the trajectory and describes the fiber intrinsically through the **connection 1-form** of
-that frame field — the same object that, in the Frenet–Serret picture, packages curvature
-and torsion:
-
-$$
-\frac{d}{ds}\begin{bmatrix} e_1 \\ e_2 \\ e_3 \end{bmatrix}
-=\begin{bmatrix} 0 & \omega_{12} & \omega_{13} \\ -\omega_{12} & 0 & \omega_{23} \\ -\omega_{13} & -\omega_{23} & 0 \end{bmatrix}
-\begin{bmatrix} e_1 \\ e_2 \\ e_3 \end{bmatrix}
-\qquad(\text{Eq. 10})
-$$
-
-$$
-\frac{dx}{ds} = e_1 \qquad(\text{Eq. 11})
-$$
-
-The connection coefficients are the **curvature** \( \kappa = \nabla_{e_1} e_1 \)
-(with \( \omega_{12} = \kappa\cdot e_2 \), \( \omega_{13} = \kappa\cdot e_3 \)) and the
-**torsion** \( \tau = \omega_{23}(e_1) \). Those are properties of the *space*: they
-depend only on the direction field, not on any particular streamline, so HINEC builds the
-whole field **once per run**, before any streamline starts, and the tracer only samples it.
-They are **not** part of the `nim` on disk — they depend on `tractography.field`, and the
-nim is the dataset. The build costs 4.9 s (DTI) / 8.1 s (CSD), which is why it is redone
-every run instead of being cached and version-stamped.
-
----
-
-## Stage 1 — Building the geometry (`nim_mmf_geometry`)
-
-Called from `runTractography` **step 3**, after the direction field (step 2) and only when
-`algorithm: mmf` — `hinec` and `standard` never build it:
-
-```matlab
-%% Step 3 - geometry: MMF moving frames + connection 1-form (Eq 6-9), mmf ONLY
-if strcmpi(algorithm, 'mmf')
-    nim = nim_mmf_geometry(nim, options);   % honours field; no denoising parameter
-end
+```
+dx/ds = e1,        dE/ds = Omega E,        Omega_ij = w_ij(e1) = sum_k wij_k e1_k.
 ```
 
-With `field: dwi` the frame and curvature come from `nim_mmf_from_dwi`, which step 2
-(`nim_field`) runs; `nim_mmf_geometry` only **consumes** `nim.mmf_e1_dwi` /
-`nim.mmf_kappa_dwi` and errors if they are absent.
+Omega is skew-symmetric with the two curvature components `w_12(e1)`,
+`w_13(e1)` and the twist `w_23(e1)`. One step is the closed-form exponential of
+this motion (a rotation of the frame together with a circular arc of the
+position, by the Rodrigues formulas), so the frame stays exactly orthonormal
+without re-orthogonalisation and the step is **exact for a planar arc of
+constant curvature, at any step size**. Higher order comes from Lie group
+integrators built around that step: Lie–Euler, the exponential midpoint rule and
+the commutator-free fourth-order method CF4 (`integrator.method: euler | rk2 |
+rk4`). On a fibre with torsion the tracker drops the twist (it is not a datum of
+DTI, see below), so there Omega is not constant along the fibre in the carried
+frame and the step is exact only to the order of the integrator. The scheme
+itself is `advanceFrame.m`, shared with the moving-frames test suite (the
+`Moving Frame Tractography/matlab` folder), whose notes
+`doc/advanceFrame_notes.tex` give the mathematics, the gauge, the variants and
+the verification on analytic fields in two and three dimensions. This page
+covers only what connects the scheme to the voxel data of a nim.
 
-The build follows the Frenet construction of the formulation (steps 1–3, Eq. 6–9):
+## The frame field and its connection, from the voxels
 
-**1. Alignment-selective tangent field `e1`.**
-The raw tangent is the tensor principal eigenvector (DTI) or, when a CSD FOD peak field is
-present *and* requested, the **dominant FOD peak** (so `field: csd` genuinely builds the
-connection from CSD data — see [CSD field](#csd-field-multiple-pathways) below). It is then
-used directly, with **no denoising step**. An alignment-selective filter used to sit here
-(`mmf_traj_denoise`, each 3×3×3 neighbour weighted \( |n\cdot e_1|^{\text{sel}} \) with
-selectivity `mmf.frame_sel_power`), but that was the same mechanism as the `sel_power` term
-removed from `hinec` — a free exponent with no principled value — and it has been removed
-with it. Measured against the curvature of the ISMRM ground-truth curves on 5699
-`Cingulum_right` voxels, the exponent changed nothing: correlation with the true curvature
-was 0.229 / 0.239 / 0.224 / 0.217 at sel 0 / 2 / 16 / 64.
+The DTI principal eigenvector is a **line** field: the sign the eigensolver
+writes for each voxel is arbitrary. The direction between voxels is therefore
+read from the interpolated dyadic `v1 v1'`, which is sign-invariant — the same
+six interpolants, kernel (`interpolation.method`) and `upsample` as the hinec
+tracker — and the data's frame at a point `x` is
 
-**2. Curvature vector \( \kappa = \nabla_{e_1} e_1 \) (Eq. 7 source).**
-Computed basis-free through the connection form itself: with a reference-axis frame
-`(e2a, e3a)`, \( \kappa = \omega_{12}(e_1)\,e_2^a + \omega_{13}(e_1)\,e_3^a \).
-
-**3. Frenet normal `e2` (Eq. 7) and binormal `e3` (Eq. 8).**
-\( e_2 = \kappa/\lVert\kappa\rVert \) where curvature is well-defined; where
-\( \lVert\kappa\rVert \approx 0 \) (straight fiber) it falls back to the **reference-axis
-projection** (Eq. 6, `mmf_reference_axis_frame`), which is robust to the
-\( \lambda_2 \approx \lambda_3 \) degeneracy that makes the DTI e2/e3 arbitrary. Then
-\( e_3 = e_1 \times e_2 \).
-
-**4. Torsion \( \tau = \omega_{23}(e_1) \) (Eq. 9).**
-A second pass of `nim_connection_form` on the completed Frenet frame gives the torsion.
-
-**Returned on the `nim` for this run** (in memory only — never saved to disk):
-
-| Field | Shape | Meaning |
-|---|---|---|
-| `nim.mmf_frames` | `[X Y Z 3 3]` | frame field, `(:,:,:,c,i)` = component *c* of \(e_i\) |
-| `nim.mmf_kappa`  | `[X Y Z 3]`   | curvature vector \( \nabla_{e_1} e_1 \) |
-| `nim.mmf_tau`    | `[X Y Z]`     | torsion \( \omega_{23}(e_1) \) |
-
-There are no build/version stamps (`mmf_built`, `mmf_field`, `mmf_geom_version` are gone):
-the geometry is rebuilt unconditionally on every `mmf` run, so there is nothing to
-invalidate. The log line says which field it was actually built from.
-
-### The connection 1-form (`nim_connection_form`)
-
-The connection 1-form \( [\omega] = dA\,A^{T} \) (with \( A=[e_1\ e_2\ e_3] \)) records how
-the orthonormal frame rotates through space. It is antisymmetric, so it reduces to three
-scalar 1-forms \( (\omega_{12},\omega_{13},\omega_{23}) \). Evaluated along a frame
-direction \(e_k\):
-
-$$
-\omega_{ij}(e_k) = \sum_c e_j^{\,c}\,\big(\nabla e_i^{\,c}\cdot e_k\big)
-\qquad(\text{component form of the connection 1-form})
-$$
-
-i.e. take the spatial Jacobian of each component field of \(e_i\), contract with \(e_k\) to
-get the directional derivative of \(e_i\) along \(e_k\), then dot with \(e_j\).
-`nim_connection_form` returns `wijk[X,Y,Z,i,j,k] = ω_ij(e_k)` with antisymmetry enforced.
-
-### Frame helpers
-
-| Function | Role |
-|---|---|
-| `nim_build_frames` | sign-consistent `e1` field + reference-axis `e2/e3` |
-| `mmf_reference_axis_frame` | complete `e2, e3` from `e1` alone (robust to λ₂≈λ₃) |
-| `mmf_gram_schmidt` | re-orthonormalize a drifted frame during integration |
-| `mmf_bishop_update` | rotation-minimizing (Bishop) parallel transport of a frame vector |
-
----
-
-## Stage 2 — Tracing (`nim_tractography_mmf_connframe`)
-
-The geometry arrives already built by step 3 — the tracer never builds it and asserts that
-`nim.mmf_frames` is present. It wraps each field in a `griddedInterpolant` and traces:
-
-1. **Seeds** are placed on the seed mask (`seeding.density` sub-voxel offsets, on a
-   deterministic lattice). For DTI, each
-   seed's initial tangent is the principal direction; for CSD, **one seed per FOD peak**, so
-   crossing populations are all launched.
-2. **Bidirectional** tracking (`track_bi`) from each seed.
-3. Each streamline **carries a moving frame**: `e1 = tangent`, `e2/e3` initialized by the
-   reference-axis projection at the seed (Eq. 6), then **evolved by the structure equation
-   (Eq. 10)** while advancing `dx/ds = e1` (Eq. 11).
-4. The coupled \((x, e_1, e_2, e_3)\) system is integrated by `mmf_step` with **RK4**
-   (fixed step) or **RKF45** (adaptive Dormand–Prince), the frame **re-orthonormalized**
-   (`mmf_gram_schmidt`) each step. The curvature and torsion are interpolated from the
-   stored connection field at each substep.
-5. **Termination**: the turn budget (`termination.angle_max`), the propagation mask, which
-   is derived from FA (`termination.fa_min`) and the brain mask **independently of the seed
-   mask**, and ACT tissue rules — stop on entering CSF or leaving the brain, terminate on
-   reaching GM. Tracks shorter than `termination.min_arc` (an arc length in voxels) are
-   discarded.
-
-!!! info "The path equation"
-    Because \( dT/ds = \kappa N \) in the Frenet picture, the streamline **path** is a
-    curvature-vector-field streamline: \( de_1/ds = \kappa(x) \). The full frame *and*
-    torsion are evolved and available downstream, but do not feed back into `dx/ds`.
-    `mmf_anchor` optionally re-anchors `e1` toward the field tangent (see below).
-
-### `mmf_anchor` — faithful vs. anchored
-
-```yaml
-tractography:
-  mmf:
-    anchor: 0     # 0 = pure Eq.10-11 (faithful); >0 re-anchors e1 to the field
+```
+e1(x)   = principal axis of D(x) = interp(v1 v1')
+e2, e3  = a completion of e1 (reference-axis projection)
+w_1j,k  = e_j . d e1 / dx_k      j = 2, 3     (the curvature components)
+w_23,k  = 0                                    (the twist is not a datum of DTI)
 ```
 
-- `anchor: 0` — the **pure** connection-form formulation: `e1` is driven only by the
-  integrated curvature. Most faithful to the formulation.
-- `anchor` in `(0, 1]` — after each step, blend `e1` toward the interpolated field
-  tangent: \( e_1 \leftarrow (1-a)\,e_1 + a\,e_1^{\text{field}} \), then re-orthonormalize.
-  A stabilizer that trades faithfulness for robustness against accumulated curvature error.
+`d e1/dx_k` is a sign-aligned central difference of `e1` of the *interpolated*
+field (`mmf.gradient_delta` voxels), so the connection is that of the field the
+streamline trackers integrate. With the spline kernel that field is C2 and the
+connection continuous; with the cubic and trilinear kernels the derivative of
+the field jumps at the voxel faces, the connection is discontinuous there, and
+the step — exact only for a connection that is constant along the arc — is
+then as accurate as any integrator on a kinked right-hand side (see the
+numbers below). `config/mmf_dti.yml` therefore uses the spline kernel. The
+scheme runs with `'Twist' 'zero'` (a rotation-minimizing normal plane), so the
+arbitrary completion `e2, e3` never enters the position: a step uses only the
+curvature vector `(e1 . grad) e1` of the field, expressed in the carried frame
+through the gauge `G = E Et'` that `advanceFrame` computes at every evaluation.
+That gauge is also what absorbs the sign flips of the axial data — the "flip if
+the dot product is negative" of streamline tracking, extended to the whole
+frame.
 
----
+## Modes (`mmf.mode`)
 
-## CSD field: multiple pathways
-
-With `field: csd`, `nim_mmf_geometry` builds a **per-peak connection**: for every FOD peak
-\(p\) (a distinct fiber population) it computes a curvature vector
-\( \nabla_{e_{1p}} e_{1p} \) by **trajectory-aligned differencing** — each neighbour
-contributes the peak best aligned with the centre's peak \(p\) (peak matching across the
-crossing). Stored as:
-
-| Field | Shape | Meaning |
+| mode | what the carried frame is | when |
 |---|---|---|
-| `nim.mmf_peakdirs` | `[X Y Z maxK 3]` | unit peak directions |
-| `nim.mmf_kappa_p`  | `[X Y Z maxK 3]` | per-peak curvature vectors |
-| `nim.mmf_multi`    | `true`           | multi-frame flag |
+| `transport` | carried by the connection only; the data enter through the curvature and the gauge | the frame scheme proper; the heading, once in error, is never corrected |
+| `reanchor` | replaced by the data frame after every step (signs chosen by the transported frame) | the closest relative of streamline tracking, with an arc instead of a chord; the direction cannot drift from the data |
+| `adaptive` (default) | transported, re-anchored only after a step at whose end the carried `e1` has drifted from the data's `e1` by `mmf.reanchor_tol` radians or more | trusts the transported heading while it agrees with the data and snaps it back where it does not |
 
-At trace time the tracer selects the peak aligned with the **incoming** tangent, so two
-streamlines entering one voxel from different approach directions follow *different*
-curvatures → different continuations. That is how a single moving-frame formulation resolves
-crossings into multiple pathways.
+The drift at every point and the re-anchoring decisions are recorded
+(`meta.mmf.reanchored_fraction`; per step in `meta.trace` with `debug.trace`).
+The default tolerance `1e-3` rad is an order of magnitude below the heading
+error of a one-voxel CF4 step across a sharp bend and above the step-to-step
+wobble of interpolated data at normal steps (see the suite's notes, section on
+variants).
 
-`runTractography` computes/loads the FOD peaks (via `nim_csd`, cached as `<source>_csd_<settings>.mat`)
-before tracking — see [CSD](TRACTOGRAPHY_METHODS.md#csd-fod-reconstruction).
+## Termination
 
----
+The connection is returned non-finite wherever a point is outside the volume,
+outside the propagation mask (or the brain mask), below the FA floor
+`termination.fa_min` or without a well-conditioned principal axis;
+`advanceFrame` stops a tract **before** a step at whose stages the connection
+is not finite. The stages are the start of a step, its midpoint (orders 2 and
+4) and its end (order 4), so with orders 1 and 2 the scheme never examines
+the end of a step: the tracker drops a last node that lies outside tissue.
+Every node of a track is therefore a valid integration node inside tissue.
+Leaving the volume stops the tract as well, and the cut boundary point is
+dropped, so tracks consist of integration nodes only, like those of the other
+trackers.
 
-## Configuration
+The angle budget `termination.angle_max` (degrees per voxel of arc, through
+`nim_angle_limit`: `min(angle_max * h, 90)` degrees per step, none for
+`angle_max <= 0`) becomes `advanceFrame`'s `MaxTurn`. It bounds two rotations:
+the rotation `h |kappa|` of a step, evaluated at every stage, and the
+re-anchoring at the end of a step in the `reanchor` and `adaptive` modes — the
+snap of the carried heading to the data's `e1`, which is the moving-frames
+counterpart of the angle between consecutive directions that the streamline
+trackers test, and which could otherwise put a kink of up to 90 degrees into a
+track where the data's direction changes abruptly (a crossing seen in DTI, an
+interface between bundles). Where the interpolated principal axis is piecewise
+constant with a swap plane, as across such an interface, the connection is
+zero except within `gradient_delta` of the plane and a step whose stages
+straddle it sees no curvature at all; the re-anchoring test is what stops the
+tract there. Unlike the streamline trackers, whose sign-aligned turn cannot
+exceed 90 degrees, the 90 degree ceiling of `nim_angle_limit` is a real cap
+here. Note also that the curvature of the interpolated principal-axis field is
+large wherever the dyadic is nearly degenerate (crossings, planar regions:
+the derivative of the principal axis grows like `1/(lambda_1 - lambda_2)`), so
+the budget stops more half-tracks in such regions than the node-to-node angle
+test of the streamline trackers does. `termination.max_arc` is `advanceFrame`'s
+`smax`.
 
-Two sanctioned configs; run them with the [config-driven
-workflow](TRACTOGRAPHY_METHODS.md#config-driven-experiment-workflow):
+The reasons are counted over the half-tracks of the seeds that were tracked in
+`meta.termination` (`max_arc`, `angle`, `fa`, `outside_mask`, `outside`,
+`outside_domain`, `no_direction`); an `advanceFrame` stop on a non-finite
+connection is resolved into one of these by probing the stages of the next
+step and their difference stencils. Seeds outside tissue or without a
+direction are not tracked and are counted by reason in
+`meta.mmf.seeds_skipped`. ACT masks are not used by this tracker.
 
-```bash
-./bin/run_tractography.sh mmf_dti --score        # DTI-field connection
-./bin/run_tractography.sh mmf_csd --score        # CSD-field connection (multiple pathways)
-```
+With `debug.trace` the per-step records of the traced seeds have the layout of
+the hinec tracker's (`pos`, `dir` = the carried `e1`, `fa`, `h`, `chord`,
+`turn` in degrees, `flip` always false, `n_steps`, `termination`), so
+`nim_track_diagnose` reads them, plus `drift` (angle to the data's `e1`),
+`reanchored`, `kappa` and `s`.
 
-### Key parameters
+## What is not supported
 
-Paths below are canonical config paths under `tractography:`; defaults come from
-`src/nim_utils/nim_config_schema.m`.
+- `field: csd`. The connection handles of `advanceFrame` are functions of
+  position alone, and choosing an FOD peak needs the incoming tangent. Use the
+  hinec tracker for CSD.
+- `integrator.method: rkf45`. The exponential step has no embedded error
+  estimate; the tracker rejects it (`mmf:integrator`).
 
-| Parameter | Default | Meaning |
-|---|---|---|
-| `algorithm` | `hinec` | must be `mmf` to select this tracker (the dispatch key) |
-| `field` | `dti` | `dti` = tensor principal direction; `csd` = per-peak FOD connection |
-| `integrator.method` | `rk4` | numerical stepping scheme; `rk4` (fixed) or `rkf45` (adaptive) |
-| `integrator.step` | `0.2` | step in voxels (initial step for `rkf45`) |
-| `interpolation.method` | `trilinear` | kernel used to sample the stored connection field |
-| `mmf.anchor` | `0` | `0` = pure Eq.10-11; `>0` re-anchors `e1` to the field |
-| `termination.angle_max` | `225` | turn budget in degrees **per voxel of arc** |
-| `termination.fa_min` | `0.10` | FA floor for propagation |
-| `termination.min_arc` | `15` | minimum track arc length, in **voxels** |
-| `termination.max_arc` | `400` | maximum track arc length in voxels; `max_steps` is derived as `ceil(max_arc/step)` |
-| `csd.lmax`, `csd.max_peaks`, `csd.peak_thresh`, `csd.peak_min_sep` | see [CSD](TRACTOGRAPHY_METHODS.md#csd-fod-reconstruction) | FOD peak extraction (only `field: csd`) |
+## Verification
 
-!!! warning "`angle_max` is a rate, and it has a ceiling"
-    `termination.angle_max` is degrees of turning per **voxel of arc**, so the budget for
-    one step is `angle_max × step` and the criterion is step-invariant. Consecutive tangents
-    are sign-aligned — \(e_1\) names a line, not a ray — so a measured turn never exceeds
-    90°. Any budget above that is **inert**, not merely loose: the shipped `mmf_dti.yml`
-    setting of 225°/voxel goes inert for any step ≥ 0.4. `angle_max: 0` disables the
-    criterion outright.
+`tests/unit/TestMmfTracker.m` runs the tracker on the rigid-rotation phantom of
+`TestIntegratorOrder` (circles of every radius, FA 1 in an annulus) from a seed
+on the circle of radius 15.5, for 60 voxels of arc in each direction with
+`h = 0.25`, and on the helix of `tests/fixtures/make_synthetic_nim.m` (radius
+15, pitch 6, constant curvature and torsion) for 40 voxels each way:
 
-!!! note "`algorithm` is the only dispatch key"
-    `runTractography` dispatches purely on `algorithm`. `integrator.method` selects the
-    stepping scheme *within* the chosen tracker; changing it never changes which tracker
-    runs. Earlier configs carried `integrator: mmf` as a readability marker — that is no
-    longer an accepted value.
+| field | kernel | mode | integrator | max distance from the true curve (voxels) |
+|---|---|---|---|---|
+| circle | spline | any | euler / rk2 / rk4 | 1.1e-5 / 6e-6 / 5e-6 |
+| circle | cubic | transport | euler / rk2 / rk4 | 3.7e-3 / 7e-4 / 7e-4 |
+| circle | trilinear | transport | euler / rk2 / rk4 | 2.0e-2 / 1.5e-2 / 1.6e-2 |
+| circle | cubic / trilinear | reanchor | rk4 | 4e-5 / 1.4e-4 |
+| circle | trilinear | (Euler template) | | 0.48 |
+| helix | spline | adaptive | euler / rk2 / rk4 | 1.0e-3 / 3.5e-4 / 5e-6 |
 
----
+On the circle the exponential step is exact, so with the spline kernel the
+residual is the interpolation error of the dyadic field and every mode and
+order gives the same 1e-5; the curvature returned with the tract is `1/15.508`
+to seven digits and nothing re-anchors at the default tolerance (the drift
+stays at `4e-8` rad). With the cubic and trilinear kernels the residual of the
+transport mode is dominated by the integration of the connection that jumps at
+the voxel faces, which is why the orders separate there and why re-anchoring to
+the data after every step (which follows the interpolated circle instead) is a
+hundred times better on trilinear data; the adaptive mode keeps the transported
+heading on these fields (no step drifts by `1e-3` rad) and coincides with
+transport. On the helix the twist is dropped and the residual is the integration
+error, with the orders 1, 2 and 4 cleanly separated; the curvature is recovered
+to `4e-8`.
 
-## Tests
+The test also pins the tracker contract (`nim_check_tracker_output`, seed
+lattice and order, `seed_density`, random jitter, `min_length`, a run across
+the chunk boundary of 4000 seeds, a seed that cannot be tracked), the straight
+field (a line to roundoff), the sign alignment of the connection across the
+flip locus of the principal axis, the precedence of `propagation_mask` over
+the brain mask, the termination reasons (`max_arc`, `angle`, `fa`,
+`outside_mask`, `outside`) with every integrator, the angle budget on both
+the step and the re-anchoring (a 90-degree interface between bundles: the
+re-anchoring modes stop with `angle` and no track has a kink above the budget;
+transport runs through by design), the per-step trace and the rejection of
+`rkf45` and `csd`.
 
-- `tests/unit/TestConnectionForm.m` — `nim_connection_form` on analytic frame fields.
-- `tests/unit/TestBishopFrame.m` — `mmf_bishop_update` transport / orthonormality.
-- `tests/fixtures/make_synthetic_nim.m` — synthetic `nim` (known curvature/torsion) for the above.
+On the sample dataset (`data/parcellation_sample/sample.mat`, 128 x 128 x 50,
+`config/mmf_dti.yml` at `seeding.density: 1`, 147k seeds of which 100k lie in
+tissue) the tracker produces 69k tracks of at least 15 voxels in about 11
+minutes; `hinec_dti.yml` on the same seeds gives 74k in about 10 minutes, and
+for the 68.5k seeds both keep the two tracks agree to a median nearest-node
+distance of 0.24 voxel. The moving-frames tracker stops more half-tracks on
+the angle budget (about 8% against 0.5%) for the reason given above.
 
-## See also
+## Files
 
-- [Tractography Methods](TRACTOGRAPHY_METHODS.md) — the three trackers and how they dispatch.
-- [YAML Config](YAML_CONFIG.md) — full parameter reference.
-- [Mathematical Foundations](MATHEMATICAL_FOUNDATIONS.md) — frames, connections, curvature.
+- `src/nim_tractography/nim_tractography_mmf.m` — the tracker (seeds, field,
+  connection handles, termination, metadata)
+- `src/nim_tractography/advanceFrame.m` — the scheme (identical to the suite's copy)
+- `config/mmf_dti.yml` — tracker config: `algorithm: mmf`, CF4, spline kernel,
+  adaptive mode
+- `tests/unit/TestMmfTracker.m`

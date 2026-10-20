@@ -146,7 +146,7 @@ produces distinguishable directories rather than a row of identical timestamps.
 Format: `tracks_<algorithm>_YYYY-MM-DD_HH_MM_SS.mat`
 
 One file per run, named for the tracker that produced it: `tracks_standard_*`,
-`tracks_hinec_*` or `tracks_mmf_*`. For example,
+`tracks_hinec_*`, `tracks_mmf_*` or `tracks_stitching_*`. For example,
 `tracks_hinec_2025-01-18_14_30_45.mat`.
 
 ## Cleanup and Management

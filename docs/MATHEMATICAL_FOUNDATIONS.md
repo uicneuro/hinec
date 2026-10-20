@@ -1027,7 +1027,7 @@ The resulting matrix $\mathbf{C} \in \mathbb{R}^{N \times N}$ represents the str
 - RKF45 complete derivation and coefficients: [RKF.md](RKF.md)
 - RKF45 usage guide and parameter selection: [RKF_Usage.md](RKF_Usage.md)
 - High-order methods implementation details: [High_Order.md](High_Order.md)
-- Moving-frame and connection-form tracking: [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)
+- Moving frames tractography (frame transport by the connection, exponential step): [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)
 - Scientific context for these methods: [SCIENCE.md](SCIENCE.md)
 - Architecture and data flow: [ARCHITECTURE.md](ARCHITECTURE.md)
 - Configuration parameter reference: [YAML_CONFIG.md](YAML_CONFIG.md)

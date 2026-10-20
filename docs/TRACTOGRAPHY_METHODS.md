@@ -10,7 +10,7 @@ runTractography(nim, config)
         │  dispatch on config.tractography.algorithm   (runTractography.m)
         ├── 'standard' → nim_tractography_standard      FACT, discrete voxel tensors
         ├── 'hinec'    → nim_tractography_hinec          interpolated streamlines
-        └── 'mmf'      → nim_tractography_mmf_connframe   connection-form Method of Moving Frames
+        └── 'mmf'      → nim_tractography_mmf            moving frames, exponential step
 ```
 
 ---
@@ -31,13 +31,13 @@ their spatial relationship. Per-bundle comparisons against ground truth are in
 
 ---
 
-## The three trackers
+## The trackers
 
 | Algorithm | File | Model | Integration | Interpolation | `field` |
 |---|---|---|---|---|---|
 | `standard` | `nim_tractography_standard.m` | single tensor | Euler (FACT) | none (discrete voxel tensor) | dti |
 | `hinec` | `nim_tractography_hinec.m` | tensor **or** CSD FOD | Euler / RK2 / RK4 / RKF45 | trilinear \| cubic \| spline | dti \| csd |
-| `mmf` | `nim_tractography_mmf_connframe.m` | tensor **or** CSD FOD | RK4 or RKF45 on the frame system | connection 1-form field | dti \| csd |
+| `mmf` | `nim_tractography_mmf.m` | single tensor (frame field + connection) | Lie group order 1 / 2 / 4 around the exponential step (`euler` / `rk2` / `rk4`) | trilinear \| cubic \| spline (dyadic) | dti |
 | `template` | `nim_tractography_template.m` | single tensor | Euler | trilinear dyadic | dti |
 
 `template` is not a research method: it is the ≈100-line worked example of the tracker
@@ -83,32 +83,30 @@ theory applies to it.
     eigenvector per voxel and so nothing to disambiguate; the term simply bent a
     single-valued field toward the current heading, making the ODE direction-dependent
     (\( dx/ds = v(x, dx/ds) \)) and putting it outside classical order theory. It is gone
-    from `hinec`, and `mmf.frame_sel_power` — the same mechanism inside the MMF geometry,
-    weighting each neighbour by \( |n\cdot e_1|^{sel} \) when denoising the tangent field —
-    has been removed with it. Measured against the curvature of the ISMRM ground-truth
+    from `hinec`. Measured against the curvature of the ISMRM ground-truth
     curves, the exponent changed nothing (correlation 0.217–0.239 across sel 0 to 64).
     Nearest-peak selection under `field: csd` is retained because it is structural, not a
     tunable steering term.
 
-!!! note "Renaming (July 2026)"
-    `hinec` is the tracker previously **mislabelled** `algorithm: mmf` with
-    `integrator: rkf45`. It has nothing to do with the Method of Moving Frames. The name
-    `mmf` now belongs to the genuine connection-form tracker below.
+### `mmf` — moving frames
 
-### `mmf` — connection-form Method of Moving Frames
-
-Chun & Peng (in preparation). Builds an orthonormal **moving-frame
-field** {e1, e2, e3} plus its **connection 1-form** (curvature + torsion) from the
-direction field at the start of each run (`runTractography` step 3), then traces by evolving a carried frame with the connection structure
-equation — not by re-sampling a direction field. `field: csd` builds a *per-peak*
-connection, giving multiple pathways through crossings. Full internals:
-**[MMF Connection-Form Tractography](MMF_TRACTOGRAPHY.md)**.
+The fibre is followed as a curve that carries its own orthonormal frame: the frame is
+transported by the connection 1-forms of the data's frame field with a closed-form
+exponential step (a rotation of the frame together with a circular arc of the position),
+exact wherever the curvature is constant along the fibre, and `integrator.method` =
+`euler` / `rk2` / `rk4` selects the Lie group integrator of order 1 / 2 / 4 built around it
+(`rkf45` is rejected). The direction field is the same interpolated dyadic the `hinec`
+tracker uses; the connection is a sign-aligned central difference of its principal axis,
+and `mmf.mode` (`transport` / `reanchor` / `adaptive`) sets how the carried frame is
+re-anchored to the data. DTI only; ACT masks are not used. Full description and
+verification: **[Moving frames tractography](MMF_TRACTOGRAPHY.md)**.
 
 ---
 
 ## The `field:` axis — DTI vs CSD
 
-Both `hinec` and `mmf` accept `field: dti` (default) or `field: csd`.
+`hinec` (and the experimental `stitching` tracker) accepts `field: dti` (default) or
+`field: csd`; `standard` and `mmf` are DTI-only.
 
 - **`dti`** — direction(s) from the diffusion-tensor principal eigenvector. One direction
   per voxel; cannot represent crossings.
@@ -135,7 +133,7 @@ the DTI field are interchangeable upstream of tracking:
 | `nim.fod_sh`                   | SH FOD coefficients |
 
 **Provisioning & caching.** `runTractography` provisions the peaks **before** the algorithm
-dispatch, so any tracker running `field: csd` — `hinec` and `mmf` alike — gets them. The FOD
+dispatch, so any tracker running `field: csd` gets them. The FOD
 is computed once with `nim_csd` and cached next to the source nim as `<source>_csd_<settings>.mat`, named by every CSD
 setting (`lmax`, `n_iter`, `peak_thresh`, `peak_min_sep`, `max_peaks`), so a run with
 different settings never reuses another run's peaks; later runs with the same settings
@@ -262,7 +260,7 @@ See also [Run Directory System](RUN_DIRECTORY_SYSTEM.md) and
 | Fast baseline / sanity check | `standard` (`config/standard_dti.yml`) |
 | Best deterministic single-tensor result | `hinec` + `field: dti` (`config/hinec_dti.yml`; loosen `termination.angle_max` / `termination.fa_min` to push recall) |
 | Crossings resolved by FOD | `hinec` + `field: csd` (`config/hinec_csd.yml`) |
-| Intrinsic curvature/torsion geometry | `mmf` (`config/mmf_dti.yml` / `mmf_csd.yml`) |
+| Frame transported by the data's connection, exact circular-arc steps | `mmf` (`config/mmf_dti.yml`; DTI only — [Moving frames](MMF_TRACTOGRAPHY.md)) |
 | Cut overreach after tracking | any of the above, then [`run_sift.sh`](#sift-tractogram-filtering) |
 | Probabilistic recall reference | External PFT comparison (research result only) |
 

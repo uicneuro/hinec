@@ -98,12 +98,11 @@ fprintf('=== HINEC Tractography Pipeline ===\n');
 % here, never in main.m: the nim on disk is the DATASET and nothing else.
 %
 %   1  load nim     the dataset (img, evec/eval, FA, masks, parcellation, roi_masks)
-%   2  field        nim_field         dti | csd | dwi   (csd cached to <nim>_csd_<settings>.mat)
-%   3  geometry     nim_mmf_geometry  ONLY when algorithm == mmf (4.9 s dti / 8.1 s csd)
-%   4  seeds        where streamlines start: roi | brain mask | parcellation | FA
-%   5  track        hinec (RK4 on the interpolated field) | mmf (Eq 10-11) | standard (FACT)
-%   6  select       nim_filter_tracks_roi (selection only), nim_resample_track_arc
-%   7  save         tracks + options + track_meta, and the IronTract submission
+%   2  field        nim_field         dti | csd   (csd cached to <nim>_csd_<settings>.mat)
+%   3  seeds        where streamlines start: roi | brain mask | parcellation | FA
+%   4  track        hinec (RK on the interpolated field) | mmf (moving frames, exponential step) | stitching | standard (FACT)
+%   5  select       nim_filter_tracks_roi (selection only), nim_resample_track_arc
+%   6  save         tracks + options + track_meta, and the IronTract submission
 
 %% Step 1 - load nim (the dataset)
 fprintf('Loading data from %s...\n', data_path);
@@ -184,6 +183,7 @@ else
     options.termination_fa = 0.15;
     options.angle_thresh = 35;
     options.max_steps = 1000;
+    options.max_arc = options.max_steps * options.step_size;   % the trackers stop on arc length
     options.min_length = 35;
     options.order = 1;
     options.interp_method = 'none';
@@ -204,23 +204,13 @@ if isfield(options, 'termination_fa_mode') && strcmpi(options.termination_fa_mod
         options.termination_fa, options.termination_fa_percentile, options.termination_fa_config);
 end
 
-%% Step 2 - field: the direction model this run tracks on (dti | csd | dwi)
+%% Step 2 - field: the direction model this run tracks on (dti | csd)
 % Per-run, never baked into the nim. nim_field owns the sidecar cache (<nim>_csd_<settings>.mat)
 % and the rule for when a field is worth caching at all; see its header.
 fprintf('\n=== Direction field ===\n');
 nim = nim_field(nim, options, data_path);
 
-%% Step 3 - geometry: MMF moving frames + connection 1-form (Eq 6-9), mmf ONLY
-% Built every mmf run, unconditionally: it costs seconds, it depends on
-% config.tractography, and hinec/standard never look at it.
-if strcmpi(algorithm, 'mmf') || (strcmpi(algorithm, 'stitching') && strcmpi(options.stitching.geometry,'mmf'))
-    fprintf('\n=== MMF connection geometry ===\n');
-    t_geom = tic;
-    nim = nim_mmf_geometry(nim, options);
-    fprintf('MMF geometry built in %.1f seconds\n', toc(t_geom));
-end
-
-%% Step 4 - seeds: where streamlines start
+%% Step 3 - seeds: where streamlines start
 % All seeding decisions happen here - nim_tractography_standard.m only executes
 fprintf('\n=== Configuring Seeding Strategy ===\n');
 
@@ -327,7 +317,7 @@ fprintf('✓ Seed voxels: %d (%.1f%% of volume)\n', ...
     seed_voxel_count, 100 * seed_voxel_count / numel(nim.FA));
 options.seed_mask = seed_mask;
 
-%% Step 4b - ACT masks (WM/GM/CSF). Not seeding: the other nim-derived input the
+%% Step 3b - ACT masks (WM/GM/CSF). Not seeding: the other nim-derived input the
 % tracker takes, used for the termination half of ACT. Kept here so the seeding
 % statistics printed below report the final numbers.
 % ACT Configuration: Add tissue masks if available
@@ -389,7 +379,7 @@ fprintf('Estimated total seeds: %d\n', estimated_seeds);
 fprintf('Expected tracks: ~%d (bidirectional from each seed)\n', estimated_seeds * 2);
 fprintf('==========================\n');
 
-%% Step 5 - track: integrate the streamlines (algorithm-dependent)
+%% Step 4 - track: integrate the streamlines (algorithm-dependent)
 % Generate timestamp for output filename
 timestamp = datestr(now, 'yyyy-mm-dd_HH_MM_SS');
 
@@ -405,16 +395,11 @@ else
 end
 nim_describe_tracker_input(nim, options, algorithm, tracker_input_file);
 
-track_meta = struct();   % populated by hinec; empty for other trackers
+track_meta = struct();   % populated by hinec, mmf, stitching and template; empty for standard
 if strcmpi(algorithm, 'mmf')
-    fprintf('Running MMF connection-frame tractography (moving frames + connection 1-form)...\n');
+    fprintf('Running moving frames tractography (advanceFrame: frame transport by the connection, exponential step)...\n');
     tic;
-    [tracks, mmf_info] = nim_tractography_mmf_connframe(nim, options);
-    % Carry the per-step trace out with the tracks, the same way hinec does.
-    % Without this the tracer records it and runTractography throws it away.
-    if isstruct(mmf_info) && isfield(mmf_info, 'trace')
-        track_meta.trace = mmf_info.trace;
-    end
+    [tracks, track_meta] = nim_tractography_mmf(nim, options);
     elapsed_time = toc;
     output_filename = sprintf('tracks_mmf_%s.mat', timestamp);
 elseif strcmpi(algorithm, 'hinec')
@@ -458,14 +443,14 @@ if isempty(tracks)
     error('No tracks generated! Check FA threshold and seed mask.');
 end
 
-%% Step 6 - ROI selection and decimate
+%% Step 5 - ROI selection and decimate
 % ROI selection (include / exclude waypoints, endpoint pair, containment,
 % length). No-op unless a filter.* key is set.
 %
 % Selection does NOT change what is saved as the tractogram. tracks.mat always
 % holds everything the tracker produced, so the scorer sees the unselected run
 % and the yield (how many failed each criterion) stays in the data. The
-% selection is written beside it as roi_selection.mat (step 7).
+% selection is written beside it as roi_selection.mat (step 6).
 [~, roi_filter_stats] = nim_filter_tracks_roi(tracks, nim, options);
 if roi_filter_stats.applied && ~any(roi_filter_stats.keep)
     error('runTractography:emptyAfterRoiFilter', ...
@@ -485,7 +470,7 @@ if isfield(options, 'output_arc_step') && ~isempty(options.output_arc_step) ...
         options.output_arc_step, pts_before, pts_after, 100 * pts_after / max(pts_before, 1));
 end
 
-%% Step 7 - save
+%% Step 6 - save
 % Statistics first, so the diagnostics file and the log agree.
 track_lengths = cellfun(@(x) size(x, 1), tracks);
 fprintf('\nTrack Statistics:\n');
@@ -555,7 +540,7 @@ if use_run_dir
     fprintf('Diagnostics saved to %s\n', diagnostics_file);
 end
 
-% IronTract Challenge submission packaging (part of step 7; no-op unless enabled)
+% IronTract Challenge submission packaging (part of step 6; no-op unless enabled)
 if enable_irontract
     fprintf('\n=== IronTract Challenge Submission ===\n');
     fprintf('Generating submission files...\n');

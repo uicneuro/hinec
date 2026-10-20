@@ -69,8 +69,7 @@ classdef TestConfigSchema < matlab.unittest.TestCase
                 'tractography.csd.n_iter',              50;
                 'tractography.csd.peak_thresh',         0.2;
                 'tractography.csd.peak_min_sep',        45;
-                'tractography.csd.max_peaks',           3;
-                'tractography.mmf.anchor',              0};     % mmf_connframe.m
+                'tractography.csd.max_peaks',           3};
             for i = 1:size(expected, 1)
                 path = expected{i,1}; want = expected{i,2};
                 idx = find(strcmp({S.path}, path), 1);
@@ -106,8 +105,9 @@ classdef TestConfigSchema < matlab.unittest.TestCase
 
         function frameSelPowerIsGoneToo(tc)
             % frame_sel_power was the same mechanism as sel_power, living inside
-            % the MMF geometry: each 3x3x3 neighbour weighted |n.e1|^sel when
-            % denoising the tangent field. It is removed, not merely defaulted.
+            % the (since removed) mmf geometry: each 3x3x3 neighbour weighted
+            % |n.e1|^sel when denoising the tangent field. Old configs must
+            % still be told why the key is gone.
             %
             % It was measured against the curvature of the ISMRM ground-truth
             % curves before removal. The exponent changed nothing (correlation
@@ -121,15 +121,6 @@ classdef TestConfigSchema < matlab.unittest.TestCase
             R = nim_config_retired();
             tc.verifyTrue(any(strcmp({R.key}, 'frame_sel_power')), ...
                 'frame_sel_power must be listed as retired so old configs are told why.');
-            for f = {'nim_calculation/nim_mmf_geometry.m', ...
-                     'nim_tractography/nim_tractography_mmf_connframe.m'}
-                src = fileread(fullfile(tc.Root, 'src', f{1}));
-                body = regexprep(src, '(?m)^\s*%.*$', '');   % ignore commentary
-                tc.verifyFalse(contains(body, 'frame_sel_power'), ...
-                    sprintf('%s still reads frame_sel_power.', f{1}));
-                tc.verifyFalse(contains(body, 'mmf_traj_denoise'), ...
-                    sprintf('%s still calls the alignment-weighted denoise.', f{1}));
-            end
         end
 
         % ---------------------------------------------------------- parser
@@ -288,7 +279,7 @@ classdef TestConfigSchema < matlab.unittest.TestCase
         % ------------------------------------------------------------ docs
         function documentationMatchesSchema(tc)
             % Guards the drift that made the old docs describe integration_order
-            % while the code had moved on, and omit sel_power and mmf entirely.
+            % while the code had moved on, and omit sel_power entirely.
             doc_path = fullfile(tc.Root, 'docs', 'YAML_CONFIG.md');
             tc.assertTrue(isfile(doc_path), 'docs/YAML_CONFIG.md is missing.');
             on_disk = fileread(doc_path);

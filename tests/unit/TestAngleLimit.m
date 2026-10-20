@@ -49,13 +49,13 @@ classdef TestAngleLimit < matlab.unittest.TestCase
         end
 
         function trackersAgreeOnUnits(tc)
-            % angle_max is degrees per VOXEL OF ARC in all three trackers. The
+            % angle_max is degrees per VOXEL OF ARC in every tracker. The
             % regression this guards: the config rework changed the units of the
-            % key and only hinec was taught the new meaning, leaving FACT and MMF
+            % key and only hinec was taught the new meaning, leaving FACT
             % reading a per-voxel rate as a per-step angle - cos(225 deg) is
-            % negative, so their angle criterion was silently dead.
-            for f = {'nim_tractography_hinec', 'nim_tractography_standard', ...
-                     'nim_tractography_mmf_connframe'}
+            % negative, so its angle criterion was silently dead. The mmf
+            % tracker converts the same budget into advanceFrame's MaxTurn.
+            for f = {'nim_tractography_hinec', 'nim_tractography_standard', 'nim_tractography_mmf'}
                 src = fileread(fullfile(tc.Root, 'src', 'nim_tractography', [f{1} '.m']));
                 tc.verifyTrue(contains(src, 'nim_angle_limit'), ...
                     sprintf('%s must budget its angle criterion through nim_angle_limit', f{1}));

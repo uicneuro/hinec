@@ -2,7 +2,7 @@
 # get no config). The only config pairing a FULL preprocessing block with a general-purpose
 # hinec DTI tractography block (cubic interpolation + RK4 + ACT). For a specific dataset use
 # a dataset config (ismrm2015, irontract); to iterate trackers on a built nim use a tracker
-# config (hinec_dti / hinec_csd / mmf_dti / mmf_csd / standard_dti / hinec_dti_*).
+# config (hinec_dti / hinec_csd / standard_dti / hinec_dti_*).
 # 
 # ./bin/run_hinec.sh <data_prefix> out.mat            # uses this file by default
 # 

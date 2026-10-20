@@ -1,5 +1,51 @@
 # YAML Configuration Changelog
 
+## 2026-10-20 - `algorithm: mmf` selects the moving-frames tracker
+
+- `algorithm: mmf` is a permitted value again and now selects the new moving
+  frames tracker `nim_tractography_mmf` (scheme `advanceFrame.m`: the carried
+  orthonormal frame is transported by the connection 1-forms of the data's frame
+  field with a closed-form exponential step, exact where the curvature is
+  constant along the fibre; see [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)).
+  It is unrelated to the tracker removed below; only the name is reused.
+  `algorithm` takes `hinec | standard | mmf | stitching | template`.
+- New group `tractography.mmf`: `mode` (`transport | reanchor | adaptive`,
+  default `adaptive`), `reanchor_tol` (default `1e-3` rad) and `gradient_delta`
+  (default `1e-3` voxels); flat option names `mmf_mode`, `mmf_reanchor_tol`,
+  `mmf_gradient_delta`.
+- For `algorithm: mmf`, `integrator.method: euler | rk2 | rk4` selects the Lie
+  group integrator of order 1, 2, 4 (Lie-Euler, exponential midpoint, CF4);
+  `rkf45` is rejected. `field` must be `dti` (`csd` is rejected). ACT masks are
+  not used by this tracker.
+- The "used by" column of the reference changes accordingly: `debug.trace` and
+  `debug.trace_max` now list `mmf`; the `csd.*` keys and the rkf45 keys
+  (`integrator.tolerance`, `step_min`, `step_max`) no longer do.
+- New tracker config `config/mmf_dti.yml` (CF4, spline kernel, adaptive mode).
+  Output file `tracks_mmf_<timestamp>.mat`.
+
+## 2026-10-20 - mmf tracker removed
+
+- The `mmf` tracking algorithm (`algorithm: mmf`, the connection-form Method of
+  Moving Frames tracer) has been removed, together with the per-run moving-frame
+  geometry step it required. `algorithm: mmf` is no longer a permitted value;
+  `algorithm` takes `standard | hinec | stitching | template`. A config that still
+  says `algorithm: mmf` must be changed to the tracker it meant (before July 2026
+  that label denoted today's `hinec`).
+- `field: dwi` (frame and curvature fitted directly to the DW signal) has been
+  removed. `field` takes `dti | csd`.
+- The `tractography.mmf` group (`mmf.anchor`, option `mmf_anchor`) is gone.
+- The stitching tracker keeps its direction mode only: `stitching.geometry` and
+  `stitching.max_curvature` have been removed. `stitching.curvature_tolerance`
+  and `stitching.torsion_tolerance` remain in the schema; the endpoint graph
+  applies them only when a per-endpoint curvature/torsion table is handed to
+  `nim_stitch_fragments`, which the pipeline no longer supplies.
+- The configs `mmf_dti.yml`, `mmf_csd.yml`, `ismrm_wholebrain_mmf.yml`,
+  `ismrm_wholebrain_mmf_csd.yml`, `stitching_mmf_dti.yml` and
+  `stitching_mmf_csd.yml` have been deleted.
+- The "MMF geometry" tier of the tract-assessment pipeline
+  (`scripts/tract_assessment/geometry.py`) is unaffected: it is a per-streamline
+  curvature statistic of any tractogram, not the tracker.
+
 ## Schema rework - canonical nested configuration (current)
 
 The configuration surface is now declared once, in
@@ -80,8 +126,9 @@ mapping a key that had no effect onto one that does would change behaviour.
   theory no longer applied. HINEC tracking is now interpolation and integration
   only. CSD still selects the FOD peak nearest the incoming tangent, because
   reducing a multi-valued field to one direction is structurally required, but
-  the alignment exponent on top of it is gone. The MMF tracker keeps a separate
-  `mmf.frame_sel_power`, used when building the moving frame.
+  the alignment exponent on top of it is gone. The old MMF tracker's separate
+  `mmf.frame_sel_power`, the same mechanism applied when building its moving
+  frame, has since been retired as well.
 
 ---
 

@@ -8,7 +8,7 @@
                  (scan-rescan acquisitions, or random-seed reruns). Answers: how
                  much of the output survives re-acquisition?
   consistency    DIFFERENT pipelines/settings on the SAME input (trilinear vs
-                 cubic, hinec vs mmf, DTI vs CSD). Answers: how much does the
+                 cubic, hinec vs mmf vs standard, DTI vs CSD). Answers: how much does the
                  output depend on a methodological choice?
 
 The engine is identical; only which pairs are compared, and how the result is

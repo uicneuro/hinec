@@ -3,7 +3,7 @@
 This page is the contract between `runTractography.m` and a tracker: exactly
 what a tracker is handed, exactly what it must return, and how to plug a new
 one in. Everything here is also **logged by every run** — the block headed
-`=== Tracker input (step 5 hand-off) ===` in the run log, saved as
+`=== Tracker input (step 4 hand-off) ===` in the run log, saved as
 `<run_dir>/tractography/tracker_input.txt` — so if this page and a log ever
 disagree, the log is right and this page needs fixing.
 
@@ -15,30 +15,29 @@ assumes.
 
 ## Where a tracker sits in the pipeline
 
-`runTractography` is a fixed sequence; a tracker is step 5 and nothing else.
+`runTractography` is a fixed sequence; a tracker is step 4 and nothing else.
 
 | step | function | what it does | tracker sees the result as |
 |---|---|---|---|
 | 1 | `nim_load_nim` | load the processed dataset from disk | `nim` (dataset fields) |
-| 2 | `nim_field` | build the direction field the config asks for (`field: csd` → FOD peaks, `field: dwi` → DW-fitted frames; `dti` needs nothing) | `nim.peaks…`, `nim.mmf_*_dwi` |
-| 3 | `nim_mmf_geometry` | **`algorithm: mmf` only** — moving frames + connection form | `nim.mmf_frames`, `nim.mmf_kappa`, `nim.mmf_tau` |
-| 4 | *(in `runTractography`)* | decide **where** seeds may go: brain mask ∩ FA ≥ `seeding.fa_min`, or the ROI in `seeding.roi` | `options.seed_mask` |
-| 4b | *(in `runTractography`)* | copy the WM/GM/CSF masks over when `act: true` | `options.wm_mask`, `gm_mask`, `csf_mask` (or `[]`) |
-| **5** | **`nim_tractography_<algorithm>`** | **integrate streamlines** | — |
-| 6 | `nim_filter_tracks_roi`, `nim_resample_track_arc` | ROI **selection** (keep/drop flags only — nothing is removed or cut), then decimation to `output.arc_step` | — |
-| 7 | `save` | `tracks`, `options`, `elapsed_time`, `algorithm`, `track_meta` → `tractography/tracks_<algorithm>_<timestamp>.mat` — always the **full** tractogram; when a `filter.*` key is set, the selection goes beside it as `tractography/roi_selection.mat` (`keep`, the kept `tracks`, subset `track_meta`, per-criterion drop counts in `stats`) | — |
+| 2 | `nim_field` | build the direction field the config asks for (`field: csd` → FOD peaks; `dti` needs nothing) | `nim.peaks…` |
+| 3 | *(in `runTractography`)* | decide **where** seeds may go: brain mask ∩ FA ≥ `seeding.fa_min`, or the ROI in `seeding.roi` | `options.seed_mask` |
+| 3b | *(in `runTractography`)* | copy the WM/GM/CSF masks over when `act: true` | `options.wm_mask`, `gm_mask`, `csf_mask` (or `[]`) |
+| **4** | **`nim_tractography_<algorithm>`** | **integrate streamlines** | — |
+| 5 | `nim_filter_tracks_roi`, `nim_resample_track_arc` | ROI **selection** (keep/drop flags only — nothing is removed or cut), then decimation to `output.arc_step` | — |
+| 6 | `save` | `tracks`, `options`, `elapsed_time`, `algorithm`, `track_meta` → `tractography/tracks_<algorithm>_<timestamp>.mat` — always the **full** tractogram; when a `filter.*` key is set, the selection goes beside it as `tractography/roi_selection.mat` (`keep`, the kept `tracks`, subset `track_meta`, per-criterion drop counts in `stats`) | — |
 
 Two consequences worth stating:
 
 * A tracker **generates its own seed points** from `options.seed_mask` (a voxel
   mask) and `options.seed_density` (seeds per voxel). It does not decide where
-  seeding is allowed — that is step 4's job, so that every tracker seeds the
+  seeding is allowed — that is step 3's job, so that every tracker seeds the
   same voxels for the same config. Use `nim_seed_offsets(density)` for the
   sub-voxel positions; it is deterministic, which is what makes per-streamline
   comparison across runs possible.
 * A tracker does **not** filter by region or resample its output. It returns
-  every integration point of every track that passes the length rule; steps 6
-  and 7 do the rest.
+  every integration point of every track that passes the length rule; steps 5
+  and 6 do the rest.
 
 ## The call
 
@@ -104,34 +103,25 @@ on the same voxel grid instead of fitting native CSD.
 | `csd` | `npeaks` | `[X Y Z]` | how many of the `P` slots are valid at each voxel |
 | `csd` | `peak_w` | `[X Y Z P]` | FOD amplitude of each peak |
 | `csd` | `fod_sh` | `[X Y Z C]` | FOD spherical-harmonic coefficients (optional) |
-| `dwi` | `mmf_e1_dwi` | `[X Y Z 3]` | frame tangent fitted directly to the DW signal |
-| `dwi` | `mmf_kappa_dwi` | `[X Y Z 3]` | curvature vector fitted with it |
 
 A tracker that needs one of these should `error` if it is absent, with the
 config key that provides it, as `nim_tractography_hinec` does:
 `HINEC field=csd needs nim.peaks/npeaks (run nim_csd).`
 
-### Geometry fields — built per run by `nim_mmf_geometry` (step 3), `algorithm: mmf` only
+### Per-run derived fields
 
-| field | layout | meaning |
-|---|---|---|
-| `mmf_frames` | `[X Y Z 3 3]` | moving frame; `mmf_frames(x,y,z,:,k)` = eₖ, e₁ the tangent |
-| `mmf_kappa` | `[X Y Z 3]` | connection curvature vector (Eq 6–9) |
-| `mmf_tau` | `[X Y Z]` | torsion |
-| `mmf_peakdirs`, `mmf_kappa_p` | `[X Y Z P 3]` | per-peak tangents and curvatures (`field: csd`) |
-| `mmf_npeaks`, `mmf_multi` | `[X Y Z]`, logical | valid peaks per voxel; whether the per-peak set is present |
-
-If your algorithm needs a per-run derived field like these, build it in a
-step-3-style function called from `runTractography` under your algorithm's
-name; do not compute it inside `main.m` (the dataset must stay
-config-independent) and do not save it into the nim.
+If your algorithm needs a derived field of its own — one that depends on the
+tractography config — build it in a function called from `runTractography`
+under your algorithm's name, after step 2 and before seeding; do not compute it
+inside `main.m` (the dataset must stay config-independent) and do not save it
+into the nim.
 
 ## Input 2 — `options`
 
 `options` is a flat struct. Every field comes from one YAML key via
 `nim_config_to_options` (the schema in `nim_config_schema.m` is the single
 source of truth for defaults, ranges and help text), except the four that
-`runTractography` adds in steps 4 and 4b. The run log prints each option
+`runTractography` adds in steps 3 and 3b. The run log prints each option
 **with its value, its config key and its meaning**; the table here gives the
 same for the fields a tracker is expected to honour.
 
@@ -139,7 +129,7 @@ same for the fields a tracker is expected to honour.
 
 | option | from | meaning |
 |---|---|---|
-| `seed_mask` | step 4 | `[X Y Z]` logical. **The** seed input: place `seed_density` seeds in each true voxel |
+| `seed_mask` | step 3 | `[X Y Z]` logical. **The** seed input: place `seed_density` seeds in each true voxel |
 | `seed_density` | `seeding.density` | seeds per seeded voxel — honour it exactly |
 | `seed_strategy` | `seeding.strategy` | `uniform` (deterministic lattice, `nim_seed_offsets`) or `random` |
 | `step_size` | `integrator.step` | `h` in voxels (initial step for adaptive schemes) |
@@ -147,8 +137,8 @@ same for the fields a tracker is expected to honour.
 | `angle_thresh` | `termination.angle_max` | maximum turn in **degrees per voxel of arc**, i.e. minimum radius of curvature `57.3 / angle_max` voxels. For a fixed step, the test is `turn_this_step / h > angle_thresh` — so the limit means the same thing at every `h` |
 | `max_arc` | `termination.max_arc` | stop a half-track after this arc length in voxels (`max_steps = ceil(max_arc/step)` is the same limit as a count) |
 | `min_length` | `termination.min_arc` | discard a finished track whose chord length `sum(‖diff(track)‖)` is below this |
-| `wm_mask`, `gm_mask`, `csf_mask` | step 4b | `[X Y Z]` when ACT is on, `[]` when off. Trackers decide whether ACT is active from these, not from `act_enabled` |
-| `field` | `tractography.field` | which direction source to read: `dti` → `nim.evec`, `csd` → `nim.peaks`, `dwi` → `nim.mmf_e1_dwi` |
+| `wm_mask`, `gm_mask`, `csf_mask` | step 3b | `[X Y Z]` when ACT is on, `[]` when off. Trackers decide whether ACT is active from these, not from `act_enabled` |
+| `field` | `tractography.field` | which direction source to read: `dti` → `nim.evec`, `csd` → `nim.peaks` |
 
 ### Read these if the scheme applies
 
@@ -157,23 +147,25 @@ same for the fields a tracker is expected to honour.
 | `integrator` / `integration_order` | `integrator.method` | scheme name (`euler`, `rk2`, `rk4`, `rkf45`) and the same choice as a number (1, 2, 4, 5 — a selector, not an order claim) |
 | `adaptive_step`, `rkf_tolerance` (= `rkf_tol`), `step_min`, `step_max`, `rkf_safety` | `integrator.*` | adaptive-step control, `rkf45` only |
 | `interp_method`, `upsample` | `interpolation.*` | kernel (`trilinear` C⁰, `cubic` C¹, `spline` C²) and pre-sampling factor for the direction field |
-| `mmf_anchor` | `mmf.anchor` | `mmf` only |
 | `trace`, `trace_max` | `debug.*` | if you support tracing, record a per-step trace for `trace_max` evenly spaced seeds into `meta.trace` (see `nim_tractography_hinec` for the record layout and `docs/CONVERGENCE.md` for what it is used for) |
+| `mmf_mode` | `mmf.mode` | how the carried frame relates to the data frame (`transport`, `reanchor`, `adaptive`); `mmf` only |
+| `mmf_reanchor_tol` | `mmf.reanchor_tol` | drift (radians) between the carried and the data's `e1` at which the adaptive mode re-anchors; `mmf` only |
+| `mmf_gradient_delta` | `mmf.gradient_delta` | central-difference step (voxels) for the derivative of the interpolated principal axis that forms the connection; `mmf` only |
 
 ### Present but not yours
 
 These are in the struct because one struct is handed to everything, but they
 are consumed elsewhere: `csd_*`, including `csd_peaks_file` (step 2), `include_roi`, `exclude_roi`,
-`roi_filter_*`, `endpoints_in`, `contained_in`, `any_in`, `length*` (step 6),
-`output_arc_step` (step 7), `seed_roi`, `seed_roi_dilate`, `seed_roi_info`,
+`roi_filter_*`, `endpoints_in`, `contained_in`, `any_in`, `length*` (step 5),
+`output_arc_step` (step 6), `seed_roi`, `seed_roi_dilate`, `seed_roi_info`,
 `seed_fa_threshold` (already applied to `seed_mask`), `algorithm`,
 `enable_diagnostics`. Ignore them.
 
 ### Adding a knob
 
 A new algorithm usually wants one or two parameters of its own. Add them to
-`nim_config_schema.m` under a group named after the algorithm (as `mmf.anchor`
-is), list your algorithm in the entry's `algos`, and map them in
+`nim_config_schema.m` under a group named after the algorithm (as the
+`stitching.*` and `mmf.*` keys are), list your algorithm in the entry's `algos`, and map them in
 `nim_config_to_options`. Then they are validated, defaulted, documented in
 `docs/YAML_CONFIG.md` (generated — run `nim_config_docs`) and overridable from
 the shell with `run_tractography.sh --set <group>.<key>=…`. Do not read
@@ -212,7 +204,7 @@ Three edits, all one line:
 
 1. `src/nim_utils/nim_config_schema.m` — add the name to the
    `tractography.algorithm` enum.
-2. `runTractography.m`, step 5 — add an `elseif strcmpi(algorithm, '<name>')`
+2. `runTractography.m`, step 4 — add an `elseif strcmpi(algorithm, '<name>')`
    branch that calls your function and sets `output_filename`.
 3. A config: copy `config/hinec_dti.yml` to `config/<name>_dti.yml` and set
    `algorithm: <name>` (naming rule in `config/README.md`).
@@ -225,7 +217,7 @@ Then:
 
 runs it on the preprocessed ISMRM 2015 dataset and scores it. The run dir
 contains `tractography/tracker_input.txt` (what your function was given),
-`tractography/tracks_<name>_*.mat` (what it returned, after steps 6–7) and
+`tractography/tracks_<name>_*.mat` (what it returned, after steps 5–6) and
 `scoring/renauld2023/results.json` (`mean_f1`, `mean_OL`, `mean_OR_gt`, `VB`).
 For a fast first check, seed one bundle:
 
@@ -262,15 +254,14 @@ quickest way to know a new tracker is at least well-formed.
 - [ ] returns `tracks` as `[bwd reversed; seed; fwd]`, N×3, no NaN
 - [ ] returns `meta.seed_index` / `seed_points` indexed by kept track
 - [ ] `error`s with the config key when a field it needs is missing
-- [ ] registered in the schema enum and the step-5 dispatch; has a config
+- [ ] registered in the schema enum and the step-4 dispatch; has a config
 - [ ] `runtests('tests/unit/TestTrackerInterface.m')` passes
 
 ### Short tractlet stitching
 
 `algorithm: stitching` dispatches to `nim_tractography_stitching(nim, options)`.
-`options.stitching` contains the schema-defined fragment and graph settings.
-`stitching.geometry: mmf` requests `nim_mmf_geometry` in pipeline step 3, using
-`field: dti` or `field: csd`. This is independent of the `mmf` tracker selection.
+`options.stitching` contains the schema-defined fragment and graph settings;
+the tracker runs on `field: dti` or `field: csd`.
 See [STITCHING.md](STITCHING.md) for supported kernels/integration and units.
 
 For assembled chains, `meta.seed_index` and `meta.seed_points` identify the first
@@ -280,13 +271,21 @@ and `meta.graph.fragment_ids` preserves the assembly provenance. With tracing,
 `2*i` refer to the first and last point of fragment `i`. These chains remain
 ordinary finite N-by-3 voxel-coordinate polylines at the output boundary.
 
-### MMF tracking progress
+### Moving frames tractography
 
-MMF DTI and CSD runs log completed seed counts, percentage, elapsed minutes,
-throughput, and estimated remaining tracking time at approximately 30-second
-intervals, plus startup and completion. Serial runs count each completed seed;
-parallel runs send completion notifications to the client, so the count does
-not depend on worker completion order. Counts include attempted seeds that do
-not yield a retained tract. ETA covers the tracking loop only, not subsequent
-filtering, saving, or scoring. Updates occur on seed completion; a single long
-seed can delay a serial update. These messages use the existing pipeline log.
+`algorithm: mmf` dispatches to `nim_tractography_mmf(nim, options)`, which
+advances a carried orthonormal frame with the connection of the data's frame
+field through the exponential step of `advanceFrame.m`. It reads
+`options.mmf_mode`, `options.mmf_reanchor_tol` and `options.mmf_gradient_delta`
+(the `mmf.*` group), runs on `field: dti` only (`csd` is rejected), maps
+`integrator` `euler` / `rk2` / `rk4` to Lie group order 1 / 2 / 4 (`rkf45` is
+rejected), and ignores the ACT masks. The angle budget goes through
+`nim_angle_limit` like everywhere else and bounds the rotation of a step and
+the re-anchoring at its end. Besides the contract fields, `meta` carries
+`termination` (reason / count over the half-tracks tracked), `mmf` (the scheme
+settings, the fraction of re-anchored steps, `seeds_alive` and the
+`seeds_skipped` reasons) and, with `debug.trace`, a per-step `trace` whose
+records have the hinec layout above (`pos`, `dir`, `fa`, `h`, `chord`, `turn`,
+`flip`, `n_steps`, `termination`; `flip` is always false) plus `drift`,
+`reanchored`, `kappa` and `s`, so `nim_track_diagnose` reads them. See
+[MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md).

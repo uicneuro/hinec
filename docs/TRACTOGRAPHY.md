@@ -6,8 +6,10 @@ voxel tensor field, with **no interpolation**. Direction is read from the
 principal eigenvector of the voxel the streamline is currently in, and the
 streamline advances by intersecting the voxel boundary rather than by taking a
 fixed step. It is the baseline tracker in HINEC — the reference against which
-the interpolated trackers (`nim_tractography_hinec`,
-`nim_tractography_mmf_connframe`) are compared.
+the interpolated tracker (`nim_tractography_hinec`) is compared. A third
+tracker, `nim_tractography_mmf` (`algorithm: mmf`, DTI only), follows the fibre
+with an orthonormal frame transported by the connection of the data through an
+exact exponential step — see [Moving frames tractography](MMF_TRACTOGRAPHY.md).
 
 Selected with `algorithm: standard` in the config. FACT is DTI-only by
 construction: `field: csd` has no meaning here, because there is no
@@ -18,7 +20,7 @@ interpolation stage in which to resolve multiple peaks.
 | Source | `src/nim_tractography/nim_tractography_standard.m` |
 | Driver | `runTractography.m` (seeding, masks, filtering, saving) |
 | Config | `config/standard_dti.yml` |
-| Interpolated alternatives | [High-Order Methods](High_Order.md), [MMF Connection-Form](MMF_TRACTOGRAPHY.md) |
+| Interpolated alternative | [High-Order Methods](High_Order.md) |
 
 ## Algorithm
 
@@ -102,14 +104,13 @@ See [Seeding Strategy](SEEDING_STRATEGY.md) for the full account.
 ## Bundle (ROI) tractography
 
 Everything below is a property of the **seeding and the scorer**, not of the
-direction rule, so it holds for all three trackers.
+direction rule, so it holds for every tracker.
 
 Seed inside one bundle instead of the whole brain by overriding `seeding.roi` on
 a scored config — no new YAML, no edit to the file:
 
 ```bash
-./bin/run_tractography.sh ismrm_wholebrain     --score --set seeding.roi=UF_left   # RK4 on the interpolated field
-./bin/run_tractography.sh ismrm_wholebrain_mmf --score --set seeding.roi=UF_left   # MMF connection form
+./bin/run_tractography.sh ismrm_wholebrain --score --set seeding.roi=UF_left   # RK4 on the interpolated field
 ```
 
 Each invocation makes its own tagged run dir (`run_<ts>_ismrm_wholebrain_roiUF_left/`),
@@ -147,7 +148,7 @@ set. So the `bundle_wise[B]` row of a run seeded only in B **must equal** the ro
 of a whole-brain run with identical settings. There is no legitimate
 "ROI vs whole-brain disagree"; if the rows differ, the settings differed.
 
-Verified with UF_left, `ismrm_wholebrain_mmf` (mmf / dti / cubic, `mmf.anchor: 0.25`):
+Verified with UF_left (one config — DTI field, cubic kernel — seeded two ways):
 
 | run | VS | TP | FP | FN | OL | f1 |
 |---|---|---|---|---|---|---|
@@ -160,12 +161,12 @@ vs 1829, CC_temporal 208 vs 1720) — those bundles were reached from UF_left's
 seeds alone, not from their own.
 
 This identity is also how an earlier apparent contradiction was resolved: the
-0.4007 whole-brain run had been launched with `--set mmf.anchor=0.25`, recorded
+0.4007 whole-brain run had been launched with a `--set` override, recorded
 only in its `overrides.txt`, while the ROI runs it was compared against used the
-schema default 0 (which scores VS 441 / f1 0.513 on UF_left, 0.3038 whole brain).
+schema default (which scored VS 441 / f1 0.513 on UF_left, 0.3038 whole brain).
 A parameter that lives in an override file is a parameter the next reader cannot
-see, so `mmf.anchor: 0.25` is now written in `config/ismrm_wholebrain_mmf*.yml`
-and `config/mmf_{dti,csd}.yml` — the settings differed, the identity did not fail.
+see, so the override was written into the configs themselves — the settings
+differed, the identity did not fail.
 
 ### The five-bundle curvature ladder
 
@@ -181,7 +182,7 @@ whole phantom is 0.209 /mm):
 | `CC_u_shaped` | 0.046 | 22 mm | 9885 | 0.636 |
 | `ILF_left` | 0.040 | 25 mm | 1829 | 0.609 |
 
-(VS and f1 from the whole-brain `ismrm_wholebrain_mmf` run 20260909_182013; by the
+(VS and f1 from the whole-brain run 20260909_182013 used above; by the
 identity above, a per-bundle run reproduces each row exactly.)
 
 CP and CA producing nothing is **the finding**, not a run that failed to
@@ -252,12 +253,12 @@ lengths of the combined forward+backward polyline, in **voxels** — is at least
 `termination.min_arc`. This filter was previously defaulted at the top of the
 file and then never read; the tracker carried a comment stating it applied "no
 filters at all", which was literally true. A schema-validated key that every
-config sets was honoured by exactly one of the three trackers.
+config sets was honoured by only one of the trackers.
 
 ### The angle budget
 
 `termination.angle_max` is in **degrees of turning per voxel of arc**, not per
-step. All three trackers convert it through `nim_utils/nim_angle_limit.m`. It is
+step. Every tracker converts it through `nim_utils/nim_angle_limit.m`. It is
 a minimum radius of curvature in disguise: `R = 57.3 / angle_max` voxels.
 
 **FACT is budgeted per voxel transition.** Direction is piecewise constant
@@ -312,7 +313,7 @@ from canonical config path to the flat option names the tracker reads lives in
 
 Keys FACT ignores by design: `integrator.method` and the RKF45 group (there is
 no numerical integrator here — steps are exact boundary intersections),
-`interpolation.*` (no interpolation), `csd.*` and `field`, `mmf.*`, and
+`interpolation.*` (no interpolation), `csd.*` and `field`, and
 `tractography.act` (ACT is read only by `nim_tractography_hinec`; the schema
 marks it `hinec`).
 
@@ -389,9 +390,9 @@ directory's diagnostics folder.
 
 ## See also
 
-- [Methods Overview](TRACTOGRAPHY_METHODS.md) — how the three trackers relate
+- [Methods Overview](TRACTOGRAPHY_METHODS.md) — how the trackers relate
 - [High-Order Methods](High_Order.md) — the interpolated tracker
-- [MMF Connection-Form](MMF_TRACTOGRAPHY.md) — moving-frame tracking
+- [Moving Frames Tractography](MMF_TRACTOGRAPHY.md) — the frame-transport tracker
 - [Seeding Strategy](SEEDING_STRATEGY.md)
 - [YAML Configuration Reference](YAML_CONFIG.md) and its
   [changelog](CHANGELOG_YAML.md)

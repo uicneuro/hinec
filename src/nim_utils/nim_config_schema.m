@@ -17,7 +17,7 @@ function S = nim_config_schema()
 %   allowed - cell array of permitted values for enums, {} otherwise
 %   range   - [lo hi] inclusive bounds for numerics, [] otherwise
 %   legacy  - cell array of superseded FLAT key names that map here
-%   algos   - algorithms that read it: any of 'hinec','standard','mmf', or
+%   algos   - algorithms that read it: any of 'hinec','standard','mmf','stitching', or
 %             'all'; 'n/a' marks preprocessing keys
 %   help    - one-line description (used to generate documentation)
 %
@@ -51,16 +51,16 @@ e('preprocessing.phase_encoding_dir',   'y',           'string',  {'x','x-','y',
 e('preprocessing.fieldmap_units',       'auto',        'string',  {'auto','Hz','rad/s'}, [], {}, {'n/a'}, 'Units of the field map file. auto = from the file name (fmap_Hz / RadPerSec). Hz maps are converted to rad/s, which is what FUGUE expects.')
 
 % ------------------------------------------------------------------ tractography
-e('tractography.algorithm',             'hinec',       'string',  {'hinec','standard','mmf','template','stitching'}, [], {}, {'all'}, 'Tracking algorithm. template = the minimal worked example of the tracker interface (docs/TRACKER_INTERFACE.md).')
-e('tractography.field',                 'dti',         'string',  {'dti','csd','dwi'}, [],  {}, {'hinec','mmf','stitching'}, 'Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks; dwi = frame AND connection curvature fitted DIRECTLY to the raw DW signal (mmf only, see nim_mmf_from_dwi). The dwi route never forms a tensor or an FOD: it fits e1 and the curvature vector kappa jointly to the centred log-signal over a 3x3x3 neighbourhood, so curvature is a parameter of the signal model rather than a derivative of an already-fitted direction field. Measured against the ISMRM-2015 geometry it retains 0.89 of the individual-fibre curvature against 0.65 for the DTI route.')
+e('tractography.algorithm',             'hinec',       'string',  {'hinec','standard','mmf','template','stitching'}, [], {}, {'all'}, 'Tracking algorithm. hinec = interpolated streamlines (RK); mmf = moving frames tractography (advanceFrame: the frame is transported by the connection of the data, exponential step; docs/MMF_TRACTOGRAPHY.md); standard = FACT; stitching = short tractlets; template = the minimal worked example of the tracker interface (docs/TRACKER_INTERFACE.md).')
+e('tractography.field',                 'dti',         'string',  {'dti','csd'}, [],  {}, {'hinec','mmf','stitching'}, 'Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks (hinec and stitching; mmf is dti only).')
 e('tractography.act',                   false,         'logical', {}, [],       {'act_enabled'}, {'hinec'}, 'Anatomically constrained tracking using WM/GM/CSF masks.')
 
 % --- integrator -------------------------------------------------------------
-e('tractography.integrator.method',     'rk4',         'string',  {'euler','rk2','rk4','rkf45'}, [], {'integrator'}, {'hinec','mmf','stitching'}, 'Numerical stepping scheme. NOTE: this is a method NAME, not an order claim. rkf45 here is Dormand-Prince: it advances on the 5th-order solution and uses the embedded 4th-order one only to size the next step.')
+e('tractography.integrator.method',     'rk4',         'string',  {'euler','rk2','rk4','rkf45'}, [], {'integrator'}, {'hinec','mmf','stitching'}, 'Numerical stepping scheme. NOTE: this is a method NAME, not an order claim. rkf45 here is Dormand-Prince: it advances on the 5th-order solution and uses the embedded 4th-order one only to size the next step. For mmf: euler, rk2, rk4 select the Lie group integrator of order 1, 2, 4 (Lie-Euler, exponential midpoint, CF4) around the exponential step; rkf45 is rejected (no embedded error estimate exists for it).')
 e('tractography.integrator.step',       0.2,           'numeric', {}, [1e-6 10], {'step_size'}, {'all'}, 'Integration step in voxels. Fixed step, or the initial step for rkf45.')
-e('tractography.integrator.tolerance',  0.01,          'numeric', {}, [1e-12 1], {'rkf_tolerance','rkf_tol'}, {'hinec','mmf'}, 'Adaptive error tolerance in voxels. rkf45 ONLY.')
-e('tractography.integrator.step_min',   0.01,          'numeric', {}, [1e-9 10], {'step_min'}, {'hinec','mmf'}, 'Minimum adaptive step. rkf45 ONLY.')
-e('tractography.integrator.step_max',   1.0,           'numeric', {}, [1e-6 10], {'step_max'}, {'hinec','mmf'}, 'Maximum adaptive step. rkf45 ONLY.')
+e('tractography.integrator.tolerance',  0.01,          'numeric', {}, [1e-12 1], {'rkf_tolerance','rkf_tol'}, {'hinec'}, 'Adaptive error tolerance in voxels. rkf45 ONLY.')
+e('tractography.integrator.step_min',   0.01,          'numeric', {}, [1e-9 10], {'step_min'}, {'hinec'}, 'Minimum adaptive step. rkf45 ONLY.')
+e('tractography.integrator.step_max',   1.0,           'numeric', {}, [1e-6 10], {'step_max'}, {'hinec'}, 'Maximum adaptive step. rkf45 ONLY.')
 e('tractography.integrator.safety',     0.9,           'numeric', {}, [0.01 1],  {'rkf_safety'}, {'hinec'}, 'Adaptive step safety factor. rkf45 ONLY.')
 e('tractography.integrator.adaptive',   true,          'logical', {}, [],        {'adaptive_step'}, {'hinec'}, 'Adaptive step-size control. rkf45 ONLY. rkf45 with adaptive:false is fixed-step RKF45 (a real third mode, kept for completeness).')
 
@@ -98,27 +98,26 @@ e('tractography.filter.length_z',       {},            'list',    {}, [],       
 e('tractography.filter.length_x_abs',   {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose TOTAL travel along x is within [min max] mm. Total: a track that doubles back adds to it.')
 e('tractography.filter.length_y_abs',   {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose TOTAL travel along y is within [min max] mm.')
 e('tractography.filter.length_z_abs',   {},            'list',    {}, [],        {}, {'all'}, 'Keep tracks whose TOTAL travel along z is within [min max] mm.')
-e('tractography.debug.trace',           false,         'logical', {}, [],        {}, {'hinec'}, 'Record a PER-STEP trace of the tracker: position, direction used, interpolated FA, turn angle, nominal vs realised step arc, sign flips, and termination reason. None of this survives to the saved polyline, which output.arc_step decimates, so it cannot be reconstructed afterwards. Off by default; see nim_track_diagnose.')
-e('tractography.debug.trace_max',       200,           'numeric', {}, [0 100000], {}, {'hinec'}, 'How many seeds to trace, sampled EVENLY across the seed list (a prefix would be one corner of the volume). 0 traces every seed, which is large: budget roughly max_steps x 12 doubles per seed per direction.')
+e('tractography.debug.trace',           false,         'logical', {}, [],        {}, {'hinec','mmf'}, 'Record a PER-STEP trace of the tracker: position, direction used, interpolated FA, turn angle, nominal vs realised step arc, sign flips, and termination reason. None of this survives to the saved polyline, which output.arc_step decimates, so it cannot be reconstructed afterwards. Off by default; see nim_track_diagnose. The mmf tracker writes the same record fields (pos, dir, fa, h, chord, turn, flip, n_steps, termination; flip is always false there, the gauge absorbs sign flips) plus drift, reanchored, kappa and s, so nim_track_diagnose reads both.')
+e('tractography.debug.trace_max',       200,           'numeric', {}, [0 100000], {}, {'hinec','mmf'}, 'How many seeds to trace, sampled EVENLY across the seed list (a prefix would be one corner of the volume). 0 traces every seed, which is large: budget roughly max_steps x 12 doubles per seed per direction.')
 
 % --- output -----------------------------------------------------------------
 e('tractography.output.arc_step',       0,             'numeric', {}, [0 100],   {}, {'all'}, 'Resample saved streamlines to this arc-length spacing in voxels. 0 = store every integration step. Decouples file size from step size; integration accuracy is unaffected.')
 
 % --- csd (field: csd only) --------------------------------------------------
-e('tractography.csd.peaks_file',        '',            'string',  {}, [],        {'csd_peaks_file'}, {'hinec','mmf','stitching'}, 'Optional MAT file with peaks [X Y Z P 3], npeaks [X Y Z], and peak_w [X Y Z P] in dataset voxel-axis coordinates. When set, use this deterministic field instead of fitting native CSD. The file must match the dataset grid; no GT or scoring data is needed.')
-e('tractography.csd.lmax',              4,             'numeric', {}, [2 16],    {'csd_lmax'}, {'hinec','mmf','stitching'}, 'Spherical harmonic order for CSD. Default 4, set from the data rather than convention: with the 32 directions of this acquisition lmax=6 needs 28 coefficients from 32 measurements and the response falls to r_4 = -0.035 against r_0 = 2.73, so deconvolution divides by a near-zero and amplifies noise - its primary FOD peak misses the tensor v1 by 26.6 deg in UNAMBIGUOUS single-fibre voxels, against 6.6 deg at lmax=4. lmax=2 spans exactly the tensor and cannot represent a crossing at all.')
-e('tractography.csd.max_peaks',         3,             'numeric', {}, [1 10],    {'csd_max_peaks'}, {'hinec','mmf','stitching'}, 'Maximum FOD peaks retained per voxel.')
-e('tractography.csd.peak_thresh',       0.2,           'numeric', {}, [0 1],     {'csd_peak_thresh'}, {'hinec','mmf','stitching'}, 'Minimum FOD peak amplitude as a fraction of the voxel maximum. The old default of 0.5 required a second fibre population to be at least half as strong as the first, which discards ordinary unequal crossings; MRtrix uses 0.1 for the equivalent. Peaks must now also be local maxima of the FOD, so a lower threshold admits genuine fibres rather than points on the shoulder of the first peak.')
-e('tractography.csd.peak_min_sep',      45,            'numeric', {}, [0 180],   {'csd_peak_min_sep'}, {'hinec','mmf','stitching'}, 'Minimum angular separation between FOD peaks (degrees).')
-e('tractography.csd.n_iter',            50,            'numeric', {}, [1 1000],  {}, {'hinec','mmf','stitching'}, 'CSD deconvolution iterations.')
+e('tractography.csd.peaks_file',        '',            'string',  {}, [],        {'csd_peaks_file'}, {'hinec','stitching'}, 'Optional MAT file with peaks [X Y Z P 3], npeaks [X Y Z], and peak_w [X Y Z P] in dataset voxel-axis coordinates. When set, use this deterministic field instead of fitting native CSD. The file must match the dataset grid; no GT or scoring data is needed.')
+e('tractography.csd.lmax',              4,             'numeric', {}, [2 16],    {'csd_lmax'}, {'hinec','stitching'}, 'Spherical harmonic order for CSD. Default 4, set from the data rather than convention: with the 32 directions of this acquisition lmax=6 needs 28 coefficients from 32 measurements and the response falls to r_4 = -0.035 against r_0 = 2.73, so deconvolution divides by a near-zero and amplifies noise - its primary FOD peak misses the tensor v1 by 26.6 deg in UNAMBIGUOUS single-fibre voxels, against 6.6 deg at lmax=4. lmax=2 spans exactly the tensor and cannot represent a crossing at all.')
+e('tractography.csd.max_peaks',         3,             'numeric', {}, [1 10],    {'csd_max_peaks'}, {'hinec','stitching'}, 'Maximum FOD peaks retained per voxel.')
+e('tractography.csd.peak_thresh',       0.2,           'numeric', {}, [0 1],     {'csd_peak_thresh'}, {'hinec','stitching'}, 'Minimum FOD peak amplitude as a fraction of the voxel maximum. The old default of 0.5 required a second fibre population to be at least half as strong as the first, which discards ordinary unequal crossings; MRtrix uses 0.1 for the equivalent. Peaks must now also be local maxima of the FOD, so a lower threshold admits genuine fibres rather than points on the shoulder of the first peak.')
+e('tractography.csd.peak_min_sep',      45,            'numeric', {}, [0 180],   {'csd_peak_min_sep'}, {'hinec','stitching'}, 'Minimum angular separation between FOD peaks (degrees).')
+e('tractography.csd.n_iter',            50,            'numeric', {}, [1 1000],  {}, {'hinec','stitching'}, 'CSD deconvolution iterations.')
 
 % --- mmf (algorithm: mmf only) ----------------------------------------------
-e('tractography.mmf.anchor',            0,             'numeric', {}, [0 1],     {'mmf_anchor'}, {'mmf'}, 'Re-anchor strength of e1 toward the field tangent. 0 = pure connection-form evolution.')
-
-
+e('tractography.mmf.mode',              'adaptive',    'string',  {'transport','reanchor','adaptive'}, [], {}, {'mmf'}, 'How the carried frame relates to the data frame along the tract (advanceFrame ''Mode''). transport = carried by the connection only, the data enter through the curvature and the gauge; reanchor = replaced by the data frame after every step (the direction from the data, the curvature of the step from the transport: the closest relative of streamline tracking, with an arc instead of a chord); adaptive = transport, re-anchored only after a step at whose end the carried e1 has drifted from the data''s e1 by mmf.reanchor_tol or more.')
+e('tractography.mmf.reanchor_tol',      1e-3,          'numeric', {}, [0 10],    {}, {'mmf'}, 'Drift tolerance of the adaptive mode, radians: the angle between the carried e1 and the data''s e1 (modulo sign) at the end of a step at or above which the frame is re-read from the data. 0 re-anchors after every step like mode reanchor; a value above pi never, like transport.')
+e('tractography.mmf.gradient_delta',    1e-3,          'numeric', {}, [1e-6 0.5], {}, {'mmf'}, 'Central-difference step, in voxels, for the derivative of the interpolated principal axis from which the connection (curvature) components are formed.')
 
 % --- short tractlets and endpoint graph -------------------------------------
-e('tractography.stitching.geometry', 'direction', 'string', {'direction','mmf'}, [], {}, {'stitching'}, 'Local fragment evolution: direction or MMF connection geometry.')
 e('tractography.stitching.fragment_arc', 3, 'numeric', {}, [0.1 100], {}, {'stitching'}, 'Total bidirectional fragment arc in voxels; 3 is 6 mm at 2 mm resolution.')
 e('tractography.stitching.min_fragment_arc', 1, 'numeric', {}, [0 100], {}, {'stitching'}, 'Discard local fragments shorter than this voxel arc before graph assembly.')
 e('tractography.stitching.join', true, 'logical', {}, [], {}, {'stitching'}, 'Enable endpoint stitching. False is the fragment-only ablation.')
@@ -127,9 +126,8 @@ e('tractography.stitching.join_angle', 30, 'numeric', {}, [0 89], {}, {'stitchin
 e('tractography.stitching.bridge_angle', 45, 'numeric', {}, [0 89], {}, {'stitching'}, 'Maximum bridge tangent disagreement with the local field, degrees.')
 e('tractography.stitching.search', 'knn', 'string', {'knn','forward'}, [], {}, {'stitching'}, 'Endpoint search: knn caps before compatibility; forward searches the full forward cone and caps compatible candidates across distance/direction sectors.')
 e('tractography.stitching.neighbors', 16, 'numeric', {}, [1 128], {}, {'stitching'}, 'Endpoint candidate budget: raw nearest endpoints for knn; compatible sector-balanced endpoints for forward.')
-e('tractography.stitching.curvature_tolerance', 0.25, 'numeric', {}, [0.001 10], {}, {'stitching'}, 'Maximum MMF endpoint curvature difference, inverse voxels.')
-e('tractography.stitching.torsion_tolerance', 0.5, 'numeric', {}, [0.001 10], {}, {'stitching'}, 'Maximum MMF endpoint torsion difference when curvature is nonzero, inverse voxels.')
-e('tractography.stitching.max_curvature', 0.5, 'numeric', {}, [0.001 10], {}, {'stitching'}, 'Cap on local MMF evolution curvature, inverse voxels.')
+e('tractography.stitching.curvature_tolerance', 0.25, 'numeric', {}, [0.001 10], {}, {'stitching'}, 'Maximum endpoint curvature difference, inverse voxels, applied by the endpoint graph when a per-endpoint curvature/torsion table is supplied to nim_stitch_fragments (the pipeline currently supplies none).')
+e('tractography.stitching.torsion_tolerance', 0.5, 'numeric', {}, [0.001 10], {}, {'stitching'}, 'Maximum endpoint torsion difference when curvature is nonzero, inverse voxels; same condition as curvature_tolerance.')
 e('tractography.stitching.max_fragments', 200000, 'numeric', {}, [1 10000000], {}, {'stitching'}, 'Fail before generation if seed count times possible peaks exceeds this explicit memory budget.')
 
 % --- diagnostics ------------------------------------------------------------

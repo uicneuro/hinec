@@ -40,14 +40,14 @@ error, never a silent no-op. A bare leaf name that is ambiguous (`method`,
 ## Parameters
 
 The **Applies to** column says which tracking algorithms actually read the
-parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
+parameter. A key marked `hinec` is ignored by `standard`, `mmf` and `stitching`.
 
 ### `tractography`
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `algorithm` | string | `hinec` | all | Tracking algorithm. template = the minimal worked example of the tracker interface (docs/TRACKER_INTERFACE.md). |
-| `field` | string | `dti` | hinec, mmf, stitching | Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks; dwi = frame AND connection curvature fitted DIRECTLY to the raw DW signal (mmf only, see nim_mmf_from_dwi). The dwi route never forms a tensor or an FOD: it fits e1 and the curvature vector kappa jointly to the centred log-signal over a 3x3x3 neighbourhood, so curvature is a parameter of the signal model rather than a derivative of an already-fitted direction field. Measured against the ISMRM-2015 geometry it retains 0.89 of the individual-fibre curvature against 0.65 for the DTI route. |
+| `algorithm` | string | `hinec` | all | Tracking algorithm. hinec = interpolated streamlines (RK); mmf = moving frames tractography (advanceFrame: the frame is transported by the connection of the data, exponential step; docs/MMF_TRACTOGRAPHY.md); standard = FACT; stitching = short tractlets; template = the minimal worked example of the tracker interface (docs/TRACKER_INTERFACE.md). |
+| `field` | string | `dti` | hinec, mmf, stitching | Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks (hinec and stitching; mmf is dti only). |
 | `act` | logical | `false` | hinec | Anatomically constrained tracking using WM/GM/CSF masks. |
 | `diagnostics` | logical | `true` | all | Write per-run diagnostic reports. |
 
@@ -55,11 +55,11 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `method` | string | `rk4` | hinec, mmf, stitching | Numerical stepping scheme. NOTE: this is a method NAME, not an order claim. rkf45 here is Dormand-Prince: it advances on the 5th-order solution and uses the embedded 4th-order one only to size the next step. |
+| `method` | string | `rk4` | hinec, mmf, stitching | Numerical stepping scheme. NOTE: this is a method NAME, not an order claim. rkf45 here is Dormand-Prince: it advances on the 5th-order solution and uses the embedded 4th-order one only to size the next step. For mmf: euler, rk2, rk4 select the Lie group integrator of order 1, 2, 4 (Lie-Euler, exponential midpoint, CF4) around the exponential step; rkf45 is rejected (no embedded error estimate exists for it). |
 | `step` | numeric | `0.2` | all | Integration step in voxels. Fixed step, or the initial step for rkf45. |
-| `tolerance` | numeric | `0.01` | hinec, mmf | Adaptive error tolerance in voxels. rkf45 ONLY. |
-| `step_min` | numeric | `0.01` | hinec, mmf | Minimum adaptive step. rkf45 ONLY. |
-| `step_max` | numeric | `1` | hinec, mmf | Maximum adaptive step. rkf45 ONLY. |
+| `tolerance` | numeric | `0.01` | hinec | Adaptive error tolerance in voxels. rkf45 ONLY. |
+| `step_min` | numeric | `0.01` | hinec | Minimum adaptive step. rkf45 ONLY. |
+| `step_max` | numeric | `1` | hinec | Maximum adaptive step. rkf45 ONLY. |
 | `safety` | numeric | `0.9` | hinec | Adaptive step safety factor. rkf45 ONLY. |
 | `adaptive` | logical | `true` | hinec | Adaptive step-size control. rkf45 ONLY. rkf45 with adaptive:false is fixed-step RKF45 (a real third mode, kept for completeness). |
 
@@ -114,8 +114,8 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `trace` | logical | `false` | hinec | Record a PER-STEP trace of the tracker: position, direction used, interpolated FA, turn angle, nominal vs realised step arc, sign flips, and termination reason. None of this survives to the saved polyline, which output.arc_step decimates, so it cannot be reconstructed afterwards. Off by default; see nim_track_diagnose. |
-| `trace_max` | numeric | `200` | hinec | How many seeds to trace, sampled EVENLY across the seed list (a prefix would be one corner of the volume). 0 traces every seed, which is large: budget roughly max_steps x 12 doubles per seed per direction. |
+| `trace` | logical | `false` | hinec, mmf | Record a PER-STEP trace of the tracker: position, direction used, interpolated FA, turn angle, nominal vs realised step arc, sign flips, and termination reason. None of this survives to the saved polyline, which output.arc_step decimates, so it cannot be reconstructed afterwards. Off by default; see nim_track_diagnose. The mmf tracker writes the same record fields (pos, dir, fa, h, chord, turn, flip, n_steps, termination; flip is always false there, the gauge absorbs sign flips) plus drift, reanchored, kappa and s, so nim_track_diagnose reads both. |
+| `trace_max` | numeric | `200` | hinec, mmf | How many seeds to trace, sampled EVENLY across the seed list (a prefix would be one corner of the volume). 0 traces every seed, which is large: budget roughly max_steps x 12 doubles per seed per direction. |
 
 #### `tractography.output`
 
@@ -127,24 +127,25 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `peaks_file` | string | `` | hinec, mmf, stitching | Optional MAT file with peaks [X Y Z P 3], npeaks [X Y Z], and peak_w [X Y Z P] in dataset voxel-axis coordinates. When set, use this deterministic field instead of fitting native CSD. The file must match the dataset grid; no GT or scoring data is needed. |
-| `lmax` | numeric | `4` | hinec, mmf, stitching | Spherical harmonic order for CSD. Default 4, set from the data rather than convention: with the 32 directions of this acquisition lmax=6 needs 28 coefficients from 32 measurements and the response falls to r_4 = -0.035 against r_0 = 2.73, so deconvolution divides by a near-zero and amplifies noise - its primary FOD peak misses the tensor v1 by 26.6 deg in UNAMBIGUOUS single-fibre voxels, against 6.6 deg at lmax=4. lmax=2 spans exactly the tensor and cannot represent a crossing at all. |
-| `max_peaks` | numeric | `3` | hinec, mmf, stitching | Maximum FOD peaks retained per voxel. |
-| `peak_thresh` | numeric | `0.2` | hinec, mmf, stitching | Minimum FOD peak amplitude as a fraction of the voxel maximum. The old default of 0.5 required a second fibre population to be at least half as strong as the first, which discards ordinary unequal crossings; MRtrix uses 0.1 for the equivalent. Peaks must now also be local maxima of the FOD, so a lower threshold admits genuine fibres rather than points on the shoulder of the first peak. |
-| `peak_min_sep` | numeric | `45` | hinec, mmf, stitching | Minimum angular separation between FOD peaks (degrees). |
-| `n_iter` | numeric | `50` | hinec, mmf, stitching | CSD deconvolution iterations. |
+| `peaks_file` | string | `` | hinec, stitching | Optional MAT file with peaks [X Y Z P 3], npeaks [X Y Z], and peak_w [X Y Z P] in dataset voxel-axis coordinates. When set, use this deterministic field instead of fitting native CSD. The file must match the dataset grid; no GT or scoring data is needed. |
+| `lmax` | numeric | `4` | hinec, stitching | Spherical harmonic order for CSD. Default 4, set from the data rather than convention: with the 32 directions of this acquisition lmax=6 needs 28 coefficients from 32 measurements and the response falls to r_4 = -0.035 against r_0 = 2.73, so deconvolution divides by a near-zero and amplifies noise - its primary FOD peak misses the tensor v1 by 26.6 deg in UNAMBIGUOUS single-fibre voxels, against 6.6 deg at lmax=4. lmax=2 spans exactly the tensor and cannot represent a crossing at all. |
+| `max_peaks` | numeric | `3` | hinec, stitching | Maximum FOD peaks retained per voxel. |
+| `peak_thresh` | numeric | `0.2` | hinec, stitching | Minimum FOD peak amplitude as a fraction of the voxel maximum. The old default of 0.5 required a second fibre population to be at least half as strong as the first, which discards ordinary unequal crossings; MRtrix uses 0.1 for the equivalent. Peaks must now also be local maxima of the FOD, so a lower threshold admits genuine fibres rather than points on the shoulder of the first peak. |
+| `peak_min_sep` | numeric | `45` | hinec, stitching | Minimum angular separation between FOD peaks (degrees). |
+| `n_iter` | numeric | `50` | hinec, stitching | CSD deconvolution iterations. |
 
 #### `tractography.mmf`
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `anchor` | numeric | `0` | mmf | Re-anchor strength of e1 toward the field tangent. 0 = pure connection-form evolution. |
+| `mode` | string | `adaptive` | mmf | How the carried frame relates to the data frame along the tract (advanceFrame 'Mode'). transport = carried by the connection only, the data enter through the curvature and the gauge; reanchor = replaced by the data frame after every step (the direction from the data, the curvature of the step from the transport: the closest relative of streamline tracking, with an arc instead of a chord); adaptive = transport, re-anchored only after a step at whose end the carried e1 has drifted from the data's e1 by mmf.reanchor_tol or more. |
+| `reanchor_tol` | numeric | `0.001` | mmf | Drift tolerance of the adaptive mode, radians: the angle between the carried e1 and the data's e1 (modulo sign) at the end of a step at or above which the frame is re-read from the data. 0 re-anchors after every step like mode reanchor; a value above pi never, like transport. |
+| `gradient_delta` | numeric | `0.001` | mmf | Central-difference step, in voxels, for the derivative of the interpolated principal axis from which the connection (curvature) components are formed. |
 
 #### `tractography.stitching`
 
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
-| `geometry` | string | `direction` | stitching | Local fragment evolution: direction or MMF connection geometry. |
 | `fragment_arc` | numeric | `3` | stitching | Total bidirectional fragment arc in voxels; 3 is 6 mm at 2 mm resolution. |
 | `min_fragment_arc` | numeric | `1` | stitching | Discard local fragments shorter than this voxel arc before graph assembly. |
 | `join` | logical | `true` | stitching | Enable endpoint stitching. False is the fragment-only ablation. |
@@ -153,9 +154,8 @@ parameter. A key marked `hinec` is ignored by `standard` and `mmf`.
 | `bridge_angle` | numeric | `45` | stitching | Maximum bridge tangent disagreement with the local field, degrees. |
 | `search` | string | `knn` | stitching | Endpoint search: knn caps before compatibility; forward searches the full forward cone and caps compatible candidates across distance/direction sectors. |
 | `neighbors` | numeric | `16` | stitching | Endpoint candidate budget: raw nearest endpoints for knn; compatible sector-balanced endpoints for forward. |
-| `curvature_tolerance` | numeric | `0.25` | stitching | Maximum MMF endpoint curvature difference, inverse voxels. |
-| `torsion_tolerance` | numeric | `0.5` | stitching | Maximum MMF endpoint torsion difference when curvature is nonzero, inverse voxels. |
-| `max_curvature` | numeric | `0.5` | stitching | Cap on local MMF evolution curvature, inverse voxels. |
+| `curvature_tolerance` | numeric | `0.25` | stitching | Maximum endpoint curvature difference, inverse voxels, applied by the endpoint graph when a per-endpoint curvature/torsion table is supplied to nim_stitch_fragments (the pipeline currently supplies none). |
+| `torsion_tolerance` | numeric | `0.5` | stitching | Maximum endpoint torsion difference when curvature is nonzero, inverse voxels; same condition as curvature_tolerance. |
 | `max_fragments` | numeric | `200000` | stitching | Fail before generation if seed count times possible peaks exceeds this explicit memory budget. |
 
 ### `preprocessing`
@@ -206,7 +206,6 @@ naming its replacement.
 | `csd_max_peaks` | `tractography.csd.max_peaks` |
 | `csd_peak_thresh` | `tractography.csd.peak_thresh` |
 | `csd_peak_min_sep` | `tractography.csd.peak_min_sep` |
-| `mmf_anchor` | `tractography.mmf.anchor` |
 | `enable_diagnostics` | `tractography.diagnostics` |
 | `integration_order: 1\|2\|4\|5` | `integrator.method: euler\|rk2\|rk4\|rkf45` |
 | `max_steps` | `termination.max_arc` (converted as `max_steps x step`) |
@@ -239,6 +238,6 @@ ignored with a warning rather than silently accepted.
 | `transport_strength` | Never read by any tracker. |
 | `bishop_eps` | Referenced only in a comment; no tracker reads it as an option. |
 | `frame_sel_power` | Removed with the alignment-weighted denoise it controlled. Same mechanism as the retired sel_power: a free exponent with no principled value. Measured against ground-truth curvature it also did nothing - correlation 0.217 to 0.239 across sel 0 to 64, while every setting suppressed curvature ~17x below the true 0.1538/vox. |
-| `fa_threshold` | Functionally dead: printed by hinec/standard, and only a seed-mask fallback in mmf/highorder that never fires because runTractography always supplies a seed mask. Use termination.fa_min to stop tracking, or seeding.fa_min to restrict seeding. NOTE: in 5 of the 12 original configs fa_threshold and termination_fa held DIFFERENT values, so they were never interchangeable. |
+| `fa_threshold` | Functionally dead: printed by hinec/standard, and only a seed-mask fallback in the removed trackers that never fired because runTractography always supplies a seed mask. Use termination.fa_min to stop tracking, or seeding.fa_min to restrict seeding. NOTE: in 5 of the 12 original configs fa_threshold and termination_fa held DIFFERENT values, so they were never interchangeable. |
 | `order` | Legacy backward-compatibility key, read by no tracker as an option. |
 | `sel_power` | Removed. HINEC is now pure interpolation + integration. It biased interpolation toward the incoming direction (weight = alignment^sel_power), which has no justification for DTI (one eigenvector per voxel, nothing to disambiguate) and made the ODE direction-dependent. For CSD, nearest-peak selection is retained because it is structural, but the alignment exponent is gone. |

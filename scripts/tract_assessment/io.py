@@ -6,9 +6,9 @@ stored as one-based voxel coordinates; world millimetres are
 using the full NIfTI affine of a reference image on the DWI grid (the same
 convention as scripts/hinec_to_trk.py).
 
-Seed identity is optional. Trackers that record meta.seed_points (hinec,
+Seed identity is optional. Trackers that record meta.seed_points (hinec, mmf,
 template, stitching) allow exact per-seed pairing; trackers that do not
-(standard, mmf) are paired by nearest streamline instead (see compare.py).
+(standard) are paired by nearest streamline instead (see compare.py).
 """
 import hashlib
 import re

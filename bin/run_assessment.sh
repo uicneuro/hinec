@@ -15,7 +15,7 @@
 #   ./bin/run_assessment.sh convergence --config hinec_dti --sweep integrator.step=0.4,0.2,0.1,0.05,0.025 \
 #         [--source <nim>] [--set key=value ...]
 #   ./bin/run_assessment.sh consistency --config hinec_dti --sweep interpolation.method=trilinear,cubic,spline
-#   ./bin/run_assessment.sh consistency --configs hinec_dti mmf_dti standard_dti [--set seeding.roi=...]
+#   ./bin/run_assessment.sh consistency --configs hinec_dti mmf_dti hinec_csd standard_dti [--set seeding.roi=...]
 #   Every generated run shares --source and every --set, so the swept knob (or
 #   the config) is the only difference. Seeding must be deterministic
 #   (seeding.strategy: uniform, the default) for seed-matched comparisons.

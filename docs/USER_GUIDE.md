@@ -264,8 +264,7 @@ Configs in `config/` fall into two families, distinguished by which launcher con
 | `hinec_dti_cubic_recall.yml` | hinec | dti | rkf45 | cubic (recall-tuned termination) |
 | `hinec_dti_fast.yml` | hinec | dti | rk2 | trilinear |
 | `hinec_dti_euler.yml` | hinec | dti | euler | trilinear |
-| `mmf_dti.yml` | mmf | dti | rk4 | trilinear |
-| `mmf_csd.yml` | mmf | csd | rk4 | trilinear |
+| `mmf_dti.yml` | mmf (moving frames, [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)) | dti | rk4 (CF4) | spline |
 
 **Dataset configs** — `<dataset>[_variant].yml`, for `bin/run_hinec.sh`: `ismrm2015.yml` and
 `irontract.yml`. `hinec_default.yml` is the generic full-pipeline fallback and is the only
@@ -345,6 +344,9 @@ runTractography('output/subject.mat', 'standard');
 
 % HINEC interpolated streamlines
 runTractography('output/subject.mat', 'hinec');
+
+% Moving frames tractography (DTI only)
+runTractography('output/subject.mat', 'mmf');
 ```
 
 ### By Configuration
@@ -352,10 +354,6 @@ runTractography('output/subject.mat', 'hinec');
 ```matlab
 % Cubic interpolation with adaptive RKF45
 config = load_config_yaml('config/hinec_dti_cubic.yml');
-runTractography('output/subject.mat', config);
-
-% Connection-form Method of Moving Frames
-config = load_config_yaml('config/mmf_dti.yml');
 runTractography('output/subject.mat', config);
 ```
 

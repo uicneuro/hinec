@@ -59,22 +59,18 @@ hinec/
 │   ├── hinec_dti_cubic_recall.yml  #   Cubic, recall-tuned termination
 │   ├── hinec_dti_fast.yml          #   RK2, quick screening
 │   ├── hinec_dti_euler.yml         #   Euler, lowest-order comparison point
-│   ├── mmf_dti.yml                 #   Connection-form MMF, DTI field
-│   ├── mmf_csd.yml                 #   Connection-form MMF, CSD field
+│   ├── mmf_dti.yml                 #   Moving frames tractography, DTI field
 │   ├── ismrm2015.yml               #   ISMRM 2015 challenge dataset
 │   ├── irontract.yml               #   IronTract challenge dataset
 │   └── reference.yml               #   Convergence-ladder template
 │
 ├── src/                            # Source code modules
-│   ├── nim_calculation/            #   Tensor, eigendecomposition, FA, CSD, MMF geometry
+│   ├── nim_calculation/            #   Tensor, eigendecomposition, FA, CSD
 │   │   ├── nim_dt_spd.m            #     Diffusion tensor (SPD-constrained)
 │   │   ├── nim_dt.m                #     Diffusion tensor (basic LSF)
 │   │   ├── nim_eig.m               #     Eigenvalue/eigenvector decomposition
 │   │   ├── nim_fa.m                #     Fractional anisotropy
-│   │   ├── nim_csd.m               #     Constrained spherical deconvolution + FOD peaks
-│   │   ├── nim_build_frames.m      #     Moving-frame construction
-│   │   ├── nim_connection_form.m   #     Connection 1-form (curvature, torsion)
-│   │   └── nim_mmf_geometry.m      #     Frame field + connection baked into the nim
+│   │   └── nim_csd.m               #     Constrained spherical deconvolution + FOD peaks
 │   │
 │   ├── nim_preprocessing/          #   FSL-based preprocessing
 │   │   ├── nim_preprocessing.m     #     Orchestrator (10-step pipeline)
@@ -111,11 +107,9 @@ hinec/
 │   ├── nim_tractography/           #   Fiber tractography
 │   │   ├── nim_tractography_standard.m    # FACT
 │   │   ├── nim_tractography_hinec.m       # Interpolated streamlines
-│   │   ├── nim_tractography_mmf_connframe.m # Connection-form MMF
+│   │   ├── nim_tractography_mmf.m         # Moving frames tractography (advanceFrame)
+│   │   ├── advanceFrame.m                 # Exponential frame step, Lie group integrators
 │   │   ├── nim_tractography_stitching.m   # Tractlet stitching (experimental)
-│   │   ├── mmf_bishop_update.m            # Bishop frame update
-│   │   ├── mmf_gram_schmidt.m             # Frame reorthonormalization
-│   │   ├── mmf_reference_axis_frame.m     # Reference-axis frame
 │   │   ├── nim_seed_offsets.m             # Sub-voxel seed lattice
 │   │   ├── nim_filter_tracks_roi.m        # Waypoint / endpoint / containment gates
 │   │   ├── nim_resample_track_arc.m       # Arc-length resampling
@@ -297,18 +291,6 @@ These are computed per run by `runTractography` step 2 (`nim_field`) and cached
 as `<source>_csd_<settings>.mat`, one file per CSD setting combination (the fit costs ~2 min). They are never written into the
 nim on disk.
 
-#### Moving-Frame Fields (`algorithm: mmf`)
-
-Built per run by `runTractography` step 3 (`nim_mmf_geometry`, ~5 s), only when
-`algorithm: mmf`. Never written into the nim on disk; there are no build stamps.
-
-| Field | Type | Dimensions | Description | Populated By |
-|---|---|---|---|---|
-| `.mmf_frames` | double | [X, Y, Z, 3, 3] | Frame field {e1, e2, e3} | `nim_mmf_geometry` |
-| `.mmf_kappa` | double | [X, Y, Z, 3] | Curvature vector de1/ds | `nim_mmf_geometry` |
-| `.mmf_tau` | double | [X, Y, Z] | Torsion, omega_23(e1) | `nim_mmf_geometry` |
-| `.mmf_peakdirs`, `.mmf_kappa_p`, `.mmf_npeaks`, `.mmf_multi` | — | — | Per-peak variants, CSD field only | `nim_mmf_geometry` |
-
 #### Parcellation Fields
 
 | Field | Type | Dimensions | Description | Populated By |
@@ -386,10 +368,8 @@ nim_read
               +---> nim_eig (requires: .DT)
                         |
                         +---> nim_fa (requires: .eval)
-                                  |
-                                  +---> nim_mmf_geometry (requires: .evec or .peaks)
-                                  |
-    +-----------------------------+
+                        |
+    +-------------------+
     |
     +---> nim_registration (optional, requires: .FA, T1 file)
     |         |
@@ -416,7 +396,7 @@ nim_read
               |         +---> nim_tractography_hinec  (requires: .evec or .peaks, .FA,
               |         |                              .mask; optional: tissue masks)
               |         |         OR
-              |         +---> nim_tractography_mmf_connframe (requires: mmf geometry)
+              |         +---> nim_tractography_mmf    (requires: .evec, .FA, .mask)
               |         |
               |         +---> nim_filter_tracks_roi (requires: .parcellation_mask or .roi_masks)
               |         +---> nim_resample_track_arc (if output.arc_step > 0)
@@ -532,7 +512,7 @@ proceeds without ACT.
 
 ### Stage 7: Tractography
 
-Two primary algorithms are available:
+Three algorithms are available:
 
 **Standard FACT** (`nim_tractography_standard.m`):
 
@@ -553,15 +533,20 @@ Two primary algorithms are available:
 - Anatomically Constrained Tractography (ACT) with tissue-type termination, off by default
 - Parallel processing support (`parfor` with `DataQueue` progress)
 
-**MMF connection-form** (`nim_tractography_mmf_connframe.m`):
+**Moving frames tractography** (`nim_tractography_mmf.m`, scheme `advanceFrame.m`;
+[MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)):
 
-- Advances `dx/ds = e1` while evolving the carried frame by the structure equation, driven by
-  the interpolated connection field built in `nim_mmf_geometry`
-- `integrator` (`rk4` fixed or `rkf45` adaptive) chooses only the numerical scheme; the
-  direction comes entirely from the connection form
-- With `field: csd`, the geometry is built per FOD peak, giving multiple pathways
+- The fibre carries an orthonormal frame, transported by the connection 1-forms of the
+  data's frame field with a closed-form exponential step (exact where the curvature is
+  constant along the fibre); `integrator.method` `euler` / `rk2` / `rk4` selects the Lie
+  group integrator of order 1 / 2 / 4 (`rkf45` is rejected)
+- Direction field: the same interpolated dyadic as `hinec` (same kernel and `upsample`);
+  the connection is a sign-aligned central difference of its principal axis
+- `mmf.mode` (`transport` / `reanchor` / `adaptive`) and `mmf.reanchor_tol` set how the
+  carried frame is re-anchored to the data
+- DTI only (`field: csd` is rejected); ACT masks are not used
 
-All three trackers share these stopping criteria:
+The trackers share these stopping criteria:
 
 - FA below `termination.fa_min`
 - Curvature exceeds `termination.angle_max`, measured in degrees per voxel of arc rather than
@@ -570,7 +555,7 @@ All three trackers share these stopping criteria:
   `0` disables the criterion
 - Arc length exceeds `termination.max_arc` voxels (`max_steps` is derived from it)
 - Track exits the brain mask
-- With ACT on, the track reaches GM (accept) or CSF (reject)
+- With ACT on (`hinec` only), the track reaches GM (accept) or CSF (reject)
 
 Tracks shorter than `termination.min_arc` voxels of arc are discarded.
 
@@ -625,11 +610,11 @@ preprocessing:
   register_to_mni: true|false
 
 tractography:
-  algorithm: hinec | standard | mmf       # which tracker
-  field: dti | csd                        # where the local direction comes from
+  algorithm: hinec | standard | mmf | stitching # which tracker
+  field: dti | csd                        # where the local direction comes from (mmf: dti only)
   act: true|false                         # default FALSE
   integrator:
-    method: euler | rk2 | rk4 | rkf45     # a METHOD name, not an order
+    method: euler | rk2 | rk4 | rkf45     # a METHOD name, not an order; mmf: Lie group order 1 | 2 | 4, no rkf45
     step: 0.2                             # voxel units; initial step for rkf45
     tolerance, step_min, step_max, safety, adaptive   # rkf45 only
   interpolation:
@@ -648,8 +633,10 @@ tractography:
     arc_step: 0                           # resample saved streamlines
   csd:
     lmax, max_peaks, peak_thresh, peak_min_sep, n_iter
-  mmf:
-    anchor
+  mmf:                                    # algorithm: mmf only
+    mode: transport | reanchor | adaptive # default adaptive
+    reanchor_tol: 0.001                   # radians
+    gradient_delta: 0.001                 # voxels
   diagnostics: true|false
 ```
 
@@ -687,8 +674,7 @@ Configs come in two families, and the family determines which launcher consumes 
 | `hinec_dti_cubic_recall.yml` | tracker | hinec | dti | rkf45 | cubic | 0.2 |
 | `hinec_dti_fast.yml` | tracker | hinec | dti | rk2 | trilinear | 0.3 |
 | `hinec_dti_euler.yml` | tracker | hinec | dti | euler | trilinear | 0.5 |
-| `mmf_dti.yml` | tracker | mmf | dti | rk4 | trilinear | 0.2 |
-| `mmf_csd.yml` | tracker | mmf | csd | rk4 | trilinear | 0.2 |
+| `mmf_dti.yml` | tracker | mmf | dti | rk4 (CF4) | spline | 0.2 |
 | `ismrm2015.yml` | dataset | hinec | dti | rkf45 | trilinear | 0.2 |
 | `irontract.yml` | dataset | hinec | dti | rkf45 | trilinear | 0.2 |
 | `hinec_default.yml` | fallback | hinec | dti | rk4 | cubic | 0.2 |
@@ -696,7 +682,7 @@ Configs come in two families, and the family determines which launcher consumes 
 
 Presets carry only their non-default values; everything else comes from the schema. There are
 three orthogonal axes — `algorithm` (which tracker), `field` (`dti` or `csd`) and the
-integrator — and, for hinec, direction is further shaped by two composable factors:
+integrator — and, for hinec and mmf, direction is further shaped by two composable factors:
 `interpolation.method` (spatial kernel) and `interpolation.upsample` (sampling density).
 Settings irrelevant to a chosen combination are ignored by design.
 
@@ -826,7 +812,7 @@ additionally needs tkinter, which normally ships with Python.
 - Preprocessing details: [PREPROCESSING.md](PREPROCESSING.md)
 - Tractography methods overview: [TRACTOGRAPHY_METHODS.md](TRACTOGRAPHY_METHODS.md)
 - Standard FACT: [TRACTOGRAPHY.md](TRACTOGRAPHY.md)
-- MMF connection-form tractography: [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)
+- Moving frames tractography: [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)
 - Scientific foundations: [SCIENCE.md](SCIENCE.md)
 - Mathematical methods: [MATHEMATICAL_FOUNDATIONS.md](MATHEMATICAL_FOUNDATIONS.md)
 - Complete function reference: [API_REFERENCE.md](API_REFERENCE.md)

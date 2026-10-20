@@ -323,13 +323,14 @@ results constrain what the numbers above can mean.
   0.87–0.98 $h$ across a 16× refinement, so the endpoint converges at $O(h)$
   while the interior converges at the integrator's order. The windowed metric
   excludes this deliberately; it remains a real defect.
-- **MMF is untested here.** The angle criterion in
-  `nim_tractography_mmf_connframe` is covered only by a source-text check, not a
-  behavioural test.
 - **Mask-edge placeholders.** 3219 in-mask voxels carry a zero tensor with a
   default `[1 0 0]` eigenvector (see [the one seed that disagrees](#the-one-seed-that-disagrees)).
   Streamlines that graze the mask edge integrate through a discontinuous field
   there. The median statistics are unaffected; individual streamlines can be.
+- **The moving-frames tracker is not in these ladders.** Every ladder above
+  integrates the direction field with `hinec`. `algorithm: mmf` is verified
+  separately — exactness on the rigid-rotation phantom, per kernel and order —
+  in [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md#verification).
 
 ---
 

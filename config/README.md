@@ -45,10 +45,13 @@ A tracker config's identity is three independent knobs. Its **filename encodes t
 first two**; the third is a knob with a per-algorithm default.
 
 1. **`algorithm:`** — *which tracker*. `standard` (FACT) | `hinec` (interpolated
-   streamlines) | `mmf` (connection-form Method of Moving Frames). This is the dispatch key.
+   streamlines) | `mmf` (moving frames: the carried frame is transported by the
+   connection of the data, exponential step — [docs/MMF_TRACTOGRAPHY.md](../docs/MMF_TRACTOGRAPHY.md))
+   | `stitching` (experimental tractlet stitching). This is the dispatch key.
 2. **`field:`** — *where the local direction comes from*. `dti` (tensor principal
    eigenvector) | `csd` (CSD FOD peaks; needs the `csd_*` params, cached as
-   `<source>_csd.mat`). `hinec` and `mmf` accept either; `standard` is DTI-only.
+   `<source>_csd.mat`). `hinec` and `stitching` accept either; `standard` and `mmf`
+   are DTI-only.
 3. **`integrator.method:`** — *the numerical stepping scheme (how, and how far,
    to advance)*. This is **not** the direction. `euler` | `rk2` | `rk4` |
    `rkf45`, spelled the same way for every tracker. The old
@@ -57,6 +60,10 @@ first two**; the third is a knob with a per-algorithm default.
    that was not wrong numerically - the implementation uses Dormand-Prince
    coefficients and advances on the 5th-order solution, keeping the embedded
    4th-order one for error control - but a method name belongs in a method key.
+   For `mmf`, `euler` | `rk2` | `rk4` select the Lie group integrator of order
+   1 | 2 | 4 (Lie-Euler, exponential midpoint, CF4) built around the exponential
+   step; `rkf45` is not applicable (the step has no embedded error estimate) and
+   is rejected.
 
 > Direction (`field`, `interpolation.method`) and integrator are genuinely
 > independent: you can hold one fixed and sweep the other. Settings that don't apply
@@ -106,16 +113,17 @@ stay directly comparable.
 |------------|-------------------|-------------------|
 | **standard** (FACT) | `standard_dti.yml` | — *(FACT is DTI-only)* |
 | **hinec** (interpolated) | `hinec_dti.yml` (+ variants below) | `hinec_csd.yml` |
-| **mmf** (connection-form) | `mmf_dti.yml` | `mmf_csd.yml` |
+| **mmf** (moving frames) | `mmf_dti.yml` | — *(DTI only; `csd` is rejected)* |
 
 - `standard_dti` — FACT, discrete voxel tensors, no interpolation. Deterministic baseline.
 - `hinec_dti` / `hinec_csd` — interpolated streamlines, trajectory-dependent
   direction, RKF45 + trilinear by default, optional ACT. `hinec_csd` computes
   its own FOD peaks (`nim_csd`) at track time — no separate step needed.
-- `mmf_dti` / `mmf_csd` — genuine connection-form tracer (Chun & Peng): the moving-frame
-  field + connection 1-form are built into the nim and evolved by the structure equation;
-  stepping via `integrator: rk4|rkf45`. `mmf_csd` builds a per-peak connection → multiple
-  pathways through crossings. See [docs/MMF_TRACTOGRAPHY.md](../docs/MMF_TRACTOGRAPHY.md).
+- `mmf_dti` — moving frames tractography (`advanceFrame`): the fibre carries an
+  orthonormal frame transported by the connection of the data with the
+  closed-form exponential step; CF4 (`rk4`), spline kernel, adaptive
+  re-anchoring (`mmf.mode: adaptive`). ACT masks are not used. See
+  [docs/MMF_TRACTOGRAPHY.md](../docs/MMF_TRACTOGRAPHY.md).
 
 > These four are **generic** tracker configs: one `algorithm`/`field` pair each,
 > schema defaults everywhere else. They are *not* the setup the ISMRM-2015 scores
@@ -133,28 +141,22 @@ stay directly comparable.
 
 ### The scored family — `ismrm_wholebrain*.yml`  (for `run_tractography.sh`)
 
-The configs behind every ISMRM-2015 number in the repo. All four share ONE set of
+The configs behind every ISMRM-2015 number in the repo. Both share ONE set of
 thresholds, seeding and output (`seeding.fa_min 0.10` / `termination.fa_min 0.08`,
 `density 1`, `angle_max 225`, `max_arc 400`, `min_arc 15`, `arc_step 0.5`, RK4 at
-step 0.25) and differ on exactly two axes — a 2×2 of `algorithm` × `field`:
+step 0.25) and differ on exactly one axis, `field`:
 
 | Config | `algorithm` | `field` | kernel | Note |
 |---|---|---|---|---|
 | `ismrm_wholebrain.yml` | `hinec` | `dti` | `spline` (C²) | **The report's method** — RK4 on the interpolated field. Whole-brain F1 **0.350**. |
 | `ismrm_wholebrain_csd.yml` | `hinec` | `csd` | `spline` (C²) | Same tracker on FOD peaks. F1 0.346. |
-| `ismrm_wholebrain_mmf.yml` | `mmf` | `dti` | `cubic` (C¹) | Connection-form tracer, `mmf.anchor: 0.25`. F1 **0.401**. |
-| `ismrm_wholebrain_mmf_csd.yml` | `mmf` | `csd` | `cubic` (C¹) | Per-peak connection form. F1 0.391. |
-
-MMF uses `cubic` because it samples κ, for which the tracer supports cubic or
-linear only; that is the one unavoidable difference between the rows.
 
 `seeding.roi: []` (whole brain) is the point of these configs — the scorer segments
 26 bundles out of ONE tractogram, so only a whole-brain run has a meaningful
 denominator. For a single bundle, override it rather than editing the file:
 
 ```bash
-./bin/run_tractography.sh ismrm_wholebrain     --score --set seeding.roi=UF_left
-./bin/run_tractography.sh ismrm_wholebrain_mmf --score --set seeding.roi=UF_left
+./bin/run_tractography.sh ismrm_wholebrain --score --set seeding.roi=UF_left
 ```
 
 The number then lives in `scoring/renauld2023/bundle.txt`, not in `mean_f1` — see
@@ -187,7 +189,6 @@ report, so neither it nor `ismrm_wholebrain.yml` is renamed.
 
 # 2. Iterate tractography on the built nim (NO re-preprocess), and score
 ./bin/run_tractography.sh hinec_csd --score
-./bin/run_tractography.sh mmf_dti   --score
 ```
 
 `run_tractography.sh` accepts `config/<name>.yml`, `<name>.yml`, or bare `<name>`, and
@@ -229,13 +230,13 @@ cp config/hinec_csd.yml config/hinec_csd_myvariant.yml
 
 ```yaml
 tractography:
-  algorithm: hinec           # hinec | standard | mmf     (which tracker)
+  algorithm: hinec           # hinec | standard | mmf | stitching  (which tracker)
   field: csd                 # dti | csd                  (direction source)
   act: false                 # WM/GM/CSF-constrained tracking (hinec; needs tissue masks)
 
-  # --- integrator: ONE scheme for every tracker (mmf no longer differs) ---
+  # --- integrator: ONE scheme for every tracker ---
   integrator:
-    method: rkf45            # euler | rk2 | rk4 | rkf45
+    method: rkf45            # euler | rk2 | rk4 | rkf45  (mmf: euler | rk2 | rk4 only)
     step: 0.2                # voxels; fixed step, or initial step for rkf45
     tolerance: 0.02          # rkf45 ONLY - setting it with a fixed-step method is an error
     step_min: 0.02
@@ -271,7 +272,9 @@ tractography:
 
   # --- algorithm: mmf only ---
   mmf:
-    anchor: 0
+    mode: adaptive           # transport | reanchor | adaptive
+    reanchor_tol: 0.001      # radians; drift of the carried e1 from the data's e1
+                             # at which the adaptive mode re-anchors
 ```
 
 Every key, its type, range and default is generated from the schema
@@ -282,8 +285,7 @@ retired keys are reported rather than silently accepted.
 
 ### Experimental tractlet stitching
 
-`stitching_dti`, `stitching_csd`, `stitching_mmf_dti`, and `stitching_mmf_csd`
-generate short tractlets and assemble compatible endpoints. The `mmf` variants
-use connection geometry inside fragments and at joins. Begin with an ROI;
+`stitching_dti` and `stitching_csd` generate short tractlets and assemble
+compatible endpoints. Begin with an ROI;
 these presets use eight seeds per voxel and an explicit fragment memory budget.
 See [the stitching design](../docs/STITCHING.md).
