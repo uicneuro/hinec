@@ -43,6 +43,10 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.Opts.wm_mask = []; tc.Opts.gm_mask = []; tc.Opts.csf_mask = [];
             tc.Opts.step_size = 0.25; tc.Opts.max_arc = 60; tc.Opts.max_steps = 240;
             tc.Opts.min_length = 0; tc.Opts.seed_density = 1;
+            % The tests below pin the 'derivative' connection (central difference of the
+            % interpolated field), whose tolerances they were written for; the 'nodal'
+            % connection of the notes, the default, has its own tests at the end.
+            tc.Opts.mmf_connection = 'derivative';
         end
     end
 
@@ -502,6 +506,49 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyEqual(meta.mmf.seeds_alive, 1);
             tc.assertNumElements(T, 1);
             tc.verifyLessThan(tc.circleError(T{1}, tc.R0), 2e-5);
+        end
+    end
+    methods (Test)
+        function nodalConnectionIsTheDefault(tc)
+            here = fileparts(mfilename('fullpath'));
+            cfg = load_config_yaml(fullfile(fileparts(fileparts(here)), 'config', 'mmf_dti.yml'));
+            o = nim_config_to_options(cfg);
+            tc.verifyEqual(o.mmf_connection, 'nodal');
+            tc.verifyEqual(o.mmf_max_turn, 0);
+        end
+        function nodalConnectionFollowsTheCircle(tc)
+            % Connection computed at the voxel nodes (fourth-order differences of the dyadic)
+            % and interpolated: the circle is kept to the node-level accuracy, 2.6e-4 voxel
+            % over 60 voxels of arc with the spline kernel, and the curvature returned along
+            % the tract is 1/R0 to 0.1%.
+            o = tc.Opts; o.mmf_connection = 'nodal'; o.interp_method = 'spline';
+            o.trace = true; o.trace_max = 0;
+            evalc('[T, meta] = nim_tractography_mmf(tc.Nim, o);');
+            tc.assertNumElements(T, 1);
+            tc.verifyEqual(meta.mmf.connection, 'nodal');
+            tc.verifyLessThan(tc.circleError(T{1}, tc.R0), 1e-3);
+            k = meta.trace(1).forward.kappa; k = k(isfinite(k));
+            tc.verifyLessThan(max(abs(k * tc.R0 - 1)), 2e-3);
+        end
+        function nodalConnectionIsSignFree(tc)
+            % Flipping the arbitrary sign of v1 in half of the voxels changes nothing.
+            o = tc.Opts; o.mmf_connection = 'nodal';
+            evalc('T1 = nim_tractography_mmf(tc.Nim, o);');
+            nim = tc.Nim; flip = rand(size(nim.FA)) > 0.5;
+            for c = 1:3
+                v = nim.evec(:, :, :, c, 1); v(flip) = -v(flip); nim.evec(:, :, :, c, 1) = v;
+            end
+            evalc('T2 = nim_tractography_mmf(nim, o);');
+            tc.verifyEqual(size(T2{1}), size(T1{1}));
+            tc.verifyLessThan(max(abs(T2{1}(:) - T1{1}(:))), 1e-9);
+        end
+        function maxTurnOptionIsTheNotesBudget(tc)
+            % mmf.max_turn (radians per step) replaces the angle_max mapping: a 0.01 rad budget
+            % stops the circle (h*kappa = 0.25/15.5 = 0.016 rad) at its seed.
+            o = tc.Opts; o.mmf_connection = 'nodal'; o.mmf_max_turn = 0.01;
+            evalc('[T, meta] = nim_tractography_mmf(tc.Nim, o);');
+            tc.verifyTrue(isempty(T) || size(T{1}, 1) <= 3);
+            tc.verifyEqual(meta.mmf.max_turn_rad, 0.01);
         end
     end
 end

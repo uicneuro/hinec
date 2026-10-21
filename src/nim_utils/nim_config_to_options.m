@@ -141,6 +141,8 @@ function options = nim_config_to_options(config)
     options.mmf_mode           = t.mmf.mode;
     options.mmf_reanchor_tol   = t.mmf.reanchor_tol;
     options.mmf_gradient_delta = t.mmf.gradient_delta;
+    options.mmf_connection     = t.mmf.connection;
+    options.mmf_max_turn       = t.mmf.max_turn;
 
     % --- stitching ----------------------------------------------------------
     options.stitching       = t.stitching;

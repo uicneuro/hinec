@@ -282,6 +282,8 @@ function [groups, d] = options_dictionary()
     d.mmf_mode           = {'tractography.mmf.mode', 'mmf only: transport | reanchor | adaptive (how the carried frame relates to the data frame; advanceFrame ''Mode'')'};
     d.mmf_reanchor_tol   = {'tractography.mmf.reanchor_tol', 'mmf only: drift tolerance of the adaptive mode, radians'};
     d.mmf_gradient_delta = {'tractography.mmf.gradient_delta', 'mmf only: central-difference step (voxels) for the connection components'};
+    d.mmf_connection     = {'tractography.mmf.connection', 'mmf only: nodal (connection at the voxel nodes, interpolated) | derivative (central difference of the interpolated field)'};
+    d.mmf_max_turn       = {'tractography.mmf.max_turn', 'mmf only: MaxTurn, radians per step (0 = from angle_max)'};
     d.trace     = {'tractography.debug.trace', 'record a per-step trace (position, direction, FA, turn, stop reason) into meta.trace'};
     d.trace_max = {'tractography.debug.trace_max', 'how many seeds to trace, sampled evenly (0 = all)'};
     d.output_arc_step   = {'tractography.output.arc_step', 'step 6: resample saved tracks to this arc spacing (0 = keep every step)'};
@@ -298,7 +300,7 @@ function [groups, d] = options_dictionary()
     groups(end+1) = struct('title', 'ACT', 'fields', {{'act_enabled','wm_mask','gm_mask','csf_mask'}});
     groups(end+1) = struct('title', 'field construction (consumed in step 2, not by the tracker)', 'fields', ...
         {{'csd_lmax','csd_peaks_file','csd_max_peaks','csd_peak_thresh','csd_peak_min_sep','csd_n_iter'}});
-    groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_mode','mmf_reanchor_tol','mmf_gradient_delta'}});
+    groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_mode','mmf_reanchor_tol','mmf_gradient_delta','mmf_connection','mmf_max_turn'}});
     groups(end+1) = struct('title', 'stitching', 'fields', {{'stitching'}});
     groups(end+1) = struct('title', 'post-processing (steps 5-6, not read by the tracker)', 'fields', ...
         {{'include_roi','exclude_roi','roi_filter_mode','roi_filter_dilate','endpoints_in','contained_in','any_in', ...

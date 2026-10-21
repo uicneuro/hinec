@@ -30,8 +30,13 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %     w_1j,k = e_j . d e1/dx_k,  j = 2, 3   (the curvature components)
 %     w_23,k = 0                            (the twist is not a datum here)
 %
-% d e1/dx_k is a central difference of e1 of the interpolated field (sign
-% aligned, step 'mmf.gradient_delta' voxels), so the connection is that of
+% THE CONNECTION (mmf.connection). 'nodal' (default), the scheme of the moving
+% frames notes (Sec. 1, 7: diffvectomf -> Computeconnection -> interpGLL): the
+% connection is computed at the nodes (the voxel centres) from the nodal frame
+% vector v1 and INTERPOLATED between them with the kernel; see THE NODAL
+% CONNECTION below. 'derivative' (the adapter of 2026-10-20, kept to reproduce
+% its runs): d e1/dx_k is a central difference of e1 of the interpolated field
+% (sign aligned, step 'mmf.gradient_delta' voxels), so the connection is that of
 % the field the streamline trackers integrate: with the spline kernel a C2
 % field, with cubic or trilinear a field whose derivative jumps at the voxel
 % faces (where the exponential step is then only as accurate as any
@@ -134,6 +139,10 @@ end
 mode  = lower(char(string(o('mmf_mode', 'adaptive'))));
 rtol  = o('mmf_reanchor_tol', 1e-3);
 delta = o('mmf_gradient_delta', 1e-3);
+conn  = lower(char(string(o('mmf_connection', 'nodal'))));
+if ~any(strcmp(conn, {'nodal', 'derivative'}))
+    error('mmf:connection', 'nim_tractography_mmf: mmf.connection must be nodal or derivative, not ''%s''.', conn);
+end
 maxTurn = deg2rad(nim_angle_limit(options.angle_thresh, h));   % min(angle_max*h, 90) deg per step; Inf disables
 angle_off = ~isfinite(maxTurn);
 if angle_off
@@ -142,6 +151,9 @@ if angle_off
     % in one exponential step and the tract would retrace itself. A step turning by more than half a
     % turn is never resolved data, so a ceiling of pi stays; such a stop is reported as 'no_direction'.
     maxTurn = pi;
+end
+if o('mmf_max_turn', 0) > 0                     % the notes' MaxTurn, radians per step
+    maxTurn = o('mmf_max_turn', 0); angle_off = false;
 end
 smax  = o('max_arc', o('max_steps', 1000) * h);
 min_length     = o('min_length', 0);
@@ -182,6 +194,42 @@ end
 DI = cell(1, 6);
 for q = 1:6, DI{q} = griddedInterpolant(gv, Dc{q}, kernel, 'none'); end
 FAI = griddedInterpolant(gv, FAg, 'linear', 'none');      % FA linear: a stop test, not a field (see hinec)
+% THE NODAL CONNECTION (mmf.connection: nodal; MMFtractography_notes Sec. 1 and 7). As in the
+% suite (diffvectomf -> Computeconnection -> interpGLL), the connection is computed AT THE NODES
+% from the nodal frames and interpolated between them, never differentiated at the query point.
+% The nodes are the voxel centres and the nodal frame vector is the voxel's v1. Its derivative is
+% taken from the dyadic M = v1 v1' (as nim_dyadic_jacobian: dv1/dx_k = (dM/dx_k) v1, exact for
+% unit v1; fourth-order central differences of the voxel values, second order in the two outer
+% layers), which is free of the arbitrary voxel sign. With 'Twist' 'zero' the step needs the curvature rows w_1j,k = e_j . d e1/dx_k only, and
+% the nodal completion e2, e3 of DTI is arbitrary (reference-axis projection, which jumps), so the
+% quantity interpolated is the sign- and gauge-free nodal tensor
+%     T(a,b,k) = v1_a d(v1_b)/dx_k,
+% and at a query point with interpolated axis e1 the derivative is recovered as
+%     d e1_b/dx_k = sum_a e1_a T(a,b,k),     w_1j,k = e_j . d e1/dx_k,
+% with e_j the query frame. Where the nodal frames are smooth this is the componentwise
+% interpolation of w~_1j,k followed by the gauge of Sec. 5; it stays bounded where the axis turns
+% fast between voxels, unlike a derivative of the interpolated field.
+TI = {};
+if strcmp(conn, 'nodal')
+    vn = v1; vn(~isfinite(vn)) = 0;
+    nrm = sqrt(sum(vn .^ 2, 4)); ok = nrm > 0.5;
+    vn = vn ./ max(nrm, eps); vn(repmat(~ok, [1 1 1 3])) = 0;
+    J = nodal_jacobian(vn);                                        % [dims 3 3]: dv1_b/dx_k
+    TI = cell(3, 3, 3);
+    for a = 1:3
+        for b = 1:3
+            for k = 1:3
+                Tq = vn(:, :, :, a) .* J(:, :, :, b, k);
+                Tq(~ok | ~isfinite(Tq)) = 0;
+                if abs(upsample - 1) > 1e-9
+                    gi = griddedInterpolant({1:dims(1), 1:dims(2), 1:dims(3)}, Tq, kernel, 'none'); Tq = gi(GX, GY, GZ);
+                end
+                TI{a, b, k} = griddedInterpolant(gv, Tq, kernel, 'none');
+            end
+        end
+    end
+    clear J Tq vn
+end
 prop = o('propagation_mask', []);
 if ~isempty(prop)
     prop = logical(prop > 0);
@@ -197,7 +245,9 @@ fprintf('MMF: moving frames tractography (advanceFrame), order %d, mode %s%s, %s
 % functions, not nested ones: advanceFrame calls the handles from inside its own
 % loops, and nested functions would share this workspace).
 fld = struct('DI', {DI}, 'FAI', FAI, 'prop', prop, 'dims', dims, 'fa_min', termination_fa, 'delta', delta, ...
-             'angle_off', angle_off);
+             'angle_off', angle_off, 'conn', conn, 'TI', {TI});
+fprintf('MMF: connection %s (%s)\n', conn, ifelse(strcmp(conn, 'nodal'), ...
+    'computed at the voxel nodes, interpolated', sprintf('central difference %.2g voxel of the interpolated field', delta)));
 names = reason_names();
 
 % ---- seeds -------------------------------------------------------------------
@@ -283,7 +333,7 @@ meta.seed_index  = reshape(find(kept), 1, []);
 meta.seed_points = seed_points(kept, :);
 meta.n_seeds     = n_seeds;
 meta.mmf = struct('order', order, 'mode', mode, 'reanchor_tol', rtol, 'twist', 'zero', ...
-                  'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'kernel', kernel, ...
+                  'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'connection', conn, 'kernel', kernel, ...
                   'reanchored_fraction', n_re / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
                   'seeds_skipped', struct('reason', {reshape(names(has), [], 1)}, 'count', {skipped_cnt(has)}));
 tt = term(alive_seed, :); tt = tt(:); tt = tt(~cellfun(@isempty, tt));
@@ -372,6 +422,7 @@ function w = connection_at(X, fld)
 % principal axis (one-sided at a face of the volume), sign aligned; the
 % twist row w_23 is set to zero (the scheme runs with 'Twist' 'zero').
 % Non-finite where the point is invalid.
+if strcmp(fld.conn, 'nodal'), w = connection_nodal(X, fld); return; end
 n  = size(X, 1);
 E  = frames_at(X, fld);
 e1 = reshape(E(:, 1, :), n, 3); e2 = reshape(E(:, 2, :), n, 3); e3 = reshape(E(:, 3, :), n, 3);
@@ -392,6 +443,56 @@ for k = 1:3
     w(:, 1, 3, k) =  w13;  w(:, 3, 1, k) = -w13;
 end
 bad = any(~isfinite(reshape(w, n, [])), 2) | any(~isfinite(e1), 2);
+w(bad, :, :, :) = NaN;
+end
+
+function J = nodal_jacobian(e)
+% J(:,:,:,b,k) = d e_b / d x_k at the voxel nodes from the dyadic M = e e' (sign-free):
+% (dM/dx_k) e = de/dx_k for unit e. Fourth-order central differences of M along each axis,
+% second order in the two outer layers (MATLAB gradient there).
+dims = size(e); dims = dims(1:3);
+J = zeros([dims 3 3]);
+for a = 1:3
+    for b = a:3
+        Mab = e(:, :, :, a) .* e(:, :, :, b);
+        [g2, g1, g3] = gradient(Mab); g = {g1, g2, g3};
+        for k = 1:3
+            if dims(k) >= 5
+                % circshift(M, s, k) at index i holds M(i - s): (M(i-2) - 8M(i-1) + 8M(i+1) - M(i+2))/12
+                d4 = (circshift(Mab, 2, k) - 8 * circshift(Mab, 1, k) + 8 * circshift(Mab, -1, k) ...
+                      - circshift(Mab, -2, k)) / 12;
+                idx = repmat({':'}, 1, 3); idx{k} = 3:dims(k) - 2;
+                g{k}(idx{:}) = d4(idx{:});
+            end
+            J(:, :, :, a, k) = J(:, :, :, a, k) + g{k} .* e(:, :, :, b);
+            if b ~= a, J(:, :, :, b, k) = J(:, :, :, b, k) + g{k} .* e(:, :, :, a); end
+        end
+    end
+end
+end
+
+function w = connection_nodal(X, fld)
+% Connection of the query frames from the interpolated nodal tensor T (see THE NODAL CONNECTION).
+n  = size(X, 1);
+E  = frames_at(X, fld);
+e1 = reshape(E(:, 1, :), n, 3); e2 = reshape(E(:, 2, :), n, 3); e3 = reshape(E(:, 3, :), n, 3);
+w  = zeros(n, 3, 3, 3);
+ok = all(isfinite(e1), 2);
+xi = X(ok, :);
+for k = 1:3
+    de1 = zeros(nnz(ok), 3);                          % d e1 / dx_k at the query points
+    for b = 1:3
+        for a = 1:3
+            de1(:, b) = de1(:, b) + e1(ok, a) .* fld.TI{a, b, k}(xi(:, 1), xi(:, 2), xi(:, 3));
+        end
+    end
+    w12 = NaN(n, 1); w13 = NaN(n, 1);
+    w12(ok) = sum(e2(ok, :) .* de1, 2);
+    w13(ok) = sum(e3(ok, :) .* de1, 2);
+    w(:, 1, 2, k) =  w12;  w(:, 2, 1, k) = -w12;
+    w(:, 1, 3, k) =  w13;  w(:, 3, 1, k) = -w13;
+end
+bad = any(~isfinite(reshape(w, n, [])), 2) | ~ok;
 w(bad, :, :, :) = NaN;
 end
 
