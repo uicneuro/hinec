@@ -509,12 +509,22 @@ end
 tracking_start = tic;
 
 if use_parfor
+    % The interpolants travel to every worker inside nim, and a 'spline'
+    % griddedInterpolant computes its coefficients lazily, on its first query, and
+    % keeps them in the object. A copy that reaches a worker by serialisation, or a
+    % function by value, has none, and a copy that computes them inside a callee
+    % loses them when the callee returns: every direction lookup then rebuilt the
+    % spline of the whole volume (about 130 ms per RK4 step on the ISMRM grid,
+    % against 0.27 ms warm; scripts/bench_spline_callchain.m). So each worker builds
+    % one warm copy, once, and every iteration reads it. The tracks are unchanged.
+    nim_pool = parallel.pool.Constant(@() warm_interpolants(nim));
     parfor i = 1:num_seeds
         seed = seed_points(i, :);
+        nim_w = nim_pool.Value;
 
         % Track in both directions
-        [track_forward, step_timing_fwd, term_fwd, trc_f] = track_fiber_hinec(nim, seed, +1, options, angle_rate_deg_per_voxel, do_trace_all(i));
-        [track_backward, step_timing_bwd, term_bwd, trc_b] = track_fiber_hinec(nim, seed, -1, options, angle_rate_deg_per_voxel, do_trace_all(i));
+        [track_forward, step_timing_fwd, term_fwd, trc_f] = track_fiber_hinec(nim_w, seed, +1, options, angle_rate_deg_per_voxel, do_trace_all(i));
+        [track_backward, step_timing_bwd, term_bwd, trc_b] = track_fiber_hinec(nim_w, seed, -1, options, angle_rate_deg_per_voxel, do_trace_all(i));
         trace_fwd_all{i} = trc_f;
         trace_bwd_all{i} = trc_b;
 
@@ -567,7 +577,9 @@ if use_parfor
         end
     end
 else
-    % Serial fallback (no Parallel Computing Toolbox)
+    % Serial fallback (no Parallel Computing Toolbox). Warm the interpolants here,
+    % in this workspace, so the copies passed by value already carry them (see above).
+    nim = warm_interpolants(nim);
     for i = 1:num_seeds
         if mod(i, 100) == 0
             elapsed = toc(tracking_start);
@@ -1730,6 +1742,20 @@ na=norm(acc); if wsum>1e-9 && na>1e-6, d=acc/na; ok=true; end
 end
 
 % initial reference where no incoming tangent exists: plain v1 (DTI) / dominant peak (CSD)
+function nim = warm_interpolants(nim)
+% Query every griddedInterpolant field of nim once, at the centre of its grid, so that
+% a 'spline' interpolant computes and stores its coefficients in THIS copy.
+f = fieldnames(nim);
+for q = 1:numel(f)
+    gi = nim.(f{q});
+    if isa(gi, 'griddedInterpolant')
+        c = cellfun(@(g) g(ceil(numel(g) / 2)), gi.GridVectors, 'UniformOutput', false);
+        gi(c{:});
+        nim.(f{q}) = gi;
+    end
+end
+end
+
 function d=plain_v1_h(nim,pos)
 d=[nim.v1_x_interp(pos(1),pos(2),pos(3)),nim.v1_y_interp(pos(1),pos(2),pos(3)),nim.v1_z_interp(pos(1),pos(2),pos(3))];
 if any(isnan(d))||norm(d)<1e-6, d=[]; else, d=d/norm(d); end
