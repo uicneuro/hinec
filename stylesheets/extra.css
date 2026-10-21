@@ -1,0 +1,48 @@
+/* Team list on ABOUT.md: one person per row, headshot left, affiliations
+   right (one per line), so nothing wraps into ragged paragraphs. */
+.md-typeset .team > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.md-typeset .team > ul > li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 1.4rem;
+  align-items: start;
+  margin: 0;
+  padding: 1rem 0;
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+}
+.md-typeset .team > ul > li:last-child {
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+.md-typeset .team > ul > li > p {
+  margin: 0.55em 0;
+  line-height: 1.5;
+}
+.md-typeset .team > ul > li > p:nth-child(2) {
+  margin-top: 0.15em;
+}
+.md-typeset .team > ul > li > p:first-child {
+  grid-column: 1;
+  grid-row: 1 / span 8;
+  margin: 0;
+}
+.md-typeset .team > ul > li > p:not(:first-child) {
+  grid-column: 2;
+}
+.md-typeset .team-photo {
+  display: block;
+  width: 110px;
+  height: 110px;
+  margin: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .team > ul > li { grid-template-columns: 1fr; }
+  .md-typeset .team > ul > li > p:first-child { grid-row: auto; margin-bottom: 0.6rem; }
+  .md-typeset .team > ul > li > p:not(:first-child) { grid-column: 1; }
+}
