@@ -120,10 +120,18 @@ if [[ ${#sets[@]} -gt 0 ]]; then
     override_mcmd="config = nim_config_apply_overrides(config, {${set_list}}); "
 fi
 
-# New run dir (named by config [+ overrides], matching run_hinec convention)
-timestamp=$(date +"%Y%m%d_%H%M%S")
-run_name="run_${timestamp}_${cfg_name}${name_suffix}"
-run_dir="hinec_runs/${run_name}"
+# New run dir (named by config [+ overrides], matching run_hinec convention).
+# Claimed with a plain mkdir, which is atomic: two launches with the same config in the same
+# second would otherwise share one directory and overwrite each other's outputs. A taken name
+# waits for the next second.
+mkdir -p hinec_runs
+while :; do
+    timestamp=$(date +"%Y%m%d_%H%M%S")
+    run_name="run_${timestamp}_${cfg_name}${name_suffix}"
+    run_dir="hinec_runs/${run_name}"
+    mkdir "${run_dir}" 2>/dev/null && break
+    sleep 1
+done
 mkdir -p "${run_dir}/logs" "${run_dir}/intermediate" "${run_dir}/output" "${run_dir}/tractography/diagnostics"
 cp "$cfg" "${run_dir}/config.yml"
 [[ ${#sets[@]} -gt 0 ]] && printf '%s\n' "${sets[@]}" > "${run_dir}/overrides.txt"
