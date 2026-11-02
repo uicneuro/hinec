@@ -1,0 +1,26 @@
+# MMF-4s: moving frames tractography that marches its connection through degenerate
+# data. As mmf_dti_hold, with the curvature and the fan-out of the last trusted nodes
+# carried through the zone by the flatness law of the connection instead of held
+# constant: exact on circles, logarithmic spirals and rays, and turning the curvature
+# by the torsion on a helix. See docs/MMF_TRACTOGRAPHY.md.
+#
+# ./bin/run_tractography.sh mmf_dti_march --score
+#
+# Canonical nested schema. Only non-default values appear here;
+# everything else comes from nim_config_schema defaults.
+# Any parameter can be overridden on the CLI: --set <path>=<value>
+
+tractography:
+  algorithm: mmf
+  integrator:
+    method: rk4
+    step: 0.2
+  interpolation:
+    method: spline        # C2 kernel: the connection is a derivative of the field
+  termination:
+    angle_max: 225
+    max_arc: 600
+  mmf:
+    mode: adaptive
+    reanchor_tol: 0.2
+    hold: march

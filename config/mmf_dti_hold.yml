@@ -1,0 +1,27 @@
+# MMF-4h: moving frames tractography that holds its connection through degenerate
+# data. Where the tensor is a crossing fitted as a pancake, the tract coasts on the
+# mean connection of its last trusted nodes instead of reading the data, re-anchors
+# on leaving the zone if the data agree, and stops otherwise. The rest is mmf_dti,
+# with reanchor_tol 0.2 rad, which trusts the transported heading further: see the
+# scores against the ISMRM 2015 ground truth in docs/MMF_TRACTOGRAPHY.md.
+#
+# ./bin/run_tractography.sh mmf_dti_hold --score
+#
+# Canonical nested schema. Only non-default values appear here;
+# everything else comes from nim_config_schema defaults.
+# Any parameter can be overridden on the CLI: --set <path>=<value>
+
+tractography:
+  algorithm: mmf
+  integrator:
+    method: rk4
+    step: 0.2
+  interpolation:
+    method: spline        # C2 kernel: the connection is a derivative of the field
+  termination:
+    angle_max: 225
+    max_arc: 600
+  mmf:
+    mode: adaptive
+    reanchor_tol: 0.2
+    hold: hold

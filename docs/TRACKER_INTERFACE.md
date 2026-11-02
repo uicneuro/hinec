@@ -150,6 +150,9 @@ same for the fields a tracker is expected to honour.
 | `trace`, `trace_max` | `debug.*` | if you support tracing, record a per-step trace for `trace_max` evenly spaced seeds into `meta.trace` (see `nim_tractography_hinec` for the record layout and `docs/CONVERGENCE.md` for what it is used for) |
 | `mmf_mode` | `mmf.mode` | how the carried frame relates to the data frame (`transport`, `reanchor`, `adaptive`); `mmf` only |
 | `mmf_reanchor_tol` | `mmf.reanchor_tol` | drift (radians) between the carried and the data's `e1` at which the adaptive mode re-anchors; `mmf` only |
+| `mmf_hold` | `mmf.hold` | how a tract crosses degenerate data: `none`, `hold` (MMF-4h), `march` (MMF-4s); reads `nim.eval`; `mmf` only |
+| `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard` | `mmf.*` | confidence floor, trusted nodes of the ring, erosion radius (voxels); `mmf` only |
+| `mmf_coast_max`, `mmf_exit_tol`, `mmf_exit_delay` | `mmf.*` | longest coast (voxels of arc), largest drift on leaving the zone (radians), arc of coast before that test (voxels); `mmf` only |
 | `mmf_gradient_delta` | `mmf.gradient_delta` | central-difference step (voxels) for the derivative of the interpolated principal axis that forms the connection; `mmf` only |
 
 ### Present but not yours
@@ -276,16 +279,23 @@ ordinary finite N-by-3 voxel-coordinate polylines at the output boundary.
 `algorithm: mmf` dispatches to `nim_tractography_mmf(nim, options)`, which
 advances a carried orthonormal frame with the connection of the data's frame
 field through the exponential step of `advanceFrame.m`. It reads
-`options.mmf_mode`, `options.mmf_reanchor_tol` and `options.mmf_gradient_delta`
-(the `mmf.*` group), runs on `field: dti` only (`csd` is rejected), maps
+`options.mmf_mode`, `options.mmf_reanchor_tol`, `options.mmf_gradient_delta`,
+`options.mmf_connection`, `options.mmf_max_turn` and the hold scheme's
+`options.mmf_hold`, `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard`, `mmf_coast_max`,
+`mmf_exit_tol` and `mmf_exit_delay` (the `mmf.*` group; the scheme also reads
+`nim.eval`), runs on
+`field: dti` only (`csd` is rejected), maps
 `integrator` `euler` / `rk2` / `rk4` to Lie group order 1 / 2 / 4 (`rkf45` is
 rejected), and ignores the ACT masks. The angle budget goes through
 `nim_angle_limit` like everywhere else and bounds the rotation of a step and
 the turn of the heading as the data see it, in every mode. Besides the contract fields, `meta` carries
-`termination` (reason / count over the half-tracks tracked), `mmf` (the scheme
-settings, the fraction of re-anchored steps, `seeds_alive` and the
+`termination` (reason / count over the half-tracks tracked, `coast`, `exit` and
+`focus` among them with the hold scheme), `mmf` (the scheme settings, the fractions
+of re-anchored and coasted steps, the zone's share of the tissue voxels,
+`seeds_alive` and the
 `seeds_skipped` reasons) and, with `debug.trace`, a per-step `trace` whose
 records have the hinec layout above (`pos`, `dir`, `fa`, `h`, `chord`, `turn`,
 `flip`, `n_steps`, `termination`; `flip` is always false) plus `drift`,
-`reanchored`, `kappa` and `s`, so `nim_track_diagnose` reads them. See
+`reanchored`, `kappa`, `s`, `coasted` and `confidence`, so `nim_track_diagnose`
+reads them. See
 [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md).

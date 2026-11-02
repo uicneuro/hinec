@@ -98,7 +98,8 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 transported e_1 and the data's e_1 (modulo sign) at the
 %                 end of the step. 0 re-anchors after every step like
 %                 'reanchor', Inf never, like 'transport'. Ignored by the
-%                 other modes. The default is an order of magnitude below
+%                 other modes, and the default of 'ExitTol' of the hold
+%                 scheme. The default is an order of magnitude below
 %                 the heading error of a one-voxel CF4 step across a bend
 %                 (~1e-2 rad) and above the step-to-step wobble of the
 %                 interpolated test data at normal steps, so it fires on
@@ -128,6 +129,137 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %       'Frame0'  explicit seed frames, [m x spacedim] (all seeds) or
 %                 [nseed x m x spacedim], used instead of the data frame
 %                 at the seed (dir0 is then ignored)
+%       'Confidence'
+%                 the MMF-4h hold scheme (default [], off): a handle
+%                 c = cl(X) returning the confidence of the data at the rows
+%                 of X [nq x expdim] (for DTI the linear shape measure
+%                 CL = (lambda_1 - lambda_2)/lambda_1, or the anisotropy of
+%                 a crossing's averaged tensor), or a nodal field of the
+%                 layout [N+1 N+1 Nx Ny] / [N+1 N+1 N+1 Nx Ny Nz] of the
+%                 domain. Where c < 'HoldMin' the data are degenerate (a
+%                 crossing fitted as a pancake): at such a stage point the
+%                 connection is NOT read from the data but HELD, Omega_hold
+%                 = the running mean of the connection at the last 'HoldK'
+%                 TRUSTED nodes (outside the zone, with rotation rate theta
+%                 <= 'HoldCap'; a node of non-finite confidence and finite
+%                 connection is one), taken in the carried frame - the only frame in
+%                 which "the same curvature as before" is defined - with
+%                 its twist Omega_23 set to zero ('HoldTwist' 'zero',
+%                 default) or kept ('hold'), or with its curvature set to
+%                 zero as well ('HoldCurvature' 'zero': a straight coast;
+%                 default 'hold'). Omega being constant along the coast the
+%                 exponential step is exact there: the pose follows the
+%                 osculating circle of its last trusted pose (or the
+%                 osculating helix with the twist held), through the
+%                 degenerate zone, and nothing in the integrator changes.
+%                 Without a trusted node yet the coast is straight. In the
+%                 re-anchoring modes the frame is never re-anchored at a
+%                 node with c < 'HoldMin', and the heading test of
+%                 'MaxTurn' against the data's e_1 is not applied there (the
+%                 data's axis means nothing in the zone). On leaving the
+%                 zone (a node with c >= 'HoldMin' after one below) the
+%                 frame is re-anchored only if its drift is at most
+%                 'ExitTol'; a larger drift means the coast has left the
+%                 bundle and the tract stops ('exit'; a data direction more
+%                 than 'MaxTurn' from the heading at the start of the step
+%                 is already a 'turn', and in 'transport' mode there is
+%                 neither the re-anchoring nor the test); with 'ExitDelay' n > 0
+%                 the coast goes on for n more steps beyond the zone's edge,
+%                 on the held connection, and the drift is tested at the end
+%                 of them, where the data's direction is read clear of the
+%                 swing ahead of a degenerate zone (these nodes count as
+%                 coasted in info.coasted, do not enter the ring and do not
+%                 count towards 'CoastMax'; 2026-11-02). A coast of more than
+%                 'CoastMax' consecutive steps started in the zone stops the
+%                 tract ('coast'; default Inf). A non-finite confidence is
+%                 no data: the connection is used as it is (NaN stops the
+%                 tract as usual), during the steps of 'ExitDelay' as well.
+%                 The ring is kept in the carried frame, so a re-anchoring
+%                 with three frame vectors, which changes its normal plane,
+%                 turns the ring with it. The nodes in the zone are reported in
+%                 info.coasted, the confidence in info.confidence and the
+%                 Omega used at every node in info.held.
+%                 MMF-4s ('HoldCurvature' 'march'): instead of being held
+%                 constant, the curvature kappa =
+%                 Omega_12 and the transverse component sigma = w_12(e_2) =
+%                 div e_1 of the data's connection (the fan-out of the
+%                 fibres, which transports the axon density lambda by
+%                 d ln lambda/ds = -sigma) are MARCHED through the zone,
+%                   d sigma/ds = -sigma^2 + div(kappa e_2),  d kappa/ds = -kappa sigma,
+%                 the first the flatness law of the planar connection, the
+%                 second the closure div(kappa e_1) = 0, which scales the
+%                 curvature with the fan-out, from their means over the
+%                 ring of trusted nodes, anchored
+%                 at the mean arc length of those nodes. The divergence
+%                 term D = div(kappa e_2) = d kappa/d e_2 - kappa^2, which
+%                 the zone cannot give, is zero ('HoldDivergence' 'zero',
+%                 default) or held at its mean over the ring ('hold': at
+%                 every trusted node D is measured by central differences
+%                 of the data's curvature along e_2 over the step h, and
+%                 left out where a probe falls into the zone). With
+%                 D = 0 the ratio kappa/sigma is constant along the coast,
+%                 kappa(s) = kappa_0/u and sigma(s) = sigma_0/u with u = 1
+%                 + sigma_0 (s - s_0): the coast is a logarithmic spiral (a
+%                 circle for sigma_0 = 0, a straight ray for kappa_0 = 0),
+%                 exact for the fields of concentric circles, of
+%                 logarithmic spirals and of rays through a point; with D
+%                 held, u'' = D u (u a cosh or a cos). The connection so
+%                 prescribed along the coast is evaluated at the stage
+%                 points of the step, so the CF4 integrates it to fourth
+%                 order. A coast whose u falls below 0.1 (converging fibres
+%                 approaching the focus of their fan, where the marched
+%                 curvature would exceed ten times the trusted one) stops
+%                 the tract ('focus'). The transverse component used at
+%                 every node - the data's at a trusted node, the held mean
+%                 or the marched value in the zone - is returned in
+%                 info.spread (for every hold mode).
+%                 With three frame vectors (m = 3; 2026-11-02) the law is
+%                 the matrix one. In the carried frame, rotation-minimizing
+%                 along the coast, the curvature vector a = (Omega_12,
+%                 Omega_13) and the transverse block B_pq = e_p . d e_1/d e_q
+%                 (p, q = 2, 3) of the data's connection obey
+%                   dB/ds = -B^2 + D,   da/ds = -B' a,
+%                 the first the flatness of the connection (the Riccati
+%                 equation of the congruence; its trace is Raychaudhuri's),
+%                 the second the closure d(a^flat) = 0 that div(kappa e_1) =
+%                 0 is for a planar field. D is taken zero, so that with
+%                 U = I + (s - s_0) B_0, B = B_0 U^-1 and a = U^-T a_0: the
+%                 fan-out across the curvature (a fibre bundle turned about
+%                 an axis) leaves the curvature alone, and a helix's B_0
+%                 turns a by its torsion to first order. u = det U, the
+%                 inverse of the density the coast carries, is 1 + sigma_0
+%                 (s - s_0) on a planar field and its u < 0.1 stops the
+%                 tract ('focus'); info.spread is the trace of B. The law
+%                 holds in a rotation-minimizing frame, so m = 3 needs 'Twist'
+%                 'zero'; 'HoldTwist' and 'HoldDivergence' 'hold' are not
+%                 defined for it.
+%       'HoldMin' confidence below which the data are degenerate (default 0.2)
+%       'HoldK'   length of the running mean of trusted connections (default 3)
+%       'HoldCap' largest rotation rate theta of a trusted connection that
+%                 enters the mean (default Inf)
+%       'CoastMax'
+%                 largest number of consecutive steps started in the zone
+%                 (default Inf)
+%       'ExitTol' largest drift, in radians, of a tract leaving the zone
+%                 (default 'ReanchorTol'). Trusted tracking and this test
+%                 want different things of noisy data: a tolerance small
+%                 enough to keep to the data, and one above the disagreement
+%                 of neighbouring voxels.
+%       'ExitDelay'
+%                 steps of coast beyond the zone's edge before the exit
+%                 test (default 0: the test at the first trusted node; in
+%                 'transport' mode the coast is extended the same way and
+%                 no test is applied)
+%       'HoldTwist', 'HoldCurvature'
+%                 'zero' | 'hold' for the twist (default 'zero') and
+%                 'hold' | 'zero' | 'march' for the curvature (default
+%                 'hold') of the held connection; 'march' is the MMF-4s
+%                 scheme described under 'Confidence'
+%       'HoldDivergence'
+%                 'zero' (default) | 'hold': the divergence term of the
+%                 march of MMF-4s, zero or held at its mean over the
+%                 trusted nodes of the ring (needs the data frames mf;
+%                 m = 2 only)
 %       'MaxTurn' largest rotation of the frame allowed in one step, in
 %                 radians (default 0.5): a tract stops, at its current
 %                 point, before a step in which h*theta exceeds it at any
@@ -169,7 +301,10 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                        on the boundary), 'length' (reached smax), 'turn'
 %                        (the next step would turn by more than MaxTurn,
 %                        or the data's e_1 at its end is more than MaxTurn
-%                        from the heading at its start),
+%                        from the heading at its start), 'coast', 'exit'
+%                        and 'focus' (the hold scheme: coast cap, the zone
+%                        left with a drift above ExitTol, or the march
+%                        of MMF-4s reaching the focus of its fan),
 %                        'nan' (the connection is not finite at the next
 %                        step); for 'turn' and 'nan' the last point is the
 %                        last admissible integration node
@@ -188,6 +323,21 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                        the transported one; false at the seed. Like the
 %                        frame, drift and reanchored at a clipped boundary
 %                        point refer to the uncut end of the last step.
+%               coasted, confidence, held
+%                        the hold scheme (see 'Confidence'): per point,
+%                        whether the node lies in the zone, the confidence
+%                        there (NaN without the scheme) and the Omega used
+%                        at the node [npts x m x m] (NaN at a clipped point,
+%                        empty without the scheme)
+%               spread   cell, the transverse component sigma = w_12(e_2)
+%                        [+ w_13(e_3)] = div e_1 of the data's connection
+%                        at the points along the direction of travel (the
+%                        data's frame aligned with the carried one; the
+%                        carried e_2 when mf is []): the data's value at a
+%                        trusted node, the held mean of the ring or the
+%                        marched value (MMF-4s) at a node in the zone; NaN
+%                        at a clipped point and without the hold scheme
+%               hold     the hold options (on = false without 'Confidence')
 %               order, mode, twist, maxTurn, reanchorTol (the options given)
 %
 %   Examples
@@ -213,6 +363,13 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %   bounds the turn of the heading as the data see it (the data's e_1 at the
 %   end of a step against the heading at its start), in every mode, so that a
 %   re-anchoring cannot exceed the budget; drift is evaluated in every mode.
+%   The MMF-4h hold scheme ('Confidence' and the 'Hold*' options, 2026-10-26)
+%   coasts through degenerate data on the held connection of the last
+%   trusted nodes; MMF-4s ('HoldCurvature' 'march', 2026-10-30) marches the
+%   curvature and the transverse component through the zone by the flatness
+%   law of the planar connection instead, and info.spread was added; with
+%   three frame vectors by the matrix law of the flat connection since
+%   2026-11-02.
 
 %% --- options --------------------------------------------------------------
 order   = 4;
@@ -221,6 +378,16 @@ twist   = 'data';
 frame0  = [];
 maxTurn = 0.5;
 reanchorTol = 1e-3;
+exitTol    = [];             % hold scheme: the test on leaving the zone ([]: reanchorTol)
+confidence = [];             % the hold scheme: confidence of the data (handle or nodal field)
+holdMin    = 0.2;
+holdK      = 3;
+holdCap    = Inf;
+coastMax   = Inf;
+exitDelay  = 0;              % hold scheme: steps of coast beyond the zone's edge before the exit test
+holdTwist  = 'zero';
+holdCurv   = 'hold';
+holdDiv    = 'zero';         % MMF-4s: the divergence term of the march
 if mod(numel(varargin), 2) ~= 0
     error('advanceFrame:badOptions', 'Options must come in name/value pairs.');
 end
@@ -248,6 +415,35 @@ for n = 1:2:numel(varargin)
         case 'maxturn'
             validateattributes(val, {'numeric'}, {'scalar', 'real', 'positive'}, 'advanceFrame', '''MaxTurn''');
             maxTurn = double(val);
+        case 'confidence'
+            if ~(isempty(val) || isa(val, 'function_handle') || isnumeric(val))
+                error('advanceFrame:badOptions', '''Confidence'' must be a function handle, a nodal field or [].');
+            end
+            confidence = val;
+        case 'holdmin'
+            validateattributes(val, {'numeric'}, {'scalar', 'real', 'nonnan'}, 'advanceFrame', '''HoldMin''');
+            holdMin = double(val);
+        case 'holdk'
+            validateattributes(val, {'numeric'}, {'scalar', 'integer', 'positive'}, 'advanceFrame', '''HoldK''');
+            holdK = double(val);
+        case 'holdcap'
+            validateattributes(val, {'numeric'}, {'scalar', 'real', 'positive', 'nonnan'}, 'advanceFrame', '''HoldCap''');
+            holdCap = double(val);
+        case 'coastmax'
+            validateattributes(val, {'numeric'}, {'scalar', 'real', 'nonnegative', 'nonnan'}, 'advanceFrame', '''CoastMax''');
+            coastMax = double(val);
+        case 'exittol'
+            validateattributes(val, {'numeric'}, {'scalar', 'real', 'nonnegative', 'nonnan'}, 'advanceFrame', '''ExitTol''');
+            exitTol = double(val);
+        case 'exitdelay'
+            validateattributes(val, {'numeric'}, {'scalar', 'integer', 'nonnegative'}, 'advanceFrame', '''ExitDelay''');
+            exitDelay = double(val);
+        case 'holdtwist'
+            holdTwist = validatestring(val, {'zero', 'hold'}, 'advanceFrame', '''HoldTwist''');
+        case 'holdcurvature'
+            holdCurv = validatestring(val, {'hold', 'zero', 'march'}, 'advanceFrame', '''HoldCurvature''');
+        case 'holddivergence'
+            holdDiv = validatestring(val, {'zero', 'hold'}, 'advanceFrame', '''HoldDivergence''');
         otherwise
             error('advanceFrame:badOptions', 'Unknown option ''%s''.', char(name));
     end
@@ -302,6 +498,23 @@ end
 if isempty(evalMF) && isempty(frame0)
     error('advanceFrame:noFrames', 'Give the data frames mf or the seed frames ''Frame0''.');
 end
+if isa(confidence, 'function_handle')
+    evalCL = confidence;
+elseif isnumeric(confidence) && ~isempty(confidence)
+    gdim = ndims(confidence) / 2;                % 2: [N+1 N+1 Nx Ny], 3: [N+1 N+1 N+1 Nx Ny Nz]
+    if gdim ~= expdim
+        error('advanceFrame:badOptions', ...
+            '''Confidence'' is a nodal field of a %d-D domain, but the seeds have %d coordinates.', gdim, expdim);
+    end
+    if gdim == 2
+        evalCL = @(X) interpGLL(confidence, dom, X(:,1), X(:,2));
+    else
+        evalCL = @(X) interpGLL(confidence, dom, X(:,1), X(:,2), X(:,3));
+    end
+else
+    evalCL = [];
+end
+useHold = ~isempty(evalCL);
 if any(strcmp(mode, {'reanchor', 'adaptive'})) && isempty(evalMF)
     error('advanceFrame:noFrames', '''Mode'', ''%s'' needs the data frames mf.', mode);
 end
@@ -353,6 +566,20 @@ end
 dropTwist = strcmp(twist, 'zero') && m == 3;
 useGauge  = ~isempty(evalMF);
 omegaFcn  = @(X, E) connectionMatrix(X, E, evalW, evalMF, useGauge, expdim, m, dropTwist);
+marchHold = useHold && strcmp(holdCurv, 'march');    % MMF-4s
+if marchHold && m == 3 && (~dropTwist || strcmp(holdTwist, 'hold') || strcmp(holdDiv, 'hold'))
+    error('advanceFrame:badOptions', ['''HoldCurvature'' ''march'' (MMF-4s) with 3 frame vectors needs a rotation-minimizing ' ...
+        'frame and the divergence term zero: use ''Twist'' ''zero''; ''HoldTwist'' and ''HoldDivergence'' ''hold'' are not defined for it.']);
+end
+if isempty(exitTol)
+    exitTol = reanchorTol;
+end
+holdDivOn = marchHold && strcmp(holdDiv, 'hold');
+if holdDivOn && isempty(evalMF)
+    error('advanceFrame:badOptions', '''HoldDivergence'' ''hold'' needs the data frames mf.');
+end
+uMin     = 0.1;                                       % MMF-4s: the coast stops ('focus') where u falls below this (kappa_0/kappa for m = 2, det U for m = 3)
+sigmaFcn = @(X, E) transverseOf(X, E, evalW, evalMF, expdim, m, h, holdDivOn, evalCL, holdMin);
 
 %% --- march all seeds together ------------------------------------------------
 X = [seeds, zeros(nseed, spacedim - expdim)];
@@ -364,11 +591,29 @@ turn    = cell(nseed, 1);
 drift   = cell(nseed, 1);                   % heading drift of the transported frame per point
 reanch  = cell(nseed, 1);                   % whether the stored frame was re-anchored to the data
 stop    = repmat({'length'}, nseed, 1);
+coasted = cell(nseed, 1);                   % hold scheme: the node is in the degenerate zone
+confid  = cell(nseed, 1);                   % hold scheme: confidence at the points
+held    = cell(nseed, 1);                   % hold scheme: the Omega used at the node [npts x m x m]
+hbuf    = NaN(nseed, holdK, m, m);          % hold scheme: the last holdK trusted connections (ring)
+sbuf    = NaN(nseed, holdK, m - 1, m - 1);  % hold scheme: the transverse block of the connection at the ring's nodes (m = 2: sigma)
+dbuf    = NaN(nseed, holdK);                % MMF-4s: the divergence term D = div(kappa e_2) at the ring's nodes
+abuf    = NaN(nseed, holdK);                % hold scheme: the arc length of the ring's nodes
+spread  = cell(nseed, 1);                   % the transverse component used at the nodes
+hcount  = zeros(nseed, 1);
+coast   = zeros(nseed, 1);                  % consecutive steps started in the zone
+grace   = zeros(nseed, 1);                  % steps of coast left beyond the zone's edge ('ExitDelay')
+if useHold
+    c0 = evalCL(X(:, 1:expdim));
+else
+    c0 = NaN(nseed, 1);
+end
 for k = 1:nseed
     tracts{k} = X(k, :);
     frames{k} = E(k, :, :);
     drift{k}  = 0;
     reanch{k} = false;
+    confid{k} = c0(k);
+    coasted{k} = useHold && isfinite(c0(k)) && c0(k) < holdMin;
 end
 active = true(nseed, 1);
 nstep  = ceil(smax / h);
@@ -379,10 +624,41 @@ for n = 1:nstep
     end
     Xa = X(idx, :);
     Ea = E(idx, :, :);
-    [Xn, En, Om1, maxRot] = lieStep(Xa, Ea, h, order, omegaFcn);
+    fo = false(numel(idx), 1);                  % MMF-4s: rows whose coast reaches the focus of its fan
+    if useHold
+        sA = (n - 1) * h;                       % arc length of the step's start node
+        [sgM, dvM, blM] = sigmaFcn(Xa, Ea);     % the data's transverse component (and block, divergence term) at the start nodes
+        [Om0, bl0, dv0, sb0, sg0] = ringMeans(hbuf(idx, :, :, :), sbuf(idx, :, :, :), dbuf(idx, :), abuf(idx, :), hcount(idx), m, holdTwist, holdCurv);
+        if marchHold                            % the connection prescribed along the coast, stage by stage
+            holdOm = @(c) marchedOmega(Om0, bl0, dv0, sA + c * h - sb0, uMin);
+            [~, sgS] = marchedOmega(Om0, bl0, dv0, sA - sb0, uMin);           % sigma marched to the start node
+            [~, ~, uE] = marchedOmega(Om0, bl0, dv0, sA + h - sb0, uMin);     % u at the end node
+        else
+            holdOm = Om0;  sgS = sg0;  uE = ones(numel(idx), 1);
+        end
+        forcedS = grace(idx) > 0;               % rows still coasting beyond the zone's edge ('ExitDelay')
+        [Xn, En, Om1, maxRot, zoneS] = lieStep(Xa, Ea, h, order, omegaFcn, evalCL, holdMin, holdOm, expdim, forcedS);
+        zoneD = zoneS & ~forcedS;               % the start node is degenerate by the confidence (counts towards 'CoastMax')
+        cE = evalCL(Xn(:, 1:expdim));           % confidence at the end of the step
+        zoneC = isfinite(cE) & cE < holdMin;    % the end node is degenerate by the confidence
+        g = grace(idx);                         % 'ExitDelay': the coast goes on beyond the zone's edge
+        g(zoneS & ~zoneC & g == 0) = exitDelay + 1;      % the edge is reached: exitDelay more steps of coast
+        g = max(g - 1, 0);                      % one of them spent
+        g(zoneC) = 0;                           % back in the degenerate zone
+        grace(idx) = g;
+        zoneE = zoneC | g > 0;                  % the end node still coasts
+        sgS(~zoneS) = sgM(~zoneS);              % the transverse component used at the start node: the data's where trusted
+        fo = marchHold & zoneE & uE < uMin;
+    else
+        [Xn, En, Om1, maxRot] = lieStep(Xa, Ea, h, order, omegaFcn);
+        zoneS = false(numel(idx), 1);  zoneE = zoneS;  zoneD = zoneS;  cE = NaN(numel(idx), 1);
+        sgS = NaN(numel(idx), 1);
+    end
+    Eb = En;                                    % the transported frames, before any re-anchoring
     dr = NaN(numel(idx), 1);                    % drift of the transported heading at Xn
     dt = NaN(numel(idx), 1);                    % turn of the heading over the step as the data see it
     re = false(numel(idx), 1);                  % rows whose frame is re-anchored at Xn
+    ex = false(numel(idx), 1);                  % rows leaving the zone with a drift above the tolerance
     if ~isempty(evalMF)
         Et = evalMF(Xn(:, 1:expdim));           % the data frame at the end of the step
         dr = headingAngle(En, Et);              % transported e_1 at Xn against the data's e_1 there
@@ -390,6 +666,12 @@ for n = 1:nstep
         switch mode
             case 'reanchor',  re = isfinite(dr);            % after every step (where there is a data frame)
             case 'adaptive',  re = dr >= reanchorTol;       % only where the heading has drifted
+        end
+        if useHold && ~strcmp(mode, 'transport')
+            leaving = (zoneS | forcedS) & ~zoneE;   % back in trusted data: re-anchor only if the drift is small
+            re(leaving) = isfinite(dr(leaving)) & dr(leaving) <= exitTol;
+            ex(leaving) = dr(leaving) > exitTol;
+            re(zoneE) = false;                  % never in the zone
         end
         En = reanchorRows(En, Et, re);
     end
@@ -399,20 +681,48 @@ for n = 1:nstep
         kappa{k}(end+1, 1) = ka(q);                                    %#ok<AGROW>
         tau{k}(end+1, 1)   = ta(q);                                    %#ok<AGROW>
         turn{k}(end+1, 1)  = h * th(q);                                %#ok<AGROW>
+        if useHold
+            held{k}(end+1, :, :) = Om1(q, :, :);                       %#ok<AGROW>
+            spread{k}(end+1, 1) = sgS(q);                              %#ok<AGROW>
+            if zoneD(q)                                                % consecutive steps started in the degenerate zone
+                coast(k) = coast(k) + 1;
+            elseif ~forcedS(q)                                         % the steps of 'ExitDelay' neither count nor reset
+                coast(k) = 0;
+            end
+            if ~zoneS(q) && ~forcedS(q) && isfinite(maxRot(q)) && th(q) <= holdCap   % a trusted node enters the ring
+                slot = mod(hcount(k), holdK) + 1;
+                hbuf(k, slot, :, :) = Om1(q, :, :);
+                sbuf(k, slot, :, :) = blM(q, :, :);  dbuf(k, slot) = dvM(q);  abuf(k, slot) = sA;
+                hcount(k) = hcount(k) + 1;
+            end
+        end
         if ~isfinite(maxRot(q))                                        % the step is not taken:
             stop{k}   = 'nan';                                         % connection not finite
             active(k) = false;
         elseif maxRot(q) > maxTurn                                     % the step is not taken:
             stop{k}   = 'turn';                                        % too large a rotation
             active(k) = false;
-        elseif dt(q) > maxTurn                                         % the step is not taken: the data's
+        elseif ~zoneE(q) && dt(q) > maxTurn                            % the step is not taken: the data's
             stop{k}   = 'turn';                                        % e_1 at its end is more than MaxTurn
             active(k) = false;                                         % from the heading at its start
+        elseif useHold && coast(k) > coastMax                          % the step is not taken: coasted too long
+            stop{k}   = 'coast';
+            active(k) = false;
+        elseif ex(q)                                                   % the step is not taken: the coast has
+            stop{k}   = 'exit';                                        % left the bundle
+            active(k) = false;
+        elseif fo(q)                                                   % the step is not taken: the march of
+            stop{k}   = 'focus';                                       % MMF-4s reaches the focus of its fan
+            active(k) = false;
         elseif all(Xn(q, 1:expdim) >= lims(:, 1).' & Xn(q, 1:expdim) <= lims(:, 2).')
             tracts{k}(end+1, :)    = Xn(q, :);                         %#ok<AGROW>
             frames{k}(end+1, :, :) = En(q, :, :);                      %#ok<AGROW>
             drift{k}(end+1, 1)  = dr(q);                               %#ok<AGROW>
             reanch{k}(end+1, 1) = re(q);                               %#ok<AGROW>
+            if useHold
+                coasted{k}(end+1, 1) = zoneE(q);                       %#ok<AGROW>
+                confid{k}(end+1, 1)  = cE(q);                          %#ok<AGROW>
+            end
             X(k, :)    = Xn(q, :);
             E(k, :, :) = En(q, :, :);
         else                                                           % leaves the domain
@@ -420,24 +730,60 @@ for n = 1:nstep
             frames{k}(end+1, :, :) = En(q, :, :);                      %#ok<AGROW>
             drift{k}(end+1, 1)  = dr(q);                               %#ok<AGROW>
             reanch{k}(end+1, 1) = re(q);                               %#ok<AGROW>
+            if useHold
+                coasted{k}(end+1, 1) = zoneE(q);                       %#ok<AGROW>
+                confid{k}(end+1, 1)  = cE(q);                          %#ok<AGROW>
+            end
             kappa{k}(end+1, 1) = NaN;                                  %#ok<AGROW>
             tau{k}(end+1, 1)   = NaN;                                  %#ok<AGROW>
             turn{k}(end+1, 1)  = NaN;                                  %#ok<AGROW>
+            if useHold
+                held{k}(end+1, :, :) = NaN;                            %#ok<AGROW>
+                spread{k}(end+1, 1) = NaN;                             %#ok<AGROW>
+            end
             stop{k}   = 'boundary';
             active(k) = false;
         end
+    end
+    if useHold && m == 3 && any(re)             % the ring follows the frame onto the re-anchored normal plane
+        rows = idx(re);
+        [hbuf(rows, :, :, :), sbuf(rows, :, :, :)] = turnRing(hbuf(rows, :, :, :), sbuf(rows, :, :, :), En(re, :, :), Eb(re, :, :));
     end
 end
 % curvature, twist and turn at the last node of the tracts that reached smax
 idx = find(active);
 if ~isempty(idx)
-    [ka, ta, th] = curvatureTwist(omegaFcn(X(idx, :), E(idx, :, :)), m);
+    OmL = omegaFcn(X(idx, :), E(idx, :, :));
+    sgL = NaN(numel(idx), 1);
+    if useHold                                  % the held (or marched) connection where the last node is in the zone
+        cL = evalCL(X(idx, 1:expdim));
+        zL = isfinite(cL) & (cL < holdMin | grace(idx) > 0);
+        sgL = sigmaFcn(X(idx, :), E(idx, :, :));
+        [Om0, bl0, dv0, sb0, sg0] = ringMeans(hbuf(idx, :, :, :), sbuf(idx, :, :, :), dbuf(idx, :), abuf(idx, :), hcount(idx), m, holdTwist, holdCurv);
+        if marchHold
+            [holdOm, sgH] = marchedOmega(Om0, bl0, dv0, nstep * h - sb0, uMin);
+        else
+            holdOm = Om0;  sgH = sg0;
+        end
+        OmL(zL, :, :) = holdOm(zL, :, :);
+        sgL(zL) = sgH(zL);
+    end
+    [ka, ta, th] = curvatureTwist(OmL, m);
     for q = 1:numel(idx)
         k = idx(q);
         kappa{k}(end+1, 1) = ka(q);                                    %#ok<AGROW>
         tau{k}(end+1, 1)   = ta(q);                                    %#ok<AGROW>
         turn{k}(end+1, 1)  = h * th(q);                                %#ok<AGROW>
+        if useHold
+            held{k}(end+1, :, :) = OmL(q, :, :);                       %#ok<AGROW>
+            spread{k}(end+1, 1) = sgL(q);                              %#ok<AGROW>
+        end
     end
+end
+if ~useHold
+    spread  = cellfun(@(P) NaN(size(P, 1), 1), tracts, 'UniformOutput', false);
+    confid  = spread;
+    coasted = cellfun(@(P) false(size(P, 1), 1), tracts, 'UniformOutput', false);
 end
 
 info = struct();
@@ -457,6 +803,12 @@ info.tau     = tau;
 info.turn    = turn;
 info.drift      = drift;
 info.reanchored = reanch;
+info.coasted    = coasted;
+info.confidence = confid;
+info.held       = held;
+info.spread     = spread;
+info.hold       = struct('on', useHold, 'holdMin', holdMin, 'holdK', holdK, 'holdCap', holdCap, ...
+                         'coastMax', coastMax, 'exitTol', exitTol, 'exitDelay', exitDelay, 'holdTwist', holdTwist, 'holdCurvature', holdCurv, 'holdDivergence', holdDiv);
 info.order   = order;
 info.mode    = mode;
 info.twist   = twist;
@@ -465,36 +817,285 @@ info.reanchorTol = reanchorTol;
 end
 
 % =========================================================================
-function [Xn, En, Om1, maxRot] = lieStep(X, E, h, order, omegaFcn)
+function [Xn, En, Om1, maxRot, zone1] = lieStep(X, E, h, order, omegaFcn, evalCL, holdMin, holdOm, expdim, forced)
 % One step of the Lie group integrator for the pose (X, E) with the
 % exponential poseExp; Om1 is Omega at the start of the step and maxRot
 % the largest rotation h*theta over the stages of the step (NaN when the
 % connection is not finite at some stage; such an Omega is replaced by
 % zero so that the remaining stages stay finite, and the caller rejects
-% the step).
-[Om1, bad, th] = finiteOmega(omegaFcn(X, E));
+% the step). With the hold scheme (evalCL and holdOm given) a stage whose
+% confidence is below holdMin uses the held connection holdOm of its tract
+% instead of the data - an array [n x m x m], or (MMF-4s) a function of the
+% stage's abscissa c in [0, 1] along the step returning that array, the
+% connection prescribed along the coast; the rows forced (logical, 'ExitDelay')
+% coast at every stage whatever the finite confidence; zone1 flags the tracts
+% whose start node is such.
+if nargin < 6
+    evalCL = [];  holdMin = NaN;  holdOm = [];  expdim = size(X, 2);
+end
+if nargin < 10, forced = false(size(X, 1), 1); end
+if isa(holdOm, 'function_handle'), heldAt = holdOm; else, heldAt = @(c) holdOm; end
+stage = @(Xs, Es, c) stageOmega(Xs, Es, omegaFcn, evalCL, holdMin, heldAt(c), expdim, forced);
+[Om1, bad, th, zone1] = stage(X, E, 0);
 rates = th;
 switch order
     case 1                                      % Lie-Euler: Omega frozen
         [Xn, En] = poseExp(X, E, Om1, 1, h);
     case 2                                      % exponential midpoint rule
         [X2, E2] = poseExp(X, E, Om1, 1, h / 2);
-        [Om2, b2, r2] = finiteOmega(omegaFcn(X2, E2));
+        [Om2, b2, r2] = stage(X2, E2, 1/2);
         bad = bad | b2;  rates = [rates, r2];
         [Xn, En] = poseExp(X, E, Om2, 1, h);
     case 4                                      % CF4 (Celledoni, Marthinsen & Owren 2003)
         [X2, E2] = poseExp(X, E, Om1, 1, h / 2);
-        [Om2, b2, r2] = finiteOmega(omegaFcn(X2, E2));
+        [Om2, b2, r2] = stage(X2, E2, 1/2);
         [X3, E3] = poseExp(X, E, Om2, 1, h / 2);
-        [Om3, b3, r3] = finiteOmega(omegaFcn(X3, E3));
+        [Om3, b3, r3] = stage(X3, E3, 1/2);
         [X4, E4] = poseExp(X2, E2, Om3 - Om1 / 2, 1/2, h);
-        [Om4, b4, r4] = finiteOmega(omegaFcn(X4, E4));
+        [Om4, b4, r4] = stage(X4, E4, 1);
         bad = bad | b2 | b3 | b4;  rates = [rates, r2, r3, r4];
         [Xn, En] = poseExp(X,  E,  (3*Om1 + 2*Om2 + 2*Om3 -   Om4) / 12, 1/2, h);
         [Xn, En] = poseExp(Xn, En, ( -Om1 + 2*Om2 + 2*Om3 + 3*Om4) / 12, 1/2, h);
 end
 maxRot = h * max(rates, [], 2);
 maxRot(bad) = NaN;
+end
+
+function [Om, bad, th, zone] = stageOmega(X, E, omegaFcn, evalCL, holdMin, holdOm, expdim, forced)
+% The connection at a stage: from the data, or the held one of the tract
+% where the confidence of the data is below holdMin (hold scheme) or the
+% tract still coasts beyond the zone's edge (forced, 'ExitDelay'), the data
+% not being read there. A non-finite confidence is no data at all: the
+% connection is read, and stops the tract if it is not finite.
+zone = false(size(X, 1), 1);
+if ~isempty(evalCL)
+    c = evalCL(X(:, 1:expdim));
+    zone = isfinite(c(:)) & (c(:) < holdMin | forced(:));
+end
+if any(zone)
+    Om = holdOm;
+    if ~all(zone)
+        Om(~zone, :, :) = omegaFcn(X(~zone, :), E(~zone, :, :));
+    end
+else
+    Om = omegaFcn(X, E);
+end
+[Om, bad, th] = finiteOmega(Om);
+end
+
+function Om = heldOmega(hbuf, hcount, m, holdTwist, holdCurv)
+% The held connection of every tract: the mean of its ring of trusted
+% connections (zero before the first one), with the twist zeroed or kept
+% and the curvature kept or zeroed.
+n  = size(hbuf, 1);
+Om = zeros(n, m, m);
+has = hcount > 0;
+if any(has)
+    Om(has, :, :) = reshape(mean(hbuf(has, :, :, :), 2, 'omitnan'), nnz(has), m, m);
+end
+if strcmp(holdCurv, 'zero')
+    Om(:, 1, :) = 0;  Om(:, :, 1) = 0;
+end
+if m == 3 && strcmp(holdTwist, 'zero')
+    Om(:, 2, 3) = 0;  Om(:, 3, 2) = 0;
+end
+Om(~isfinite(Om)) = 0;
+end
+
+function [Om, bl, dv, sb, sg] = ringMeans(hbuf, sbuf, dbuf, abuf, hcount, m, holdTwist, holdCurv)
+% The held connection of every tract (heldOmega) with the means over its
+% ring of the transverse block of the connection (m = 2: the transverse
+% component; sg is the trace), of the divergence term of MMF-4s and of the
+% arc length of the ring's nodes (all zero before the first trusted node,
+% so that such a tract coasts straight with sigma = 0).
+Om = heldOmega(hbuf, hcount, m, holdTwist, holdCurv);
+n  = size(hbuf, 1);
+bl = zeros(n, m - 1, m - 1);  dv = zeros(n, 1);  sb = zeros(n, 1);
+has = hcount > 0;
+bl(has, :, :) = reshape(mean(sbuf(has, :, :, :), 2, 'omitnan'), nnz(has), m - 1, m - 1);
+dv(has) = mean(dbuf(has, :), 2, 'omitnan');
+sb(has) = mean(abuf(has, :), 2, 'omitnan');
+bl(~isfinite(bl)) = 0;  dv(~isfinite(dv)) = 0;  sb(~isfinite(sb)) = 0;
+sg = bl(:, 1);
+if m == 3
+    sg = bl(:, 1, 1) + bl(:, 2, 2);
+end
+end
+
+function [hb, sb] = turnRing(hb, sb, En, Eo)
+% The rings of tracts whose frames Eo were re-anchored to En [n x 3 x 3], in
+% the coordinates of En: the curvature vectors hb(:,:,1,2:3) and the blocks
+% sb [n x K x 2 x 2] turned by the rotation nearest to the projection between
+% the two normal planes, as in transverseOf (empty slots stay NaN; the twist
+% of a held connection is unchanged by a turn of the plane).
+n = size(En, 1);
+G = zeros(n, 2, 2);
+for p = 1:2
+    for q = 1:2
+        G(:, p, q) = sum(En(:, p + 1, :) .* Eo(:, q + 1, :), 3);
+    end
+end
+c = G(:, 1, 1) + G(:, 2, 2);
+d = G(:, 1, 2) - G(:, 2, 1);
+r = hypot(c, d);
+c = c ./ r;  d = d ./ r;
+a2 = hb(:, :, 1, 2);  a3 = hb(:, :, 1, 3);
+k2 = c .* a2 + d .* a3;
+k3 = -d .* a2 + c .* a3;
+hb(:, :, 1, 2) = k2;  hb(:, :, 2, 1) = -k2;
+hb(:, :, 1, 3) = k3;  hb(:, :, 3, 1) = -k3;
+b11 = sb(:, :, 1, 1);  b12 = sb(:, :, 1, 2);  b21 = sb(:, :, 2, 1);  b22 = sb(:, :, 2, 2);
+sb(:, :, 1, 1) = c .^ 2 .* b11 + c .* d .* (b12 + b21) + d .^ 2 .* b22;
+sb(:, :, 1, 2) = c .^ 2 .* b12 + c .* d .* (b22 - b11) - d .^ 2 .* b21;
+sb(:, :, 2, 1) = c .^ 2 .* b21 + c .* d .* (b22 - b11) - d .^ 2 .* b12;
+sb(:, :, 2, 2) = d .^ 2 .* b11 - c .* d .* (b12 + b21) + c .^ 2 .* b22;
+end
+
+function [Om, sg, u] = marchedOmega(Om0, sg0, dv0, tau, uMin)
+% MMF-4s: the connection and the transverse component marched over the arc
+% length tau from the ring's centroid by the flatness law of the planar
+% connection with the divergence term held, d sigma/ds = -sigma^2 + D, and
+% the closure div(kappa e_1) = 0, d kappa/ds = -kappa sigma, i.e. with
+% sigma = u'/u, u'' = D u, u(0) = 1,
+% u'(0) = sigma_0: Omega = Omega_0/u (every component, so the ratio
+% kappa/sigma stays constant for D = 0, where u = 1 + sigma_0 tau) and sigma
+% = u'/u. The connection is floored at u = uMin (the caller stops the tract
+% before the focus of a converging fan); a row without a trusted node
+% (Omega_0 = 0, sigma_0 = 0) coasts straight. With three frame vectors
+% sg0 is the transverse block [n x 2 x 2], see marchedOmega3.
+if size(Om0, 2) == 3
+    [Om, sg, u] = marchedOmega3(Om0, sg0, tau, uMin);
+    return
+end
+[u, up] = marchLaw(sg0, dv0, tau);
+sg = up ./ u;
+sg(~isfinite(sg)) = 0;
+Om = Om0 ./ max(u, uMin);
+end
+
+function [Om, sg, u] = marchedOmega3(Om0, B0, tau, uMin)
+% MMF-4s with three frame vectors, the divergence term zero: dB/ds = -B^2
+% and da/ds = -B' a for the transverse block B and the curvature vector
+% a = (Omega_12, Omega_13), so U = I + tau B_0, B = B_0 U^-1 and a = U^-T a_0
+% (the adjugate of U' over u = det U = 1 + tau tr B_0 + tau^2 det B_0, floored
+% at uMin as in marchedOmega), and sigma = tr B = u'/u. The rest of the
+% held connection is left as it is.
+b11 = B0(:, 1, 1);  b12 = B0(:, 1, 2);  b21 = B0(:, 2, 1);  b22 = B0(:, 2, 2);
+tr  = b11 + b22;
+dt  = b11 .* b22 - b12 .* b21;
+u   = 1 + tau .* tr + tau .^ 2 .* dt;
+sg  = (tr + 2 * tau .* dt) ./ u;
+sg(~isfinite(sg)) = 0;
+uf  = max(u, uMin);
+a2  = Om0(:, 1, 2);  a3 = Om0(:, 1, 3);
+k2  = ((1 + tau .* b22) .* a2 - tau .* b21 .* a3) ./ uf;
+k3  = ((1 + tau .* b11) .* a3 - tau .* b12 .* a2) ./ uf;
+Om  = Om0;
+Om(:, 1, 2) = k2;  Om(:, 2, 1) = -k2;
+Om(:, 1, 3) = k3;  Om(:, 3, 1) = -k3;
+end
+
+function [u, up] = marchLaw(sg0, dv0, tau)
+% u and u' of u'' = D u, u(0) = 1, u'(0) = sigma_0, at tau (columns):
+% 1 + sigma_0 tau for D = 0, cosh/sinh for D > 0, cos/sin for D < 0.
+u  = 1 + sg0 .* tau;
+up = sg0 + 0 * tau;
+pos = dv0 > 0;  neg = dv0 < 0;
+if any(pos)
+    a = sqrt(dv0(pos));  t = tau(pos);  s0 = sg0(pos);
+    u(pos)  = cosh(a .* t) + s0 ./ a .* sinh(a .* t);
+    up(pos) = a .* sinh(a .* t) + s0 .* cosh(a .* t);
+end
+if any(neg)
+    a = sqrt(-dv0(neg));  t = tau(neg);  s0 = sg0(neg);
+    u(neg)  = cos(a .* t) + s0 ./ a .* sin(a .* t);
+    up(neg) = -a .* sin(a .* t) + s0 .* cos(a .* t);
+end
+end
+
+function [sig, dv, bl] = transverseOf(X, E, evalW, evalMF, expdim, m, delta, wantDiv, evalCL, holdMin)
+% The transverse component sigma = sum_{j>1} w_1j(e_j) = div e_1 of the
+% data's connection at the rows of X along the direction of travel: the
+% data's frame with its e_1 pointing the way the carried frame's does (the
+% carried frame itself when there is no data frame), and, with wantDiv,
+% the divergence term D = div(kappa e_2) = d kappa/d e_2 - kappa^2 of
+% MMF-4s, kappa = w_12(e_1) the data's curvature, its derivative along e_2
+% by central differences over delta (planar connection; NaN where a probe
+% leaves the data or falls into the zone, c < holdMin, so that a node next
+% to the zone contributes no divergence to the ring). bl is what the ring
+% keeps of it: sig for m = 2, for m = 3 the transverse block B_pq =
+% e_p . d e_1/d e_q, p, q = 2, 3, of the data's frame along the travel [n x
+% 2 x 2], turned onto the carried normal plane by the rotation nearest to
+% the projection between the two planes (the carried frame being the only
+% one in which it means the same from node to node).
+n  = size(X, 1);
+wq = evalW(X(:, 1:expdim));                                   % [n x m x m x expdim]
+if isempty(evalMF)
+    Et = E;  s = ones(n, 1);
+else
+    Et = evalMF(X(:, 1:expdim));                              % [n x m x spacedim]
+    s  = sign(sum(Et(:, 1, 1:expdim) .* E(:, 1, 1:expdim), 3));  s(s == 0) = 1;
+end
+sig = zeros(n, 1);
+for j = 2:m
+    for k = 1:expdim
+        sig = sig + wq(:, 1, j, k) .* Et(:, j, k);
+    end
+end
+sig = s .* sig;
+bl  = sig;
+if m == 3
+    Et(:, 3, :) = s .* Et(:, 3, :);                           % with e_1 along the travel, right-handed
+    bl = zeros(n, 2, 2);
+    for p = 1:2
+        for q = 1:2
+            for k = 1:expdim
+                bl(:, p, q) = bl(:, p, q) + wq(:, 1, p + 1, k) .* Et(:, q + 1, k);
+            end
+        end
+    end
+    bl(:, 1, :) = s .* bl(:, 1, :);                           % the data's block on its own normal plane
+    G  = zeros(n, 2, 2);                                      % that plane turned onto the carried one
+    for p = 1:2
+        for q = 1:2
+            G(:, p, q) = sum(E(:, p + 1, 1:expdim) .* Et(:, q + 1, 1:expdim), 3);
+        end
+    end
+    c  = G(:, 1, 1) + G(:, 2, 2);
+    d  = G(:, 1, 2) - G(:, 2, 1);
+    r  = hypot(c, d);
+    R  = zeros(n, 2, 2);
+    R(:, 1, 1) = c ./ r;   R(:, 1, 2) = d ./ r;
+    R(:, 2, 1) = -d ./ r;  R(:, 2, 2) = c ./ r;
+    bl = pagemul(pagemul(R, bl), permute(R, [1 3 2]));
+end
+dv  = zeros(n, 1);
+if wantDiv
+    e1 = s .* reshape(Et(:, 1, 1:expdim), n, expdim);         % the data's frame along the travel
+    e2 = s .* reshape(Et(:, 2, 1:expdim), n, expdim);
+    Y  = X(:, 1:expdim);
+    kp = dataCurvature(Y + delta * e2, e1, evalW, evalMF, expdim);
+    km = dataCurvature(Y - delta * e2, e1, evalW, evalMF, expdim);
+    k0 = dataCurvature(Y, e1, evalW, evalMF, expdim);
+    dv = (kp - km) / (2 * delta) - k0 .^ 2;
+    cp = evalCL(Y + delta * e2);  cm = evalCL(Y - delta * e2);
+    dv((isfinite(cp) & cp < holdMin) | (isfinite(cm) & cm < holdMin)) = NaN;
+end
+end
+
+function kap = dataCurvature(Y, e1ref, evalW, evalMF, expdim)
+% The data's curvature kappa = w_12(e_1) at the rows of Y, for the data's
+% e_1 pointing the way e1ref does.
+n  = size(Y, 1);
+wq = evalW(Y);
+Et = evalMF(Y);
+e1 = reshape(Et(:, 1, 1:expdim), n, expdim);
+s  = sign(sum(e1 .* e1ref, 2));  s(s == 0) = 1;
+kap = zeros(n, 1);
+for k = 1:expdim
+    kap = kap + wq(:, 1, 2, k) .* e1(:, k);
+end
+kap = s .* kap;
 end
 
 function [Om, bad, th] = finiteOmega(Om)
@@ -669,12 +1270,12 @@ end
 s = sign(g);
 s(s == 0) = 1;
 if m == 3
-    odd = prod(s, 2) < 0;                        % make det = +1: flip the least aligned vector
+    odd = prod(s, 2) < 0;                        % make det = +1: flip the least aligned normal vector
     if any(odd)
-        [~, imin] = min(abs(g(odd, :)), [], 2);
+        [~, imin] = min(abs(g(odd, 2:3)), [], 2);
         rows = find(odd);
         for q = 1:numel(rows)
-            s(rows(q), imin(q)) = -s(rows(q), imin(q));
+            s(rows(q), imin(q) + 1) = -s(rows(q), imin(q) + 1);
         end
     end
 end

@@ -56,6 +56,8 @@ presets = {
     'config/hinec_dti.yml',     'HINEC DTI';
     'config/hinec_csd.yml',     'HINEC CSD';
     'config/mmf_dti.yml',       'MMF DTI';
+    'config/mmf_dti_hold.yml',  'MMF-4h DTI';
+    'config/mmf_dti_march.yml', 'MMF-4s DTI';
     'config/standard_dti.yml',  'Standard FACT';
     'config/irontract.yml',     'IronTract';
     'config/ismrm2015.yml',     'ISMRM-2015'

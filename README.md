@@ -83,6 +83,7 @@ hinec_runs/run_20250118_143045_hinec_dti_cubic/
 - `hinec_dti_fast.yml` - Quick parameter testing (3-5x faster)
 - `hinec_dti_euler.yml` - Euler with trilinear interpolation
 - `mmf_dti.yml` - Moving frames tractography (DTI only; see [docs/MMF_TRACTOGRAPHY.md](docs/MMF_TRACTOGRAPHY.md))
+- `mmf_dti_hold.yml`, `mmf_dti_march.yml` - The same, coasting through degenerate data (MMF-4h, MMF-4s)
 - `irontract.yml` - IronTract challenge optimized
 
 **Documentation**: See [docs/YAML_CONFIG.md](docs/YAML_CONFIG.md); the full preset list is in [config/README.md](config/README.md)

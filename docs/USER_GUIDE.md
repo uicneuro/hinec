@@ -265,6 +265,8 @@ Configs in `config/` fall into two families, distinguished by which launcher con
 | `hinec_dti_fast.yml` | hinec | dti | rk2 | trilinear |
 | `hinec_dti_euler.yml` | hinec | dti | euler | trilinear |
 | `mmf_dti.yml` | mmf (moving frames, [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)) | dti | rk4 (CF4) | spline |
+| `mmf_dti_hold.yml` | mmf, coasting through degenerate data (MMF-4h) | dti | rk4 (CF4) | spline |
+| `mmf_dti_march.yml` | mmf, coasting through degenerate data (MMF-4s) | dti | rk4 (CF4) | spline |
 
 **Dataset configs** — `<dataset>[_variant].yml`, for `bin/run_hinec.sh`: `ismrm2015.yml` and
 `irontract.yml`. `hinec_default.yml` is the generic full-pipeline fallback and is the only

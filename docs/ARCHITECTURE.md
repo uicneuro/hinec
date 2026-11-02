@@ -541,9 +541,12 @@ Three algorithms are available:
   curvature at any step size, to the order of the integrator where the fibre has torsion); `integrator.method` `euler` / `rk2` / `rk4` selects the Lie
   group integrator of order 1 / 2 / 4 (`rkf45` is rejected)
 - Direction field: the same interpolated dyadic as `hinec` (same kernel and `upsample`);
-  the connection is a sign-aligned central difference of its principal axis
+  the connection is computed at the voxel nodes and interpolated (`mmf.connection: nodal`,
+  the default) or is a sign-aligned central difference of its principal axis (`derivative`)
 - `mmf.mode` (`transport` / `reanchor` / `adaptive`) and `mmf.reanchor_tol` set how the
   carried frame is re-anchored to the data
+- `mmf.hold` (`none` / `hold` / `march`) lets a tract coast through degenerate data on the
+  connection of its last trusted nodes, held (MMF-4h) or marched (MMF-4s)
 - DTI only (`field: csd` is rejected); ACT masks are not used
 
 The trackers share these stopping criteria:
@@ -637,6 +640,8 @@ tractography:
     mode: transport | reanchor | adaptive # default adaptive
     reanchor_tol: 0.001                   # radians
     gradient_delta: 0.001                 # voxels
+    hold: none | hold | march             # default none; hold_min, hold_k, hold_guard,
+                                          # coast_max, exit_tol, exit_delay go with it
   diagnostics: true|false
 ```
 

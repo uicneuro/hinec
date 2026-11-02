@@ -97,7 +97,8 @@ exact for a planar arc of constant curvature at any step size (to the order of t
 integrator where the fibre has torsion), and `integrator.method` =
 `euler` / `rk2` / `rk4` selects the Lie group integrator of order 1 / 2 / 4 built around it
 (`rkf45` is rejected). The direction field is the same interpolated dyadic the `hinec`
-tracker uses; the connection is a sign-aligned central difference of its principal axis,
+tracker uses; the connection is computed at the voxel nodes and interpolated, or with
+`mmf.connection: derivative` is a sign-aligned central difference of its principal axis,
 and `mmf.mode` (`transport` / `reanchor` / `adaptive`) sets how the carried frame is
 re-anchored to the data. DTI only; ACT masks are not used. Full description and
 verification: **[Moving frames tractography](MMF_TRACTOGRAPHY.md)**.

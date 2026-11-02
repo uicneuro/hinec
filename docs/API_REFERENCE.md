@@ -600,8 +600,10 @@ arc of constant curvature at any step size; on a fibre with torsion, where the
 twist is dropped, exact to the order of the integrator); `integrator.method`
 selects the Lie group integrator built around that step. The direction field is the same
 interpolated dyadic $\mathbf{v}_1\mathbf{v}_1^\top$ that `hinec` uses; the
-connection (the curvature components) is a sign-aligned central difference of
-its principal axis, and the twist is dropped (`'Twist' 'zero'`). **Returns**
+connection (the curvature components) is computed at the voxel nodes and
+interpolated (`mmf.connection: nodal`, the default) or is a sign-aligned central
+difference of the interpolated principal axis (`derivative`), and the twist is
+dropped (`'Twist' 'zero'`). **Returns**
 `[tracks, meta]`.
 
 Reads `seeding.*`, `termination.*`, `integrator.step`, `interpolation.method`,
@@ -615,6 +617,13 @@ plus:
 | `mmf.mode` | `mmf_mode` | `'adaptive'` | `transport` / `reanchor` / `adaptive` — how the carried frame relates to the data frame along the tract |
 | `mmf.reanchor_tol` | `mmf_reanchor_tol` | 1e-3 | Drift (radians) between the carried and the data's $\mathbf{e}_1$ at which the adaptive mode re-anchors |
 | `mmf.gradient_delta` | `mmf_gradient_delta` | 1e-3 | Central-difference step (voxels) for the derivative of the interpolated principal axis |
+| `mmf.hold` | `mmf_hold` | `'none'` | `none` / `hold` (MMF-4h) / `march` (MMF-4s) — how a tract crosses degenerate data; reads `nim.eval`. See [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md) |
+| `mmf.hold_min` | `mmf_hold_min` | 0.2 | Linear shape CL below which the data are degenerate |
+| `mmf.hold_k` | `mmf_hold_k` | 3 | Trusted nodes the coast starts from |
+| `mmf.hold_guard` | `mmf_hold_guard` | 0.5 | Erosion radius of the confidence, voxels |
+| `mmf.coast_max` | `mmf_coast_max` | 12 | Longest coast, voxels of arc |
+| `mmf.exit_tol` | `mmf_exit_tol` | 0.5 | Largest angle (radians) to the data with which a tract may leave the zone |
+| `mmf.exit_delay` | `mmf_exit_delay` | 0 | Arc of coast beyond the edge of the zone before that test, voxels |
 
 ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle budget
 `termination.angle_max` becomes `advanceFrame`'s `MaxTurn` through
@@ -624,17 +633,18 @@ $\mathbf{e}_1$ at the end of a step against the heading at its start, in every
 mode). `meta` carries
 `.seed_index`, `.seed_points`, `.n_seeds`; `.termination` (`reason` / `count`
 over the half-tracks of the seeds that were tracked: `max_arc`, `angle`, `fa`,
-`outside_mask`, `outside`, `outside_domain`, `no_direction`; empty when no seed
-was); `.mmf` (`order`, `mode`, `reanchor_tol`, `twist`, `max_turn_rad`,
-`gradient_delta`, `kernel`, `reanchored_fraction`, `seeds_alive`,
+`outside_mask`, `outside`, `outside_domain`, `no_direction`, and with `mmf.hold`
+`coast`, `exit`, `focus`; empty when no seed was); `.mmf` (`order`, `mode`,
+`reanchor_tol`, `twist`, `max_turn_rad`, `gradient_delta`, `kernel`, the `mmf.hold`
+settings, `zone_fraction`, `reanchored_fraction`, `coasted_fraction`, `seeds_alive`,
 `seeds_skipped` with `reason` / `count` of the seeds outside tissue or without
 a direction); and, with `debug.trace`, `.trace` (per traced seed: `seed_index`,
 `seed_point`, and `forward` / `backward` records with the fields of the hinec
 record that `nim_track_diagnose` reads — `pos`, `dir` (the carried
 $\mathbf{e}_1$), `fa`, `h`, `chord`, `turn` in degrees, `flip` (always false),
 `n_steps`, `termination` — plus `drift` to the data's $\mathbf{e}_1$,
-`reanchored`, `kappa` and `s`; a skipped seed has a zero-step record with its
-reason).
+`reanchored`, `kappa`, `s`, `coasted` and `confidence`; a skipped seed has a
+zero-step record with its reason).
 
 ### Tractography support functions
 

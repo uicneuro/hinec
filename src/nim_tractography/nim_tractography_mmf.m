@@ -72,6 +72,33 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % degenerate (crossings, planar regions), so the budget stops more half-tracks
 % there than the node-to-node angle test of the streamline trackers does.
 %
+% DEGENERATE DATA (mmf.hold). In a voxel where two bundles cross, the tensor
+% is a pancake and its principal axis means nothing, so reading the connection
+% there turns the tract into the other bundle or stops it on the angle budget.
+% 'hold' (MMF-4h) and 'march' (MMF-4s) are advanceFrame's hold scheme: in the
+% zone where the confidence is below mmf.hold_min the tract coasts, on the mean
+% connection of its last mmf.hold_k trusted nodes (held) or on that curvature
+% and fan-out marched by the flatness law of the connection (marched), and on
+% leaving the zone it is re-anchored if its heading agrees with the data and
+% stops otherwise ('exit', by mmf.exit_tol, in the adaptive and reanchor modes; a
+% coast longer than mmf.coast_max stops, 'coast'; a
+% marched coast that reaches the focus of its fan stops, 'focus'). The confidence
+% is the linear shape CL = (lambda_1 - lambda_2)/lambda_1 of the voxel tensors,
+% interpolated linearly and eroded by mmf.hold_guard voxels, see confidence_at.
+% advanceFrame takes a non-finite confidence for no data and then reads the
+% connection, which is not finite outside tissue: the confidence is NaN there,
+% so the volume, the mask and the FA floor stay stops inside the zone. A seed in
+% the zone has no trusted node and coasts straight along the axis of the filled
+% field (where that axis ties, it is skipped as 'no_direction'). The trusted nodes must not
+% read the zone either, and they would, through the kernel (the spline is
+% global, and the jump of the axis at the edge of a zone rings over several
+% voxels) and through the stencil of the nodal connection (two voxels), which
+% puts an error of 1/voxel into the held connection. So the axis of the voxels
+% of the zone is first replaced by the one of the trusted voxels around them
+% (fill_axis), a voxel outside the zone takes its differences from voxels outside
+% it (zone_free_difference), and the nodal tensor is continued into the zone in the
+% same way (fill_zone), the last two for the nodal connection only.
+%
 % OPTIONS READ (all defaulted and validated by nim_config_schema; see
 % docs/YAML_CONFIG.md)
 %   field              'dti' only. CSD peaks need the incoming tangent to
@@ -86,6 +113,11 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %   mmf_mode           'transport' | 'reanchor' | 'adaptive' (advanceFrame 'Mode')
 %   mmf_reanchor_tol   drift tolerance of the adaptive mode, radians
 %   mmf_gradient_delta central-difference step for d e1/dx_k, voxels
+%   mmf_hold           'none' | 'hold' | 'march' (needs nim.eval), and for those
+%   mmf_hold_min, mmf_hold_k, mmf_hold_guard, mmf_coast_max, mmf_exit_tol,
+%   mmf_exit_delay     the confidence floor, the ring, the erosion radius, the
+%                      longest coast, the test on leaving the zone and the arc
+%                      of coast before it
 %   angle_thresh       degrees of turning per VOXEL OF ARC (nim_angle_limit),
 %                      applied as advanceFrame's 'MaxTurn', see above
 %   max_arc            arc length followed from the seed in each direction
@@ -100,17 +132,21 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %   meta    seed_index (1 x T), seed_points (T x 3), n_seeds;
 %           termination: reason/count over the half-tracks of the live seeds
 %           (max_arc, angle, fa, outside_mask, outside, outside_domain,
-%           no_direction; empty when no seed is alive);
-%           mmf: the scheme settings, reanchored_fraction of the steps,
-%           seeds_alive, and seeds_skipped (reason/count of the seeds outside
+%           no_direction, and with mmf.hold coast, exit, focus; empty when no
+%           seed is alive);
+%           mmf: the scheme settings, zone_fraction (the share of the tissue voxels
+%           below mmf.hold_min, before the erosion), reanchored_fraction and
+%           coasted_fraction of the steps, seeds_alive, and seeds_skipped
+%           (reason/count of the seeds outside
 %           the volume or the mask, below the FA floor or without a direction);
 %           trace (debug.trace): per traced seed, forward/backward records with
 %           the fields the hinec tracker writes - pos, dir (the carried e1),
 %           fa (interpolated), h, chord, turn (degrees: the rotation of the
 %           step starting at the node), flip (always false: the gauge absorbs
 %           the sign flips), n_steps, termination - plus drift (angle to the
-%           data's e1), reanchored, kappa and s (arc length); nim_track_diagnose
-%           reads them. A skipped seed has a zero-step record with its reason.
+%           data's e1), reanchored, kappa, s (arc length), coasted and
+%           confidence (NaN without mmf.hold); nim_track_diagnose reads them.
+%           A skipped seed has a zero-step record with its reason.
 %
 % Requires advanceFrame.m, nim_seed_offsets.m, nim_angle_limit.m.
 
@@ -143,6 +179,23 @@ conn  = lower(char(string(o('mmf_connection', 'nodal'))));
 if ~any(strcmp(conn, {'nodal', 'derivative'}))
     error('mmf:connection', 'nim_tractography_mmf: mmf.connection must be nodal or derivative, not ''%s''.', conn);
 end
+hold_mode = lower(char(string(o('mmf_hold', 'none'))));
+if ~any(strcmp(hold_mode, {'none', 'hold', 'march'}))
+    error('mmf:hold', 'nim_tractography_mmf: mmf.hold must be none, hold or march, not ''%s''.', hold_mode);
+end
+use_hold = ~strcmp(hold_mode, 'none');
+if use_hold && (~isfield(nim, 'eval') || isempty(nim.eval))
+    error('mmf:hold', 'nim_tractography_mmf: mmf.hold needs the eigenvalues nim.eval for the confidence of the data.');
+end
+hold_min   = o('mmf_hold_min', 0.2);
+exit_tol   = o('mmf_exit_tol', 0.5);
+hold_k     = o('mmf_hold_k', 3);
+if use_hold && (hold_k < 1 || hold_k ~= round(hold_k))
+    error('mmf:hold', 'nim_tractography_mmf: tractography.mmf.hold_k must be a positive integer, not %g.', hold_k);
+end
+hold_guard = o('mmf_hold_guard', 0.5);
+coast_max  = o('mmf_coast_max', 12);
+exit_delay = o('mmf_exit_delay', 0);
 maxTurn = deg2rad(nim_angle_limit(options.angle_thresh, h));   % min(angle_max*h, 90) deg per step; Inf disables
 angle_off = ~isfinite(maxTurn);
 if angle_off
@@ -169,9 +222,49 @@ switch lower(char(string(o('interp_method', 'trilinear'))))
     case 'spline', kernel = 'spline';
     otherwise,     kernel = 'linear';
 end
+prop = o('propagation_mask', []);
+if ~isempty(prop)
+    prop = logical(prop > 0);
+elseif isfield(nim, 'mask') && ~isempty(nim.mask)
+    prop = logical(nim.mask > 0.5);
+else
+    prop = true(dims);
+end
+% The confidence of mmf.hold, a stop test like FA and so linear and on the voxel grid whatever
+% 'upsample' does to the field. NaN where there is no data: a tensor that was not fitted (eval
+% [0 0 0] at the mask edge), a voxel outside the mask or below the FA floor, whose tensor the
+% tract never reads.
+CLI = []; TSI = []; probes = zeros(0, 3);
+if use_hold
+    L  = sort(double(nim.eval), 4, 'descend');
+    CL = (L(:, :, :, 1) - L(:, :, :, 2)) ./ L(:, :, :, 1);
+    CL(~(L(:, :, :, 1) > 0) | ~prop | ~(double(nim.FA) >= termination_fa)) = NaN;
+    Ct = CL; Ct(isnan(CL)) = 0;                                     % interpolated over the tissue only: see confidence_at
+    CLI = griddedInterpolant({1:dims(1), 1:dims(2), 1:dims(3)}, Ct, 'linear', 'none');
+    TSI = griddedInterpolant({1:dims(1), 1:dims(2), 1:dims(3)}, double(~isnan(CL)), 'linear', 'none');
+    clear Ct
+    if hold_guard > 0
+        [a, b, c] = ndgrid([-1 1]);
+        probes = hold_guard * [eye(3); -eye(3); [a(:) b(:) c(:)] / sqrt(3)];
+    end
+    clear L
+end
 upsample = o('upsample', 1);
 if isempty(upsample) || upsample <= 0, upsample = 1; end
 v1  = reshape(nim.evec(:, :, :, :, 1), [dims 3]);
+zone = false(dims); trusted = false(dims); zone_fraction = 0;
+if use_hold
+    tissue  = double(nim.FA) >= termination_fa;
+    zone    = tissue & CL < hold_min;
+    trusted = tissue & CL >= hold_min;
+    zone_fraction = nnz(zone) / max(nnz(zone) + nnz(trusted), 1);
+    v1      = fill_axis(v1, zone, trusted);
+    if zone_fraction > 0.4
+        warning('mmf:holdZone', ['nim_tractography_mmf: %.0f%% of the tissue voxels are below mmf.hold_min = %g: at this ' ...
+            'floor the zone is the tissue itself rather than its crossings, and tracts will coast much of their length. Lower the floor.'], ...
+            100 * zone_fraction, hold_min);
+    end
+end
 Dc  = {v1(:,:,:,1).*v1(:,:,:,1), v1(:,:,:,2).*v1(:,:,:,2), v1(:,:,:,3).*v1(:,:,:,3), ...
        v1(:,:,:,1).*v1(:,:,:,2), v1(:,:,:,1).*v1(:,:,:,3), v1(:,:,:,2).*v1(:,:,:,3)};
 for q = 1:6
@@ -214,13 +307,14 @@ if strcmp(conn, 'nodal')
     vn = v1; vn(~isfinite(vn)) = 0;
     nrm = sqrt(sum(vn .^ 2, 4)); ok = nrm > 0.5;
     vn = vn ./ max(nrm, eps); vn(repmat(~ok, [1 1 1 3])) = 0;
-    J = nodal_jacobian(vn);                                        % [dims 3 3]: dv1_b/dx_k
+    J = nodal_jacobian(vn, zone);                                  % [dims 3 3]: dv1_b/dx_k
     TI = cell(3, 3, 3);
     for a = 1:3
         for b = 1:3
             for k = 1:3
                 Tq = vn(:, :, :, a) .* J(:, :, :, b, k);
                 Tq(~ok | ~isfinite(Tq)) = 0;
+                Tq = fill_zone(Tq, zone, trusted);
                 if abs(upsample - 1) > 1e-9
                     gi = griddedInterpolant({1:dims(1), 1:dims(2), 1:dims(3)}, Tq, kernel, 'none'); Tq = gi(GX, GY, GZ);
                 end
@@ -230,14 +324,6 @@ if strcmp(conn, 'nodal')
     end
     clear J Tq vn
 end
-prop = o('propagation_mask', []);
-if ~isempty(prop)
-    prop = logical(prop > 0);
-elseif isfield(nim, 'mask') && ~isempty(nim.mask)
-    prop = logical(nim.mask > 0.5);
-else
-    prop = true(dims);
-end
 fprintf('MMF: moving frames tractography (advanceFrame), order %d, mode %s%s, %s dyadic field, h = %.3g, MaxTurn %.3g rad/step\n', ...
     order, mode, ifelse(strcmp(mode, 'adaptive'), sprintf(' (tol %.2g rad)', rtol), ''), kernel, h, maxTurn);
 
@@ -245,10 +331,18 @@ fprintf('MMF: moving frames tractography (advanceFrame), order %d, mode %s%s, %s
 % functions, not nested ones: advanceFrame calls the handles from inside its own
 % loops, and nested functions would share this workspace).
 fld = struct('DI', {DI}, 'FAI', FAI, 'prop', prop, 'dims', dims, 'fa_min', termination_fa, 'delta', delta, ...
-             'angle_off', angle_off, 'conn', conn, 'TI', {TI});
+             'angle_off', angle_off, 'conn', conn, 'TI', {TI}, ...
+             'CLI', CLI, 'TSI', TSI, 'probes', probes, 'hold_min', ifelse(use_hold, hold_min, -Inf));
 fprintf('MMF: connection %s (%s)\n', conn, ifelse(strcmp(conn, 'nodal'), ...
     'computed at the voxel nodes, interpolated', sprintf('central difference %.2g voxel of the interpolated field', delta)));
 names = reason_names();
+hold_args = {};
+if use_hold
+    hold_args = {'Confidence', @(X) confidence_at(X, fld), 'HoldMin', hold_min, 'HoldK', hold_k, 'HoldCurvature', hold_mode, ...
+                 'CoastMax', round(coast_max / h), 'ExitTol', exit_tol, 'ExitDelay', round(exit_delay / h)};
+    fprintf('MMF: %s through degenerate data, CL below %.3g (%.1f%% of the tissue voxels) eroded by %.3g voxel, from %d trusted nodes, at most %.3g voxels of arc\n', ...
+        ifelse(strcmp(hold_mode, 'hold'), 'MMF-4h holds the connection', 'MMF-4s marches the connection'), hold_min, 100 * zone_fraction, hold_guard, hold_k, coast_max);
+end
 
 % ---- seeds -------------------------------------------------------------------
 seed_points = seeds_from_mask(options.seed_mask, options, dims);
@@ -275,7 +369,7 @@ live  = find(alive_seed);
 half  = cell(n_seeds, 2);                       % forward, backward halves (seed first)
 term  = cell(n_seeds, 2);                       % termination reason per half
 trace_fwd = cell(n_seeds, 1); trace_bwd = cell(n_seeds, 1);
-n_re = 0; n_st = 0;                             % re-anchored steps / steps
+n_re = 0; n_st = 0; n_co = 0;                   % re-anchored steps / steps / coasted steps
 chunk = 4000;
 progress = nim_tracking_progress('MMF', numel(live));
 t0 = tic;
@@ -286,7 +380,7 @@ for c0 = 1:chunk:numel(live)
     for dirn = 1:2
         sgn = 3 - 2 * dirn;                     % +1 forward, -1 backward
         [tr, fr, info] = advanceFrame(wFcn, mfFcn, dom, S, sgn * d0, h, smax, ...
-            'Order', order, 'Mode', mode, 'ReanchorTol', rtol, 'Twist', 'zero', 'MaxTurn', maxTurn);
+            'Order', order, 'Mode', mode, 'ReanchorTol', rtol, 'Twist', 'zero', 'MaxTurn', maxTurn, hold_args{:});
         % Integration nodes only: drop a clipped boundary point, and a step end
         % the scheme never examined (orders 1 and 2) that lies outside tissue.
         Pq = tr(:);
@@ -303,6 +397,7 @@ for c0 = 1:chunk:numel(live)
             term{k, dirn} = why_stopped(info.stop{q}, P, fr{q}, h, fld, xdrop);
             re = info.reanchored{q}(2:size(P, 1));
             n_re = n_re + nnz(re); n_st = n_st + numel(re);
+            n_co = n_co + nnz(info.coasted{q}(2:size(P, 1)));
             if do_trace(k)
                 rec = trace_record(P, fr{q}, info, q, h, term{k, dirn}, dirnames{dirn}, fld);
                 if dirn == 1, trace_fwd{k} = rec; else, trace_bwd{k} = rec; end
@@ -334,7 +429,9 @@ meta.seed_points = seed_points(kept, :);
 meta.n_seeds     = n_seeds;
 meta.mmf = struct('order', order, 'mode', mode, 'reanchor_tol', rtol, 'twist', 'zero', ...
                   'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'connection', conn, 'kernel', kernel, ...
-                  'reanchored_fraction', n_re / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
+                  'hold', hold_mode, 'hold_min', hold_min, 'hold_k', hold_k, 'hold_guard', hold_guard, 'zone_fraction', zone_fraction, ...
+                  'coast_max', coast_max, 'exit_tol', exit_tol, 'exit_delay', exit_delay, ...
+                  'reanchored_fraction', n_re / max(n_st, 1), 'coasted_fraction', n_co / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
                   'seeds_skipped', struct('reason', {reshape(names(has), [], 1)}, 'count', {skipped_cnt(has)}));
 tt = term(alive_seed, :); tt = tt(:); tt = tt(~cellfun(@isempty, tt));
 if ~isempty(tt)
@@ -357,8 +454,8 @@ if any(do_trace)
                         'forward',    trace_fwd(ti)', ...
                         'backward',   trace_bwd(ti)');
 end
-fprintf('MMF: %d of %d seeds gave a track >= %.3g voxels; %.1f%% of the steps re-anchored\n', ...
-    numel(tracks), n_seeds, min_length, 100 * meta.mmf.reanchored_fraction);
+fprintf('MMF: %d of %d seeds gave a track >= %.3g voxels; %.1f%% of the steps re-anchored, %.1f%% coasted\n', ...
+    numel(tracks), n_seeds, min_length, 100 * meta.mmf.reanchored_fraction, 100 * meta.mmf.coasted_fraction);
 
 end
 
@@ -446,10 +543,11 @@ bad = any(~isfinite(reshape(w, n, [])), 2) | any(~isfinite(e1), 2);
 w(bad, :, :, :) = NaN;
 end
 
-function J = nodal_jacobian(e)
+function J = nodal_jacobian(e, zone)
 % J(:,:,:,b,k) = d e_b / d x_k at the voxel nodes from the dyadic M = e e' (sign-free):
 % (dM/dx_k) e = de/dx_k for unit e. Fourth-order central differences of M along each axis,
-% second order in the two outer layers (MATLAB gradient there).
+% second order in the two outer layers (MATLAB gradient there); a voxel outside the zone of
+% mmf.hold never reads one inside it, see zone_free_difference.
 dims = size(e); dims = dims(1:3);
 J = zeros([dims 3 3]);
 for a = 1:3
@@ -464,11 +562,43 @@ for a = 1:3
                 idx = repmat({':'}, 1, 3); idx{k} = 3:dims(k) - 2;
                 g{k}(idx{:}) = d4(idx{:});
             end
+            if any(zone(:))
+                g{k} = zone_free_difference(g{k}, Mab, ~zone, k);
+            end
             J(:, :, :, a, k) = J(:, :, :, a, k) + g{k} .* e(:, :, :, b);
             if b ~= a, J(:, :, :, b, k) = J(:, :, :, b, k) + g{k} .* e(:, :, :, a); end
         end
     end
 end
+end
+
+function g = zone_free_difference(g, M, ok, k)
+% g, the derivative of M along k, at the voxels of ok whose stencil reaches outside ok (the
+% zone): from the voxels of ok alone, central or one-sided, of second order where there are
+% enough of them, zero where a voxel has no neighbour in ok along k.
+okp = shifted(ok, 1, k);  okq = shifted(ok, 2, k);  okm = shifted(ok, -1, k);  okn = shifted(ok, -2, k);
+Mp  = shifted(M, 1, k);   Mq  = shifted(M, 2, k);   Mm  = shifted(M, -1, k);   Mn  = shifted(M, -2, k);
+near = ~shifted(~ok, 1, k) & ~shifted(~ok, 2, k) & ~shifted(~ok, -1, k) & ~shifted(~ok, -2, k);
+cut = ok & ~near;
+c2  = cut & okp & okm;
+f2  = cut & okp & okq & ~okm;
+b2  = cut & okm & okn & ~okp;
+f1  = cut & okp & ~okq & ~okm;
+b1  = cut & okm & ~okn & ~okp;
+g(cut) = 0;
+g(c2) = (Mp(c2) - Mm(c2)) / 2;
+g(f2) = (-3 * M(f2) + 4 * Mp(f2) - Mq(f2)) / 2;
+g(b2) = (3 * M(b2) - 4 * Mm(b2) + Mn(b2)) / 2;
+g(f1) = Mp(f1) - M(f1);
+g(b1) = M(b1) - Mm(b1);
+end
+
+function B = shifted(A, n, k)
+% A at the index i + n along k, zero (false) beyond the volume.
+B = circshift(A, -n, k);
+idx = repmat({':'}, 1, 3);
+if n > 0, idx{k} = size(A, k) - n + 1:size(A, k); else, idx{k} = 1:-n; end
+B(idx{:}) = 0;
 end
 
 function w = connection_nodal(X, fld)
@@ -496,15 +626,74 @@ bad = any(~isfinite(reshape(w, n, [])), 2) | ~ok;
 w(bad, :, :, :) = NaN;
 end
 
+function F = fill_zone(F, zone, known)
+% The field F in the voxels of the zone from the trusted voxels around them, layer by
+% layer from the outside in, each voxel the mean of its 3 x 3 x 3 neighbours known so far.
+if ~any(zone(:)), return; end
+box = ones(3, 3, 3);
+for it = 1:max(size(zone))
+    nk    = convn(double(known), box, 'same');
+    front = zone & ~known & nk > 0;
+    if ~any(front(:)), break; end
+    Fk    = convn(F .* known, box, 'same');
+    F(front) = Fk(front) ./ nk(front);
+    known = known | front;
+end
+end
+
+function v1 = fill_axis(v1, zone, known)
+% The principal axis in the voxels of the zone, from the dyadic filled by fill_zone.
+ab = [1 1; 2 2; 3 3; 1 2; 1 3; 2 3];
+v1(~isfinite(v1)) = 0;
+M = cell(1, 6);
+for q = 1:6
+    Mq   = fill_zone(v1(:, :, :, ab(q, 1)) .* v1(:, :, :, ab(q, 2)), zone, known);
+    M{q} = Mq(zone);
+end
+v = principal_axis(M{:});
+v(~isfinite(v)) = 0;
+for a = 1:3
+    va = v1(:, :, :, a);
+    va(zone) = v(:, a);
+    v1(:, :, :, a) = va;
+end
+end
+
+function c = confidence_at(X, fld)
+% The confidence of the data at the rows of X for the hold scheme: CL interpolated
+% over the voxels of tissue alone (the weights renormalized in the cell), eroded
+% (min ignores NaN, so the erosion stays within the data), so that the edge of the
+% tissue is not a zone. NaN where the point is not tissue, as e1_at tests it short
+% of the principal axis: advanceFrame then reads the connection, which is not
+% finite there and stops the tract, whereas 'no_direction', the degenerate data
+% themselves, is left to the zone.
+c = NaN(size(X, 1), 1);
+inside = all(X >= 1, 2) & all(X <= fld.dims, 2);
+if ~any(inside), return; end
+xi  = X(inside, :);
+vox = min(max(round(xi), 1), fld.dims);
+fa  = fld.FAI(xi(:, 1), xi(:, 2), xi(:, 3));
+ok  = fld.prop(sub2ind(fld.dims, vox(:, 1), vox(:, 2), vox(:, 3))) & fa >= fld.fa_min;
+ci  = fld.CLI(xi(:, 1), xi(:, 2), xi(:, 3)) ./ fld.TSI(xi(:, 1), xi(:, 2), xi(:, 3));
+for q = 1:size(fld.probes, 1)
+    pq = xi + fld.probes(q, :);
+    ci = min(ci, fld.CLI(pq(:, 1), pq(:, 2), pq(:, 3)) ./ fld.TSI(pq(:, 1), pq(:, 2), pq(:, 3)));
+end
+ci(~ok) = NaN;
+c(inside) = ci;
+end
+
 function reason = why_stopped(stop, P, F, hh, fld, xdrop)
 % advanceFrame's reasons, with 'nan' resolved into what made the connection
 % non-finite: the node dropped for lying outside tissue (xdrop, if any), else
 % the first failing point among the stages of the next step (its midpoint and
 % end along the carried e1, then the node itself), each with the six probes
-% of the central-difference stencil, in the order the tests are applied.
+% of the central-difference stencil, in the order the tests are applied. A
+% point of the zone without a direction is no reason: the coast never read it.
 switch stop
     case 'boundary', reason = 'outside';
     case 'length',   reason = 'max_arc';
+    case {'coast', 'exit', 'focus'}, reason = stop;
     case 'turn'
         if fld.angle_off, reason = 'no_direction'; else, reason = 'angle'; end   % see the ceiling at maxTurn
     otherwise
@@ -515,6 +704,9 @@ switch stop
         st  = [0 0 0; d 0 0; -d 0 0; 0 d 0; 0 -d 0; 0 0 d; 0 0 -d];
         Q   = reshape(permute(reshape(pts, [], 1, 3) + reshape(st, 1, [], 3), [2 1 3]), [], 3);
         [~, ~, code] = e1_at(Q, fld);
+        if ~isempty(fld.CLI)
+            code(code == 5 & confidence_at(Q, fld) < fld.hold_min) = 0;
+        end
         c = code(find(code > 0, 1));
         if isempty(c), reason = 'no_direction'; else, names = reason_names(); reason = names{c}; end
 end
@@ -530,14 +722,15 @@ rec = struct('direction', dirname, 'pos', P, 'dir', reshape(F(1:n, 1, :), n, 3),
              'h', [h * ones(n - 1, 1); NaN], 'chord', [sqrt(sum(diff(P, 1, 1) .^ 2, 2)); NaN], ...
              'turn', [rad2deg(info.turn{q}(1:n-1)); NaN], 'flip', false(n, 1), ...
              'drift', info.drift{q}(1:n), 'reanchored', info.reanchored{q}(1:n), ...
-             'kappa', info.kappa{q}(1:n), 's', info.s{q}(1:n), 'n_steps', n - 1, 'termination', reason);
+             'kappa', info.kappa{q}(1:n), 's', info.s{q}(1:n), 'coasted', info.coasted{q}(1:n), ...
+             'confidence', info.confidence{q}(1:n), 'n_steps', n - 1, 'termination', reason);
 end
 
 function rec = trace_skipped(x, reason, dirname, fld)
 % The zero-step record of a seed that was not tracked.
 rec = struct('direction', dirname, 'pos', x, 'dir', NaN(1, 3), 'fa', fld.FAI(x(1), x(2), x(3)), ...
              'h', NaN, 'chord', NaN, 'turn', NaN, 'flip', false, 'drift', 0, 'reanchored', false, ...
-             'kappa', NaN, 's', 0, 'n_steps', 0, 'termination', reason);
+             'kappa', NaN, 's', 0, 'coasted', false, 'confidence', NaN, 'n_steps', 0, 'termination', reason);
 end
 
 function seed_points = seeds_from_mask(seed_mask, options, dims)

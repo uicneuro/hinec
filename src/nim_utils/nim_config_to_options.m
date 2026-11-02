@@ -143,6 +143,13 @@ function options = nim_config_to_options(config)
     options.mmf_gradient_delta = t.mmf.gradient_delta;
     options.mmf_connection     = t.mmf.connection;
     options.mmf_max_turn       = t.mmf.max_turn;
+    options.mmf_hold           = t.mmf.hold;
+    options.mmf_hold_min       = t.mmf.hold_min;
+    options.mmf_hold_k         = t.mmf.hold_k;
+    options.mmf_hold_guard     = t.mmf.hold_guard;
+    options.mmf_coast_max      = t.mmf.coast_max;
+    options.mmf_exit_tol       = t.mmf.exit_tol;
+    options.mmf_exit_delay     = t.mmf.exit_delay;
 
     % --- stitching ----------------------------------------------------------
     options.stitching       = t.stitching;

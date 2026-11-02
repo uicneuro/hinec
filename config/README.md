@@ -113,7 +113,7 @@ stay directly comparable.
 |------------|-------------------|-------------------|
 | **standard** (FACT) | `standard_dti.yml` | — *(FACT is DTI-only)* |
 | **hinec** (interpolated) | `hinec_dti.yml` (+ variants below) | `hinec_csd.yml` |
-| **mmf** (moving frames) | `mmf_dti.yml` | — *(DTI only; `csd` is rejected)* |
+| **mmf** (moving frames) | `mmf_dti.yml`, `mmf_dti_hold.yml`, `mmf_dti_march.yml` | — *(DTI only; `csd` is rejected)* |
 
 - `standard_dti` — FACT, discrete voxel tensors, no interpolation. Deterministic baseline.
 - `hinec_dti` / `hinec_csd` — interpolated streamlines, trajectory-dependent
@@ -124,8 +124,14 @@ stay directly comparable.
   closed-form exponential step; CF4 (`rk4`), spline kernel, adaptive
   re-anchoring (`mmf.mode: adaptive`). ACT masks are not used. See
   [docs/MMF_TRACTOGRAPHY.md](../docs/MMF_TRACTOGRAPHY.md).
+- `mmf_dti_hold`, `mmf_dti_march` — `mmf_dti` coasting through degenerate data
+  (a crossing fitted as a pancake) instead of reading it: on the held connection of
+  the last trusted nodes (MMF-4h), or on that curvature and fan-out marched by the
+  flatness of the connection (MMF-4s), with `mmf.reanchor_tol` 0.2 rad. The confidence
+  floor `mmf.hold_min` belongs to the dataset: the tracker warns when it marks more
+  than 40% of the tissue.
 
-> These four are **generic** tracker configs: one `algorithm`/`field` pair each,
+> These are **generic** tracker configs: one `algorithm`/`field` pair each,
 > schema defaults everywhere else. They are *not* the setup the ISMRM-2015 scores
 > were produced with — that is the `ismrm_wholebrain` family below. Use them to
 > exercise a tracker; use `ismrm_wholebrain*` to produce a number.
@@ -275,6 +281,12 @@ tractography:
     mode: adaptive           # transport | reanchor | adaptive
     reanchor_tol: 0.001      # radians; drift of the carried e1 from the data's e1
                              # at which the adaptive mode re-anchors
+    hold: none               # none | hold (MMF-4h) | march (MMF-4s): coast through
+                             # degenerate data instead of reading it
+    hold_min: 0.2            # linear shape CL below which the data are degenerate
+    coast_max: 12            # voxels of arc; a longer coast stops the tract
+    exit_tol: 0.5            # radians; heading off the data at which leaving the
+                             # zone stops the tract
 ```
 
 Every key, its type, range and default is generated from the schema

@@ -1,5 +1,28 @@
 # YAML Configuration Changelog
 
+## 2026-11-02 - `mmf.hold`: MMF-4h and MMF-4s
+
+- New keys of `tractography.mmf`, for the tracker `algorithm: mmf`: `hold`
+  (`none | hold | march`, default `none`: nothing changes for existing configs),
+  `hold_min` (0.2), `hold_k` (3), `hold_guard` (0.5 voxel), `coast_max` (12 voxels
+  of arc), `exit_tol` (0.5 rad) and `exit_delay` (0 voxels of arc); flat option names
+  `mmf_hold`, `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard`, `mmf_coast_max`,
+  `mmf_exit_tol`, `mmf_exit_delay`. With `hold` or `march` a tract coasts through
+  degenerate data (a crossing fitted as a pancake, CL below `hold_min`), on the held
+  connection of its last trusted nodes (MMF-4h) or on that curvature and fan-out
+  marched by the flatness of the connection (MMF-4s). See
+  [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md), with scores on the ISMRM 2015 phantom.
+- New termination reasons of the tracker: `coast`, `exit`, `focus`. `meta.mmf`
+  gains the settings above, `zone_fraction` and `coasted_fraction`; the `debug.trace`
+  records gain `coasted` and `confidence`.
+- New warning `mmf:holdZone`: more than 40% of the tissue voxels below `hold_min`.
+- New tracker configs `config/mmf_dti_hold.yml` and `config/mmf_dti_march.yml`
+  (`mmf_dti` with `hold` set and `reanchor_tol: 0.2`).
+- `src/nim_tractography/advanceFrame.m` takes the suite's version with the whole hold
+  scheme ('Confidence', the 'Hold*' options, 'CoastMax', 'ExitTol', 'ExitDelay', and the
+  `info` fields `coasted`, `confidence`, `held`, `spread`), and 'HoldCurvature' 'march'
+  works with three frame vectors there (the matrix law of the flat connection).
+
 ## 2026-10-20 - `algorithm: mmf` selects the moving-frames tracker
 
 - `algorithm: mmf` is a permitted value again and now selects the new moving
