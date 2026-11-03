@@ -250,6 +250,15 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 test (default 0: the test at the first trusted node; in
 %                 'transport' mode the coast is extended the same way and
 %                 no test is applied)
+%       'Bundle'  labels of the seeds' bundles, [nseed x 1] (default []).
+%                 The fibres of one bundle never cross, but two coasts do
+%                 not know of each other: a step on which two tracts of
+%                 the same bundle, at least one of them coasting, would
+%                 cross stops both ('cross'). They cross when the offset
+%                 between them, in the plane normal to their mean heading,
+%                 reverses or vanishes over the step (in the plane, when
+%                 their order across the bundle swaps). Tracts of different
+%                 bundles may cross. (2026-11-03)
 %       'HoldTwist', 'HoldCurvature'
 %                 'zero' | 'hold' for the twist (default 'zero') and
 %                 'hold' | 'zero' | 'march' for the curvature (default
@@ -301,10 +310,11 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                        on the boundary), 'length' (reached smax), 'turn'
 %                        (the next step would turn by more than MaxTurn,
 %                        or the data's e_1 at its end is more than MaxTurn
-%                        from the heading at its start), 'coast', 'exit'
-%                        and 'focus' (the hold scheme: coast cap, the zone
-%                        left with a drift above ExitTol, or the march
-%                        of MMF-4s reaching the focus of its fan),
+%                        from the heading at its start), 'coast', 'exit',
+%                        'focus' and 'cross' (the hold scheme: coast cap, the zone
+%                        left with a drift above ExitTol, the march
+%                        of MMF-4s reaching the focus of its fan, or a
+%                        step crossing a tract of the same 'Bundle'),
 %                        'nan' (the connection is not finite at the next
 %                        step); for 'turn' and 'nan' the last point is the
 %                        last admissible integration node
@@ -385,6 +395,7 @@ holdK      = 3;
 holdCap    = Inf;
 coastMax   = Inf;
 exitDelay  = 0;              % hold scheme: steps of coast beyond the zone's edge before the exit test
+bundle     = [];             % labels of the seeds' bundles: the tracts of one bundle never cross
 holdTwist  = 'zero';
 holdCurv   = 'hold';
 holdDiv    = 'zero';         % MMF-4s: the divergence term of the march
@@ -435,6 +446,8 @@ for n = 1:2:numel(varargin)
         case 'exittol'
             validateattributes(val, {'numeric'}, {'scalar', 'real', 'nonnegative', 'nonnan'}, 'advanceFrame', '''ExitTol''');
             exitTol = double(val);
+        case 'bundle'
+            bundle = double(val(:));
         case 'exitdelay'
             validateattributes(val, {'numeric'}, {'scalar', 'integer', 'nonnegative'}, 'advanceFrame', '''ExitDelay''');
             exitDelay = double(val);
@@ -602,6 +615,9 @@ spread  = cell(nseed, 1);                   % the transverse component used at t
 hcount  = zeros(nseed, 1);
 coast   = zeros(nseed, 1);                  % consecutive steps started in the zone
 grace   = zeros(nseed, 1);                  % steps of coast left beyond the zone's edge ('ExitDelay')
+if ~isempty(bundle)
+    validateattributes(bundle, {'numeric'}, {'vector', 'numel', nseed, 'real', 'nonnan'}, 'advanceFrame', '''Bundle''');
+end
 if useHold
     c0 = evalCL(X(:, 1:expdim));
 else
@@ -625,6 +641,7 @@ for n = 1:nstep
     Xa = X(idx, :);
     Ea = E(idx, :, :);
     fo = false(numel(idx), 1);                  % MMF-4s: rows whose coast reaches the focus of its fan
+    cx = false(numel(idx), 1);                  % rows whose step crosses a tract of the same bundle ('Bundle')
     if useHold
         sA = (n - 1) * h;                       % arc length of the step's start node
         [sgM, dvM, blM] = sigmaFcn(Xa, Ea);     % the data's transverse component (and block, divergence term) at the start nodes
@@ -649,6 +666,9 @@ for n = 1:nstep
         zoneE = zoneC | g > 0;                  % the end node still coasts
         sgS(~zoneS) = sgM(~zoneS);              % the transverse component used at the start node: the data's where trusted
         fo = marchHold & zoneE & uE < uMin;
+        if ~isempty(bundle)
+            cx = bundleCross(Xa, Xn, Ea, zoneS, bundle(idx), expdim);
+        end
     else
         [Xn, En, Om1, maxRot] = lieStep(Xa, Ea, h, order, omegaFcn);
         zoneS = false(numel(idx), 1);  zoneE = zoneS;  zoneD = zoneS;  cE = NaN(numel(idx), 1);
@@ -710,6 +730,9 @@ for n = 1:nstep
             active(k) = false;
         elseif ex(q)                                                   % the step is not taken: the coast has
             stop{k}   = 'exit';                                        % left the bundle
+            active(k) = false;
+        elseif cx(q)                                                   % the step is not taken: it would cross
+            stop{k}   = 'cross';                                       % a tract of the same bundle
             active(k) = false;
         elseif fo(q)                                                   % the step is not taken: the march of
             stop{k}   = 'focus';                                       % MMF-4s reaches the focus of its fan
@@ -1253,6 +1276,35 @@ function ang = headingAngle(A, B)
 g   = sum(A(:, 1, :) .* B(:, 1, :), 3);
 r   = A(:, 1, :) - g .* B(:, 1, :);                 % part of e_1 normal to the other
 ang = atan2(sqrt(sum(r .^ 2, 3)), abs(g));
+end
+
+function cx = bundleCross(Xa, Xn, Ea, zone, label, expdim)
+% The rows whose step from Xa to Xn crosses the step of another tract of
+% the same bundle (equal label), at least one of the two coasting (zone):
+% the offset between the two, in the plane normal to their mean heading at
+% the start of the step, reverses or vanishes over the step. In the plane
+% this is the swap of their order across the bundle; in space two fibres
+% that pass each other keep their offset, so they are not stopped.
+n  = size(Xa, 1);
+cx = false(n, 1);
+e1 = reshape(Ea(:, 1, 1:expdim), n, expdim);
+for g = unique(label(:)).'
+    rows = find(label == g);
+    for a = 1:numel(rows)
+        for b = a + 1:numel(rows)
+            i = rows(a);  j = rows(b);
+            if ~(zone(i) || zone(j)), continue; end
+            m = e1(i, :) + e1(j, :);
+            if norm(m) < 1e-12, continue; end
+            m  = m / norm(m);
+            wo = Xa(i, 1:expdim) - Xa(j, 1:expdim);  wo = wo - (wo * m.') * m;
+            wn = Xn(i, 1:expdim) - Xn(j, 1:expdim);  wn = wn - (wn * m.') * m;
+            if wo * wn.' <= 0
+                cx(i) = true;  cx(j) = true;
+            end
+        end
+    end
+end
 end
 
 function E = reanchorRows(E, Et, sel)

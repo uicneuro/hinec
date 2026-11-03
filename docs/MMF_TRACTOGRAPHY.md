@@ -201,6 +201,17 @@ last two apply to the nodal connection, the default; with `mmf.connection:
 derivative` only the axis is filled. Without these the phantoms below read 0.3 to 5
 voxels instead of 0.02 to 0.35, and the march gains nothing over the hold.
 
+**The same bundle never crosses.** In trusted data two tracts of one bundle cannot
+cross, being integral curves of one field; two coasts can, since each follows its own
+held or marched connection. In the suite's crossing runs MMF-4h and MMF-4s crossed
+373 and 370 pairs of same-family tracts, nearly all in the core, against 13 for the
+adaptive mode and none for RK4. `advanceFrame` therefore takes `'Bundle'`, the label
+of each seed's bundle, and stops both tracts of a bundle on a step on which they
+would cross while one of them coasts (reason `cross`). The tracker does not pass it
+yet: its seeds carry no bundle labels, and a bundle would have to be defined at the
+entrance of each zone (the tracts entering from the same side, close together, with
+headings within `exit_tol`).
+
 **The march in 3-D.** The planar march of the suite's notes, `dsigma/ds = -sigma^2 +
 D`, `dkappa/ds = -kappa sigma`, has a matrix form. In the carried frame, whose
 normal plane is rotation-minimizing along the coast, the curvature vector

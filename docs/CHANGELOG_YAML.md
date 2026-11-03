@@ -1,5 +1,13 @@
 # YAML Configuration Changelog
 
+## 2026-11-03 - advanceFrame: 'Bundle'
+
+- `src/nim_tractography/advanceFrame.m` takes the suite's version with the
+  option `'Bundle'` (labels of the seeds' bundles; two tracts of one bundle
+  stop with reason `cross` on a step on which they would cross while one of
+  them coasts). The tracker does not pass it: no config key, no change in
+  behaviour. See [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md).
+
 ## 2026-11-03 - the word "budget" is gone
 
 - Every mention of the angle criterion as a "budget" in the help texts, docs,
