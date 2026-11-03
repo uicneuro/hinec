@@ -17,7 +17,9 @@
   records gain `coasted` and `confidence`.
 - New warning `mmf:holdZone`: more than 40% of the tissue voxels below `hold_min`.
 - New tracker configs `config/mmf_dti_hold.yml` and `config/mmf_dti_march.yml`
-  (`mmf_dti` with `hold` set and `reanchor_tol: 0.2`).
+  (`mmf_dti` with `hold` set, `reanchor_tol: 0.2` and `termination.angle_max: 0`:
+  with the scheme the budget's stops are the exit test's, and the scores do not
+  change without it, see [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md#budget)).
 - `src/nim_tractography/advanceFrame.m` takes the suite's version with the whole hold
   scheme ('Confidence', the 'Hold*' options, 'CoastMax', 'ExitTol', 'ExitDelay', and the
   `info` fields `coasted`, `confidence`, `held`, `spread`), and 'HoldCurvature' 'march'

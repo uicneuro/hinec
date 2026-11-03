@@ -19,7 +19,7 @@ tractography:
   interpolation:
     method: spline        # C2 kernel: the connection is a derivative of the field
   termination:
-    angle_max: 225
+    angle_max: 0          # no angle budget: the scheme's exit test takes its place (see the docs)
     max_arc: 600
   mmf:
     mode: adaptive

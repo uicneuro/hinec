@@ -146,7 +146,8 @@ read the data at all but **coasts**.
 | `march` | MMF-4s | that curvature and fan-out, marched by the flatness of the connection: exact on circles, logarithmic spirals and rays, and turning the curvature by the torsion on a helix |
 
 The presets `config/mmf_dti_hold.yml` and `config/mmf_dti_march.yml` are `mmf_dti`
-with the scheme on and `reanchor_tol: 0.2`. See [the scores](#on-data) below: on the
+with the scheme on, `reanchor_tol: 0.2` and no angle budget (`angle_max: 0`; see
+[below](#budget) why). See [the scores](#on-data) below: on the
 ISMRM 2015 phantom the scheme halves the wrong-path streamlines at the price of
 shorter tracks, and most of what the presets gain in F1 comes from `reanchor_tol`
 alone.
@@ -179,7 +180,8 @@ half-tracks ended on it. `exit_delay` carries the coast on for that
 arc beyond the edge before the test; those steps neither count towards `coast_max`
 nor reset it. A coast longer than `coast_max` voxels stops (`coast`), and so does a
 marched coast whose fan closes to a tenth of its cross-section, the density ten
-times the ring's (`focus`). The angle budget applies to the coast's own rotation.
+times the ring's (`focus`). The angle budget, if there is one, applies to the coast's
+own rotation.
 **The volume, the mask and the FA floor stay stops**: the confidence is NaN outside
 tissue, which `advanceFrame` takes for no data, and the connection is not finite
 there. A seed in the zone has no trusted node and coasts straight, along the axis
@@ -312,6 +314,33 @@ minutes, every node inside the mask and no node-to-node turn above the budget;
 the slab is cut at both ends), the angle budget (9%, against 0.5% for hinec,
 for the reason given above), the mask (3%) and a missing axis (1%).
 
+<a id="budget"></a>
+### The angle budget is not needed with the scheme
+
+With the scheme on, the tract transports its frame wherever the data are degenerate,
+and these are the places where the data's axis turns sharply. The angle budget then
+has little left to do, and the scheme's own exit test does that. Of the half-tracks
+of `mmf_dti_hold` on the ISMRM 2015 phantom with the budget of `mmf_dti` (45 degrees
+per step), 14.7% stopped on it. In a trace of 8000 seeds, 86% of those stops were steps
+leaving the zone whose drift (1.1 rad median) the exit test would have stopped anyway,
+since the heading test of the budget runs first; 3.5% had the zone within a voxel
+ahead, the axis swinging before the eroded confidence falls; 10% were in trusted data
+with trusted data ahead. The rotation of a step never reached the budget (0.17 rad at
+most). With the budget off those stops become exits, and the scores do not move:
+
+| `angle_max` | streamlines | valid | wrong path | overlap | overreach | mean F1 | bundles | mean length |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|
+| `mmf_dti_hold`, 225 | 48487 | 53.9% | 6.1% | 0.483 | 0.337 | 0.497 | 23 | 45.6 |
+| `mmf_dti_hold`, 0 (the preset) | 48588 | 53.5% | 6.8% | 0.483 | 0.339 | 0.497 | 23 | 46.8 |
+| `mmf_dti_march`, 225 | 47874 | 53.5% | 5.8% | 0.476 | 0.325 | 0.495 | 23 | 45.3 |
+| `mmf_dti_march`, 0 (the preset) | 47979 | 53.2% | 6.4% | 0.477 | 0.329 | 0.495 | 23 | 46.5 |
+
+So the presets run without a budget. Without the scheme it is a different matter: the
+adaptive mode does not transport through degenerate data, it re-anchors onto them,
+and the budget is the only thing that stops that snap. `mmf_dti` with `reanchor_tol`
+0.2 and `angle_max: 0` gives 57634 streamlines of mean length 58.5, 53.2% valid and
+13.5% wrong path against 11.2%, F1 0.483 against 0.492. `mmf_dti` keeps its budget.
+
 <a id="on-data"></a>
 ### MMF-4h and MMF-4s on data
 
@@ -327,12 +356,13 @@ bundle. All seeds with FA at least 0.1 in the mask, `termination.fa_min: 0.08`,
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
 | `mmf_dti` (`reanchor_tol` 1e-3) | 56823 | 58.2% | 10.3% | 0.391 | 0.226 | 0.436 | 22 | 55.9 |
 | `mmf_dti` with `reanchor_tol` 0.2 | 56703 | 54.5% | 11.2% | 0.509 | 0.405 | 0.492 | 23 | 54.0 |
-| `mmf_dti_hold` | 48487 | 53.9% | 6.1% | 0.483 | 0.337 | 0.497 | 23 | 45.6 |
-| `mmf_dti_march` | 47874 | 53.5% | 5.8% | 0.476 | 0.325 | 0.495 | 23 | 45.3 |
+| `mmf_dti_hold` (with the budget, 225) | 48487 | 53.9% | 6.1% | 0.483 | 0.337 | 0.497 | 23 | 45.6 |
+| `mmf_dti_march` (with the budget, 225) | 47874 | 53.5% | 5.8% | 0.476 | 0.325 | 0.495 | 23 | 45.3 |
 
 `reanchor_tol: 0.2` alone (MMF-4a in the notes) lifts F1 by far more than the scheme
 does, by trusting the smoother transported heading between the voxels, at the cost of
-more overreach. On top of it the hold halves the wrong-path streamlines (6367 to 2973,
+more overreach (these two rows and the next were run with the budget of 225 that the
+presets have since dropped, see above). On top of it the hold halves the wrong-path streamlines (6367 to 2973,
 a share down by 45%) and cuts the overreach by a sixth, for 14% fewer streamlines, 16%
 shorter ones and 5% less overlap, so F1 hardly moves. It is a trade of recall for
 precision rather than a gain. The march adds nothing to the hold here: the fan-out of

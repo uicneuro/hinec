@@ -127,7 +127,8 @@ stay directly comparable.
 - `mmf_dti_hold`, `mmf_dti_march` — `mmf_dti` coasting through degenerate data
   (a crossing fitted as a pancake) instead of reading it: on the held connection of
   the last trusted nodes (MMF-4h), or on that curvature and fan-out marched by the
-  flatness of the connection (MMF-4s), with `mmf.reanchor_tol` 0.2 rad. The confidence
+  flatness of the connection (MMF-4s), with `mmf.reanchor_tol` 0.2 rad and no angle
+  budget (`termination.angle_max: 0`: the scheme's exit test takes its place). The confidence
   floor `mmf.hold_min` belongs to the dataset: the tracker warns when it marks more
   than 40% of the tissue.
 

@@ -979,7 +979,8 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                 evalc('p = nim_config_to_options(load_config_yaml(fullfile(cfgdir, [''mmf_dti_'' preset{1} ''.yml''])));');
                 tc.verifyEqual(p.mmf_hold, preset{1});
                 tc.verifyEqual(p.mmf_reanchor_tol, 0.2);
-                p.mmf_hold = 'none'; p.mmf_reanchor_tol = base.mmf_reanchor_tol;
+                tc.verifyEqual(p.angle_thresh, 0);                       % the exit test takes the budget's place
+                p.mmf_hold = 'none'; p.mmf_reanchor_tol = base.mmf_reanchor_tol; p.angle_thresh = base.angle_thresh;
                 tc.verifyEqual(p, base);
             end
         end
