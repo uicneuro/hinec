@@ -542,7 +542,7 @@ the geometry rather than configured.
 | `seeding.density` | `seed_density` | 1 | Seeds per voxel |
 | `seeding.strategy` | `seed_strategy` | `"uniform"` | Seed placement |
 | `termination.fa_min` | `termination_fa` | 0.05 | FA floor for termination |
-| `termination.angle_max` | `angle_thresh` | 60 | Turn budget, **degrees per voxel of arc** |
+| `termination.angle_max` | `angle_thresh` | 60 | Largest turn, **degrees per voxel of arc** |
 | `termination.max_arc` | `max_steps` | 5000 | Derived step cap (boundary crossings) |
 | `termination.min_arc` | `min_length` | 10 | Minimum track length |
 | — | `seed_mask` | `[]` | Seed mask, supplied by `runTractography` |
@@ -625,7 +625,7 @@ plus:
 | `mmf.exit_tol` | `mmf_exit_tol` | 0.5 | Largest angle (radians) to the data with which a tract may leave the zone |
 | `mmf.exit_delay` | `mmf_exit_delay` | 0 | Arc of coast beyond the edge of the zone before that test, voxels |
 
-ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle budget
+ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle limit
 `termination.angle_max` becomes `advanceFrame`'s `MaxTurn` through
 `nim_angle_limit` (min(angle_max·h, 90) degrees per step) and bounds both the
 rotation of a step and the turn of the heading as the data see it (the data's
@@ -659,7 +659,7 @@ corner, with no RNG and therefore reproducible. `info` reports `.requested`,
 
 #### `nim_angle_limit(angle_rate, arc)`
 
-Returns `[allowed_deg, cos_allowed]`, the turn budget for one step.
+Returns `[allowed_deg, cos_allowed]`, the turn allowed for one step.
 `angle_rate` is degrees of turning per voxel of arc — a minimum radius of
 curvature $R = (180/\pi)/\texttt{angle\_rate}$ voxels in disguise — and `arc` is
 the arc the step advances.
@@ -672,7 +672,7 @@ criterion method-dependent — Euler and RK2 have a chord of exactly $h$ while
 RK4's falls as low as $0.25h$ on this data.
 
 Because $\mathbf{v}_1$ is a line field and tangents are sign-aligned before the
-turn is measured, the measured turn never exceeds 90°: a budget at or above that
+turn is measured, the measured turn never exceeds 90°: an allowed turn at or above that
 is inert, not merely loose.
 
 #### `nim_principal_dir(Dxx, Dyy, Dzz, Dxy, Dxz, Dyz)`

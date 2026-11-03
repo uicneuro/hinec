@@ -111,7 +111,7 @@ not change the result.
 | Many rejected steps | tolerance tight relative to the initial step | raise `integrator.tolerance`, or lower `integrator.step` |
 | Very slow runs | tolerance tighter than the data supports | raise `integrator.tolerance`; check whether `step_min` is binding |
 | Tracks end too early | a termination criterion, not the integrator | check `termination.max_arc` (arc length in voxels — `max_steps` is derived from it), `termination.fa_min`, and `termination.angle_max` |
-| Tracks hairpin near their ends | turn budget inert at this step | `termination.angle_max × integrator.step` must stay below 90°, or the criterion cannot fire |
+| Tracks hairpin near their ends | `angle_max` inert at this step | `termination.angle_max × integrator.step` must stay below 90°, or the criterion cannot fire |
 
 ---
 

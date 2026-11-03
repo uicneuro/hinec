@@ -1,5 +1,14 @@
 # YAML Configuration Changelog
 
+## 2026-11-03 - the word "budget" is gone
+
+- Every mention of the angle criterion as a "budget" in the help texts, docs,
+  configs and tests now names the parameter: `termination.angle_max` (the limit
+  per step being `min(angle_max * step, 90)` degrees). No key changed. Test
+  methods were renamed accordingly (for example `angleMaxStopsASharpTurn`), the
+  error identifier `stitching:budget` is `stitching:maxFragments`, and the
+  non-angle uses say "limit" (`stitching.max_fragments`, `stitching.neighbors`).
+
 ## 2026-11-02 - `mmf.hold`: MMF-4h and MMF-4s
 
 - New keys of `tractography.mmf`, for the tracker `algorithm: mmf`: `hold`
@@ -18,8 +27,8 @@
 - New warning `mmf:holdZone`: more than 40% of the tissue voxels below `hold_min`.
 - New tracker configs `config/mmf_dti_hold.yml` and `config/mmf_dti_march.yml`
   (`mmf_dti` with `hold` set, `reanchor_tol: 0.2` and `termination.angle_max: 0`:
-  with the scheme the budget's stops are the exit test's, and the scores do not
-  change without it, see [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md#budget)).
+  with the scheme the stops of `angle_max` are the exit test's, and the scores do not
+  change without it, see [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md#angle-max)).
 - `src/nim_tractography/advanceFrame.m` takes the suite's version with the whole hold
   scheme ('Confidence', the 'Hold*' options, 'CoastMax', 'ExitTol', 'ExitDelay', and the
   `info` fields `coasted`, `confidence`, `held`, `spread`), and 'HoldCurvature' 'march'
@@ -50,7 +59,7 @@
   `min(angle_max * step, 90)` degrees per step) bounds both the rotation of a
   frame step and the turn of the heading as the data see it (the data's `e1`
   at the end of a step against the heading at its start, in every mode), so a
-  re-anchoring cannot exceed the budget; the 90 degree ceiling is a real cap
+  re-anchoring cannot exceed `angle_max`; the 90 degree ceiling is a real cap
   for this tracker (warning `nim_config:angleMaxCapped` instead of
   `angleMaxInert`), and `angle_max: 0` keeps a safety ceiling of 180 degrees
   per step at singular data (reported as `no_direction`).
@@ -121,10 +130,10 @@ replacement.
   and standard trackers - a schema-validated key that every config set was
   honoured by exactly one of the three.
 - `termination.angle_max` is documented, and implemented, as degrees of turning
-  per **voxel of arc**, not per step: the budget for one step is
+  per **voxel of arc**, not per step: the limit for one step is
   `angle_max x step`, so refining the step does not loosen the constraint.
   Because tangents are sign-aligned (`v1` is a line field), a measured turn
-  never exceeds 90 degrees, so any budget above `90/step` is *inert* rather than
+  never exceeds 90 degrees, so any `angle_max` above `90/step` is *inert* rather than
   merely loose; the loader warns when a config lands there. `angle_max: 0`
   disables the criterion outright. See `src/nim_utils/nim_angle_limit.m`.
 - `interpolation.method` gained `spline` alongside `trilinear` and `cubic`. The

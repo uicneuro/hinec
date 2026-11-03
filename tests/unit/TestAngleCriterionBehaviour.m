@@ -83,20 +83,20 @@ classdef TestAngleCriterionBehaviour < matlab.unittest.TestCase
 
     methods (Test)
 
-        function firesOnlyWhenBudgetIsBelowTheTrueTurningRate(tc)
-            % The field turns at 3.82 deg per voxel of arc. A budget below that
-            % must stop the streamline almost at once; a budget above it must not
-            % interfere at all. Anything else means the criterion is not measuring
-            % turning per unit arc.
+        function firesOnlyWhenAngleMaxIsBelowTheTrueTurningRate(tc)
+            % The field turns at 3.82 deg per voxel of arc. An angle_max below
+            % that must stop the streamline almost at once; an angle_max above it
+            % must not interfere at all. Anything else means the criterion is not
+            % measuring turning per unit arc.
             tight = tc.arc(tc.track(tc.Rate * 0.5, 0.25, 4));
             loose = tc.arc(tc.track(tc.Rate * 2.0, 0.25, 4));
             tc.verifyLessThan(tight, 5, ...
-                'A budget below the true turning rate should terminate immediately.');
+                'An angle_max below the true turning rate should terminate immediately.');
             tc.verifyGreaterThan(loose, 55, ...
-                'A budget above the true turning rate should not terminate at all.');
+                'An angle_max above the true turning rate should not terminate at all.');
         end
 
-        function budgetIsStepInvariant(tc)
+        function angleMaxIsStepInvariant(tc)
             % The point of expressing the limit as a RATE. The same physical
             % constraint must produce the same outcome across an 8x change in
             % step, which is the regression that matters for a step-size ladder:
@@ -104,14 +104,14 @@ classdef TestAngleCriterionBehaviour < matlab.unittest.TestCase
             % kill it at coarse ones.
             for h = [0.4 0.2 0.1 0.05]
                 tc.verifyGreaterThan(tc.arc(tc.track(tc.Rate * 2.0, h, 4)), 55, ...
-                    sprintf('loose budget wrongly terminated at h = %g', h));
+                    sprintf('loose angle_max wrongly terminated at h = %g', h));
                 tc.verifyLessThan(tc.arc(tc.track(tc.Rate * 0.5, h, 4)), 5, ...
-                    sprintf('tight budget failed to terminate at h = %g', h));
+                    sprintf('tight angle_max failed to terminate at h = %g', h));
             end
         end
 
-        function budgetIsIndependentOfIntegrationMethod(tc)
-            % THE defect this whole exercise was about. The budget used to be
+        function angleMaxIsIndependentOfIntegrationMethod(tc)
+            % THE defect this whole exercise was about. angle_max used to be
             % scaled by the realised step CHORD; Euler and RK2 advance by
             % h*(unit vector) so their chord is exactly h, while RK4 averages four
             % stage vectors and its chord is shorter. That handed RK4 a tighter
@@ -119,16 +119,16 @@ classdef TestAngleCriterionBehaviour < matlab.unittest.TestCase
             % experiment built to compare the two. All three must now agree.
             for order = [1 2 4]
                 tc.verifyGreaterThan(tc.arc(tc.track(tc.Rate * 2.0, 0.25, order)), 55, ...
-                    sprintf('loose budget wrongly terminated for integration_order %d', order));
+                    sprintf('loose angle_max wrongly terminated for integration_order %d', order));
                 tc.verifyLessThan(tc.arc(tc.track(tc.Rate * 0.5, 0.25, order)), 5, ...
-                    sprintf('tight budget failed to terminate for integration_order %d', order));
+                    sprintf('tight angle_max failed to terminate for integration_order %d', order));
             end
         end
 
         function zeroDisablesTheCriterionInTheTracker(tc)
             % 0 must mean "no angle criterion", not "no turning allowed". Read
-            % naively it is a 0 degree budget, which would cut every streamline at
-            % its second point.
+            % naively it is a limit of 0 degrees, which would cut every streamline
+            % at its second point.
             tc.verifyGreaterThan(tc.arc(tc.track(0, 0.25, 4)), 55, ...
                 'angle_max = 0 must disable the criterion, not forbid all turning.');
         end
@@ -136,7 +136,7 @@ classdef TestAngleCriterionBehaviour < matlab.unittest.TestCase
         function factTrackerHonoursTheSameUnits(tc)
             % The angle fix reaches nim_tractography_standard too, and until now
             % that was asserted only by grepping its source. FACT is piecewise
-            % constant per voxel, so one transition is budgeted as one voxel of
+            % constant per voxel, so one transition is counted as one voxel of
             % arc: a rate below the field's true turning rate must stop it, a rate
             % above must not. Same field, same closed-form turning rate as the
             % streamline tests.
@@ -152,9 +152,9 @@ classdef TestAngleCriterionBehaviour < matlab.unittest.TestCase
             evalc('tt = nim_tractography_standard(tc.Nim, tight);');
             evalc('tl = nim_tractography_standard(tc.Nim, loose);');
             tc.verifyLessThan(tc.arc(tt), tc.arc(tl), ...
-                ['FACT ignored the angle rate: a budget below the true turning rate ' ...
+                ['FACT ignored the angle rate: an angle_max below the true turning rate ' ...
                  'produced a track no shorter than one well above it.']);
-            tc.verifyGreaterThan(tc.arc(tl), 20, 'setup: loose budget should track freely');
+            tc.verifyGreaterThan(tc.arc(tl), 20, 'setup: loose angle_max should track freely');
         end
 
         function minArcIsActuallyEnforced(tc)
@@ -176,15 +176,15 @@ classdef TestAngleCriterionBehaviour < matlab.unittest.TestCase
                 'min_arc above the track length did not discard it - the key is inert.');
         end
 
-        function budgetAboveNinetyDegreesIsInert(tc)
+        function angleMaxAboveNinetyDegreesIsInert(tc)
             % Tangents are sign-aligned, so a measured turn never exceeds 90 deg.
-            % At h = 0.5 a rate of 225 gives a 112 deg budget: it cannot fire, and
-            % must behave exactly like the disabled criterion. This is the trap the
-            % coarsest rung of the step ladder was sitting in.
+            % At h = 0.5 a rate of 225 gives a limit of 112 deg per step: it
+            % cannot fire, and must behave exactly like the disabled criterion.
+            % This is the trap the coarsest rung of the step ladder was sitting in.
             inert    = tc.arc(tc.track(225, 0.5, 4));
             disabled = tc.arc(tc.track(0,   0.5, 4));
             tc.verifyEqual(inert, disabled, 'AbsTol', 1e-9, ...
-                'A budget above the 90 deg ceiling must be indistinguishable from disabled.');
+                'A limit per step above the 90 deg ceiling must be indistinguishable from disabled.');
         end
     end
 end

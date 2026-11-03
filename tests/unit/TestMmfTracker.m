@@ -265,11 +265,11 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             end
         end
 
-        function angleBudgetStopsASharpTurn(tc)
+        function angleMaxStopsASharpTurn(tc)
             % angle_max is degrees per voxel of arc; with the circle turning at
-            % 57.3/15.5 = 3.7 deg per voxel, a budget of 2 deg/voxel stops the
-            % tract at its seed (the first step would exceed it), a budget of
-            % 10 lets it run.
+            % 57.3/15.5 = 3.7 deg per voxel, an angle_max of 2 deg/voxel stops
+            % the tract at its seed (the first step would exceed it), an
+            % angle_max of 10 lets it run.
             o = tc.Opts; o.angle_thresh = 2;
             evalc('[T, meta] = nim_tractography_mmf(tc.Nim, o);');
             tc.verifyEmpty(T);
@@ -281,7 +281,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyNumElements(T, 1);
         end
 
-        function reanchoringCannotBypassTheAngleBudget(tc)
+        function reanchoringCannotBypassAngleMax(tc)
             % Fibres along y for y <= 30 and along x beyond: the interpolated
             % principal axis is piecewise constant with a swap at y = 30.5, so
             % the connection is zero except within gradient_delta of the swap
@@ -289,8 +289,8 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             % centre: nodes 30.4 -> 30.8, stages at 30.4, 30.6, 30.8) sees no
             % curvature at all. The data's e1 at the end of that step is 90
             % degrees from the carried one; re-anchoring to it would put a 90
-            % degree kink into the track, past any budget. Every mode must stop
-            % with 'angle' instead: the budget bounds the turn of the heading as
+            % degree kink into the track, past any angle_max. Every mode must stop
+            % with 'angle' instead: angle_max bounds the turn of the heading as
             % the data see it (the data's e1 at the end of a step against the
             % heading at its start), which the re-anchoring modes would realise
             % and which transport, without re-anchoring, would run through.
@@ -433,7 +433,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyEqual(meta.trace(1).backward.pos, [30 31 5]);
         end
 
-        function crossingStopsEveryModeOnTheAngleBudget(tc)
+        function crossingStopsEveryModeOnAngleMax(tc)
             % make_synthetic_nim('crossing'): a band along x (y in [27, 33]) is
             % crossed by a band along y (x in [40, 46]) whose direction the
             % crossing voxels carry. Seeds at sub-voxel phases (density 8), so
@@ -457,7 +457,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             end
         end
 
-        function disabledAngleBudgetKeepsASafetyCeiling(tc)
+        function disabledAngleMaxKeepsASafetyCeiling(tc)
             % angle_max 0 switches the criterion off (MaxTurn Inf) in every
             % tracker. A stage landing within gradient_delta of a jump of e1
             % then meets |kappa| ~ 1/delta, and the exponential step would
@@ -542,8 +542,8 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyEqual(size(T2{1}), size(T1{1}));
             tc.verifyLessThan(max(abs(T2{1}(:) - T1{1}(:))), 1e-9);
         end
-        function maxTurnOptionIsTheNotesBudget(tc)
-            % mmf.max_turn (radians per step) replaces the angle_max mapping: a 0.01 rad budget
+        function maxTurnOptionReplacesAngleMax(tc)
+            % mmf.max_turn (radians per step) replaces the angle_max mapping: a max_turn of 0.01 rad
             % stops the circle (h*kappa = 0.25/15.5 = 0.016 rad) at its seed.
             o = tc.Opts; o.mmf_connection = 'nodal'; o.mmf_max_turn = 0.01;
             evalc('[T, meta] = nim_tractography_mmf(tc.Nim, o);');
@@ -607,7 +607,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             end
         end
         function theCrossingOfTheFixtureIsCrossed(tc)
-            % make_synthetic_nim('crossing') at the sub-voxel phases of the budget test: every
+            % make_synthetic_nim('crossing') at the sub-voxel phases of the angle_max test: every
             % mode reads the swap of the axis and stops at x ~ 39.5 without the scheme. With
             % it the tract coasts straight through the pancakes, re-anchors on band A beyond
             % them and leaves the volume, never turning into band B.
@@ -741,8 +741,8 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyLessThan(gap.march, 0.1);
         end
         function aCoastThatLeavesTheBundleStops(tc)
-            % Beyond the pancakes band A runs 30 degrees off, 0.52 rad: within the angle
-            % budget of a step, and above an exit_tol of 0.2.
+            % Beyond the pancakes band A runs 30 degrees off, 0.52 rad: within the
+            % limit per step from angle_max, and above an exit_tol of 0.2.
             nim = make_synthetic_nim('crossing');
             nim.evec(47:end, 27:33, :, 1, 1) = cosd(30); nim.evec(47:end, 27:33, :, 2, 1) = sind(30);
             nim.evec(47:end, 27:33, :, 1, 2) = -sind(30); nim.evec(47:end, 27:33, :, 2, 2) = cosd(30);
@@ -979,7 +979,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                 evalc('p = nim_config_to_options(load_config_yaml(fullfile(cfgdir, [''mmf_dti_'' preset{1} ''.yml''])));');
                 tc.verifyEqual(p.mmf_hold, preset{1});
                 tc.verifyEqual(p.mmf_reanchor_tol, 0.2);
-                tc.verifyEqual(p.angle_thresh, 0);                       % the exit test takes the budget's place
+                tc.verifyEqual(p.angle_thresh, 0);                       % the exit test takes the place of angle_max
                 p.mmf_hold = 'none'; p.mmf_reanchor_tol = base.mmf_reanchor_tol; p.angle_thresh = base.angle_thresh;
                 tc.verifyEqual(p, base);
             end

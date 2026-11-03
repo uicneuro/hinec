@@ -302,7 +302,7 @@ All trackers share the same criteria, expressed in step-invariant units:
 - Curvature exceeds `termination.angle_max`, in **degrees per voxel of arc**. This fixes a
   minimum radius of curvature $R = 57.3 / \texttt{angle\_max}$ voxels, so refining the step
   does not loosen the constraint. Because the principal direction is a line field, tangents
-  are sign-aligned and a measured turn never exceeds 90°; a budget above $90/\Delta s$ is
+  are sign-aligned and a measured turn never exceeds 90°; an `angle_max` above $90/\Delta s$ is
   therefore **inert**, not merely loose. `angle_max: 0` disables the criterion.
 - Arc length exceeds `termination.max_arc` voxels (`max_steps` is derived as
   $\lceil \texttt{max\_arc} / \Delta s \rceil$)

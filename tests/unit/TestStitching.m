@@ -82,7 +82,7 @@ classdef TestStitching < matlab.unittest.TestCase
   end
   function rejectsOversizedSeedPlan(tc)
    [nim,o]=phantom();o.stitching.max_fragments=1;
-   tc.verifyError(@()nim_tractography_stitching(nim,o),'stitching:budget');
+   tc.verifyError(@()nim_tractography_stitching(nim,o),'stitching:maxFragments');
   end
  end
 end

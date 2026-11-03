@@ -38,8 +38,8 @@ with a fresh field-aligned tangent.
 ```
 
 The presets use eight seeds per voxel. They are intended for initial ROI
-experiments: the explicit `stitching.max_fragments` budget fails before generation
-if seed count times possible peaks exceeds the budget. Increase it deliberately
+experiments: the explicit `stitching.max_fragments` limit fails before generation
+if seed count times possible peaks exceeds `max_fragments`. Increase it deliberately
 or reduce density/ROI. Endpoint search is bounded by `stitching.neighbors`; a
 small value can miss compatible candidates in very dense neighborhoods.
 
@@ -84,8 +84,8 @@ with the number of endpoints inside the query sphere; this is not a constant-cos
 search. The enclosing sphere contains the full allowed forward cone; compatibility
 checks remove the extra sphere volume. Seed grids of 8, 64, and 216 use respectively
 2, 4, and 6 evenly spaced subdivisions on each voxel axis. Set `max_fragments`
-to accommodate the seedable voxel count multiplied by the density. CSD budgets
-also include the maximum possible seed-voxel peak count.
+to accommodate the seedable voxel count multiplied by the density. For CSD, `max_fragments`
+also includes the maximum possible seed-voxel peak count.
 
 Compare densities within each algorithm, and compare against continuous HINEC
 at the same densities. Seed density and endpoint search strategy are separate

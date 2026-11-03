@@ -35,7 +35,7 @@ place seed anywhere inside a seeded voxel
 direction <- principal eigenvector of the seed voxel, signed by +1 / -1
 loop:
     stop if FA at the current voxel < termination.fa_min
-    stop if the turn from the previous segment exceeds the angle budget
+    stop if the turn from the previous segment exceeds angle_max
     stop if the crossing count reaches max_steps
     exit_point <- intersection of the ray with the current voxel boundary
     stop if there is no forward intersection, or the exit point leaves the volume
@@ -239,7 +239,7 @@ passing `options.propagation_mask` directly.
 |---|---|---|
 | FA at the seed voxel below floor | `termination.fa_min` | `initial_fa` |
 | FA at the current voxel below floor | `termination.fa_min` | `fa` |
-| Turn exceeds the angle budget | `termination.angle_max` | `angle` |
+| Turn exceeds `angle_max` | `termination.angle_max` | `angle` |
 | Crossing count reached | derived from `termination.max_arc` | `max_steps` |
 | No forward boundary intersection | — | `no_exit` |
 | Exit voxel outside the propagation mask | — | `brain_mask` |
@@ -255,24 +255,24 @@ file and then never read; the tracker carried a comment stating it applied "no
 filters at all", which was literally true. A schema-validated key that every
 config sets was honoured by only one of the trackers.
 
-### The angle budget
+### `termination.angle_max`
 
 `termination.angle_max` is in **degrees of turning per voxel of arc**, not per
 step. Every tracker converts it through `nim_utils/nim_angle_limit.m`. It is
 a minimum radius of curvature in disguise: `R = 57.3 / angle_max` voxels.
 
-**FACT is budgeted per voxel transition.** Direction is piecewise constant
+**FACT applies `angle_max` per voxel transition.** Direction is piecewise constant
 within a voxel and changes only at boundaries, so one transition is charged as
 one voxel of arc — `nim_angle_limit(angle_thresh, 1)`. This is deliberately
 *not* the length of the segment just travelled: a streamline that clips a voxel
 corner covers a tiny arc, but the turn waiting for it at the boundary is a
 property of the data, not of how much of the voxel it happened to cross.
-Budgeting by the clipped length would terminate a streamline for the geometry
+Taking the limit from the clipped length would terminate a streamline for the geometry
 of the intersection.
 
 **The 90 degree ceiling.** `v1` is a line field, defined only up to sign, so
 every tangent is sign-aligned to its predecessor before the turn between them is
-measured. That confines the measured turn to `[0, 90]` degrees. A budget above
+measured. That confines the measured turn to `[0, 90]` degrees. A limit from `angle_max` above
 90 degrees can never be exceeded, so the criterion there is not loose — it is
 **absent**. `nim_config_to_options` warns when a config lands in that regime.
 
@@ -280,10 +280,10 @@ measured. That confines the measured turn to `[0, 90]` degrees. A budget above
 rather than setting a very large value: a large value is a silently inert
 criterion, which looks exactly like a satisfied one.
 
-For the interpolated trackers the budget for one step is `angle_max x step`, so
-refining the step tightens the budget in proportion and the same physical
-curvature bound is enforced at every step size. The budget is always taken from
-the *nominal* step, never the realised chord — chord-based budgeting is
+For the interpolated trackers the limit per step from `angle_max` is `angle_max x step`, so
+refining the step tightens the limit in proportion and the same physical
+curvature bound is enforced at every step size. The limit per step is always taken from
+the *nominal* step, never the realised chord — a limit taken from the chord is
 method-dependent, since Euler and RK2 advance by `h x (unit vector)` and have a
 chord of exactly `h`, while RK4 averages four stage vectors and its chord is
 shorter. `config/standard_dti.yml` sets `angle_max: 45`, the classic FACT
@@ -304,7 +304,7 @@ from canonical config path to the flat option names the tracker reads lives in
 | `tractography.seeding.fa_min` | `seed_fa_threshold` | seed mask FA floor (applied in `runTractography`) |
 | `tractography.seeding.roi` / `roi_dilate` | `seed_roi` / `seed_roi_dilate` | restrict seeding to atlas regions |
 | `tractography.termination.fa_min` | `termination_fa` | termination and propagation-mask FA floor |
-| `tractography.termination.angle_max` | `angle_thresh` | turn budget per voxel transition |
+| `tractography.termination.angle_max` | `angle_thresh` | `angle_max` applied per voxel transition |
 | `tractography.termination.max_arc` | `max_steps` (derived) | see the caveat below |
 | `tractography.termination.min_arc` | `min_length` | discard shorter tracks, in voxels |
 | `tractography.filter.*` | — | ROI selection by `runTractography` after tracking; full tractogram still saved, selection in `roi_selection.mat` |

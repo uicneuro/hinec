@@ -286,7 +286,7 @@ field through the exponential step of `advanceFrame.m`. It reads
 `nim.eval`), runs on
 `field: dti` only (`csd` is rejected), maps
 `integrator` `euler` / `rk2` / `rk4` to Lie group order 1 / 2 / 4 (`rkf45` is
-rejected), and ignores the ACT masks. The angle budget goes through
+rejected), and ignores the ACT masks. `angle_max` goes through
 `nim_angle_limit` like everywhere else and bounds the rotation of a step and
 the turn of the heading as the data see it, in every mode. Besides the contract fields, `meta` carries
 `termination` (reason / count over the half-tracks tracked, `coast`, `exit` and

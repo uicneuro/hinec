@@ -1,6 +1,6 @@
 classdef TestAngleLimit < matlab.unittest.TestCase
 % The angle criterion, as a unit. Every case here is a bug that was live in the
-% tracker: the budget scaled by the realised chord, the turn measured against
+% tracker: angle_max scaled by the realised chord, the turn measured against
 % that chord, no ceiling at 90 degrees, and three trackers reading the same
 % config key in three different units.
 
@@ -18,9 +18,9 @@ classdef TestAngleLimit < matlab.unittest.TestCase
 
     methods (Test)
 
-        function budgetScalesWithArc(tc)
-            % The whole point of a RATE: halve the step, halve the budget, so the
-            % same curvature bound is enforced at every step size.
+        function angleMaxScalesWithArc(tc)
+            % The whole point of a RATE: halve the step, halve the limit per
+            % step, so the same curvature bound is enforced at every step size.
             for h = [0.5 0.25 0.125 0.0625]
                 tc.verifyEqual(nim_angle_limit(60, h), 60*h, 'AbsTol', 1e-12);
             end
@@ -28,8 +28,8 @@ classdef TestAngleLimit < matlab.unittest.TestCase
 
         function ceilingIsNinetyDegrees(tc)
             % Tangents are sign-aligned, so a measured turn is at most 90 degrees.
-            % A budget above that cannot fire and must not be reported as if it
-            % could - clamping is what makes the inertness visible.
+            % A limit per step above that cannot fire and must not be reported as
+            % if it could - clamping is what makes the inertness visible.
             tc.verifyEqual(nim_angle_limit(225, 0.5), 90, 'AbsTol', 1e-12);
             tc.verifyEqual(nim_angle_limit(3600, 1.0), 90, 'AbsTol', 1e-12);
             % ... and 225 at the default step 0.2 is the classic 45 deg/step,
@@ -39,7 +39,7 @@ classdef TestAngleLimit < matlab.unittest.TestCase
 
         function zeroDisablesRatherThanForbids(tc)
             % A rate of 0 must mean "no angle criterion", not "no turning
-            % allowed". Read naively, 0 gives a 0 degree budget and terminates
+            % allowed". Read naively, 0 gives a 0 degree limit and terminates
             % every streamline at its second point.
             [deg, c] = nim_angle_limit(0, 0.5);
             tc.verifyEqual(deg, Inf);
@@ -54,34 +54,34 @@ classdef TestAngleLimit < matlab.unittest.TestCase
             % key and only hinec was taught the new meaning, leaving FACT
             % reading a per-voxel rate as a per-step angle - cos(225 deg) is
             % negative, so its angle criterion was silently dead. The mmf
-            % tracker converts the same budget into advanceFrame's MaxTurn.
+            % tracker converts the same angle_max into advanceFrame's MaxTurn.
             for f = {'nim_tractography_hinec', 'nim_tractography_standard', 'nim_tractography_mmf'}
                 src = fileread(fullfile(tc.Root, 'src', 'nim_tractography', [f{1} '.m']));
                 tc.verifyTrue(contains(src, 'nim_angle_limit'), ...
-                    sprintf('%s must budget its angle criterion through nim_angle_limit', f{1}));
+                    sprintf('%s must apply angle_max through nim_angle_limit', f{1}));
                 tc.verifyFalse(contains(src, 'cos(deg2rad(options.angle_thresh))'), ...
                     sprintf('%s still reads angle_thresh as a per-step angle', f{1}));
             end
         end
 
-        function hinecBudgetsByNominalStepNotChord(tc)
+        function hinecAppliesAngleMaxByNominalStepNotChord(tc)
             % The defect that biased the method comparison. Euler and RK2 advance
             % by h*(unit vector) so their chord is exactly h; RK4 averages four
-            % stage vectors and its chord fell to 0.25*h on real data. Budgeting
-            % by the chord therefore imposed a 4x tighter angle limit on RK4 alone
-            % - inside an experiment whose purpose was to compare RK4 against
-            % Euler and RK2.
+            % stage vectors and its chord fell to 0.25*h on real data. Scaling
+            % angle_max by the chord therefore imposed a 4x tighter angle limit
+            % on RK4 alone - inside an experiment whose purpose was to compare
+            % RK4 against Euler and RK2.
             src = fileread(fullfile(tc.Root, 'src', 'nim_tractography', ...
                                     'nim_tractography_hinec.m'));
             tc.verifyTrue(contains(src, 'nim_angle_limit(angle_rate, last_step_arc)'), ...
-                'hinec must budget the turn by the nominal step arc.');
+                'hinec must limit the turn by angle_max times the nominal step arc.');
             tc.verifyTrue(contains(src, 'dot(prev_dir, dir_vec)'), ...
                 'hinec must measure the turn between consecutive TANGENTS.');
             tc.verifyFalse(contains(src, 'angle_rate * step_len'), ...
-                'hinec still scales the angle budget by the realised chord length.');
+                'hinec still scales angle_max by the realised chord length.');
         end
 
-        function configsDeclareAnActiveBudget(tc)
+        function configsDeclareAnActiveAngleMax(tc)
             % A config whose angle_max * step lands at or above 90 has no angle
             % criterion at all. That is legal only when it is asked for (0).
             cfgs = dir(fullfile(tc.Root, 'config', '*.yml'));
@@ -94,7 +94,7 @@ classdef TestAngleLimit < matlab.unittest.TestCase
                 if a == 0, continue; end   % deliberately disabled
                 h = c.tractography.integrator.step;
                 tc.verifyLessThan(a * h, 90, sprintf( ...
-                    ['%s: angle_max %g at step %g gives a %.1f deg budget, at or above ' ...
+                    ['%s: angle_max %g at step %g gives a %.1f deg limit per step, at or above ' ...
                      'the 90 deg ceiling - the criterion cannot fire. Use 0 if that is ' ...
                      'intended.'], cfgs(i).name, a, h, a*h));
             end

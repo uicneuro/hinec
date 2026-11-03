@@ -52,9 +52,9 @@ tractography:
 
     # ANGLE CRITERION OFF FOR ORDER VERIFICATION.
     #
-    # angle_max is a rate in degrees per voxel of ARC, so the budget for one step
+    # angle_max is a rate in degrees per voxel of ARC, so the limit for one step
     # is angle_max * step - and a step ladder sweeps `step` by two orders of
-    # magnitude. At 225 deg/voxel that budget runs from 112 deg at step 0.5, which
+    # magnitude. At 225 deg/voxel that limit runs from 112 deg at step 0.5, which
     # is above the 90 deg ceiling and therefore CANNOT FIRE, down to 0.45 deg at
     # step 0.002, which cuts almost everything. The criterion is not held fixed
     # across the ladder in any useful sense: it is absent at the top and crushing

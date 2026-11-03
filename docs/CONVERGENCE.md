@@ -38,7 +38,7 @@ the parameter $s$ is arc length. Seeds are the 8,384 voxels of the ISMRM
 ground-truth `UF_right` bundle mask with FA > 0.15.
 
 The angle termination criterion is **disabled** (`angle_max: 0`). It is a
-stopping rule whose budget scales with the step size, and a rule that changes
+stopping rule whose limit per step scales with the step size, and a rule that changes
 with the refinement parameter is not a fixed problem to converge to.
 
 ![Right uncinate fasciculus: ours against the ISMRM ground truth](img/bundle_uf_right.png)

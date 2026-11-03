@@ -493,7 +493,7 @@ $$
 \cos\theta = \frac{|\mathbf{d}_{\text{new}} \cdot \mathbf{d}_{\text{prev}}|}{|\mathbf{d}_{\text{new}}| \, |\mathbf{d}_{\text{prev}}|}
 $$
 
-and compared against a budget. The budget is **not** a fixed angle per step. The
+and compared against the limit from `angle_max`. The limit is **not** a fixed angle per step. The
 configured `termination.angle_max` is a turning **rate**, in degrees per voxel of
 arc, and the allowance for one step of nominal arc $h$ is
 
@@ -504,7 +504,7 @@ $$
 
 A rate is what makes the criterion step-invariant: halving $h$ halves the
 allowance, so the same bound on the radius of curvature is enforced at every step
-size, and refining the step cannot silently loosen the stopping rule. The budget
+size, and refining the step cannot silently loosen the stopping rule. The limit per step
 is evaluated on the **nominal** step arc, never the realised chord. For
 $d\mathbf{x}/ds = \mathbf{v}$ with $|\mathbf{v}| = 1$ a step advances exactly $h$ of
 arc by construction; the chord is shorter, mostly because the Runge-Kutta stage
@@ -518,12 +518,12 @@ Two limits follow, and both matter in practice.
 
 - **90 degrees is a ceiling, not a safety margin.** $\mathbf{e}_1$ is a *line*
   field, so each tangent is sign-aligned to its predecessor before the turn is
-  measured and the measured turn is confined to $[0°, 90°]$. Any budget with
+  measured and the measured turn is confined to $[0°, 90°]$. Any limit per step with
   $\texttt{angle\_max} \cdot h \geq 90$ can never be exceeded: the criterion is
   absent, not merely permissive. `nim_config_to_options` warns when a
   configuration lands there.
 - **`angle_max: 0` disables the criterion** outright, which is what a controlled
-  experiment should use — a stopping rule whose budget scales with the refinement
+  experiment should use — a stopping rule whose limit per step scales with the refinement
   parameter is not part of a fixed problem to converge to.
 
 `nim_angle_limit` computes $\theta_{\max}(h)$ and its cosine once per step;
@@ -547,7 +547,7 @@ $$
 
 Tracks shorter than `termination.min_arc` (an arc length in voxels, default 15)
 are discarded as likely spurious. The companion cap `termination.max_arc` bounds
-$L$ from above; the step budget handed to the tracker is derived from it as
+$L$ from above; the step limit handed to the tracker is derived from it as
 $\lceil \texttt{max\_arc}/h \rceil$, so refining the step cannot truncate a
 track that a coarser run completed.
 

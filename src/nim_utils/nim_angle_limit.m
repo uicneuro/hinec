@@ -1,11 +1,12 @@
 function [allowed_deg, cos_allowed] = nim_angle_limit(angle_rate, arc)
-% nim_angle_limit: Turn budget for one integration step of a streamline.
+% nim_angle_limit: Turn limit for one integration step of a streamline.
 %
 %   [allowed_deg, cos_allowed] = nim_angle_limit(angle_rate, arc)
 %
 %   angle_rate - degrees of turning permitted per VOXEL OF ARC. Expressing the
 %                limit as a RATE is what makes it step-invariant: halving the
-%                step halves the budget, so the same physical curvature bound is
+%                step halves the limit per step, so the same physical curvature
+%                bound is
 %                enforced at every step size. It is a minimum radius of
 %                curvature in disguise: R = (180/pi)/angle_rate voxels.
 %
@@ -17,7 +18,8 @@ function [allowed_deg, cos_allowed] = nim_angle_limit(angle_rate, arc)
 %   reasons: genuine curvature shortens it by O(h^3) (negligible), while
 %   disagreement among the RK stage vectors shortens it a great deal. The second
 %   is a discretisation artefact, not a statement that less arc was covered.
-%   Scaling the budget by the chord therefore tightens the criterion exactly
+%   Scaling the limit per step by the chord therefore tightens the criterion
+%   exactly
 %   where the direction field is most ambiguous, and makes it METHOD-DEPENDENT:
 %   Euler and RK2 advance by h*(unit vector) so their chord is identically h,
 %   while RK4 averages four stage vectors and its chord runs as low as 0.25*h on
@@ -27,7 +29,8 @@ function [allowed_deg, cos_allowed] = nim_angle_limit(angle_rate, arc)
 % THE 90 DEGREE CLAMP IS A CEILING, NOT A SAFETY RAIL.
 %   v1 is a LINE field: defined up to sign. Every tangent is sign-aligned to its
 %   predecessor before the turn is measured, which confines the measured turn to
-%   [0, 90] degrees. A budget above 90 degrees can never be exceeded, so the
+%   [0, 90] degrees. A limit per step above 90 degrees can never be exceeded, so
+%   the
 %   criterion is INERT there. With angle_rate = 225 deg/voxel that happens for
 %   every step above 0.4 voxels - the criterion silently switches itself off at
 %   the coarse end of a step-size ladder and switches on again as the ladder

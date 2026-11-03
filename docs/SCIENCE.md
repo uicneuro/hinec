@@ -376,11 +376,11 @@ Tractography terminates a streamline when any condition is met:
    step makes it step-invariant — it is a minimum radius of curvature,
    $R = 57.3/\texttt{angle\_max}$ voxels, enforced identically at every step size.
    Two edge cases are worth knowing: tangents are sign-aligned before the turn is
-   measured, so a measured turn never exceeds 90°, and any budget at or above that
+   measured, so a measured turn never exceeds 90°, and any allowance at or above that
    is *inert* rather than merely loose; and `angle_max: 0` disables the criterion
    deliberately, which is what a controlled experiment wants.
 3. **Brain mask boundary**: the streamline leaves the volume or the mask.
-4. **Arc-length cap** (`termination.max_arc`, default 400 voxels): the step budget
+4. **Arc-length cap** (`termination.max_arc`, default 400 voxels): the step limit
    is derived as $\lceil \texttt{max\_arc}/\text{step} \rceil$, so refining the
    step cannot silently truncate a track.
 

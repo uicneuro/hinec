@@ -91,7 +91,7 @@ Leaving the volume stops the tract as well, and the cut boundary point is
 dropped, so tracks consist of integration nodes only, like those of the other
 trackers.
 
-The angle budget `termination.angle_max` (degrees per voxel of arc, through
+The angle limit `termination.angle_max` (degrees per voxel of arc, through
 `nim_angle_limit`: `min(angle_max * h, 90)` degrees per step, none for
 `angle_max <= 0`) becomes `advanceFrame`'s `MaxTurn`. It bounds two turns: the
 rotation `h |kappa|` of a step, evaluated at every stage, and the turn of the
@@ -102,8 +102,8 @@ moving-frames counterpart of the angle between consecutive directions that the
 streamline trackers test, which could otherwise put a kink of up to 90 degrees
 into a track where the data's direction changes abruptly (a crossing seen in
 DTI, an interface between bundles); in `transport` mode, which never
-re-anchors, it stops a tract whose heading the data contradict beyond the
-budget instead of letting it run through them. Where the interpolated
+re-anchors, it stops a tract whose heading the data contradict beyond what
+`angle_max` allows instead of letting it run through them. Where the interpolated
 principal axis is piecewise constant with a swap plane, as across such an
 interface, the connection is zero except within `gradient_delta` of the plane
 and a step whose stages straddle it sees no curvature at all; this second test
@@ -112,7 +112,7 @@ exceed 90 degrees, the 90 degree ceiling of `nim_angle_limit` is a real cap
 here. Note also that the curvature of the interpolated principal-axis field is
 large wherever the dyadic is nearly degenerate (crossings, planar regions:
 the derivative of the principal axis grows like `1/(lambda_1 - lambda_2)`), so
-the budget stops more half-tracks in such regions than the node-to-node angle
+`angle_max` stops more half-tracks in such regions than the node-to-node angle
 test of the streamline trackers does. `termination.max_arc` is `advanceFrame`'s
 `smax`.
 
@@ -135,7 +135,7 @@ the hinec tracker's (`pos`, `dir` = the carried `e1`, `fa`, `h`, `chord`,
 
 In a voxel where two bundles cross, the single tensor is a pancake and its
 principal axis means nothing. A tract that reads the connection there turns into
-the other bundle or, more often, stops on the angle budget. The hold scheme of
+the other bundle or, more often, stops on `angle_max`. The hold scheme of
 `advanceFrame` lets it cross instead: inside a zone of degenerate data it does not
 read the data at all but **coasts**.
 
@@ -146,8 +146,8 @@ read the data at all but **coasts**.
 | `march` | MMF-4s | that curvature and fan-out, marched by the flatness of the connection: exact on circles, logarithmic spirals and rays, and turning the curvature by the torsion on a helix |
 
 The presets `config/mmf_dti_hold.yml` and `config/mmf_dti_march.yml` are `mmf_dti`
-with the scheme on, `reanchor_tol: 0.2` and no angle budget (`angle_max: 0`; see
-[below](#budget) why). See [the scores](#on-data) below: on the
+with the scheme on, `reanchor_tol: 0.2` and `angle_max: 0` (see
+[below](#angle-max) why). See [the scores](#on-data) below: on the
 ISMRM 2015 phantom the scheme halves the wrong-path streamlines at the price of
 shorter tracks, and most of what the presets gain in F1 comes from `reanchor_tol`
 alone.
@@ -168,10 +168,10 @@ nothing else, so neither the edge of the mask nor the FA floor is a zone.
 
 **Leaving it.** In the `adaptive` and `reanchor` modes, a tract reaching a trusted
 node is re-anchored if its heading is within `exit_tol` of the data; otherwise the
-coast has left the bundle and it stops (`exit`). The heading test of the angle
-budget comes first: data at the end of the step further than the budget from the
-heading at its start stop the tract with `angle`. In `transport` mode nothing is re-anchored or tested on leaving: the tract
-keeps its heading and only the budget applies. `exit_tol` is apart from
+coast has left the bundle and it stops (`exit`). The heading test of
+`angle_max` comes first: data at the end of the step further from the heading
+at its start than `angle_max` allows stop the tract with `angle`. In `transport` mode nothing is re-anchored or tested on leaving: the tract
+keeps its heading and only `angle_max` applies. `exit_tol` is apart from
 `reanchor_tol` because they ask different things of the data: a test on leaving has
 to sit above the disagreement of neighbouring voxels. In the tissue of the sample
 dataset (FA at least 0.2) a quarter of the neighbouring voxels differ by more than
@@ -180,7 +180,7 @@ half-tracks ended on it. `exit_delay` carries the coast on for that
 arc beyond the edge before the test; those steps neither count towards `coast_max`
 nor reset it. A coast longer than `coast_max` voxels stops (`coast`), and so does a
 marched coast whose fan closes to a tenth of its cross-section, the density ten
-times the ring's (`focus`). The angle budget, if there is one, applies to the coast's
+times the ring's (`focus`). `angle_max`, when it is active, applies to the coast's
 own rotation.
 **The volume, the mask and the FA floor stay stops**: the confidence is NaN outside
 tissue, which `advanceFrame` takes for no data, and the connection is not finite
@@ -270,11 +270,11 @@ the chunk boundary of 4000 seeds, a seed that cannot be tracked), the straight
 field (a line to roundoff), the sign alignment of the connection across the
 flip locus of the principal axis, the precedence of `propagation_mask` over
 the brain mask, the termination reasons (`max_arc`, `angle`, `fa`,
-`outside_mask`, `outside`) with every integrator, the angle budget on both
+`outside_mask`, `outside`) with every integrator, `angle_max` on both
 the step and the data's heading (a 90-degree interface between bundles with
 the stages straddling the swap plane, and the crossing fixture at eight
 sub-voxel seed phases: every mode stops with `angle` and no track has a kink
-above the budget), the safety ceiling when the budget is disabled, the
+above `angle_max`), the safety ceiling when `angle_max` is disabled, the
 one-sided stencil at a volume face, a non-finite voxel in a spline field, the
 per-step trace and the rejection of `rkf45` and `csd`.
 
@@ -307,26 +307,26 @@ scheme; the signs of the axial data; the trace and the rejected inputs.
 On the sample dataset (`data/parcellation_sample/sample.mat`, 128 x 128 x 50,
 `config/mmf_dti.yml` at `seeding.density: 1`, 147k seeds of which 100k lie in
 tissue) the tracker produces 69.7k tracks of at least 15 voxels in about 11
-minutes, every node inside the mask and no node-to-node turn above the budget;
+minutes, every node inside the mask and no node-to-node turn above `angle_max`;
 `hinec_dti.yml` on the same seeds gives 74k in about 10 minutes, and for the
 68.4k seeds both keep the two tracks agree to a median nearest-node distance of
 0.25 voxel. The half-tracks end on the FA floor (77%), the volume faces (10%,
-the slab is cut at both ends), the angle budget (9%, against 0.5% for hinec,
+the slab is cut at both ends), `angle_max` (9%, against 0.5% for hinec,
 for the reason given above), the mask (3%) and a missing axis (1%).
 
-<a id="budget"></a>
-### The angle budget is not needed with the scheme
+<a id="angle-max"></a>
+### angle_max is not needed with the scheme
 
 With the scheme on, the tract transports its frame wherever the data are degenerate,
-and these are the places where the data's axis turns sharply. The angle budget then
+and these are the places where the data's axis turns sharply. `angle_max` then
 has little left to do, and the scheme's own exit test does that. Of the half-tracks
-of `mmf_dti_hold` on the ISMRM 2015 phantom with the budget of `mmf_dti` (45 degrees
+of `mmf_dti_hold` on the ISMRM 2015 phantom with the `angle_max` of `mmf_dti` (45 degrees
 per step), 14.7% stopped on it. In a trace of 8000 seeds, 86% of those stops were steps
 leaving the zone whose drift (1.1 rad median) the exit test would have stopped anyway,
-since the heading test of the budget runs first; 3.5% had the zone within a voxel
+since the heading test of `angle_max` runs first; 3.5% had the zone within a voxel
 ahead, the axis swinging before the eroded confidence falls; 10% were in trusted data
-with trusted data ahead. The rotation of a step never reached the budget (0.17 rad at
-most). With the budget off those stops become exits, and the scores do not move:
+with trusted data ahead. The rotation of a step never reached the limit from `angle_max` (0.17 rad at
+most). With `angle_max` off those stops become exits, and the scores do not move:
 
 | `angle_max` | streamlines | valid | wrong path | overlap | overreach | mean F1 | bundles | mean length |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
@@ -335,11 +335,11 @@ most). With the budget off those stops become exits, and the scores do not move:
 | `mmf_dti_march`, 225 | 47874 | 53.5% | 5.8% | 0.476 | 0.325 | 0.495 | 23 | 45.3 |
 | `mmf_dti_march`, 0 (the preset) | 47979 | 53.2% | 6.4% | 0.477 | 0.329 | 0.495 | 23 | 46.5 |
 
-So the presets run without a budget. Without the scheme it is a different matter: the
+So the presets run with `angle_max: 0`. Without the scheme it is a different matter: the
 adaptive mode does not transport through degenerate data, it re-anchors onto them,
-and the budget is the only thing that stops that snap. `mmf_dti` with `reanchor_tol`
+and `angle_max` is the only thing that stops that snap. `mmf_dti` with `reanchor_tol`
 0.2 and `angle_max: 0` gives 57634 streamlines of mean length 58.5, 53.2% valid and
-13.5% wrong path against 11.2%, F1 0.483 against 0.492. `mmf_dti` keeps its budget.
+13.5% wrong path against 11.2%, F1 0.483 against 0.492. `mmf_dti` keeps its `angle_max`.
 
 <a id="on-data"></a>
 ### MMF-4h and MMF-4s on data
@@ -356,12 +356,12 @@ bundle. All seeds with FA at least 0.1 in the mask, `termination.fa_min: 0.08`,
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
 | `mmf_dti` (`reanchor_tol` 1e-3) | 56823 | 58.2% | 10.3% | 0.391 | 0.226 | 0.436 | 22 | 55.9 |
 | `mmf_dti` with `reanchor_tol` 0.2 | 56703 | 54.5% | 11.2% | 0.509 | 0.405 | 0.492 | 23 | 54.0 |
-| `mmf_dti_hold` (with the budget, 225) | 48487 | 53.9% | 6.1% | 0.483 | 0.337 | 0.497 | 23 | 45.6 |
-| `mmf_dti_march` (with the budget, 225) | 47874 | 53.5% | 5.8% | 0.476 | 0.325 | 0.495 | 23 | 45.3 |
+| `mmf_dti_hold` (with `angle_max` 225) | 48487 | 53.9% | 6.1% | 0.483 | 0.337 | 0.497 | 23 | 45.6 |
+| `mmf_dti_march` (with `angle_max` 225) | 47874 | 53.5% | 5.8% | 0.476 | 0.325 | 0.495 | 23 | 45.3 |
 
 `reanchor_tol: 0.2` alone (MMF-4a in the notes) lifts F1 by far more than the scheme
 does, by trusting the smoother transported heading between the voxels, at the cost of
-more overreach (these two rows and the next were run with the budget of 225 that the
+more overreach (these two rows and the next were run with the `angle_max` of 225 that the
 presets have since dropped, see above). On top of it the hold halves the wrong-path streamlines (6367 to 2973,
 a share down by 45%) and cuts the overreach by a sixth, for 14% fewer streamlines, 16%
 shorter ones and 5% less overlap, so F1 hardly moves. It is a trade of recall for

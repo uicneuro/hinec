@@ -127,8 +127,8 @@ stay directly comparable.
 - `mmf_dti_hold`, `mmf_dti_march` — `mmf_dti` coasting through degenerate data
   (a crossing fitted as a pancake) instead of reading it: on the held connection of
   the last trusted nodes (MMF-4h), or on that curvature and fan-out marched by the
-  flatness of the connection (MMF-4s), with `mmf.reanchor_tol` 0.2 rad and no angle
-  budget (`termination.angle_max: 0`: the scheme's exit test takes its place). The confidence
+  flatness of the connection (MMF-4s), with `mmf.reanchor_tol` 0.2 rad and no
+  `angle_max` (`termination.angle_max: 0`: the scheme's exit test takes its place). The confidence
   floor `mmf.hold_min` belongs to the dataset: the tracker warns when it marks more
   than 40% of the tissue.
 
@@ -263,10 +263,10 @@ tractography:
   # --- termination: arc length, so refining the step cannot truncate tracks ---
   termination:
     fa_min: 0.10
-    angle_max: 225           # deg per VOXEL OF ARC (not per step), so the budget
+    angle_max: 225           # deg per VOXEL OF ARC (not per step), so the limit
                              # for one step is angle_max * step. Tangents are
                              # sign-aligned, so a measured turn never exceeds 90
-                             # deg and any budget above that is INERT. 0 disables.
+                             # deg and any angle_max above 90/step is INERT. 0 disables.
     max_arc: 400             # voxels; max_steps is DERIVED as ceil(max_arc/step)
     min_arc: 15              # voxels
 
@@ -300,5 +300,5 @@ retired keys are reported rather than silently accepted.
 
 `stitching_dti` and `stitching_csd` generate short tractlets and assemble
 compatible endpoints. Begin with an ROI;
-these presets use eight seeds per voxel and an explicit fragment memory budget.
+these presets use eight seeds per voxel and an explicit fragment memory limit.
 See [the stitching design](../docs/STITCHING.md).

@@ -46,7 +46,7 @@ an exit face, because the step length is set by the integrator rather than by th
    Toolbox is present and a plain loop otherwise. The two halves are joined, and the combined
    track is kept only if its arc length reaches `termination.min_arc`.
 7. **Report.** Timing breakdown, seeding layout, and the termination analysis — the counts of
-   ends that fell to FA, to the angle budget, to ACT tissue rules, or to having no initial
+   ends that fell to FA, to `angle_max`, to ACT tissue rules, or to having no initial
    direction.
 
 `runTractography` then applies the ROI filters (`nim_filter_tracks_roi`) and, when
@@ -96,7 +96,7 @@ which that end of the track terminates.
 
 ### Termination
 
-Checked per step, in the loop: FA below `termination.fa_min`; the turn exceeding the budget
+Checked per step, in the loop: FA below `termination.fa_min`; the turn exceeding the limit per step
 `termination.angle_max × step` (`nim_angle_limit`); leaving the propagation mask or the
 interpolation domain; the derived `max_steps`; and, with ACT active, entering CSF or GM. Each
 end carries a reason string, which is what the termination analysis counts.
@@ -150,7 +150,7 @@ it here — never hardcoding a default in the tracker alone.
 |---|---|
 | `tests/unit/TestDyadicInterpolation.m` | sign-invariance of the dyadic direction lookup |
 | `tests/unit/TestIntegratorOrder.m` | observed convergence order per integrator on a smooth field |
-| `tests/unit/TestAngleLimit.m`, `TestAngleCriterionBehaviour.m` | the turn budget, its step-invariance and its 90° ceiling |
+| `tests/unit/TestAngleLimit.m`, `TestAngleCriterionBehaviour.m` | `angle_max`, its step-invariance and its 90° ceiling |
 | `tests/unit/TestRoiSeeding.m` | ROI seed masks and the propagation-mask separation |
 | `tests/unit/TestTrackResample.m` | arc-length resampling of saved streamlines |
 | `tests/unit/TestConfigSchema.m`, `TestConfigYaml.m` | the schema, its defaults, migration and validation |

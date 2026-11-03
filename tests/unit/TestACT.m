@@ -13,9 +13,9 @@ classdef TestACT < matlab.unittest.TestCase
 %     64% of ground-truth ENDPOINTS are in grey matter, so it is exactly where a
 %     streamline should be allowed to end.
 %
-% So CSF is tolerated up to a budget and then TRUNCATES (what came before the
-% excursion is still valid), and GM marks a valid place to stop without forcing
-% one.
+% So CSF is tolerated up to a limit (act_csf_run) and then TRUNCATES (what came
+% before the excursion is still valid), and GM marks a valid place to stop
+% without forcing one.
 
     methods (Static)
         function [nim, opts, masks] = corridor()
@@ -59,14 +59,14 @@ classdef TestACT < matlab.unittest.TestCase
             y = TestACT.furthest(T);
             tc.verifyGreaterThan(y, 30, ...
                 ['the 2-voxel CSF speck at y=25 must be tolerated under a 3-voxel ' ...
-                 'budget; the streamline stopped at it instead.']);
+                 'limit; the streamline stopped at it instead.']);
             tc.verifyLessThan(y, 41, ...
                 'the 7-voxel CSF slab at y=40 must stop the streamline.');
         end
 
-        function theBudgetIsArcNotSteps(tc)
-            % Halving the step size must not change where tracking stops. A
-            % budget counted in STEPS would halve in physical terms.
+        function csfRunIsArcNotSteps(tc)
+            % Halving the step size must not change where tracking stops. An
+            % act_csf_run counted in STEPS would halve in physical terms.
             [nim, o] = TestACT.corridor();
             o.act_csf_run = 3;
             [Ta, ~] = evalc_track(nim, o);
@@ -74,7 +74,7 @@ classdef TestACT < matlab.unittest.TestCase
             [Tb, ~] = evalc_track(nim, o);
             ya = TestACT.furthest(Ta); yb = TestACT.furthest(Tb);
             tc.verifyLessThan(abs(ya - yb), 1.0, ...
-                sprintf(['the CSF budget must be arc-based: halving the step moved the ' ...
+                sprintf(['act_csf_run must be arc-based: halving the step moved the ' ...
                          'stopping point from y=%.1f to y=%.1f.'], ya, yb));
         end
 

@@ -970,8 +970,8 @@ while true
 
     % Check angle constraint (only once two tangents exist)
     %
-    % TANGENT vs TANGENT, and budgeted by the NOMINAL step arc. Both halves of
-    % that matter, and both were previously wrong:
+    % TANGENT vs TANGENT, with angle_max applied to the NOMINAL step arc. Both
+    % halves of that matter, and both were previously wrong:
     %
     %   * The turn being bounded is the rotation of the DIRECTION FIELD along the
     %     curve. Measuring it against the realized step CHORD instead folds the
@@ -979,13 +979,15 @@ while true
     %     step is a weighted mean of four stage vectors and points somewhere none
     %     of them do when they disagree.
     %
-    %   * The budget must come from the arc the step was ASKED to cover, not the
-    %     chord it happened to produce. See nim_angle_limit: Euler and RK2 have
-    %     |chord| == h identically while RK4's fell to 0.25*h on this data, so a
-    %     chord-scaled budget quietly enforced a 4x tighter limit on RK4 alone.
+    %   * The limit per step from angle_max must come from the arc the step was
+    %     ASKED to cover, not the chord it happened to produce. See
+    %     nim_angle_limit: Euler and RK2 have |chord| == h identically while
+    %     RK4's fell to 0.25*h on this data, so scaling angle_max by the chord
+    %     quietly enforced a 4x tighter limit on RK4 alone.
     %
     % Both tangents are sign-aligned (v1 is a line field), so the measured turn
-    % lies in [0, 90] degrees and a budget above 90 is inert - see the helper.
+    % lies in [0, 90] degrees and a limit per step above 90 is inert - see the
+    % helper.
     if have_prev_dir
         [~, cos_allowed] = nim_angle_limit(angle_rate, last_step_arc);
         if dot(prev_dir, dir_vec) < cos_allowed
@@ -1097,11 +1099,11 @@ while true
 
     switch tissue_type
     case 'CSF'
-        % ARC, not steps. A budget counted in steps scales with the step size -
+        % ARC, not steps. A limit counted in steps scales with the step size -
         % at h = 0.5 a two-voxel speck of CSF is four steps, so a threshold meant
         % as "three voxels" fires after one and a half. This is the same trap the
-        % angle criterion has (see nim_angle_limit): the budget must come from
-        % the arc the step covers, not from the number of steps taken.
+        % angle criterion has (see nim_angle_limit): the act_csf_run limit must
+        % come from the arc the step covers, not from the number of steps taken.
         csf_arc = csf_arc + h_used;
         if csf_arc >= options.act_csf_run
             % TRUNCATE, do not discard.
@@ -1178,7 +1180,7 @@ track = track(1:track_length, :);
 
 % NEVER END IN CSF, whatever stopped the streamline.
 %
-% The CSF budget above only fires while tracking continues, and it usually does
+% The CSF limit above only fires while tracking continues, and it usually does
 % not get the chance: CSF is isotropic, so a streamline entering it falls under
 % the FA floor within a step or two and terminates there. The result is a track
 % whose LAST point sits in cerebrospinal fluid, which is anatomically impossible

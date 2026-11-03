@@ -154,7 +154,7 @@ hinec/
 │   │   ├── nim_config_write.m      #     Config serialization
 │   │   ├── nim_config_docs.m       #     Generates docs/YAML_CONFIG.md from the schema
 │   │   ├── nim_config_retired.m    #     Keys that are accepted and dropped
-│   │   ├── nim_angle_limit.m       #     Curvature budget from angle_max and step
+│   │   ├── nim_angle_limit.m       #     Turn limit per step from angle_max and step
 │   │   ├── nim_principal_dir.m     #     Principal direction extraction
 │   │   ├── nim_convergence_error.m #     Track-to-reference error metrics
 │   │   ├── create_run_directory.m  #     Timestamped run organization
@@ -554,7 +554,7 @@ The trackers share these stopping criteria:
 - FA below `termination.fa_min`
 - Curvature exceeds `termination.angle_max`, measured in degrees per voxel of arc rather than
   per step. Because the principal direction is a line field, tangents are sign-aligned and a
-  measured turn never exceeds 90°, so a budget above `90 / step` is inert rather than loose;
+  measured turn never exceeds 90°, so an `angle_max` above `90 / step` is inert rather than loose;
   `0` disables the criterion
 - Arc length exceeds `termination.max_arc` voxels (`max_steps` is derived from it)
 - Track exits the brain mask

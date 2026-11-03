@@ -302,10 +302,10 @@ level is a parse error. Defaults come from the schema, so a working config is us
 
 Two of these behave in ways worth stating explicitly.
 
-`termination.angle_max` is a curvature budget, not a per-step limit: it fixes a minimum radius
+`termination.angle_max` is a bound on the curvature, not a per-step limit: it fixes a minimum radius
 of curvature `R = 57.3 / angle_max` voxels, so refining the step does not loosen the
 constraint. Because the principal direction is a line field, tangents are sign-aligned and a
-measured turn never exceeds 90 degrees — any budget above `90 / step` is **inert**, not merely
+measured turn never exceeds 90 degrees — any `angle_max` above `90 / step` is **inert**, not merely
 loose. Set `angle_max: 0` when you want the criterion off deliberately.
 
 `act` defaults to false. `main.m` always generates the WM/GM/CSF tissue masks and stores them

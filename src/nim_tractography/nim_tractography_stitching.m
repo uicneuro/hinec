@@ -20,7 +20,7 @@ for j=1:6,D{j}=griddedInterpolant(gv,v(:,:,:,pairs(j,1)).*v(:,:,:,pairs(j,2)),'l
 [ix,iy,iz]=ind2sub(dims,find(options.seed_mask));centres=[ix iy iz];ns=size(centres,1)*size(offsets,1);
 np=1;if iscsd,np=size(nim.peaks,4);end
 if ns*np>s.max_fragments
- error('stitching:budget','Potential %d fragments exceeds stitching.max_fragments=%d. Reduce ROI/density or raise the explicit budget.',ns*np,s.max_fragments);
+ error('stitching:maxFragments','Potential %d fragments exceeds stitching.max_fragments=%d. Reduce ROI/density or raise the explicit limit.',ns*np,s.max_fragments);
 end
 fragments=cell(ns*np,1);seedids=zeros(ns*np,1);seedpos=zeros(ns*np,3);nf=0;si=0;
 for offset=1:size(offsets,1)

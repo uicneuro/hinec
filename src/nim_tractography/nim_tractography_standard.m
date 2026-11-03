@@ -230,14 +230,15 @@ failure_reasons.successful = 0;
 % Termination reason counters
 term_reasons = containers.Map('KeyType', 'char', 'ValueType', 'int64');
 
-% Angle budget, in the SAME units as every other tracker: degrees of turning per
+% angle_max, in the SAME units as every other tracker: degrees of turning per
 % VOXEL OF ARC (see nim_angle_limit). FACT's natural discretisation unit is the
 % voxel - direction is piecewise constant and changes only at voxel boundaries -
-% so one transition is budgeted as one voxel of arc. Deliberately NOT the length
+% so one transition is counted as one voxel of arc. Deliberately NOT the length
 % of the segment just travelled: a streamline that clips a voxel corner covers a
 % tiny arc, but the turn waiting for it at the boundary is a property of the
-% data, not of how much of the voxel it happened to cross, and budgeting by the
-% clipped length would terminate it for the geometry of the intersection.
+% data, not of how much of the voxel it happened to cross, and scaling
+% angle_max by the clipped length would terminate it for the geometry of the
+% intersection.
 [~, cos_angle_thresh] = nim_angle_limit(options.angle_thresh, 1);
 
 % Initialize timing for tracking. tracking_start is always set so progress

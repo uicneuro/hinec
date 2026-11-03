@@ -114,14 +114,14 @@ table above mean what they say.
 | Criterion | Config key | Note |
 |---|---|---|
 | FA floor | `termination.fa_min` | also defines the propagation mask, together with the brain mask |
-| Turn budget | `termination.angle_max` | degrees per **voxel of arc**; the budget for one step is `angle_max × step` |
+| Turn limit | `termination.angle_max` | degrees per **voxel of arc**; the limit for one step is `angle_max × step` |
 | Arc length | `termination.max_arc` | in voxels; `max_steps` is derived as `ceil(max_arc/step)` |
 | Minimum length | `termination.min_arc` | tracks shorter than this arc length are discarded |
 | Domain | — | leaving the propagation mask, or the interpolation domain, ends the track |
 
-The turn budget is a **rate**, which is what makes it step-invariant: refining the step
+`angle_max` is a **rate**, which is what makes it step-invariant: refining the step
 tightens the per-step allowance in proportion. Consecutive tangents are sign-aligned, so a
-measured turn never exceeds 90° and any budget above that is inert rather than merely loose.
+measured turn never exceeds 90° and any per-step allowance above that is inert rather than merely loose.
 `angle_max: 0` disables the criterion outright, which is what a control run should use.
 
 Note that the propagation mask is derived from FA and the brain mask **independently of the

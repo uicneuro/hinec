@@ -57,24 +57,24 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % of a track is a valid integration node inside tissue. Leaving the volume
 % stops a tract as well; the cut boundary point is dropped, so tracks consist
 % of integration nodes only, like those of the other trackers. The angle
-% budget termination.angle_max (degrees per voxel of arc; through
+% limit termination.angle_max (degrees per voxel of arc; through
 % nim_angle_limit it is min(angle_max*h, 90) degrees per step, none for
 % angle_max <= 0) is advanceFrame's 'MaxTurn', applied to the rotation
 % h*|kappa| of a step and to the turn of the heading as the data see it: the
 % data's e1 at the end of a step against the heading at its start, in every
 % mode (in the re-anchoring modes the turn the snap to the data would realise,
-% which could otherwise bypass the budget; in transport mode the data's
+% which could otherwise bypass angle_max; in transport mode the data's
 % disagreement with the carried heading). Unlike the streamline trackers,
 % whose sign-aligned turn cannot exceed 90 degrees, the 90 degree ceiling is a
 % real cap here; angle_max <= 0 keeps a ceiling of pi per step at singular
 % data, reported as 'no_direction'. The curvature of the
 % interpolated principal-axis field is large wherever the dyadic is nearly
-% degenerate (crossings, planar regions), so the budget stops more half-tracks
+% degenerate (crossings, planar regions), so angle_max stops more half-tracks
 % there than the node-to-node angle test of the streamline trackers does.
 %
 % DEGENERATE DATA (mmf.hold). In a voxel where two bundles cross, the tensor
 % is a pancake and its principal axis means nothing, so reading the connection
-% there turns the tract into the other bundle or stops it on the angle budget.
+% there turns the tract into the other bundle or stops it on angle_max.
 % 'hold' (MMF-4h) and 'march' (MMF-4s) are advanceFrame's hold scheme: in the
 % zone where the confidence is below mmf.hold_min the tract coasts, on the mean
 % connection of its last mmf.hold_k trusted nodes (held) or on that curvature

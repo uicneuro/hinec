@@ -273,7 +273,7 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 means the data are singular there (crossing, isotropic
 %                 voxel). This is the frame counterpart of the angle
 %                 threshold of streamline tractography. Inf disables it.
-%                 The budget also applies to the heading as the data see
+%                 'MaxTurn' also applies to the heading as the data see
 %                 it: a step at whose end the data's e_1 is more than
 %                 MaxTurn (modulo sign, so at most pi/2) from the heading
 %                 at its start is not taken either, with the same reason
@@ -282,8 +282,8 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 test between consecutive directions of streamline
 %                 tracking, which a snap to the data could otherwise
 %                 bypass; in 'transport' mode it stops a tract whose
-%                 transported heading the data contradict beyond the
-%                 budget (not evaluated when mf is []). A tract also stops
+%                 transported heading the data contradict beyond
+%                 'MaxTurn' (not evaluated when mf is []). A tract also stops
 %                 before a step whose connection is not finite at some
 %                 stage.
 %
@@ -362,7 +362,7 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %   that had it is archived as MMF4vca_old.m. Since 2026-10-20 'MaxTurn' also
 %   bounds the turn of the heading as the data see it (the data's e_1 at the
 %   end of a step against the heading at its start), in every mode, so that a
-%   re-anchoring cannot exceed the budget; drift is evaluated in every mode.
+%   re-anchoring cannot exceed 'MaxTurn'; drift is evaluated in every mode.
 %   The MMF-4h hold scheme ('Confidence' and the 'Hold*' options, 2026-10-26)
 %   coasts through degenerate data on the held connection of the last
 %   trusted nodes; MMF-4s ('HoldCurvature' 'march', 2026-10-30) marches the

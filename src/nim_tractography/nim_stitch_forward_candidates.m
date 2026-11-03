@@ -1,8 +1,9 @@
 function edges = nim_stitch_forward_candidates(P,V,geometry,s,tree)
 % Search the whole forward cone before limiting compatible endpoints.
 % Eight strata (four azimuth quadrants x two gap shells) prevent one dense
-% cluster from taking the entire budget. Within each stratum prefer low cost;
-% round-robin across strata, with cost and endpoint ID breaking ties.
+% cluster from filling the whole candidate limit (stitching.neighbors). Within
+% each stratum prefer low cost; round-robin across strata, with cost and
+% endpoint ID breaking ties.
 n=size(P,1); blocks=cell(ceil(n/256),1); ca=cosd(s.join_angle);r=s.join_radius;
 if s.join_angle<=45,shift=r/(2*ca);radius=shift;
 else,shift=r*ca;radius=r*sind(s.join_angle);end

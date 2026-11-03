@@ -30,7 +30,7 @@ tractography:
 
   termination:
     fa_min: 0.08
-    angle_max: 225       # deg per voxel of arc; 56 deg budget per 0.25-voxel step
+    angle_max: 225       # deg per voxel of arc; 56 deg per 0.25-voxel step
     max_arc: 400         # voxels
     min_arc: 15          # voxels (30 mm) - drops fragments the scorer would reject
 
