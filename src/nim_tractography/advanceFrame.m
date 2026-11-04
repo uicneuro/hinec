@@ -250,15 +250,38 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 test (default 0: the test at the first trusted node; in
 %                 'transport' mode the coast is extended the same way and
 %                 no test is applied)
-%       'Bundle'  labels of the seeds' bundles, [nseed x 1] (default []).
-%                 The fibres of one bundle never cross, but two coasts do
-%                 not know of each other: a step on which two tracts of
-%                 the same bundle, at least one of them coasting, would
-%                 cross stops both ('cross'). They cross when the offset
-%                 between them, in the plane normal to their mean heading,
-%                 reverses or vanishes over the step (in the plane, when
-%                 their order across the bundle swaps). Tracts of different
-%                 bundles may cross. (2026-11-03)
+%       'BundleRule'
+%                 labels of the seeds' bundles, [nseed x 1] (default []):
+%                 the rule that the fibres of one bundle never cross. Two
+%                 coasts do not know of each other, so a step on which two
+%                 tracts of the same bundle, at least one of them coasting,
+%                 would cross stops both ('cross'). They cross when the
+%                 offset between them, in the plane normal to their mean
+%                 heading, reverses or vanishes over the step (in the
+%                 plane, when their order across the bundle swaps). Tracts
+%                 of different bundles may cross. (2026-11-03)
+%       'BundleLaw'
+%                 labels of the seeds' bundles, [nseed x 1] (default []):
+%                 the law behind that rule, for the march of MMF-4s with
+%                 the planar connection. The fibres of one bundle are the
+%                 integral curves of one field, whose connection is flat:
+%                 the divergence term D = d kappa/d e_2 - kappa^2 of the
+%                 march, which the zone cannot give and which 'HoldDiver-
+%                 gence' takes as zero or from the data at the ring, is
+%                 taken at every step from the bundle itself, d kappa/d e_2
+%                 from the curvature of the neighbouring tracts of the
+%                 bundle (the nearest on either side of the tract along its
+%                 e_2, the coast's curvature where they coast and the
+%                 data's where they are trusted, the part of their
+%                 difference due to the offset along the fibre removed by
+%                 the march's own d kappa/ds = -kappa sigma; one-sided
+%                 with one neighbour, zero with none). The coasts of a
+%                 bundle then march as one sheet, each step of the march
+%                 taking the law u'' = D u from the state (kappa, sigma)
+%                 at its start with D frozen over the step, and 'focus'
+%                 counting u from the entry of the zone. Needs
+%                 'HoldCurvature' 'march', m = 2 and 'HoldDivergence'
+%                 'zero'; may be combined with 'BundleRule'. (2026-11-04)
 %       'HoldTwist', 'HoldCurvature'
 %                 'zero' | 'hold' for the twist (default 'zero') and
 %                 'hold' | 'zero' | 'march' for the curvature (default
@@ -314,7 +337,7 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                        'focus' and 'cross' (the hold scheme: coast cap, the zone
 %                        left with a drift above ExitTol, the march
 %                        of MMF-4s reaching the focus of its fan, or a
-%                        step crossing a tract of the same 'Bundle'),
+%                        step crossing a tract of the same 'BundleRule'),
 %                        'nan' (the connection is not finite at the next
 %                        step); for 'turn' and 'nan' the last point is the
 %                        last admissible integration node
@@ -395,7 +418,8 @@ holdK      = 3;
 holdCap    = Inf;
 coastMax   = Inf;
 exitDelay  = 0;              % hold scheme: steps of coast beyond the zone's edge before the exit test
-bundle     = [];             % labels of the seeds' bundles: the tracts of one bundle never cross
+bundleRule = [];             % labels of the seeds' bundles: the tracts of one bundle never cross (the rule)
+bundleLaw  = [];             % labels of the seeds' bundles: the march's divergence term from the bundle (the law)
 holdTwist  = 'zero';
 holdCurv   = 'hold';
 holdDiv    = 'zero';         % MMF-4s: the divergence term of the march
@@ -446,8 +470,10 @@ for n = 1:2:numel(varargin)
         case 'exittol'
             validateattributes(val, {'numeric'}, {'scalar', 'real', 'nonnegative', 'nonnan'}, 'advanceFrame', '''ExitTol''');
             exitTol = double(val);
-        case 'bundle'
-            bundle = double(val(:));
+        case 'bundlerule'
+            bundleRule = double(val(:));
+        case 'bundlelaw'
+            bundleLaw = double(val(:));
         case 'exitdelay'
             validateattributes(val, {'numeric'}, {'scalar', 'integer', 'nonnegative'}, 'advanceFrame', '''ExitDelay''');
             exitDelay = double(val);
@@ -615,9 +641,21 @@ spread  = cell(nseed, 1);                   % the transverse component used at t
 hcount  = zeros(nseed, 1);
 coast   = zeros(nseed, 1);                  % consecutive steps started in the zone
 grace   = zeros(nseed, 1);                  % steps of coast left beyond the zone's edge ('ExitDelay')
-if ~isempty(bundle)
-    validateattributes(bundle, {'numeric'}, {'vector', 'numel', nseed, 'real', 'nonnan'}, 'advanceFrame', '''Bundle''');
+if ~isempty(bundleRule)
+    validateattributes(bundleRule, {'numeric'}, {'vector', 'numel', nseed, 'real', 'nonnan'}, 'advanceFrame', '''BundleRule''');
 end
+useLaw = ~isempty(bundleLaw);
+if useLaw
+    validateattributes(bundleLaw, {'numeric'}, {'vector', 'numel', nseed, 'real', 'nonnan'}, 'advanceFrame', '''BundleLaw''');
+    if ~marchHold || m ~= 2 || holdDivOn
+        error('advanceFrame:badOptions', ...
+            '''BundleLaw'' needs ''HoldCurvature'' ''march'' with the planar connection (m = 2) and ''HoldDivergence'' ''zero''.');
+    end
+end
+lawOm = zeros(nseed, m, m);                 % the law: the coast's connection, transverse component and u at the current node
+lawSg = zeros(nseed, 1);
+lawU  = ones(nseed, 1);
+lawOn = false(nseed, 1);                    % the tract coasts under the law since its last trusted node
 if useHold
     c0 = evalCL(X(:, 1:expdim));
 else
@@ -641,19 +679,31 @@ for n = 1:nstep
     Xa = X(idx, :);
     Ea = E(idx, :, :);
     fo = false(numel(idx), 1);                  % MMF-4s: rows whose coast reaches the focus of its fan
-    cx = false(numel(idx), 1);                  % rows whose step crosses a tract of the same bundle ('Bundle')
+    cx = false(numel(idx), 1);                  % rows whose step crosses a tract of the same bundle ('BundleRule')
     if useHold
         sA = (n - 1) * h;                       % arc length of the step's start node
         [sgM, dvM, blM] = sigmaFcn(Xa, Ea);     % the data's transverse component (and block, divergence term) at the start nodes
         [Om0, bl0, dv0, sb0, sg0] = ringMeans(hbuf(idx, :, :, :), sbuf(idx, :, :, :), dbuf(idx, :), abuf(idx, :), hcount(idx), m, holdTwist, holdCurv);
-        if marchHold                            % the connection prescribed along the coast, stage by stage
+        forcedS = grace(idx) > 0;               % rows still coasting beyond the zone's edge ('ExitDelay')
+        if marchHold && useLaw                  % the law: the march from the state at the start node, D from the bundle
+            [OmS, sgS, uS] = marchedOmega(Om0, bl0, dv0, sA - sb0, uMin);    % where a coast starts: the plain march's state
+            sgS = reshape(sgS, [], 1);  uS = reshape(uS, [], 1);
+            on = lawOn(idx);
+            OmS(on, :, :) = lawOm(idx(on), :, :);  sgS(on) = lawSg(idx(on));  uS(on) = lawU(idx(on));
+            cS  = evalCL(Xa(:, 1:expdim));
+            zS0 = isfinite(cS(:)) & (cS(:) < holdMin | forcedS);
+            dvB = bundleDivergence(Xa, Ea, OmS, sgS, zS0, bundleLaw(idx), omegaFcn, expdim);
+            holdOm = @(c) OmS ./ max(marchLaw(sgS, dvB, c * h * ones(numel(idx), 1)), uMin);
+            [uh, uph] = marchLaw(sgS, dvB, h * ones(numel(idx), 1));
+            uE = uS .* uh;                      % u counted from the entry of the zone
+            lawNext = struct('Om', OmS ./ max(uh, uMin), 'sg', uph ./ uh, 'u', uE);
+        elseif marchHold                        % the connection prescribed along the coast, stage by stage
             holdOm = @(c) marchedOmega(Om0, bl0, dv0, sA + c * h - sb0, uMin);
             [~, sgS] = marchedOmega(Om0, bl0, dv0, sA - sb0, uMin);           % sigma marched to the start node
             [~, ~, uE] = marchedOmega(Om0, bl0, dv0, sA + h - sb0, uMin);     % u at the end node
         else
             holdOm = Om0;  sgS = sg0;  uE = ones(numel(idx), 1);
         end
-        forcedS = grace(idx) > 0;               % rows still coasting beyond the zone's edge ('ExitDelay')
         [Xn, En, Om1, maxRot, zoneS] = lieStep(Xa, Ea, h, order, omegaFcn, evalCL, holdMin, holdOm, expdim, forcedS);
         zoneD = zoneS & ~forcedS;               % the start node is degenerate by the confidence (counts towards 'CoastMax')
         cE = evalCL(Xn(:, 1:expdim));           % confidence at the end of the step
@@ -666,8 +716,8 @@ for n = 1:nstep
         zoneE = zoneC | g > 0;                  % the end node still coasts
         sgS(~zoneS) = sgM(~zoneS);              % the transverse component used at the start node: the data's where trusted
         fo = marchHold & zoneE & uE < uMin;
-        if ~isempty(bundle)
-            cx = bundleCross(Xa, Xn, Ea, zoneS, bundle(idx), expdim);
+        if ~isempty(bundleRule)
+            cx = bundleCross(Xa, Xn, Ea, zoneS, bundleRule(idx), expdim);
         end
     else
         [Xn, En, Om1, maxRot] = lieStep(Xa, Ea, h, order, omegaFcn);
@@ -738,6 +788,12 @@ for n = 1:nstep
             stop{k}   = 'focus';                                       % MMF-4s reaches the focus of its fan
             active(k) = false;
         elseif all(Xn(q, 1:expdim) >= lims(:, 1).' & Xn(q, 1:expdim) <= lims(:, 2).')
+            if useLaw                                                  % the law's state at the new node
+                lawOn(k) = zoneE(q);
+                if zoneE(q)
+                    lawOm(k, :, :) = lawNext.Om(q, :, :);  lawSg(k) = lawNext.sg(q);  lawU(k) = lawNext.u(q);
+                end
+            end
             tracts{k}(end+1, :)    = Xn(q, :);                         %#ok<AGROW>
             frames{k}(end+1, :, :) = En(q, :, :);                      %#ok<AGROW>
             drift{k}(end+1, 1)  = dr(q);                               %#ok<AGROW>
@@ -785,6 +841,10 @@ if ~isempty(idx)
         [Om0, bl0, dv0, sb0, sg0] = ringMeans(hbuf(idx, :, :, :), sbuf(idx, :, :, :), dbuf(idx, :), abuf(idx, :), hcount(idx), m, holdTwist, holdCurv);
         if marchHold
             [holdOm, sgH] = marchedOmega(Om0, bl0, dv0, nstep * h - sb0, uMin);
+            if useLaw
+                on = lawOn(idx);
+                holdOm(on, :, :) = lawOm(idx(on), :, :);  sgH(on) = lawSg(idx(on));
+            end
         else
             holdOm = Om0;  sgH = sg0;
         end
@@ -831,7 +891,8 @@ info.confidence = confid;
 info.held       = held;
 info.spread     = spread;
 info.hold       = struct('on', useHold, 'holdMin', holdMin, 'holdK', holdK, 'holdCap', holdCap, ...
-                         'coastMax', coastMax, 'exitTol', exitTol, 'exitDelay', exitDelay, 'holdTwist', holdTwist, 'holdCurvature', holdCurv, 'holdDivergence', holdDiv);
+                         'coastMax', coastMax, 'exitTol', exitTol, 'exitDelay', exitDelay, 'holdTwist', holdTwist, 'holdCurvature', holdCurv, 'holdDivergence', holdDiv, ...
+                         'bundleRule', ~isempty(bundleRule), 'bundleLaw', useLaw);
 info.order   = order;
 info.mode    = mode;
 info.twist   = twist;
@@ -1276,6 +1337,52 @@ function ang = headingAngle(A, B)
 g   = sum(A(:, 1, :) .* B(:, 1, :), 3);
 r   = A(:, 1, :) - g .* B(:, 1, :);                 % part of e_1 normal to the other
 ang = atan2(sqrt(sum(r .^ 2, 3)), abs(g));
+end
+
+function D = bundleDivergence(Xa, Ea, OmS, sgS, zone, label, omegaFcn, expdim)
+% The law ('BundleLaw'): the divergence term D = d kappa/d e_2 - kappa^2 of
+% the march at the coasting rows (zone), with d kappa/d e_2 from the
+% neighbouring tracts of the bundle. A neighbour j of the row i, at the
+% offset r, gives kappa_j - kappa_i = (d kappa/d e_1)(r . e_1) + (d kappa/d
+% e_2)(r . e_2) to first order, with d kappa/d e_1 = -kappa sigma the march's
+% own law along the fibre (the neighbours of a row are at its arc length,
+% not on its normal); the nearest neighbour on either side of the row along
+% its e_2 (the coast's curvature where that tract coasts, the data's where it
+% is trusted) gives an estimate, combined as the central difference of
+% unequal spacings (exact for a quadratic), one-sided with one neighbour,
+% and D = 0 without any. Zero at the trusted rows.
+n   = size(Xa, 1);
+D   = zeros(n, 1);
+kap = reshape(OmS(:, 1, 2), n, 1);
+if any(~zone)
+    OmT = omegaFcn(Xa(~zone, :), Ea(~zone, :, :));
+    kap(~zone) = OmT(:, 1, 2);
+end
+e1 = reshape(Ea(:, 1, 1:expdim), n, expdim);
+e2 = reshape(Ea(:, 2, 1:expdim), n, expdim);
+for g = unique(label(:)).'
+    rows = find(label == g);
+    if numel(rows) < 2, continue; end
+    for i = rows(zone(rows)).'
+        r  = Xa(rows, 1:expdim) - Xa(i, 1:expdim);                % offsets of the bundle's tracts from the row
+        d  = r * e2(i, :).';  a = r * e1(i, :).';
+        k0 = kap(i);
+        est = (kap(rows) - k0 + k0 * sgS(i) * a) ./ d;            % d kappa/d e_2 implied by each neighbour
+        ok = rows ~= i & isfinite(est) & d ~= 0;
+        dp = d;  dp(~ok | d <= 0) = Inf;  [dP, jp] = min(dp);
+        dm = -d; dm(~ok | d >= 0) = Inf;  [dM, jm] = min(dm);
+        if isfinite(dP) && isfinite(dM)
+            dk = (est(jp) * dM + est(jm) * dP) / (dP + dM);
+        elseif isfinite(dP)
+            dk = est(jp);
+        elseif isfinite(dM)
+            dk = est(jm);
+        else
+            continue
+        end
+        D(i) = dk - k0 ^ 2;
+    end
+end
 end
 
 function cx = bundleCross(Xa, Xn, Ea, zone, label, expdim)

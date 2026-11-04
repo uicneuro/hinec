@@ -205,12 +205,15 @@ voxels instead of 0.02 to 0.35, and the march gains nothing over the hold.
 cross, being integral curves of one field; two coasts can, since each follows its own
 held or marched connection. In the suite's crossing runs MMF-4h and MMF-4s crossed
 373 and 370 pairs of same-family tracts, nearly all in the core, against 13 for the
-adaptive mode and none for RK4. `advanceFrame` therefore takes `'Bundle'`, the label
-of each seed's bundle, and stops both tracts of a bundle on a step on which they
-would cross while one of them coasts (reason `cross`). The tracker does not pass it
-yet: its seeds carry no bundle labels, and a bundle would have to be defined at the
-entrance of each zone (the tracts entering from the same side, close together, with
-headings within `exit_tol`).
+adaptive mode and none for RK4. `advanceFrame` therefore takes the label of each
+seed's bundle in two ways. `'BundleRule'` stops both tracts of a bundle on a step on
+which they would cross while one of them coasts (reason `cross`). `'BundleLaw'`,
+for the march with the planar connection, takes the divergence term of the march
+from the neighbouring tracts of the bundle at every step, so that the coasts of a
+bundle march as one sheet. The tracker passes neither yet: its seeds carry no bundle
+labels, and a bundle would have to be defined at the entrance of each zone (the
+tracts entering from the same side, close together, with headings within
+`exit_tol`); the law would also need its 3-D form.
 
 **The march in 3-D.** The planar march of the suite's notes, `dsigma/ds = -sigma^2 +
 D`, `dkappa/ds = -kappa sigma`, has a matrix form. In the carried frame, whose
