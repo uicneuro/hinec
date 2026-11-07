@@ -51,6 +51,8 @@ function options = nim_config_to_options(config)
     options.seed_density       = t.seeding.density;
     options.seed_strategy      = t.seeding.strategy;
     options.seed_fa_threshold  = t.seeding.fa_min;
+    options.seed_cl_min        = t.seeding.cl_min;
+    options.seed_coherence_min = t.seeding.coherence_min;
     options.seed_roi           = t.seeding.roi;
     options.seed_roi_dilate    = t.seeding.roi_dilate;
 
@@ -137,6 +139,10 @@ function options = nim_config_to_options(config)
     options.csd_peak_min_sep = t.csd.peak_min_sep;
     options.csd_n_iter       = t.csd.n_iter;
 
+    % --- lift (field: lift) --------------------------------------------------
+    lk = {'smooth', 'smooth_kernel', 'smooth_kappa', 'smooth_normals', 'bridge', 'rel', 'mass_min', 'max_lifts', 'sep', 'ndirs', 'kappa', 'ref_fa_pct', 'fit', 'iso', 'sparsity', 'read_min', 'read_tol', 'stencil', 'interp', 'continuation'};
+    for li = 1:numel(lk), options.(['lift_' lk{li}]) = t.lift.(lk{li}); end
+
     % --- mmf ----------------------------------------------------------------
     options.mmf_mode           = t.mmf.mode;
     options.mmf_reanchor_tol   = t.mmf.reanchor_tol;
@@ -150,6 +156,8 @@ function options = nim_config_to_options(config)
     options.mmf_coast_max      = t.mmf.coast_max;
     options.mmf_exit_tol       = t.mmf.exit_tol;
     options.mmf_exit_delay     = t.mmf.exit_delay;
+    options.mmf_veto_arc       = t.mmf.veto_arc;
+    options.mmf_veto_tol       = t.mmf.veto_tol;
 
     % --- stitching ----------------------------------------------------------
     options.stitching       = t.stitching;

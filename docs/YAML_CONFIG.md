@@ -47,7 +47,7 @@ parameter. A key marked `hinec` is ignored by `standard`, `mmf` and `stitching`.
 | Key | Type | Default | Applies to | Description |
 |---|---|---|---|---|
 | `algorithm` | string | `hinec` | all | Tracking algorithm. hinec = interpolated streamlines (RK); mmf = moving frames tractography (advanceFrame: the frame is transported by the connection of the data, exponential step; docs/MMF_TRACTOGRAPHY.md); standard = FACT; stitching = short tractlets; template = the minimal worked example of the tracker interface (docs/TRACKER_INTERFACE.md). |
-| `field` | string | `dti` | hinec, mmf, stitching | Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks (hinec and stitching; mmf is dti only). |
+| `field` | string | `dti` | hinec, mmf, stitching | Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks (hinec and stitching); lift = the lifts of the bundles on M = Omega x RP^2 built from the raw signal (nim_lift_field), one frame and one connection 1-form per bundle where bundles cross (with mmf this is MMF-ml, multilayer moving frames, run by nim_tractography_mmf_ml; see docs/MMF_ML.md and tractography.lift); with hinec the lifts are a peak field, the lift nearest the incoming tangent at every stencil voxel as for csd. |
 | `act` | logical | `false` | hinec | Anatomically constrained tracking using WM/GM/CSF masks. |
 | `diagnostics` | logical | `true` | all | Write per-run diagnostic reports. |
 
@@ -77,6 +77,8 @@ parameter. A key marked `hinec` is ignored by `standard`, `mmf` and `stitching`.
 | `density` | numeric | `8` | all | Seeds per seeded voxel - honoured exactly. Placed on a deterministic sub-voxel lattice (perfect cubes) or a spread subset of one (other counts), so runs are reproducible. |
 | `strategy` | string | `uniform` | all | Seed placement. uniform = deterministic lattice (reproducible); random = jittered. |
 | `fa_min` | numeric | `0.05` | all | Minimum FA for a voxel to be seeded. Default 0.05 excludes CSF only. |
+| `cl_min` | numeric | `0` | all | Minimum linear shape CL = (lambda_1 - lambda_2)/lambda_1 of the voxel tensor for a voxel to be seeded (nim_seed_cl_mask). 0 = off. A crossing fitted as one tensor has CL near 0, so e.g. 0.15 (the mmf.hold_min of the hold presets) keeps seeds out of crossings. |
+| `coherence_min` | numeric | `0` | all | Minimum coherence of the principal direction for a voxel to be seeded (nim_seed_coherence_mask): the largest eigenvalue of the mean dyadic v1*v1' over the 3 x 3 x 3 block, in [1/3, 1] (1 = all neighbours point the same way). 0 = off. |
 | `roi` | list | `[]` | all | Restrict seeding to these atlas regions. JHU indices and/or names, freely mixed. Empty = whole brain mask. |
 | `roi_dilate` | numeric | `0` | all | Dilate the seed ROI by this many voxels before seeding. |
 
@@ -134,6 +136,31 @@ parameter. A key marked `hinec` is ignored by `standard`, `mmf` and `stitching`.
 | `peak_min_sep` | numeric | `45` | hinec, stitching | Minimum angular separation between FOD peaks (degrees). |
 | `n_iter` | numeric | `50` | hinec, stitching | CSD deconvolution iterations. |
 
+#### `tractography.lift`
+
+| Key | Type | Default | Applies to | Description |
+|---|---|---|---|---|
+| `smooth` | numeric | `0` | hinec, mmf | Half-width T (voxels) of the regularisation of the orientation density along the fibres: each direction n_j is smoothed along x + t n_j, t = -T..T, weights T + 1 - \|t\|; 0 = off (nim_lift_field). Default 0: the kernel runs along straight lines, so on a bend of curvature k it mixes directions up to k T apart and pulls the lobe toward the upstream direction (ISMRM cingulum, k ~ 0.5 per voxel: the lifted curvature fell to 0.02 at T = 2). ISMRM mmf lift+hold F1 0.509 / 0.521 / 0.537 at T = 2 / 1 / 0. |
+| `smooth_kernel` | string | `straight` | hinec, mmf | Path of the regularisation along the fibres (lift.smooth > 0): straight = the line x + t n_j; curved = the best of the circular arcs leaving (x, n_j) with curvature lift.smooth_kappa in lift.smooth_normals normal directions (and the straight line), the density read at each arc point in the dictionary direction nearest the arc tangent (Duits and Franken, IJCV 92:231-264, 2011: smoothing on position x orientation follows curves, not lines). |
+| `smooth_kappa` | numeric | `` | hinec, mmf | Curvatures (per voxel) of the arcs of lift.smooth_kernel: curved, besides the straight line; the ISMRM cingulum bends at ~0.5 per voxel. |
+| `smooth_normals` | numeric | `8` | hinec, mmf | Number of normal directions m = cos(q) e2 + sin(q) e3, q = 2 pi i / smooth_normals, in which the arcs of lift.smooth_kernel: curved bend. |
+| `bridge` | numeric | `2` | hinec, mmf | Nodes a lift is continued through where its lobe is lost, when it continues beyond within 20 degrees (fibres do not end inside white matter); 0 = off. |
+| `rel` | numeric | `0.1` | hinec, mmf | A lift is a local maximum of p(x,.) of at least rel times the voxel maximum. |
+| `mass_min` | numeric | `0.1` | hinec, mmf | Minimum lobe mass of a lift: the share of the deconvolved fibre within 20 degrees of it, an estimate of its volume fraction. |
+| `max_lifts` | numeric | `3` | hinec, mmf | Maximum lifts per voxel. |
+| `sep` | numeric | `15` | hinec, mmf | Minimum angle (degrees) between two lifts of a voxel. |
+| `ndirs` | numeric | `300` | hinec, mmf | Dictionary directions on the half sphere for the non-negative deconvolution. |
+| `kappa` | numeric | `20` | hinec, mmf | Concentration of the Watson kernel W(t) = exp(kappa (t^2 - 1)) of the orientation density p = sum_j a_j W(u.n_j). |
+| `ref_fa_pct` | numeric | `90` | hinec, mmf | The single-fibre kernel is the median DTI l1 and (l2 + l3)/2 of the voxels above this FA percentile of the tissue. |
+| `iso` | string | `auto` | hinec, mmf | Isotropic compartments of the forward model, which carry no direction: auto = the hindered (l_perp) and the free water (3e-3 mm^2/s); none = sticks only (false lifts where the tissue is isotropic). |
+| `continuation` | numeric | `0` | hinec, mmf | Continuation prior beta (nim_lift_field): a second deconvolution whose prior of few lifts weighs direction n_j by c_j = 1 - beta max W(n_j . u^), u^ the moving-frame continuation of each neighbouring lift to the voxel (its nodal connection, curvature included); the directions a neighbouring fibre continues into cost less. 0 = off; needs lift.sparsity > 0. |
+| `sparsity` | numeric | `0.1` | hinec, mmf | Prior of few lifts: the deconvolution minimises \|\|K a + K_iso c - y\|\|^2 + sparsity (sum_j a_j)^2, so broad or isotropic signal goes to the isotropic compartments instead of becoming false lifts. ISMRM 2015 slab (32 directions): 0.1 keeps one lift in 85% of the single-bundle voxels at the v1 error (7.3 vs 7.5 deg) and halves the error in two-bundle crossings (12.8 vs 24.9 deg); 0 = none. |
+| `read_min` | numeric | `0.25` | mmf | The tracker reads a lift at a point when the corners carrying a lift within 30 degrees of the heading hold at least this share of the trilinear weight (renormalised over them). Inside crossings the weaker lift is missing at scattered nodes; at 0.5 31.9% of ISMRM 2015 half-tracks stopped there with 0.25-0.5 of the weight still on their lift. |
+| `interp` | string | `corner` | mmf | How the lifted field is read at a point (nim_lift_connection): corner = at each of the 8 corners the lift nearest the heading, trilinear (C0, jumps where a corner switches lift); sheet_linear / sheet_cubic = the local sheet of the heading on the 4 x 4 x 4 nodes (branch-matched from the nearest corner), interpolated trilinearly / with the Keys cubic kernel (C1, interpolation.method: cubic). |
+| `stencil` | string | `ls` | mmf | Derivative of each lift along its matched branch for the lifted nodal connection (nim_lift_connection): ls = least-squares slope over t = -2..2; fd4 = the stencil of the nodal connection of field: dti, (M_-2 - 8 M_-1 + 8 M_+1 - M_+2) / 12. On the ISMRM ground truth, bends with kappa > 0.15: ls reads 0.37-0.61 of the curvature, fd4 0.45-0.71. |
+| `read_tol` | numeric | `30` | mmf | Degrees: a node contributes its lift to the point the tracker reads only when that lift is within read_tol of the heading. With mmf.hold the share of the weight so read is the confidence: the tract coasts where it falls below mmf.hold_min. |
+| `fit` | logical | `false` | hinec, mmf | Refit the stick model of each voxel from its lifts (Levenberg-Marquardt). Off: on synthetic crossings it undoes the regularisation along the fibres. |
+
 #### `tractography.mmf`
 
 | Key | Type | Default | Applies to | Description |
@@ -150,6 +177,8 @@ parameter. A key marked `hinec` is ignored by `standard`, `mmf` and `stitching`.
 | `coast_max` | numeric | `12` | mmf | Longest coast, voxels of arc (advanceFrame 'CoastMax' = coast_max/step steps): a tract still in the zone after this stops with reason coast. |
 | `exit_tol` | numeric | `0.5` | mmf | Largest angle, radians, between the carried e1 and the data's e1 with which a tract may leave the zone (advanceFrame 'ExitTol'): it is re-anchored then, and above this the coast has left the bundle and the tract stops with reason exit (with reason angle if the data at the end of the step are further from the heading at its start than angle_max allows). It must sit above the disagreement of neighbouring voxels, a quarter of which differ by more than 0.2 rad on real data, so it is not mmf.reanchor_tol; 0.5 rad is 29 degrees. Adaptive and reanchor modes only: in transport mode nothing is re-anchored or tested on leaving. |
 | `exit_delay` | numeric | `0` | mmf | Arc of coast beyond the edge of the zone before the exit test, voxels (advanceFrame 'ExitDelay' = exit_delay/step steps). 0 = test at the first trusted node. These steps neither count towards coast_max nor reset it, and the volume, the mask and the FA floor stop them. |
+| `veto_arc` | numeric | `0` | mmf | History veto of mmf.hold, look-back in voxels of arc (advanceFrame_ml 'VetoK' = round(veto_arc/step); a run with it goes to nim_tractography_mmf_ml); 0 = off. A trusted step whose end the data see more than mmf.veto_tol from the heading veto_arc back is not taken: the tract returns there and coasts on its ring (a crossing whose tensor looks linear along the other bundle). |
+| `veto_tol` | numeric | `0.5236` | mmf | History veto: largest angle, radians, between the data e1 at a step end and the heading mmf.veto_arc back (advanceFrame_ml 'VetoTol'; 0.5236 = 30 deg). |
 
 #### `tractography.stitching`
 

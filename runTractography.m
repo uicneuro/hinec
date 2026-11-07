@@ -306,6 +306,21 @@ else
     seed_mask = brain_mask;
 end
 
+% Confidence floor (seeding.cl_min): seed only where the voxel tensor is linear,
+% not in crossings fitted as one pancake tensor. Applies to every strategy.
+if isfield(options, 'seed_cl_min') && ~isempty(options.seed_cl_min) && options.seed_cl_min > 0
+    n_before_cl = sum(seed_mask(:));
+    seed_mask = seed_mask & nim_seed_cl_mask(nim, options.seed_cl_min);
+    fprintf('  CL > %.2f: %d -> %d voxels\n', options.seed_cl_min, n_before_cl, sum(seed_mask(:)));
+end
+% Coherence floor (seeding.coherence_min): seed only where the principal direction
+% agrees with its 3 x 3 x 3 neighbours.
+if isfield(options, 'seed_coherence_min') && ~isempty(options.seed_coherence_min) && options.seed_coherence_min > 0
+    n_before_coh = sum(seed_mask(:));
+    seed_mask = seed_mask & nim_seed_coherence_mask(nim, options.seed_coherence_min);
+    fprintf('  coherence > %.2f: %d -> %d voxels\n', options.seed_coherence_min, n_before_coh, sum(seed_mask(:)));
+end
+
 % Quality check
 seed_voxel_count = sum(seed_mask(:));
 if seed_voxel_count == 0
@@ -399,7 +414,11 @@ track_meta = struct();   % populated by hinec, mmf, stitching and template; empt
 if strcmpi(algorithm, 'mmf')
     fprintf('Running moving frames tractography (advanceFrame: frame transport by the connection, exponential step)...\n');
     tic;
-    [tracks, track_meta] = nim_tractography_mmf(nim, options);
+    if needs_mmf_ml(options)   % field: lift (MMF-ml) or the history veto: the copy with the additions
+        [tracks, track_meta] = nim_tractography_mmf_ml(nim, options);
+    else                       % Sehun Chun's tracker, unchanged
+        [tracks, track_meta] = nim_tractography_mmf(nim, options);
+    end
     elapsed_time = toc;
     output_filename = sprintf('tracks_mmf_%s.mat', timestamp);
 elseif strcmpi(algorithm, 'hinec')
@@ -573,4 +592,11 @@ if isfield(s, field) && ~isempty(s.(field))
 else
     val = default;
 end
+end
+
+function tf = needs_mmf_ml(options)
+% algorithm: mmf runs nim_tractography_mmf_ml (MMF-ml, docs/MMF_ML.md) for what only that copy has, the
+% layered field (field: lift) and the history veto (mmf.veto_arc > 0); everything else runs nim_tractography_mmf.
+tf = (isfield(options, 'field') && strcmpi(char(options.field), 'lift')) || ...
+     (isfield(options, 'mmf_veto_arc') && ~isempty(options.mmf_veto_arc) && options.mmf_veto_arc > 0);
 end

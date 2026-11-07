@@ -405,4 +405,7 @@ but a floor that coasts half of the arc is not detecting crossings. Lower it the
   adaptive mode
 - `config/mmf_dti_hold.yml`, `config/mmf_dti_march.yml` — the same with MMF-4h and
   MMF-4s
+- MMF-ml (`field: lift`, multilayer moving frames) and the history veto
+  (`mmf.veto_arc`) run on copies of the tracker and the scheme,
+  `nim_tractography_mmf_ml.m` and `advanceFrame_ml.m`; see [MMF_ML.md](MMF_ML.md)
 - `tests/unit/TestMmfTracker.m`

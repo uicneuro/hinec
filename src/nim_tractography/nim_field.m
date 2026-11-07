@@ -35,6 +35,8 @@ end
 switch fld
 case 'csd'
     nim = provision_csd(nim, options, nim_path);
+case 'lift'
+    nim = provision_lift(nim, options, nim_path);
 otherwise
     fprintf('field=%s: principal eigenvector from the nim; nothing to provision\n', fld);
 end
@@ -126,6 +128,61 @@ else
         end
     end
 end
+end
+
+function nim = provision_lift(nim, options, nim_path)
+% The lifts (nim_lift_field) for field: lift. Every setting that changes them is in the cache name.
+keys = {'smooth', 'bridge', 'rel', 'mass_min', 'max_lifts', 'sep', 'ndirs', 'kappa', 'ref_fa_pct', 'fit', 'iso', 'sparsity'};
+lo = struct('smooth', 0, 'bridge', 2, 'rel', 0.1, 'mass_min', 0.1, 'max_lifts', 3, 'sep', 15, ...
+            'ndirs', 300, 'kappa', 20, 'ref_fa_pct', 90, 'fit', false, 'iso', 'auto', 'sparsity', 0.1);
+for k = 1:numel(keys)
+    ok_ = ['lift_' keys{k}];
+    if isfield(options, ok_) && ~isempty(options.(ok_)), lo.(keys{k}) = options.(ok_); end
+end
+if lo.smooth > 0 && isfield(options, 'lift_smooth_kernel') && strcmpi(options.lift_smooth_kernel, 'curved')
+    % the curved kernel's settings enter the cache name only when it is used, so the caches of the straight
+    % kernel keep their names
+    lo.smooth_kernel = 'curved';
+    for k = {'smooth_kappa', 'smooth_normals'}
+        if isfield(options, ['lift_' k{1}]) && ~isempty(options.(['lift_' k{1}])), lo.(k{1}) = options.(['lift_' k{1}]); end
+    end
+end
+if isfield(options, 'lift_continuation') && ~isempty(options.lift_continuation) && options.lift_continuation > 0
+    lo.continuation = options.lift_continuation;   % in the cache name only when on (the old caches keep their names)
+end
+cache = lift_cache_path(nim_path, lo);
+if isfield(options, 'lift_workers') && ~isempty(options.lift_workers), lo.workers = options.lift_workers; end   % not a setting of the lifts
+if ~isempty(cache) && isfile(cache)
+    fprintf('field=lift: loading cached lifts from %s\n', cache);
+    Sc = load(cache, 'U', 'ok', 'mass', 'lambda');
+else
+    fprintf('field=lift: building the lifts (nim_lift_field)...\n');
+    L = nim_lift_field(nim, lo);
+    Sc = struct('U', L.U, 'ok', L.ok, 'mass', L.mass, 'lambda', L.lambda);
+    if ~isempty(cache)
+        try
+            U = L.U; ok = L.ok; mass = L.mass; lambda = L.lambda; %#ok<NASGU>
+            save(cache, 'U', 'ok', 'mass', 'lambda', '-v7.3');
+            fprintf('  cached lifts -> %s\n', cache);
+        catch
+            % non-fatal: proceed without caching
+        end
+    end
+end
+nim.lift_U = Sc.U; nim.lift_ok = Sc.ok; nim.lift_mass = Sc.mass; nim.lift_lambda = Sc.lambda;
+end
+
+function path = lift_cache_path(nim_path, lo)
+% <nim>_lift_<hash>.mat, the hash (MD5, 16 hex digits) of every lift setting, the code version of
+% nim_lift_field and the nim file itself (size and modification time): a re-preprocessed dataset or a
+% changed builder never reuses stale lifts, and the name stays short (a per-key name exceeds NAME_MAX).
+path = '';
+if isempty(nim_path) || ~isfile(nim_path), return; end
+fi = dir(nim_path); bi = dir(which('nim_lift_field'));
+key = sprintf('%s|%d|%.10f|%d|%.10f', jsonencode(lo), fi.bytes, fi.datenum, bi.bytes, bi.datenum);
+md = java.security.MessageDigest.getInstance('MD5');
+h = reshape(dec2hex(typecast(md.digest(uint8(key)), 'uint8'))', 1, []);
+path = regexprep(nim_path, '\.mat$', ['_lift_' lower(h(1:16)) '.mat']);
 end
 
 function path = field_cache_path(nim_path, field, values, keys)

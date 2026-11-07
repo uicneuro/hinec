@@ -115,7 +115,7 @@ if ~isfield(options, 'interp_method')
     options.interp_method = "trilinear";  % HINEC: Use trilinear interpolation
 end
 if ~isfield(options, 'field') || isempty(options.field)
-    options.field = 'dti';   % 'dti' (principal eigenvector) | 'csd' (FOD peaks)
+    options.field = 'dti';   % 'dti' (principal eigenvector) | 'csd' (FOD peaks) | 'lift' (the lifts as peaks)
 end
 if ~isfield(options, 'integration_order')
     options.integration_order = 4;  % HINEC: RK4 integration by default
@@ -357,6 +357,16 @@ if strcmp(options.field, 'csd')
     end
     nim.PK = nim.peaks; nim.NP = nim.npeaks;
     fprintf('HINEC: CSD FOD-peak tracking\n');
+elseif strcmp(options.field, 'lift')
+    % The lifts of nim_lift_field (nim.lift_U [X Y Z P 3], nim.lift_ok [X Y Z P]) as a peak field: the
+    % existing lifts of each voxel packed into the first slots, strongest first as nim_lift_field keeps
+    % them. They are then tracked exactly as FOD peaks are: at every stencil voxel the lift nearest the
+    % incoming tangent, blended with the spatial weights.
+    if ~isfield(nim, 'lift_U') || ~isfield(nim, 'lift_ok')
+        error('HINEC field=lift needs nim.lift_U/lift_ok (nim_field provisions them).');
+    end
+    [nim.PK, nim.NP] = lift_peaks_h(nim.lift_U, nim.lift_ok);
+    fprintf('HINEC: lift tracking (nearest lift to the tangent)\n');
 end
 
 if options.enable_diagnostics
@@ -1578,7 +1588,7 @@ fld = 'dti'; if isfield(options,'field')&&~isempty(options.field), fld = lower(c
 % interp_method drives the SPATIAL kernel of the CSD peak blend: 'cubic' -> tricubic
 % (4x4x4) stencil, else trilinear (2x2x2).
 cub = false; if isfield(options,'interp_method')&&~isempty(options.interp_method), cub = strcmpi(char(string(options.interp_method)),'cubic'); end
-if strcmp(fld,'csd')
+if any(strcmp(fld,{'csd','lift'}))
     if isempty(ref_dir), ref_dir = dominant_peak_h(nim,pos,dims); end
     if isempty(ref_dir), return; end
     [direction, okd] = interp_peak_traj_h(nim.PK, nim.NP, pos, ref_dir, dims, cub);
@@ -1761,6 +1771,19 @@ end
 function d=plain_v1_h(nim,pos)
 d=[nim.v1_x_interp(pos(1),pos(2),pos(3)),nim.v1_y_interp(pos(1),pos(2),pos(3)),nim.v1_z_interp(pos(1),pos(2),pos(3))];
 if any(isnan(d))||norm(d)<1e-6, d=[]; else, d=d/norm(d); end
+end
+function [PK,NP]=lift_peaks_h(U,ok)
+% lifts -> peak field: the existing lifts of each voxel in slots 1..NP, in their order in U
+dims=size(ok,1:3); P=size(ok,4); N=prod(dims);
+Uf=reshape(double(U),N,P,3); okf=reshape(logical(ok),N,P);
+PKf=zeros(N,P,3); NPf=zeros(N,1);
+for s=1:P
+  h=okf(:,s); NPf(h)=NPf(h)+1;
+  for q=1:P
+    m=h & NPf==q; PKf(m,q,:)=Uf(m,s,:);
+  end
+end
+PK=reshape(PKf,[dims P 3]); NP=reshape(NPf,dims);
 end
 function d=dominant_peak_h(nim,pos,dims)
 vp=min(max(round(pos),1),dims); d=[];

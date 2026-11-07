@@ -62,6 +62,7 @@ nav:
     - Standard (FACT): TRACTOGRAPHY.md
     - High-Order Methods: High_Order.md
     - Moving Frames Tractography: MMF_TRACTOGRAPHY.md
+    - Multilayer Moving Frames (MMF-ml): MMF_ML.md
     - RKF45 Adaptive: RKF.md
     - RKF45 Usage: RKF_Usage.md
     - Seeding Strategy: SEEDING_STRATEGY.md
