@@ -361,10 +361,35 @@ and `angle_max` is the only thing that stops that snap. `mmf_dti` with `reanchor
 The ISMRM 2015 phantom has a ground truth. These rows come from the scorer of
 `bin/run_ismrm_scoring.sh` (scilpy 2.3, `scil_tractogram_segment_with_ROI_and_score`;
 point `ISMRM_VENV` at an environment that has it), with `--save_wpc_separately` for the
-wrong-path column. A streamline can count for several bundles there, so valid and wrong path are
-unique streamlines as a share of all of them, a wrong-path one being valid for no
-bundle. All seeds with FA at least 0.1 in the mask, `termination.fa_min: 0.08`,
-`min_arc: 15`, `max_arc: 400`:
+wrong-path column. The phantom has 25 ground-truth bundles, each defined by two end
+regions (head and tail), a containment mask and, for some, an inclusion mask or length
+bounds; the scorer sorts every streamline against those definitions and compares the
+accepted ones with the true bundles voxel by voxel. The columns, here and in the
+`angle_max` table above:
+
+- **streamlines** — the tracks the run produced and kept.
+- **valid** — streamlines assigned to a bundle: both ends in its two end regions,
+  every point inside its containment mask, its extra conditions met. A streamline
+  can qualify for several bundles, so this is unique streamlines as a share of all.
+- **wrong path** — streamlines that connect the right two end regions of a bundle but
+  leave its mask on the way or fail its length or inclusion rule: right endpoints,
+  wrong route. Unique, and valid for no bundle. The rest, not shown, have an end in
+  no end region at all (stopped in white matter, or in the wrong region).
+- **overlap** (OL) — per bundle, the fraction of the true bundle's voxels that its
+  valid streamlines pass through; averaged over the bundles, a bundle without a
+  valid streamline counting 0. Recall of the bundle's volume.
+- **overreach** (OR) — per bundle, the voxels those streamlines visit outside the
+  true bundle as a fraction of the true bundle's voxel count (so it can exceed 1);
+  averaged the same way. The volume added that is not there.
+- **mean F1** — per bundle the Dice score `2 TP / (2 TP + FP + FN)` on voxels (TP the
+  true voxels covered, FP the voxels covered outside the bundle, FN the true voxels
+  missed), averaged over the bundles; a missing bundle counts 0.
+- **bundles** (VB) — how many of the 25 bundles have at least one valid streamline.
+- **mean length** — the mean arc length of the streamlines, voxels.
+
+Valid and overlap are recall-like, wrong path and overreach precision-like, and F1
+balances the two per bundle. All seeds with FA at least 0.1 in the mask,
+`termination.fa_min: 0.08`, `min_arc: 15`, `max_arc: 400`:
 
 | config | streamlines | valid | wrong path | overlap | overreach | mean F1 | bundles | mean length |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
