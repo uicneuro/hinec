@@ -1,0 +1,32 @@
+[
+  {
+    "run": "HINEC as written (raw component interpolation)",
+    "valid_tracks": 635255,
+    "wb_median_mm": 6.351684828814415,
+    "wb_mean_mm": 11.934354522555587,
+    "no_direction": 1421168,
+    "angle": 445982,
+    "gm": 716894,
+    "csf": 31240,
+    "cc_tracks": 23796,
+    "cc_ge45": 17956,
+    "cc_median_mm": 54.50779637878894,
+    "cc_p90_mm": 83.11442723047332,
+    "minutes": 8.984675498803457
+  },
+  {
+    "run": "sign-aligned interpolation (proposed fix)",
+    "valid_tracks": 634855,
+    "wb_median_mm": 11.195403971948117,
+    "wb_mean_mm": 27.90017994432282,
+    "no_direction": 1451513,
+    "angle": 116,
+    "gm": 1118366,
+    "csf": 45477,
+    "cc_tracks": 42382,
+    "cc_ge45": 39647,
+    "cc_median_mm": 95.59289736957808,
+    "cc_p90_mm": 142.36202752928045,
+    "minutes": 28.96307728290558
+  }
+]

@@ -1,0 +1,82 @@
+{
+  "dti": {
+    "n_b0": 1,
+    "n_dwi": 30,
+    "n_fit_voxels": 169603,
+    "n_spd_refit": 369,
+    "n_invalid_tensors": 471,
+    "dt_seconds": 5.089991807937622
+  },
+  "cc_roi": {
+    "x_mid": 63.554756317583106,
+    "halfwidth": 1,
+    "fa_thr": 0.4,
+    "lr_thr": 0.8,
+    "n_candidates": 453,
+    "n_components": 27,
+    "component_sizes": [
+      343,
+      39,
+      31,
+      7,
+      4
+    ],
+    "roi_voxels": 343
+  },
+  "tracking": {
+    "n_seeds": 1307736,
+    "seeds_per_voxel": 8,
+    "n_valid_tracks": 634855,
+    "half_tracks_discarded_csf": 45477,
+    "term_counts": {
+      "running": 0,
+      "no_direction": 1451513,
+      "fa": 0,
+      "angle": 116,
+      "max_steps": 0,
+      "outside": 0,
+      "csf": 45477,
+      "gm": 1118366,
+      "rkf_failure": 0,
+      "unknown": 0
+    },
+    "elapsed_min": 28.96307728290558,
+    "wholebrain_len_mm": {
+      "mean": 27.90017994432282,
+      "median": 11.195403971948117,
+      "p90": 82.78613685265863,
+      "max": 324.7055571338432
+    },
+    "options": {
+      "step_size": 0.2,
+      "integration_order": 4,
+      "interp_method": "cubic",
+      "termination_fa": 0.2,
+      "angle_thresh": 35,
+      "max_steps": 800,
+      "seed_density": 4,
+      "seed_strategy": "uniform",
+      "adaptive_step": false,
+      "rkf_tolerance": 0.01,
+      "rkf_safety": 0.9,
+      "step_min": 0.01,
+      "step_max": 1.0,
+      "act_enabled": true,
+      "align_signs": true
+    }
+  },
+  "cc": {
+    "roi_hit": 44689,
+    "roi_hit_and_cross_midline": 42382,
+    "min_length_mm": 45.0,
+    "cc_ge_min_length": 39647,
+    "cc_len_mm": {
+      "mean": 96.59241708260664,
+      "median": 95.59289736957808,
+      "p10": 55.59158634119467,
+      "p90": 142.36202752928045,
+      "max": 321.9038337755517
+    }
+  },
+  "elapsed_total_min": 29.705054370562234
+}

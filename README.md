@@ -28,6 +28,8 @@ Human brain white matter tractography pipeline with **YAML-based parameter confi
 
 **NEW**: All runs are now automatically organized in `hinec_runs/run_YYYYMMDD_HHMMSS_<config>/` directories! No more scattered files cluttering your workspace.
 
+
+
 ### Using MATLAB
 
 ```matlab
@@ -60,6 +62,7 @@ hinec_runs/run_20250118_143045_hinec_dti_cubic/
 ```
 
 **Benefits**:
+
 - ✅ Clean workspace - no scattered files
 - ✅ Full reproducibility - config and metadata saved
 - ✅ Easy comparison between runs
@@ -72,12 +75,14 @@ hinec_runs/run_20250118_143045_hinec_dti_cubic/
 **Easy parameter management** - no more editing source code!
 
 **Benefits**:
+
 - Human-readable configuration files
 - Version control your experiment parameters
 - Switch between presets instantly
 - Automatic parameter validation
 
 **Available Presets**:
+
 - `hinec_default.yml` - Balanced performance (recommended)
 - `hinec_dti_cubic.yml` - Publication quality (RKF45 adaptive)
 - `hinec_dti_fast.yml` - Quick parameter testing (3-5x faster)
@@ -94,13 +99,13 @@ hinec_runs/run_20250118_143045_hinec_dti_cubic/
 
 Addons:
 
--   `Image Processing Toolbox`
--   `Statistics and Machine Learning Toolbox`
--   `Tools for NIfTI and ANALYZE image`
+- `Image Processing Toolbox`
+- `Statistics and Machine Learning Toolbox`
+- `Tools for NIfTI and ANALYZE image`
 
 External Softwares:
 
--   `Statistical Parametric Mapping`
-    -   Must add folder SPM12 in the `lib` directory
--   `FSL`
-    -   Must be initialized before use
+- `Statistical Parametric Mapping`
+  - Must add folder SPM12 in the `lib` directory
+- `FSL`
+  - Must be initialized before use
