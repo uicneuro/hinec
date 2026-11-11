@@ -125,9 +125,9 @@ function [tracks, meta] = nim_tractography_mmf_ml(nim, options)
 %   interp_method, upsample
 %                      kernel and spatial sampling of the dyadic field, as hinec
 %   mmf_mode           'transport' | 'reanchor' | 'adaptive' (advanceFrame 'Mode')
-%   mmf_reanchor_tol   drift tolerance of the adaptive mode, radians
+%   mmf_reanchor_tol   drift tolerance of the adaptive mode, radians (default 0.2)
 %   mmf_gradient_delta central-difference step for d e1/dx_k, voxels
-%   mmf_hold           'none' | 'hold' | 'march' (needs nim.eval), and for those
+%   mmf_hold           'none' | 'hold' | 'march' (default 'march', MMF-4s; needs nim.eval), and for those
 %   mmf_hold_min, mmf_hold_k, mmf_hold_guard, mmf_coast_max, mmf_exit_tol,
 %   mmf_exit_delay     the confidence floor, the ring, the erosion radius, the
 %                      longest coast, the test on leaving the zone and the arc
@@ -190,13 +190,13 @@ switch integ
         error('mmf:integrator', 'nim_tractography_mmf_ml: unknown integrator ''%s''.', integ);
 end
 mode  = lower(char(string(o('mmf_mode', 'adaptive'))));
-rtol  = o('mmf_reanchor_tol', 1e-3);
+rtol  = o('mmf_reanchor_tol', 0.2);    % the schema default (tractography.mmf.reanchor_tol)
 delta = o('mmf_gradient_delta', 1e-3);
 conn  = lower(char(string(o('mmf_connection', 'nodal'))));
 if ~any(strcmp(conn, {'nodal', 'derivative'}))
     error('mmf:connection', 'nim_tractography_mmf_ml: mmf.connection must be nodal or derivative, not ''%s''.', conn);
 end
-hold_mode = lower(char(string(o('mmf_hold', 'none'))));
+hold_mode = lower(char(string(o('mmf_hold', 'march'))));   % MMF-4s is the default (tractography.mmf.hold)
 if ~any(strcmp(hold_mode, {'none', 'hold', 'march'}))
     error('mmf:hold', 'nim_tractography_mmf_ml: mmf.hold must be none, hold or march, not ''%s''.', hold_mode);
 end

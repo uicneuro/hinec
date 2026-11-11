@@ -546,7 +546,7 @@ Three algorithms are available:
 - `mmf.mode` (`transport` / `reanchor` / `adaptive`) and `mmf.reanchor_tol` set how the
   carried frame is re-anchored to the data
 - `mmf.hold` (`none` / `hold` / `march`) lets a tract coast through degenerate data on the
-  connection of its last trusted nodes, held (MMF-4h) or marched (MMF-4s)
+  connection of its last trusted nodes, held (MMF-4h) or marched (MMF-4s, the default)
 - DTI only (`field: csd` is rejected); ACT masks are not used
 
 The trackers share these stopping criteria:
@@ -638,9 +638,9 @@ tractography:
     lmax, max_peaks, peak_thresh, peak_min_sep, n_iter
   mmf:                                    # algorithm: mmf only
     mode: transport | reanchor | adaptive # default adaptive
-    reanchor_tol: 0.001                   # radians
+    reanchor_tol: 0.2                     # radians
     gradient_delta: 0.001                 # voxels
-    hold: none | hold | march             # default none; hold_min, hold_k, hold_guard,
+    hold: none | hold | march             # default march (MMF-4s); hold_min, hold_k, hold_guard,
                                           # coast_max, exit_tol, exit_delay go with it
   diagnostics: true|false
 ```

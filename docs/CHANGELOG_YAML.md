@@ -1,5 +1,20 @@
 # YAML Configuration Changelog
 
+## 2026-11-10 - `algorithm: mmf` is MMF-4s by default
+
+- The defaults of `tractography.mmf.hold` and `tractography.mmf.reanchor_tol` are now
+  `march` and `0.2` rad (they were `none` and `1e-3`): a config that only selects
+  `algorithm: mmf`, or `--set algorithm=mmf` on the config of another tracker, runs
+  MMF-4s. The trackers' own defaults (`nim_tractography_mmf`,
+  `nim_tractography_mmf_ml`, which `runTractography(data, 'mmf')` reads) follow. The
+  march reads `nim.eval`.
+- **Behaviour change** for a config that selects `algorithm: mmf` and sets neither
+  key. `config/mmf_dti.yml` now sets `hold: none` beside its `reanchor_tol: 0.001`
+  and is the tracker it was (MMF-4a); `config/mmf_dti_hold.yml`,
+  `config/mmf_dti_march.yml` and `config/mmf_ml.yml` set both keys and are unchanged.
+  `termination.angle_max` is not part of this: the presets of MMF-4h and MMF-4s
+  switch it off, a config that only selects the algorithm keeps its own.
+
 ## 2026-11-04 - advanceFrame: 'BundleRule' and 'BundleLaw'
 
 - `src/nim_tractography/advanceFrame.m` takes the suite's version with the

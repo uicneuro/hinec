@@ -72,7 +72,9 @@ frame.
 
 The drift at every point and the re-anchoring decisions are recorded
 (`meta.mmf.reanchored_fraction`; per step in `meta.trace` with `debug.trace`).
-The default tolerance `1e-3` rad is an order of magnitude below the heading
+The default tolerance is `0.2` rad, the one of MMF-4h and MMF-4s (see [the
+scores](#on-data) for what it does on data). `config/mmf_dti.yml` sets `1e-3` rad,
+which is an order of magnitude below the heading
 error of a one-voxel CF4 step across a sharp bend and above the step-to-step
 wobble of interpolated data at normal steps (see the suite's notes, section on
 variants).
@@ -141,9 +143,13 @@ read the data at all but **coasts**.
 
 | `mmf.hold` | scheme | what the tract follows in the zone |
 |---|---|---|
-| `none` (default) | MMF-4a, the adaptive mode alone | the data, as everywhere |
+| `none` | MMF-4a, the adaptive mode alone | the data, as everywhere |
 | `hold` | MMF-4h | the mean connection of its last `hold_k` trusted nodes, in the carried frame, constant along the coast: a circle |
-| `march` | MMF-4s | that curvature and fan-out, marched by the flatness of the connection: exact on circles, logarithmic spirals and rays, and turning the curvature by the torsion on a helix |
+| `march` (default) | MMF-4s | that curvature and fan-out, marched by the flatness of the connection: exact on circles, logarithmic spirals and rays, and turning the curvature by the torsion on a helix |
+
+`march` is the default, and with it `reanchor_tol: 0.2`: a config that only selects
+`algorithm: mmf` runs MMF-4s, with whatever `angle_max` it has (the schema default is
+225). `config/mmf_dti.yml` sets `hold: none` and `reanchor_tol: 0.001` and is MMF-4a.
 
 The presets `config/mmf_dti_hold.yml` and `config/mmf_dti_march.yml` are `mmf_dti`
 with the scheme on, `reanchor_tol: 0.2` and `angle_max: 0` (see
@@ -427,7 +433,7 @@ but a floor that coasts half of the arc is not detecting crossings. Lower it the
   connection handles, termination, metadata)
 - `src/nim_tractography/advanceFrame.m` — the scheme (identical to the suite's copy)
 - `config/mmf_dti.yml` — tracker config: `algorithm: mmf`, CF4, spline kernel,
-  adaptive mode
+  adaptive mode alone (MMF-4a: `hold: none`)
 - `config/mmf_dti_hold.yml`, `config/mmf_dti_march.yml` — the same with MMF-4h and
   MMF-4s
 - MMF-ml (`field: lift`, multilayer moving frames) and the history veto

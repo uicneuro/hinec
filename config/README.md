@@ -122,7 +122,8 @@ stay directly comparable.
 - `mmf_dti` — moving frames tractography (`advanceFrame`): the fibre carries an
   orthonormal frame transported by the connection of the data with the
   closed-form exponential step; CF4 (`rk4`), spline kernel, adaptive
-  re-anchoring (`mmf.mode: adaptive`). ACT masks are not used. See
+  re-anchoring (`mmf.mode: adaptive`) alone: MMF-4a (`mmf.hold: none`,
+  `mmf.reanchor_tol` 0.001 rad). ACT masks are not used. See
   [docs/MMF_TRACTOGRAPHY.md](../docs/MMF_TRACTOGRAPHY.md).
 - `mmf_dti_hold`, `mmf_dti_march` — `mmf_dti` coasting through degenerate data
   (a crossing fitted as a pancake) instead of reading it: on the held connection of
@@ -131,6 +132,8 @@ stay directly comparable.
   `angle_max` (`termination.angle_max: 0`: the scheme's exit test takes its place). The confidence
   floor `mmf.hold_min` belongs to the dataset: the tracker warns when it marks more
   than 40% of the tissue.
+  MMF-4s (`mmf.hold: march`, `mmf.reanchor_tol` 0.2 rad) is also the schema default:
+  it is what `algorithm: mmf` runs in a config that sets neither key.
 
 > These are **generic** tracker configs: one `algorithm`/`field` pair each,
 > schema defaults everywhere else. They are *not* the setup the ISMRM-2015 scores
@@ -280,9 +283,9 @@ tractography:
   # --- algorithm: mmf only ---
   mmf:
     mode: adaptive           # transport | reanchor | adaptive
-    reanchor_tol: 0.001      # radians; drift of the carried e1 from the data's e1
+    reanchor_tol: 0.2        # radians; drift of the carried e1 from the data's e1
                              # at which the adaptive mode re-anchors
-    hold: none               # none | hold (MMF-4h) | march (MMF-4s): coast through
+    hold: march              # none (MMF-4a) | hold (MMF-4h) | march (MMF-4s): coast through
                              # degenerate data instead of reading it
     hold_min: 0.2            # linear shape CL below which the data are degenerate
     coast_max: 12            # voxels of arc; a longer coast stops the tract

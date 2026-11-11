@@ -2,8 +2,9 @@
 # the fibre carries an orthonormal frame that is transported by the connection
 # of the data with the closed-form exponential step (exact for a planar arc of
 # constant curvature at any step size), CF4 (integrator rk4 -> Lie group order 4), adaptive
-# re-anchoring to the data where the carried heading drifts. See
-# docs/MMF_TRACTOGRAPHY.md.
+# re-anchoring to the data where the carried heading drifts. This is MMF-4a: hold is
+# none here, while algorithm: mmf alone is MMF-4s (hold: march, reanchor_tol 0.2, the
+# schema defaults; config/mmf_dti_march.yml). See docs/MMF_TRACTOGRAPHY.md.
 #
 # ./bin/run_tractography.sh mmf_dti --score
 #
@@ -24,3 +25,4 @@ tractography:
   mmf:
     mode: adaptive
     reanchor_tol: 0.001
+    hold: none            # MMF-4a, the adaptive mode alone (the schema default is march)
