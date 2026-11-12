@@ -1,0 +1,48 @@
+# trackeryoga — dataset config for the TrackerYoga synthetic phantoms.
+#
+# TrackerYoga (https://github.com/baranaydogan/TrackerYoga, BSD-3-Clause) holds the
+# phantoms of Aydogan & Shi, Parallel Transport Tractography (IEEE TMI 2021, Sec. III-A),
+# simulated with MITK Diffusion: one 168 x 32 x 4 volume of 1 mm voxels with six arcs,
+# straight bundles crossing at 15-90 degrees and two fanning bundles, with ground-truth
+# tracts. scripts/trackeryoga_prepare.py lays a data set out (padded by one voxel on
+# every side) and writes the mask below; the data are noise-free or noisy simulations,
+# so denoising, motion and eddy correction stay off, and the supplied mask is kept as it is.
+#
+# python3 scripts/trackeryoga_prepare.py --src data/trackeryoga/src --out data/trackeryoga
+# ./bin/run_hinec.sh data/trackeryoga/hinec_pipeline/ty_b1000 \
+#   ty_b1000.mat config/trackeryoga.yml
+
+preprocessing:
+  run_denoising: false
+  run_motion_correction: false
+  run_eddy: false
+  improve_mask: false
+  mask_file: data/trackeryoga/trackeryoga_M.nii.gz
+  atlas_type: jhu
+  t1_available: false
+  use_t1_registration: false
+  register_to_mni: false
+
+tractography:
+  algorithm: hinec
+  field: dti
+  act: false
+  integrator:
+    method: rk4
+    step: 0.1666666667
+  interpolation:
+    method: spline
+  seeding:
+    density: 8
+    strategy: uniform
+    fa_min: 0
+  termination:
+    fa_min: 0.1
+    angle_max: 270
+    max_arc: 60
+    min_arc: 0
+  output:
+    arc_step: 0
+  csd:
+    lmax: 8
+    peak_thresh: 0.1
