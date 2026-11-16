@@ -1,5 +1,24 @@
 # YAML Configuration Changelog
 
+## 2026-11-16 - `algorithm: mmf`: a non-finite connection no longer stops a tract
+
+- No new key. `src/nim_tractography/advanceFrame.m` takes the moving-frames test
+  suite's version, which differs from the one before in one line: `maxRot(bad) = NaN;`
+  in `lieStep` is switched off. A non-finite connection at a stage of a step (outside
+  the volume or the mask, below the FA floor, no principal axis) is taken as zero and
+  the step is taken.
+- **Behaviour change** for every run of `algorithm: mmf` (`nim_tractography_mmf`; not
+  `nim_tractography_mmf_ml`, whose `advanceFrame_ml.m` keeps the line): a tract that
+  leaves the tissue is no longer stopped there but runs on straight through non-tissue
+  until it re-enters tissue, leaves the volume (`outside`) or reaches `max_arc`, and
+  the track keeps those nodes. `fa`, `outside_mask` and `outside_domain` no longer
+  occur in `meta.termination`. With `mmf.hold`, a coast that leaves the zone into
+  non-tissue is not exit-tested and its `coast_max` count restarts, and the zero
+  connection of such a run enters the hold ring. `fa`, `mask` and
+  `termination.fa_min` no longer stop this tracker (their descriptions say so).
+  Reverting the commit (the line, the tests and the notes) restores the tracker; the
+  numbers of MMF_TRACTOGRAPHY.md that were measured with the stop are marked so.
+
 ## 2026-11-16 - `preprocessing.refit_zeroed_tensors`: the voxels the fit left at zero get a tensor
 
 - New key `preprocessing.refit_zeroed_tensors` (logical, default `true`). The voxels

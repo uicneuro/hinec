@@ -664,9 +664,11 @@ rotation of a step and the turn of the heading as the data see it (the data's
 $\mathbf{e}_1$ at the end of a step against the heading at its start, in every
 mode). `meta` carries
 `.seed_index`, `.seed_points`, `.n_seeds`; `.termination` (`reason` / `count`
-over the half-tracks of the seeds that were tracked: `max_arc`, `angle`, `fa`,
-`outside_mask`, `outside`, `outside_domain`, `no_direction`, and with `mmf.hold`
-`coast`, `exit`, `focus`; empty when no seed was); `.mmf` (`order`, `mode`,
+over the half-tracks of the seeds that were tracked: `max_arc`, `angle`,
+`outside`, `no_direction`, and with `mmf.hold` `coast`, `exit`, `focus`; empty
+when no seed was; since 2026-11-16 a non-finite connection no longer stops a tract,
+which runs on straight through non-tissue, so `fa`, `outside_mask` and
+`outside_domain` no longer occur); `.mmf` (`order`, `mode`,
 `reanchor_tol`, `twist`, `max_turn_rad`, `gradient_delta`, `kernel`, the `mmf.hold`
 settings, `zone_fraction`, `reanchored_fraction`, `coasted_fraction`, `seeds_alive`,
 `seeds_skipped` with `reason` / `count` of the seeds outside tissue or without

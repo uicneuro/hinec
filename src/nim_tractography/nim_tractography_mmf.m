@@ -49,14 +49,26 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %
 % TERMINATION. The connection is returned non-finite wherever a point is
 % outside the volume, outside the propagation mask (or the brain mask), below
-% the FA floor or without a well-conditioned principal axis; advanceFrame
-% stops a tract BEFORE a step at whose stages the connection is not finite.
-% The stages are the start of the step, its midpoint (orders 2 and 4) and its
-% end (order 4), so with orders 1 and 2 the scheme never examines the end of a
-% step: a last node that lies outside tissue is dropped here, and every node
-% of a track is a valid integration node inside tissue. Leaving the volume
-% stops a tract as well; the cut boundary point is dropped, so tracks consist
-% of integration nodes only, like those of the other trackers. The angle
+% the FA floor or without a well-conditioned principal axis. SINCE 2026-11-16
+% advanceFrame takes a non-finite connection at a stage of a step as zero and
+% TAKES THE STEP (line 945 of advanceFrame.m, maxRot(bad) = NaN, is switched
+% off, as in the moving-frames test suite): a tract that leaves the mask, drops
+% below the FA floor or meets a point without an axis is no longer stopped
+% there but runs on straight along its carried e1, through non-tissue, until it
+% re-enters tissue, leaves the volume ('outside') or reaches max_arc. Before,
+% advanceFrame stopped it before such a step ('nan', resolved here into fa,
+% outside_mask, outside_domain or no_direction by why_stopped, which keeps that
+% resolution for an advanceFrame with the line on). Only a last node that lies
+% outside tissue is dropped here; the earlier nodes of such a run stay in the
+% track. Leaving the volume stops a tract; the cut boundary point is dropped.
+% Through non-tissue the hold ring takes the zero connection: a coast that starts
+% within mmf.hold_k steps after such a run holds a reduced curvature, and a
+% straight one after a run of at least mmf.hold_k steps. A coast that leaves the
+% zone into non-tissue is not exit-tested (the data frame is not finite there) and
+% its coast_max count restarts; where it re-enters tissue it is re-anchored like
+% any trusted step, and only angle_max limits that snap (nothing with
+% angle_max <= 0). advanceFrame.m's own help still describes the 'nan' stop (the
+% file is the suite's). The angle
 % limit termination.angle_max (degrees per voxel of arc; through
 % nim_angle_limit it is min(angle_max*h, 90) degrees per step, none for
 % angle_max <= 0) is advanceFrame's 'MaxTurn', applied to the rotation
@@ -87,7 +99,9 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % interpolated linearly and eroded by mmf.hold_guard voxels, see confidence_at.
 % advanceFrame takes a non-finite confidence for no data and then reads the
 % connection, which is not finite outside tissue: the confidence is NaN there,
-% so the volume, the mask and the FA floor stay stops inside the zone. A seed in
+% and since 2026-11-16 the tract crosses the slab of non-tissue straight, as
+% everywhere else (see TERMINATION; before, the volume, the mask and the FA floor
+% stayed stops inside the zone). A seed in
 % the zone has no trusted node and would coast straight along the axis of the
 % filled field: with mmf.seed_trusted (the default) it is not tracked, but skipped
 % as 'zone' (its confidence, read as the scheme reads it at a node, finite and
@@ -137,9 +151,9 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %           forward half], integration nodes only, arc length >= min_length
 %   meta    seed_index (1 x T), seed_points (T x 3), n_seeds;
 %           termination: reason/count over the half-tracks of the live seeds
-%           (max_arc, angle, fa, outside_mask, outside, outside_domain,
-%           no_direction, and with mmf.hold coast, exit, focus; empty when no
-%           seed is alive);
+%           (max_arc, angle, outside, no_direction, and with mmf.hold coast,
+%           exit, focus; empty when no seed is alive; fa, outside_mask and
+%           outside_domain no longer occur since 2026-11-16, see TERMINATION);
 %           mmf: the scheme settings, zone_fraction (the share of the tissue voxels
 %           below mmf.hold_min, before the erosion), reanchored_fraction and
 %           coasted_fraction of the steps, seeds_alive, and seeds_skipped
@@ -405,8 +419,8 @@ for c0 = 1:chunk:numel(live)
         sgn = 3 - 2 * dirn;                     % +1 forward, -1 backward
         [tr, fr, info] = advanceFrame(wFcn, mfFcn, dom, S, sgn * d0, h, smax, ...
             'Order', order, 'Mode', mode, 'ReanchorTol', rtol, 'Twist', 'zero', 'MaxTurn', maxTurn, hold_args{:});
-        % Integration nodes only: drop a clipped boundary point, and a step end
-        % the scheme never examined (orders 1 and 2) that lies outside tissue.
+        % Drop a clipped boundary point, and a last node that lies outside tissue
+        % (since 2026-11-16 the earlier nodes of a straight run through non-tissue stay).
         Pq = tr(:);
         for q = 1:numel(idx)
             if info.clipped(q), Pq{q} = Pq{q}(1:end-1, :); end
@@ -689,8 +703,8 @@ function c = confidence_at(X, fld)
 % (min ignores NaN, so the erosion stays within the data), so that the edge of the
 % tissue is not a zone. NaN where the point is not tissue, as e1_at tests it short
 % of the principal axis: advanceFrame then reads the connection, which is not
-% finite there and stops the tract, whereas 'no_direction', the degenerate data
-% themselves, is left to the zone.
+% finite there (since 2026-11-16 taken as zero: the tract crosses it straight),
+% whereas 'no_direction', the degenerate data themselves, is left to the zone.
 c = NaN(size(X, 1), 1);
 inside = all(X >= 1, 2) & all(X <= fld.dims, 2);
 if ~any(inside), return; end
@@ -709,7 +723,9 @@ end
 
 function reason = why_stopped(stop, P, F, hh, fld, xdrop)
 % advanceFrame's reasons, with 'nan' resolved into what made the connection
-% non-finite: the node dropped for lying outside tissue (xdrop, if any), else
+% non-finite (an advanceFrame with line 945 on; since 2026-11-16 'nan' no longer
+% occurs and fa, outside_mask and outside_domain are no stop reasons any more):
+% the node dropped for lying outside tissue (xdrop, if any), else
 % the first failing point among the stages of the next step (its midpoint and
 % end along the carried e1, then the node itself), each with the six probes
 % of the central-difference stencil, in the order the tests are applied. A

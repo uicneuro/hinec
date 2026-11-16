@@ -188,11 +188,11 @@ function [groups, d] = nim_dictionary()
     d.size_b0    = 'number of b0 volumes'; d.size_bi = 'number of diffusion-weighted volumes';
     d.img_b0     = '[X Y Z] mean b0 image'; d.img_bi = '[X Y Z size_bi] diffusion-weighted volumes only';
     d.thrsh_b0   = 'b-value below which a volume counts as b0';
-    d.mask       = '[X Y Z] brain mask, 1 inside. Tracking stops on leaving it';
+    d.mask       = '[X Y Z] brain mask, 1 inside. Tracking stops on leaving it (mmf: since 2026-11-16 not a stop, the tract runs on straight)';
     d.DT         = '[X Y Z 6] diffusion tensor as [Dxx Dyy Dzz Dxy Dyz Dxz] (nim_reshape_d)';
     d.evec       = '[X Y Z 3 3] eigenvectors: evec(x,y,z,:,k) is the k-th, k=1 principal. Sign is ARBITRARY (a line field)';
     d.eval       = '[X Y Z 3] eigenvalues, descending. [0 0 0] where the fit was skipped (mask edge)';
-    d.FA         = '[X Y Z] fractional anisotropy in [0,1]; the termination criterion';
+    d.FA         = '[X Y Z] fractional anisotropy in [0,1]; the termination criterion (mmf: since 2026-11-16 not a stop)';
     d.parcellation_mask      = '[X Y Z] region label per voxel (0 = none); used for ROI seeding / filtering';
     d.parcellation_mask_file = 'path of the label volume';
     d.atlas_labels           = 'label index -> name for parcellation_mask';
@@ -248,7 +248,7 @@ function [groups, d] = options_dictionary()
     d.seed_roi_dilate   = {'tractography.seeding.roi_dilate', 'dilation applied to those regions'};
     d.seed_mask     = {'(built in runTractography step 3)', '[X Y Z] logical: seed inside these voxels. THE seed input - the tracker generates seed points from it'};
     d.seed_roi_info = {'(built in runTractography step 3)', 'voxel counts of the ROI seed mask at each masking stage'};
-    d.termination_fa = {'tractography.termination.fa_min', 'stop when interpolated FA drops below this'};
+    d.termination_fa = {'tractography.termination.fa_min', 'stop when interpolated FA drops below this (mmf: since 2026-11-16 not a stop)'};
     d.termination_fa_mode = {'tractography.termination.fa_mode', 'absolute: termination_fa = fa_min | percentile: termination_fa was resolved per scan from this scan''s in-mask FA'};
     d.termination_fa_percentile = {'tractography.termination.fa_percentile', 'percentile used when fa_mode = percentile'};
     d.termination_fa_config = {'(runTractography step 1b)', 'configured fa_min, kept when fa_mode = percentile replaced it'};

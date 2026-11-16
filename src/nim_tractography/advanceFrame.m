@@ -942,7 +942,7 @@ switch order
         [Xn, En] = poseExp(Xn, En, ( -Om1 + 2*Om2 + 2*Om3 + 3*Om4) / 12, 1/2, h);
 end
 maxRot = h * max(rates, [], 2);
-maxRot(bad) = NaN;
+%maxRot(bad) = NaN;
 end
 
 function [Om, bad, th, zone] = stageOmega(X, E, omegaFcn, evalCL, holdMin, holdOm, expdim, forced)
