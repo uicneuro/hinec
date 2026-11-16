@@ -296,6 +296,18 @@ nim = nim_dt_spd(nim);
 nim = nim_eig(nim);
 nim = nim_fa(nim);
 
+% The voxels of the mask that the fit left at zero get their least-squares tensor
+% (preprocessing.refit_zeroed_tensors, default true; see nim_dt_refit_zeroed), before
+% the mask improvement and the segmentation read the FA. Again before the save, for
+% the voxels the improved mask adds.
+refit_zeroed = true;
+if isfield(options, 'preprocessing_options') && isfield(options.preprocessing_options, 'refit_zeroed_tensors')
+    refit_zeroed = logical(options.preprocessing_options.refit_zeroed_tensors);
+end
+if refit_zeroed
+    nim = nim_dt_refit_zeroed(nim);
+end
+
 %% Step 3: Registration (if enabled)
 registration_data = [];
 if options.enable_registration
@@ -488,6 +500,11 @@ if isfile(brain_mask_file)
 else
     fprintf("⚠ No brain mask found for tissue segmentation\n");
     fprintf("   Tractography will proceed without ACT constraints\n");
+end
+
+%% Step 5c: tensors for the voxels the improved mask added (outside the mask of the fit, never fitted)
+if refit_zeroed
+    nim = nim_dt_refit_zeroed(nim);
 end
 
 %% Step 6: Save enhanced nim structure

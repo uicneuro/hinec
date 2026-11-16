@@ -207,7 +207,10 @@ seeds of such a family by as many on the trusted part of its entry wall,
 `seed_trusted` drops each seed in the zone and adds none, so fewer tracks result (the
 dropped seeds stay counted in `meta.n_seeds`). It differs from
 `seeding.cl_min`, which drops whole voxels by their own CL before any tracker runs
-(no interpolation, no erosion, absent from `meta.n_seeds`). With
+(no interpolation, no erosion, absent from `meta.n_seeds`). Neither key drops the
+voxels the tensor refit fills (`preprocessing.refit_zeroed_tensors`): at the noisy
+edge of a mask their floored tensors are close to linear, CL near 1, and read as
+trusted. With
 `seed_trusted: false` the seed coasts as before; where the axis of the filled field
 ties, the seed is skipped as `no_direction` either way.
 

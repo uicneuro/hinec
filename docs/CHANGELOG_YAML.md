@@ -1,5 +1,38 @@
 # YAML Configuration Changelog
 
+## 2026-11-16 - `preprocessing.refit_zeroed_tensors`: the voxels the fit left at zero get a tensor
+
+- New key `preprocessing.refit_zeroed_tensors` (logical, default `true`). The voxels
+  of the mask that `nim_dt_spd` left at zero (no tensor, FA 0: no tissue to every
+  tracker) get their log-linear least-squares tensor with the eigenvalues raised to
+  1e-7 mm²/s (`src/nim_calculation/nim_dt_refit_zeroed.m`). Nearly all of them are the
+  voxels whose least-squares tensor has a negative eigenvalue: `nim_dt_spd` sends them
+  to BFGS (`lib/bfgs/vox_dt_bfgs.m`), whose tensor comes back 1e6 or more too large
+  (it multiplies by 1000 where it should divide, and its gradient reads the wrong
+  gradient directions) and is rejected by the bound on the eigenvalues. A voxel whose
+  signals do not determine a tensor stays at zero. `vox_dt_bfgs.m` is not changed.
+- Applied by `main` after `nim_fa` and again before the save (the voxels the improved
+  mask adds), by `runTractography` to the nim it loads, so that a dataset made before
+  reaches the trackers without holes (in memory: the file is not rewritten), and by
+  `cc_extraction/extract_cc_tracks.m` after its `nim_fa`.
+- **Behaviour change** for every pipeline and tractography run: the voxels that were
+  holes now carry a tensor where their signals allow it. On the TrackerYoga phantom all
+  352 holes (12% of the mask, b = 1000; 1697 of 1698 in the noisy set), with the
+  tensors of the suite's refit to the last bit. On the ISMRM 2015 phantom 2681 of its
+  8562 holes; the other 5881 stay at zero (5878 have no eigenvalue above 1e-7, 3 have
+  b0 <= 0). 2196 of the 2681 lie at the edge of the mask, and they come out close to
+  linear (FA median 0.98, 90th percentile 0.999, against a median of 0.07 for the
+  voxels of the mask with a tensor): in least squares their third eigenvalue is
+  negative in all of them and their second in 1354, and both are floored. These
+  voxels now pass every FA threshold: seeding (`seeding.fa_min`), the FA stop, the
+  mask improvement and the segmentation of `main`, and with `mmf.hold` their CL near 1
+  makes them trusted (and seeded under `mmf.seed_trusted`); `seeding.cl_min` does not
+  drop them either. The segmentation runs before the second call, so the voxels the
+  improved mask adds are segmented with FA 0.
+- `refit_zeroed_tensors: false` leaves them all at zero, as before. `main` reads it
+  from the pipeline config and `runTractography` from the tracking config (a call
+  without a config always refits): set it in both.
+
 ## 2026-11-16 - `mmf.seed_trusted`: seeds only in trusted data
 
 - New key `tractography.mmf.seed_trusted` (logical, default `true`; flat option name
