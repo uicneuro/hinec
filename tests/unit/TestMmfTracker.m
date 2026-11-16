@@ -966,10 +966,53 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             evalc('T1 = nim_tractography_mmf(nim, o);');
             tc.verifyGreaterThan(max(abs(T1{1}(end, :) - T3{1}(end, :))), 1e-3);
             o.mmf_hold_k = 3; o.mmf_hold_min = 0.7;
+            o.mmf_seed_trusted = false;          % the seed is in the zone now: tracked only without mmf.seed_trusted
             evalc('[Tz, meta] = nim_tractography_mmf(nim, o);');
             tc.verifyEqual(tc.countOf(meta, 'coast'), 2);
             tc.verifyLessThan(sum(sqrt(sum(diff(Tz{1}) .^ 2, 2))), 26);
             tc.verifyEqual(meta.mmf.hold_min, 0.7);
+        end
+        function aSeedInTheZoneIsNotTracked(tc)
+            % mmf.seed_trusted (the default): a seed whose confidence is below the floor has no
+            % trusted node and would coast straight along the filled axis; it is skipped as
+            % 'zone' and accounted for, and the other seeds are tracked as without the key.
+            [nim, ~, phi] = tc.spiralNim(pi/2);
+            nim = tc.degenerate(nim, phi > deg2rad(60) & phi < deg2rad(80));
+            seed = false(size(nim.FA));
+            seed(round(tc.C + 15), round(tc.C), 5) = true;              % phi = 0: trusted
+            seed(36, 45, 5) = true;                                      % phi = 69 deg, r = 15.5: in the zone
+            for scheme = {'hold', 'march'}
+                o = tc.holdOpts(scheme{1}); o.seed_mask = seed; o.trace = true; o.trace_max = 0;
+                tc.verifyTrue(o.mmf_seed_trusted, 'the schema default reaches the options');
+                evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+                evalc('nim_check_tracker_output(T, meta);');
+                tc.assertNumElements(T, 1, scheme{1});
+                tc.verifyEqual(meta.n_seeds, 2, scheme{1});
+                tc.verifyEqual(meta.seed_points, [round(tc.C + 15) round(tc.C) 5], scheme{1});
+                tc.verifyEqual(meta.mmf.seeds_alive, 1, scheme{1});
+                tc.verifyEqual(meta.mmf.seeds_skipped.reason, {'zone'}, scheme{1});
+                tc.verifyEqual(meta.mmf.seeds_skipped.count, 1, scheme{1});
+                tc.verifyTrue(meta.mmf.seed_trusted, scheme{1});
+                tc.verifyEqual(meta.trace(2).forward.n_steps, 0, scheme{1});
+                tc.verifyEqual(meta.trace(2).backward.termination, 'zone', scheme{1});
+                tc.verifyLessThan(meta.trace(2).forward.confidence, meta.mmf.hold_min, scheme{1});
+                tc.verifyEqual(meta.trace(2).seed_point, [36 45 5], scheme{1});
+                tc.verifyGreaterThanOrEqual(meta.trace(1).forward.confidence(1), meta.mmf.hold_min, scheme{1});
+                o.mmf_seed_trusted = false;                              % before 2026-11-16: both are tracked
+                evalc('[T0, meta0] = nim_tractography_mmf(nim, o);');
+                tc.assertNumElements(T0, 2, scheme{1});
+                tc.verifyEmpty(meta0.mmf.seeds_skipped.reason, scheme{1});
+                tc.verifyFalse(meta0.mmf.seed_trusted, scheme{1});
+                tc.verifyEqual(T{1}, T0{1}, 'AbsTol', 1e-12, scheme{1});
+                rz = meta0.trace(2).forward;                             % the seed in the zone, tracked:
+                tc.verifyTrue(rz.coasted(1), scheme{1});                 % it coasts from its first node,
+                cz = rz.pos(rz.coasted, :); sv = svd(cz - mean(cz, 1));  % on a straight line
+                tc.verifyLessThan(sv(2), 1e-9, [scheme{1} ': the coast from the seed in the zone is straight']);
+            end
+            o = tc.holdOpts('none'); o.seed_mask = seed;                 % no zone without the scheme
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            tc.verifyEqual(meta.mmf.seeds_alive, 2);
+            tc.verifyFalse(any(strcmp(meta.mmf.seeds_skipped.reason, 'zone')));
         end
         function algorithmMmfAloneIsMMF4s(tc)
             % The schema defaults of tractography.mmf are those of MMF-4s (hold: march,

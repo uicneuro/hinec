@@ -8,7 +8,9 @@ MMF-ml gives every bundle through a voxel its own **layer**: a direction, a fram
 and a connection 1-form. A tract reads only the layer that continues its own
 heading. Everything else is unchanged: the step, the integrator, the
 termination, the coast through missing data and the exit test are those of
-MMF-4h.
+MMF-4h, but for the seeding: since 2026-11-16 the original skips, with the hold
+scheme on, the seeds in the zone (`mmf.seed_trusted`), and the copy tracks every
+seed.
 
 **MMF-ml leaves the professor's scheme untouched.** Sehun Chun's
 `advanceFrame.m` and `nim_tractography_mmf.m` are not edited. MMF-ml runs on
@@ -18,7 +20,9 @@ f(X, T) of the position and the heading. `runTractography` sends
 `algorithm: mmf` to the copy only for `field: lift` (or for the history veto,
 `mmf.veto_arc > 0`). Every other `mmf` run uses the originals.
 `tests/unit/TestAdvanceFrameMl.m` checks that, with neither addition in use,
-the copies take exactly the same steps as the originals.
+the copies take exactly the same steps as the originals where the originals'
+own later changes do not apply (its seeds lie outside the zone, so
+`mmf.seed_trusted` skips none).
 
 ```
 ./bin/run_tractography.sh mmf_ml --score          # config/mmf_ml.yml

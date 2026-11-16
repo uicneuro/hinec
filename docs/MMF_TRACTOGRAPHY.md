@@ -125,7 +125,9 @@ see below); an `advanceFrame` stop on a non-finite
 connection is resolved into one of these by probing the stages of the next
 step and their difference stencils. Seeds outside tissue or without a
 direction are not tracked and are counted by reason in
-`meta.mmf.seeds_skipped`. ACT masks are not used by this tracker.
+`meta.mmf.seeds_skipped`, and so, with `mmf.hold` and `mmf.seed_trusted` (the
+default), are the seeds in the zone of the scheme (`zone`, see below). ACT masks are
+not used by this tracker.
 
 With `debug.trace` the per-step records of the traced seeds have the layout of
 the hinec tracker's (`pos`, `dir` = the carried `e1`, `fa`, `h`, `chord`,
@@ -190,9 +192,24 @@ times the ring's (`focus`). `angle_max`, when it is active, applies to the coast
 own rotation.
 **The volume, the mask and the FA floor stay stops**: the confidence is NaN outside
 tissue, which `advanceFrame` takes for no data, and the connection is not finite
-there. A seed in the zone has no trusted node and coasts straight, along the axis
-of the filled field described next; where that axis ties, the seed is skipped as
-`no_direction`.
+there. A seed in the zone has no trusted node and would coast straight, along the
+axis of the filled field described next. **Seeds only in trusted data**
+(`mmf.seed_trusted`, default `true`, since 2026-11-16): such a seed is not tracked
+but skipped as `zone` in `meta.mmf.seeds_skipped`, its trace record (with
+`debug.trace`) a zero-step one that keeps its confidence. The test is the scheme's
+own at a first node, the confidence read as at every node (CL interpolated over the
+tissue and eroded by `hold_guard`) finite and below `hold_min`, so that the erosion
+also takes the seeds within about `hold_guard` of the zone; seeds at the edge of
+the tissue are not taken, as the edge is no zone. The key shares its aim, tracts that
+start only in trusted data, and its test with the `TrustedSeeds` of the moving frames
+test suite (`runtractographycrossingtest.m`), but where the suite replaces all the
+seeds of such a family by as many on the trusted part of its entry wall,
+`seed_trusted` drops each seed in the zone and adds none, so fewer tracks result (the
+dropped seeds stay counted in `meta.n_seeds`). It differs from
+`seeding.cl_min`, which drops whole voxels by their own CL before any tracker runs
+(no interpolation, no erosion, absent from `meta.n_seeds`). With
+`seed_trusted: false` the seed coasts as before; where the axis of the filled field
+ties, the seed is skipped as `no_direction` either way.
 
 **The trusted nodes must not read the zone.** The held connection comes from the
 nodes just before it, and these are exactly where the voxel pipeline would mix the

@@ -624,6 +624,7 @@ plus:
 | `mmf.coast_max` | `mmf_coast_max` | 12 | Longest coast, voxels of arc |
 | `mmf.exit_tol` | `mmf_exit_tol` | 0.5 | Largest angle (radians) to the data with which a tract may leave the zone |
 | `mmf.exit_delay` | `mmf_exit_delay` | 0 | Arc of coast beyond the edge of the zone before that test, voxels |
+| `mmf.seed_trusted` | `mmf_seed_trusted` | true | With the scheme on, a seed in the zone (confidence below `hold_min`) is not tracked (`seeds_skipped`: `zone`) |
 
 ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle limit
 `termination.angle_max` becomes `advanceFrame`'s `MaxTurn` through
@@ -638,7 +639,7 @@ over the half-tracks of the seeds that were tracked: `max_arc`, `angle`, `fa`,
 `reanchor_tol`, `twist`, `max_turn_rad`, `gradient_delta`, `kernel`, the `mmf.hold`
 settings, `zone_fraction`, `reanchored_fraction`, `coasted_fraction`, `seeds_alive`,
 `seeds_skipped` with `reason` / `count` of the seeds outside tissue or without
-a direction); and, with `debug.trace`, `.trace` (per traced seed: `seed_index`,
+a direction, and with `mmf.hold` and `mmf.seed_trusted` of those in the zone, `zone`); and, with `debug.trace`, `.trace` (per traced seed: `seed_index`,
 `seed_point`, and `forward` / `backward` records with the fields of the hinec
 record that `nim_track_diagnose` reads — `pos`, `dir` (the carried
 $\mathbf{e}_1$), `fa`, `h`, `chord`, `turn` in degrees, `flip` (always false),

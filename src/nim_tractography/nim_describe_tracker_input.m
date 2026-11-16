@@ -300,6 +300,7 @@ function [groups, d] = options_dictionary()
     d.mmf_coast_max      = {'tractography.mmf.coast_max', 'mmf only: longest coast, voxels of arc'};
     d.mmf_exit_tol       = {'tractography.mmf.exit_tol', 'mmf only: largest drift, radians, of a tract leaving the zone (advanceFrame ''ExitTol'')'};
     d.mmf_exit_delay     = {'tractography.mmf.exit_delay', 'mmf only: arc of coast beyond the edge of the zone before the exit test, voxels'};
+    d.mmf_seed_trusted   = {'tractography.mmf.seed_trusted', 'mmf only: with hold or march, a seed whose confidence is below hold_min is not tracked (seeds_skipped: zone)'};
     d.mmf_veto_arc       = {'tractography.mmf.veto_arc', 'mmf only: history veto look-back, voxels of arc (0 = off)'};
     d.mmf_veto_tol       = {'tractography.mmf.veto_tol', 'mmf only: history veto, largest angle between data e1 and the heading veto_arc back, radians'};
     d.trace     = {'tractography.debug.trace', 'record a per-step trace (position, direction, FA, turn, stop reason) into meta.trace'};
@@ -319,7 +320,7 @@ function [groups, d] = options_dictionary()
     groups(end+1) = struct('title', 'field construction (consumed in step 2, not by the tracker)', 'fields', ...
         {{'csd_lmax','csd_peaks_file','csd_max_peaks','csd_peak_thresh','csd_peak_min_sep','csd_n_iter'}});
     groups(end+1) = struct('title', 'lift', 'fields', {{'lift_smooth','lift_smooth_kernel','lift_smooth_kappa','lift_smooth_normals','lift_bridge','lift_rel','lift_mass_min','lift_max_lifts','lift_sep','lift_ndirs','lift_kappa','lift_ref_fa_pct','lift_fit','lift_iso','lift_sparsity','lift_continuation','lift_read_min','lift_read_tol','lift_stencil','lift_interp'}});
-    groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_mode','mmf_reanchor_tol','mmf_gradient_delta','mmf_connection','mmf_max_turn','mmf_hold','mmf_hold_min','mmf_hold_k','mmf_hold_guard','mmf_coast_max','mmf_exit_tol','mmf_exit_delay','mmf_veto_arc','mmf_veto_tol'}});
+    groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_mode','mmf_reanchor_tol','mmf_gradient_delta','mmf_connection','mmf_max_turn','mmf_hold','mmf_hold_min','mmf_hold_k','mmf_hold_guard','mmf_coast_max','mmf_exit_tol','mmf_exit_delay','mmf_seed_trusted','mmf_veto_arc','mmf_veto_tol'}});
     groups(end+1) = struct('title', 'stitching', 'fields', {{'stitching'}});
     groups(end+1) = struct('title', 'post-processing (steps 5-6, not read by the tracker)', 'fields', ...
         {{'include_roi','exclude_roi','roi_filter_mode','roi_filter_dilate','endpoints_in','contained_in','any_in', ...

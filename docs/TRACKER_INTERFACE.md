@@ -153,6 +153,7 @@ same for the fields a tracker is expected to honour.
 | `mmf_hold` | `mmf.hold` | how a tract crosses degenerate data: `none`, `hold` (MMF-4h), `march` (MMF-4s); reads `nim.eval`; `mmf` only |
 | `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard` | `mmf.*` | confidence floor, trusted nodes of the ring, erosion radius (voxels); `mmf` only |
 | `mmf_coast_max`, `mmf_exit_tol`, `mmf_exit_delay` | `mmf.*` | longest coast (voxels of arc), largest drift on leaving the zone (radians), arc of coast before that test (voxels); `mmf` only |
+| `mmf_seed_trusted` | `mmf.seed_trusted` | with the scheme on, a seed in the zone is not tracked (`seeds_skipped`: `zone`); `mmf` only |
 | `mmf_gradient_delta` | `mmf.gradient_delta` | central-difference step (voxels) for the derivative of the interpolated principal axis that forms the connection; `mmf` only |
 
 ### Present but not yours
@@ -282,7 +283,7 @@ field through the exponential step of `advanceFrame.m`. It reads
 `options.mmf_mode`, `options.mmf_reanchor_tol`, `options.mmf_gradient_delta`,
 `options.mmf_connection`, `options.mmf_max_turn` and the hold scheme's
 `options.mmf_hold`, `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard`, `mmf_coast_max`,
-`mmf_exit_tol` and `mmf_exit_delay` (the `mmf.*` group; the scheme also reads
+`mmf_exit_tol`, `mmf_exit_delay` and `mmf_seed_trusted` (the `mmf.*` group; the scheme also reads
 `nim.eval`), runs on
 `field: dti` only (`csd` is rejected), maps
 `integrator` `euler` / `rk2` / `rk4` to Lie group order 1 / 2 / 4 (`rkf45` is
@@ -293,7 +294,7 @@ the turn of the heading as the data see it, in every mode. Besides the contract 
 `focus` among them with the hold scheme), `mmf` (the scheme settings, the fractions
 of re-anchored and coasted steps, the zone's share of the tissue voxels,
 `seeds_alive` and the
-`seeds_skipped` reasons) and, with `debug.trace`, a per-step `trace` whose
+`seeds_skipped` reasons, `zone` among them with `mmf.hold` and `mmf.seed_trusted`) and, with `debug.trace`, a per-step `trace` whose
 records have the hinec layout above (`pos`, `dir`, `fa`, `h`, `chord`, `turn`,
 `flip`, `n_steps`, `termination`; `flip` is always false) plus `drift`,
 `reanchored`, `kappa`, `s`, `coasted` and `confidence`, so `nim_track_diagnose`

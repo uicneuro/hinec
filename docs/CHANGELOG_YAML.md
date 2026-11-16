@@ -1,5 +1,23 @@
 # YAML Configuration Changelog
 
+## 2026-11-16 - `mmf.seed_trusted`: seeds only in trusted data
+
+- New key `tractography.mmf.seed_trusted` (logical, default `true`; flat option name
+  `mmf_seed_trusted`), read by `algorithm: mmf` with `mmf.hold` `hold` or `march`: a
+  seed whose confidence, read as the scheme reads it at a node (CL interpolated over
+  the tissue and eroded by `mmf.hold_guard`), is below `mmf.hold_min` is not tracked.
+  Such a seed has no trusted node and would coast straight along the filled axis.
+  It is counted in `meta.mmf.seeds_skipped` under the new reason `zone`, its
+  `debug.trace` record keeps its confidence, and `meta.mmf` gains `seed_trusted`.
+  See [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md).
+- **Behaviour change** for every run of `nim_tractography_mmf` with the scheme on, the
+  schema default (MMF-4s) and `config/mmf_dti_hold.yml`, `config/mmf_dti_march.yml`
+  included: the seeds in the zone, and within about `hold_guard` of it, are no longer
+  tracked. `seed_trusted: false` restores the tracker as it was. `hold: none`
+  (`config/mmf_dti.yml`) is unaffected, and so are the runs of
+  `nim_tractography_mmf_ml` (`field: lift`, as `config/mmf_ml.yml`, or
+  `mmf.veto_arc > 0`), which do not read the key.
+
 ## 2026-11-10 - `algorithm: mmf` is MMF-4s by default
 
 - The defaults of `tractography.mmf.hold` and `tractography.mmf.reanchor_tol` are now

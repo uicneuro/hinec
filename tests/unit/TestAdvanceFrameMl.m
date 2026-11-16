@@ -1,7 +1,9 @@
 classdef TestAdvanceFrameMl < matlab.unittest.TestCase
 % advanceFrame_ml and nim_tractography_mmf_ml are copies of Sehun Chun's advanceFrame and
 % nim_tractography_mmf with two additions: heading-aware fields (MMF-ml) and the history veto.
-% With neither in use they must take exactly the steps of the originals, which stay unchanged.
+% With neither in use they must take exactly the steps of the originals where the originals' own
+% later changes do not apply: since 2026-11-16 nim_tractography_mmf skips the seeds in the zone
+% (mmf.seed_trusted), which the copy does not read, so the fixture's seeds lie outside the zone.
 % Fixture: the rigid-rotation phantom of TestMmfTracker (circles about the axis, FA 1 in an
 % annulus), with a band of low linear shape CL = (l1 - l2)/l1 = 0.17 for the hold scheme to coast
 % through.
@@ -45,6 +47,8 @@ classdef TestAdvanceFrameMl < matlab.unittest.TestCase
             for hold = {'none', 'hold', 'march'}
                 o = tc.Opts; o.mmf_hold = hold{1}; o.mmf_veto_arc = 0;
                 evalc('[T0, m0] = nim_tractography_mmf(tc.Nim, o);');
+                tc.assertFalse(any(strcmp(m0.mmf.seeds_skipped.reason, 'zone')), ...
+                    ['a seed lies in the zone, which only the original skips (mmf.seed_trusted): ' hold{1}]);
                 evalc('[T1, m1] = nim_tractography_mmf_ml(tc.Nim, o);');
                 tc.verifyEqual(numel(T1), numel(T0), hold{1});
                 tc.verifyTrue(isequal(T1, T0), ['tracks differ with mmf.hold ' hold{1}]);
