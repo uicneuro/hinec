@@ -2395,7 +2395,7 @@ that determines whether a field is always there.</p>
 <tr>
 <td><code>mask</code></td>
 <td><code>[X Y Z]</code></td>
-<td>brain mask, 1 inside. Tracking stops on leaving it</td>
+<td>brain mask, 1 inside. Tracking stops on leaving it (<code>mmf</code>: since 2026-11-16 not a stop, the tract runs on straight; see MMF_TRACTOGRAPHY.md)</td>
 </tr>
 <tr>
 <td><code>DT</code></td>
@@ -2415,7 +2415,7 @@ that determines whether a field is always there.</p>
 <tr>
 <td><code>FA</code></td>
 <td><code>[X Y Z]</code></td>
-<td>fractional anisotropy; the termination criterion</td>
+<td>fractional anisotropy; the termination criterion (<code>mmf</code>: since 2026-11-16 not a stop)</td>
 </tr>
 <tr>
 <td><code>parcellation_mask</code></td>
@@ -2539,7 +2539,7 @@ same for the fields a tracker is expected to honour.</p>
 <tr>
 <td><code>termination_fa</code></td>
 <td><code>termination.fa_min</code></td>
-<td>stop when the interpolated FA drops below this</td>
+<td>stop when the interpolated FA drops below this (<code>mmf</code>: since 2026-11-16 not a stop)</td>
 </tr>
 <tr>
 <td><code>angle_thresh</code></td>
@@ -2624,6 +2624,11 @@ same for the fields a tracker is expected to honour.</p>
 <td>longest coast (voxels of arc), largest drift on leaving the zone (radians), arc of coast before that test (voxels); <code>mmf</code> only</td>
 </tr>
 <tr>
+<td><code>mmf_seed_trusted</code></td>
+<td><code>mmf.seed_trusted</code></td>
+<td>with the scheme on, a seed in the zone is not tracked (<code>seeds_skipped</code>: <code>zone</code>); <code>mmf</code> only</td>
+</tr>
+<tr>
 <td><code>mmf_gradient_delta</code></td>
 <td><code>mmf.gradient_delta</code></td>
 <td>central-difference step (voxels) for the derivative of the interpolated principal axis that forms the connection; <code>mmf</code> only</td>
@@ -2706,7 +2711,7 @@ quickest way to know a new tracker is at least well-formed.</p>
 <ul>
 <li>[ ] reads seeds from <code>options.seed_mask</code>, honours <code>seed_density</code> exactly</li>
 <li>[ ] handles the eigenvector sign (per-voxel flip or dyadic interpolation)</li>
-<li>[ ] stops on FA, mask, volume edge, turn per voxel of arc, <code>max_arc</code></li>
+<li>[ ] stops on FA, mask, volume edge, turn per voxel of arc, <code>max_arc</code> (<code>mmf</code> since 2026-11-16 on the volume edge, the turn and <code>max_arc</code> only)</li>
 <li>[ ] applies <code>min_length</code> to the chord of the joined track</li>
 <li>[ ] returns <code>tracks</code> as <code>[bwd reversed; seed; fwd]</code>, N×3, no NaN</li>
 <li>[ ] returns <code>meta.seed_index</code> / <code>seed_points</code> indexed by kept track</li>
@@ -2732,7 +2737,7 @@ field through the exponential step of <code>advanceFrame.m</code>. It reads
 <code>options.mmf_mode</code>, <code>options.mmf_reanchor_tol</code>, <code>options.mmf_gradient_delta</code>,
 <code>options.mmf_connection</code>, <code>options.mmf_max_turn</code> and the hold scheme's
 <code>options.mmf_hold</code>, <code>mmf_hold_min</code>, <code>mmf_hold_k</code>, <code>mmf_hold_guard</code>, <code>mmf_coast_max</code>,
-<code>mmf_exit_tol</code> and <code>mmf_exit_delay</code> (the <code>mmf.*</code> group; the scheme also reads
+<code>mmf_exit_tol</code>, <code>mmf_exit_delay</code> and <code>mmf_seed_trusted</code> (the <code>mmf.*</code> group; the scheme also reads
 <code>nim.eval</code>), runs on
 <code>field: dti</code> only (<code>csd</code> is rejected), maps
 <code>integrator</code> <code>euler</code> / <code>rk2</code> / <code>rk4</code> to Lie group order 1 / 2 / 4 (<code>rkf45</code> is
@@ -2743,7 +2748,7 @@ the turn of the heading as the data see it, in every mode. Besides the contract 
 <code>focus</code> among them with the hold scheme), <code>mmf</code> (the scheme settings, the fractions
 of re-anchored and coasted steps, the zone's share of the tissue voxels,
 <code>seeds_alive</code> and the
-<code>seeds_skipped</code> reasons) and, with <code>debug.trace</code>, a per-step <code>trace</code> whose
+<code>seeds_skipped</code> reasons, <code>zone</code> among them with <code>mmf.hold</code> and <code>mmf.seed_trusted</code>) and, with <code>debug.trace</code>, a per-step <code>trace</code> whose
 records have the hinec layout above (<code>pos</code>, <code>dir</code>, <code>fa</code>, <code>h</code>, <code>chord</code>, <code>turn</code>,
 <code>flip</code>, <code>n_steps</code>, <code>termination</code>; <code>flip</code> is always false) plus <code>drift</code>,
 <code>reanchored</code>, <code>kappa</code>, <code>s</code>, <code>coasted</code> and <code>confidence</code>, so <code>nim_track_diagnose</code>

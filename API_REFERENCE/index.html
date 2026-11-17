@@ -1932,6 +1932,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#nim_dt_refit_zeroednim-floor_ev" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_dt_refit_zeroed(nim, floor_ev)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#nim_dtnim-opts" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3026,6 +3037,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#nim_dt_refit_zeroednim-floor_ev" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nim_dt_refit_zeroed(nim, floor_ev)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#nim_dtnim-opts" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3756,9 +3778,10 @@ eigendecomposition, FA, registration, parcellation and tissue segmentation.</p>
 <li>Short-circuits if the output <code>.mat</code> already exists, and skips preprocessing if
   the preprocessed <code>.nii.gz</code> exists. Delete the target to force reprocessing.</li>
 <li>Detects raw data by <code>_raw</code> in the filename and triggers preprocessing.</li>
-<li>Runs <code>nim_read</code> → <code>nim_dt_spd</code> → <code>nim_eig</code> → <code>nim_fa</code> → optional
+<li>Runs <code>nim_read</code> → <code>nim_dt_spd</code> → <code>nim_eig</code> → <code>nim_fa</code> →
+  <code>nim_dt_refit_zeroed</code> (<code>preprocessing.refit_zeroed_tensors</code>) → optional
   <code>nim_registration</code> → parcellation → mask improvement → tissue segmentation →
-  <code>nim_save</code>.</li>
+  <code>nim_dt_refit_zeroed</code> again (the voxels the improved mask adds) → <code>nim_save</code>.</li>
 <li>Adds every <code>src/nim_*</code> directory and <code>lib/spm12</code> to the MATLAB path, and
   <code>char()</code>-converts path inputs.</li>
 </ul>
@@ -4148,7 +4171,33 @@ draws the ground truth at half scale in a corner of the volume.</p>
 <span class="arithmatex">\(D = H \backslash Y\)</span>, and if any eigenvalue is negative re-solve by BFGS over a
 Cholesky parameterization (<code>lib/bfgs/vox_dt_bfgs.m</code>), which cannot produce a
 non-SPD tensor. NaN, Inf and unrealistic eigenvalues (&gt; 0.01) are rejected;
-eigenvalues are then sorted with <code>maxk</code>.</p>
+eigenvalues are then sorted with <code>maxk</code>. A rejected voxel is left at zero. In
+practice every voxel sent to BFGS is: <code>vox_dt_bfgs</code> scales <code>b</code> by 1/1000 and then
+multiplies the tensor by 1000 where it should divide (a factor 1e6), and its gradient
+(<code>gradf</code>) reads the x-components of the first three gradient directions instead of
+each sample's direction, so it does not minimise its objective either; its tensor
+comes back 1e6 or more too large (6e6 to 1e7 times the least-squares one on the
+TrackerYoga holes) and fails the bound. Fixing the scale alone would not repair it.
+The holes were 12% of the mask of the TrackerYoga phantom and 4.7% of the ISMRM 2015
+phantom's. <code>nim_dt_refit_zeroed</code> fills them.</p>
+<h3 id="nim_dt_refit_zeroednim-floor_ev"><code>nim_dt_refit_zeroed(nim, floor_ev)</code><a class="headerlink" href="#nim_dt_refit_zeroednim-floor_ev" title="Permanent link">&para;</a></h3>
+<p>A tensor for the voxels of the mask that the fit left at zero (eigenvalues and <code>.DT</code>
+all zero), behind <code>preprocessing.refit_zeroed_tensors</code> (default <code>true</code>). Each gets its log-linear
+least-squares tensor with the eigenvalues raised to <code>floor_ev</code> (default <code>1e-7</code>
+mm²/s), and <code>.DT</code>, <code>.evec</code>, <code>.eval</code> and <code>.FA</code> are set from it. A voxel stays at zero
+when its b0 is not positive, when fewer than six of its diffusion-weighted samples are
+positive or their gradients do not determine the tensor, when the tensor has no
+eigenvalue above <code>floor_ev</code>, or when its largest eigenvalue exceeds 0.01. A nim
+without holes, or without the raw signals (<code>.img_b0</code>, <code>.img_bi</code>, <code>.bval</code>, <code>.bvec</code>,
+<code>.thrsh_b0</code>) on its grid, is returned as it is. Where the least-squares tensor has
+negative eigenvalues, as at the noisy edge of a mask, the floored tensor is close to
+linear (FA near 1).</p>
+<p><strong>Returns</strong> <code>[nim, n_refit, n_zero]</code>: the voxels refitted and the holes found.</p>
+<p><code>main</code> calls it after <code>nim_fa</code>, and again before the save for the voxels the
+improved mask adds, behind the key of the pipeline config; <code>runTractography</code> calls it
+on the dataset it loads, so that a nim made before reaches the trackers without holes
+(in memory only), behind the key of the tracking config (always, when it is called
+without a config); <code>cc_extraction/extract_cc_tracks.m</code> after its <code>nim_fa</code>.</p>
 <h3 id="nim_dtnim-opts"><code>nim_dt(nim, opts)</code><a class="headerlink" href="#nim_dtnim-opts" title="Permanent link">&para;</a></h3>
 <p>Plain least-squares tensor fitting with no SPD enforcement. Returns <code>nim</code> with
 <code>.DT</code> and reports the count of non-positive-definite tensors without correcting
@@ -4796,7 +4845,7 @@ plus:</p>
 <tr>
 <td><code>mmf.reanchor_tol</code></td>
 <td><code>mmf_reanchor_tol</code></td>
-<td>1e-3</td>
+<td>0.2</td>
 <td>Drift (radians) between the carried and the data's <span class="arithmatex">\(\mathbf{e}_1\)</span> at which the adaptive mode re-anchors</td>
 </tr>
 <tr>
@@ -4808,8 +4857,8 @@ plus:</p>
 <tr>
 <td><code>mmf.hold</code></td>
 <td><code>mmf_hold</code></td>
-<td><code>'none'</code></td>
-<td><code>none</code> / <code>hold</code> (MMF-4h) / <code>march</code> (MMF-4s) — how a tract crosses degenerate data; reads <code>nim.eval</code>. See <a href="../MMF_TRACTOGRAPHY/">MMF_TRACTOGRAPHY.md</a></td>
+<td><code>'march'</code></td>
+<td><code>none</code> (MMF-4a) / <code>hold</code> (MMF-4h) / <code>march</code> (MMF-4s, the default) — how a tract crosses degenerate data; reads <code>nim.eval</code>. See <a href="../MMF_TRACTOGRAPHY/">MMF_TRACTOGRAPHY.md</a></td>
 </tr>
 <tr>
 <td><code>mmf.hold_min</code></td>
@@ -4832,20 +4881,26 @@ plus:</p>
 <tr>
 <td><code>mmf.coast_max</code></td>
 <td><code>mmf_coast_max</code></td>
-<td>12</td>
-<td>Longest coast, voxels of arc</td>
+<td>Inf</td>
+<td>Longest coast, voxels of arc (Inf: no cap)</td>
 </tr>
 <tr>
 <td><code>mmf.exit_tol</code></td>
 <td><code>mmf_exit_tol</code></td>
-<td>0.5</td>
-<td>Largest angle (radians) to the data with which a tract may leave the zone</td>
+<td>Inf</td>
+<td>Largest angle (radians) to the data with which a tract may leave the zone (Inf: no exit test)</td>
 </tr>
 <tr>
 <td><code>mmf.exit_delay</code></td>
 <td><code>mmf_exit_delay</code></td>
 <td>0</td>
 <td>Arc of coast beyond the edge of the zone before that test, voxels</td>
+</tr>
+<tr>
+<td><code>mmf.seed_trusted</code></td>
+<td><code>mmf_seed_trusted</code></td>
+<td>true</td>
+<td>With the scheme on, a seed in the zone (confidence below <code>hold_min</code>) is not tracked (<code>seeds_skipped</code>: <code>zone</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -4856,13 +4911,15 @@ rotation of a step and the turn of the heading as the data see it (the data's
 <span class="arithmatex">\(\mathbf{e}_1\)</span> at the end of a step against the heading at its start, in every
 mode). <code>meta</code> carries
 <code>.seed_index</code>, <code>.seed_points</code>, <code>.n_seeds</code>; <code>.termination</code> (<code>reason</code> / <code>count</code>
-over the half-tracks of the seeds that were tracked: <code>max_arc</code>, <code>angle</code>, <code>fa</code>,
-<code>outside_mask</code>, <code>outside</code>, <code>outside_domain</code>, <code>no_direction</code>, and with <code>mmf.hold</code>
-<code>coast</code>, <code>exit</code>, <code>focus</code>; empty when no seed was); <code>.mmf</code> (<code>order</code>, <code>mode</code>,
+over the half-tracks of the seeds that were tracked: <code>max_arc</code>, <code>angle</code>,
+<code>outside</code>, <code>no_direction</code>, and with <code>mmf.hold</code> <code>coast</code>, <code>exit</code>, <code>focus</code>; empty
+when no seed was; since 2026-11-16 a non-finite connection no longer stops a tract,
+which runs on straight through non-tissue, so <code>fa</code>, <code>outside_mask</code> and
+<code>outside_domain</code> no longer occur); <code>.mmf</code> (<code>order</code>, <code>mode</code>,
 <code>reanchor_tol</code>, <code>twist</code>, <code>max_turn_rad</code>, <code>gradient_delta</code>, <code>kernel</code>, the <code>mmf.hold</code>
 settings, <code>zone_fraction</code>, <code>reanchored_fraction</code>, <code>coasted_fraction</code>, <code>seeds_alive</code>,
 <code>seeds_skipped</code> with <code>reason</code> / <code>count</code> of the seeds outside tissue or without
-a direction); and, with <code>debug.trace</code>, <code>.trace</code> (per traced seed: <code>seed_index</code>,
+a direction, and with <code>mmf.hold</code> and <code>mmf.seed_trusted</code> of those in the zone, <code>zone</code>); and, with <code>debug.trace</code>, <code>.trace</code> (per traced seed: <code>seed_index</code>,
 <code>seed_point</code>, and <code>forward</code> / <code>backward</code> records with the fields of the hinec
 record that <code>nim_track_diagnose</code> reads — <code>pos</code>, <code>dir</code> (the carried
 <span class="arithmatex">\(\mathbf{e}_1\)</span>), <code>fa</code>, <code>h</code>, <code>chord</code>, <code>turn</code> in degrees, <code>flip</code> (always false),

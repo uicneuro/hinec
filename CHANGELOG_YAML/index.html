@@ -1192,6 +1192,61 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#2026-11-17-mmfexit_tol-and-mmfcoast_max-are-inf-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-17 - mmf.exit_tol and mmf.coast_max are Inf by default
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-16-algorithm-mmf-a-non-finite-connection-no-longer-stops-a-tract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-16 - algorithm: mmf: a non-finite connection no longer stops a tract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-16-preprocessingrefit_zeroed_tensors-the-voxels-the-fit-left-at-zero-get-a-tensor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-16 - preprocessing.refit_zeroed_tensors: the voxels the fit left at zero get a tensor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-16-mmfseed_trusted-seeds-only-in-trusted-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-16 - mmf.seed_trusted: seeds only in trusted data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-10-algorithm-mmf-is-mmf-4s-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-10 - algorithm: mmf is MMF-4s by default
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#2026-11-04-advanceframe-bundlerule-and-bundlelaw" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2339,6 +2394,61 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#2026-11-17-mmfexit_tol-and-mmfcoast_max-are-inf-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-17 - mmf.exit_tol and mmf.coast_max are Inf by default
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-16-algorithm-mmf-a-non-finite-connection-no-longer-stops-a-tract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-16 - algorithm: mmf: a non-finite connection no longer stops a tract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-16-preprocessingrefit_zeroed_tensors-the-voxels-the-fit-left-at-zero-get-a-tensor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-16 - preprocessing.refit_zeroed_tensors: the voxels the fit left at zero get a tensor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-16-mmfseed_trusted-seeds-only-in-trusted-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-16 - mmf.seed_trusted: seeds only in trusted data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-10-algorithm-mmf-is-mmf-4s-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-10 - algorithm: mmf is MMF-4s by default
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#2026-11-04-advanceframe-bundlerule-and-bundlelaw" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2861,6 +2971,110 @@
 
 
 <h1 id="yaml-configuration-changelog">YAML Configuration Changelog<a class="headerlink" href="#yaml-configuration-changelog" title="Permanent link">&para;</a></h1>
+<h2 id="2026-11-17-mmfexit_tol-and-mmfcoast_max-are-inf-by-default">2026-11-17 - <code>mmf.exit_tol</code> and <code>mmf.coast_max</code> are <code>Inf</code> by default<a class="headerlink" href="#2026-11-17-mmfexit_tol-and-mmfcoast_max-are-inf-by-default" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The defaults of <code>tractography.mmf.exit_tol</code> and <code>tractography.mmf.coast_max</code> are now
+  <code>Inf</code> (they were <code>0.5</code> rad and <code>12</code> voxels of arc): no exit test and no cap of the
+  coast. A tract leaving the degenerate zone is always re-anchored on the data, and a
+  tract still in the zone coasts on until it leaves the volume or reaches <code>max_arc</code>
+  (in <code>nim_tractography_mmf_ml</code> the mask and the FA floor stop it too). The trackers' own defaults (<code>nim_tractography_mmf</code>,
+  <code>nim_tractography_mmf_ml</code>) follow. The ranges of the two keys are <code>[0, Inf]</code>.</li>
+<li><strong>Behaviour change</strong> for every config with <code>mmf.hold: hold</code> or <code>march</code> (the default)
+  that sets neither key: the stops <code>exit</code> and <code>coast</code> no longer occur. With
+  <code>termination.angle_max: 0</code>, as in <code>config/mmf_dti_hold.yml</code> and
+  <code>config/mmf_dti_march.yml</code>, nothing then tests the direction of a tract leaving the
+  zone. <code>config/mmf_ml.yml</code> sets <code>exit_tol: 1.2</code> and keeps its exit test; its coast
+  has no cap now. Set <code>exit_tol: 0.5</code> and <code>coast_max: 12</code> for the former behaviour.</li>
+<li>The scores of <a href="../MMF_TRACTOGRAPHY/">MMF_TRACTOGRAPHY.md</a> and <a href="../MMF_ML/">MMF_ML.md</a>
+  were measured with the former defaults and were not measured again.</li>
+<li>A numeric key whose range has <code>Inf</code> as a bound takes <code>inf</code>, <code>Inf</code> or <code>.inf</code> in a
+  config file and with <code>--set</code>; any other numeric key still rejects it.</li>
+</ul>
+<h2 id="2026-11-16-algorithm-mmf-a-non-finite-connection-no-longer-stops-a-tract">2026-11-16 - <code>algorithm: mmf</code>: a non-finite connection no longer stops a tract<a class="headerlink" href="#2026-11-16-algorithm-mmf-a-non-finite-connection-no-longer-stops-a-tract" title="Permanent link">&para;</a></h2>
+<ul>
+<li>No new key. <code>src/nim_tractography/advanceFrame.m</code> takes the moving-frames test
+  suite's version, which differs from the one before in one line: <code>maxRot(bad) = NaN;</code>
+  in <code>lieStep</code> is switched off. A non-finite connection at a stage of a step (outside
+  the volume or the mask, below the FA floor, no principal axis) is taken as zero and
+  the step is taken.</li>
+<li><strong>Behaviour change</strong> for every run of <code>algorithm: mmf</code> (<code>nim_tractography_mmf</code>; not
+  <code>nim_tractography_mmf_ml</code>, whose <code>advanceFrame_ml.m</code> keeps the line): a tract that
+  leaves the tissue is no longer stopped there but runs on straight through non-tissue
+  until it re-enters tissue, leaves the volume (<code>outside</code>) or reaches <code>max_arc</code>, and
+  the track keeps those nodes. <code>fa</code>, <code>outside_mask</code> and <code>outside_domain</code> no longer
+  occur in <code>meta.termination</code>. With <code>mmf.hold</code>, a coast that leaves the zone into
+  non-tissue is not exit-tested and its <code>coast_max</code> count restarts, and the zero
+  connection of such a run enters the hold ring. <code>fa</code>, <code>mask</code> and
+  <code>termination.fa_min</code> no longer stop this tracker (their descriptions say so).
+  Reverting the commit (the line, the tests and the notes) restores the tracker; the
+  numbers of MMF_TRACTOGRAPHY.md that were measured with the stop are marked so.</li>
+</ul>
+<h2 id="2026-11-16-preprocessingrefit_zeroed_tensors-the-voxels-the-fit-left-at-zero-get-a-tensor">2026-11-16 - <code>preprocessing.refit_zeroed_tensors</code>: the voxels the fit left at zero get a tensor<a class="headerlink" href="#2026-11-16-preprocessingrefit_zeroed_tensors-the-voxels-the-fit-left-at-zero-get-a-tensor" title="Permanent link">&para;</a></h2>
+<ul>
+<li>New key <code>preprocessing.refit_zeroed_tensors</code> (logical, default <code>true</code>). The voxels
+  of the mask that <code>nim_dt_spd</code> left at zero (no tensor, FA 0: no tissue to every
+  tracker) get their log-linear least-squares tensor with the eigenvalues raised to
+  1e-7 mm²/s (<code>src/nim_calculation/nim_dt_refit_zeroed.m</code>). Nearly all of them are the
+  voxels whose least-squares tensor has a negative eigenvalue: <code>nim_dt_spd</code> sends them
+  to BFGS (<code>lib/bfgs/vox_dt_bfgs.m</code>), whose tensor comes back 1e6 or more too large
+  (it multiplies by 1000 where it should divide, and its gradient reads the wrong
+  gradient directions) and is rejected by the bound on the eigenvalues. A voxel whose
+  signals do not determine a tensor stays at zero. <code>vox_dt_bfgs.m</code> is not changed.</li>
+<li>Applied by <code>main</code> after <code>nim_fa</code> and again before the save (the voxels the improved
+  mask adds), by <code>runTractography</code> to the nim it loads, so that a dataset made before
+  reaches the trackers without holes (in memory: the file is not rewritten), and by
+  <code>cc_extraction/extract_cc_tracks.m</code> after its <code>nim_fa</code>.</li>
+<li><strong>Behaviour change</strong> for every pipeline and tractography run: the voxels that were
+  holes now carry a tensor where their signals allow it. On the TrackerYoga phantom all
+  352 holes (12% of the mask, b = 1000; 1697 of 1698 in the noisy set), with the
+  tensors of the suite's refit to the last bit. On the ISMRM 2015 phantom 2681 of its
+  8562 holes; the other 5881 stay at zero (5878 have no eigenvalue above 1e-7, 3 have
+  b0 &lt;= 0). 2196 of the 2681 lie at the edge of the mask, and they come out close to
+  linear (FA median 0.98, 90th percentile 0.999, against a median of 0.07 for the
+  voxels of the mask with a tensor): in least squares their third eigenvalue is
+  negative in all of them and their second in 1354, and both are floored. These
+  voxels now pass every FA threshold: seeding (<code>seeding.fa_min</code>), the FA stop, the
+  mask improvement and the segmentation of <code>main</code>, and with <code>mmf.hold</code> their CL near 1
+  makes them trusted (and seeded under <code>mmf.seed_trusted</code>); <code>seeding.cl_min</code> does not
+  drop them either. The segmentation runs before the second call, so the voxels the
+  improved mask adds are segmented with FA 0.</li>
+<li><code>refit_zeroed_tensors: false</code> leaves them all at zero, as before. <code>main</code> reads it
+  from the pipeline config and <code>runTractography</code> from the tracking config (a call
+  without a config always refits): set it in both.</li>
+</ul>
+<h2 id="2026-11-16-mmfseed_trusted-seeds-only-in-trusted-data">2026-11-16 - <code>mmf.seed_trusted</code>: seeds only in trusted data<a class="headerlink" href="#2026-11-16-mmfseed_trusted-seeds-only-in-trusted-data" title="Permanent link">&para;</a></h2>
+<ul>
+<li>New key <code>tractography.mmf.seed_trusted</code> (logical, default <code>true</code>; flat option name
+  <code>mmf_seed_trusted</code>), read by <code>algorithm: mmf</code> with <code>mmf.hold</code> <code>hold</code> or <code>march</code>: a
+  seed whose confidence, read as the scheme reads it at a node (CL interpolated over
+  the tissue and eroded by <code>mmf.hold_guard</code>), is below <code>mmf.hold_min</code> is not tracked.
+  Such a seed has no trusted node and would coast straight along the filled axis.
+  It is counted in <code>meta.mmf.seeds_skipped</code> under the new reason <code>zone</code>, its
+  <code>debug.trace</code> record keeps its confidence, and <code>meta.mmf</code> gains <code>seed_trusted</code>.
+  See <a href="../MMF_TRACTOGRAPHY/">MMF_TRACTOGRAPHY.md</a>.</li>
+<li><strong>Behaviour change</strong> for every run of <code>nim_tractography_mmf</code> with the scheme on, the
+  schema default (MMF-4s) and <code>config/mmf_dti_hold.yml</code>, <code>config/mmf_dti_march.yml</code>
+  included: the seeds in the zone, and within about <code>hold_guard</code> of it, are no longer
+  tracked. <code>seed_trusted: false</code> restores the tracker as it was. <code>hold: none</code>
+  (<code>config/mmf_dti.yml</code>) is unaffected, and so are the runs of
+  <code>nim_tractography_mmf_ml</code> (<code>field: lift</code>, as <code>config/mmf_ml.yml</code>, or
+  <code>mmf.veto_arc &gt; 0</code>), which do not read the key.</li>
+</ul>
+<h2 id="2026-11-10-algorithm-mmf-is-mmf-4s-by-default">2026-11-10 - <code>algorithm: mmf</code> is MMF-4s by default<a class="headerlink" href="#2026-11-10-algorithm-mmf-is-mmf-4s-by-default" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The defaults of <code>tractography.mmf.hold</code> and <code>tractography.mmf.reanchor_tol</code> are now
+  <code>march</code> and <code>0.2</code> rad (they were <code>none</code> and <code>1e-3</code>): a config that only selects
+  <code>algorithm: mmf</code>, or <code>--set algorithm=mmf</code> on the config of another tracker, runs
+  MMF-4s. The trackers' own defaults (<code>nim_tractography_mmf</code>,
+  <code>nim_tractography_mmf_ml</code>, which <code>runTractography(data, 'mmf')</code> reads) follow. The
+  march reads <code>nim.eval</code>.</li>
+<li><strong>Behaviour change</strong> for a config that selects <code>algorithm: mmf</code> and sets neither
+  key. <code>config/mmf_dti.yml</code> now sets <code>hold: none</code> beside its <code>reanchor_tol: 0.001</code>
+  and is the tracker it was (MMF-4a); <code>config/mmf_dti_hold.yml</code>,
+  <code>config/mmf_dti_march.yml</code> and <code>config/mmf_ml.yml</code> set both keys and are unchanged.
+  <code>termination.angle_max</code> is not part of this: the presets of MMF-4h and MMF-4s
+  switch it off, a config that only selects the algorithm keeps its own.</li>
+</ul>
 <h2 id="2026-11-04-advanceframe-bundlerule-and-bundlelaw">2026-11-04 - advanceFrame: 'BundleRule' and 'BundleLaw'<a class="headerlink" href="#2026-11-04-advanceframe-bundlerule-and-bundlelaw" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>src/nim_tractography/advanceFrame.m</code> takes the suite's version with the

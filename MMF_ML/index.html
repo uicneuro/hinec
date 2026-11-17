@@ -2035,7 +2035,12 @@ MMF-ml gives every bundle through a voxel its own <strong>layer</strong>: a dire
 and a connection 1-form. A tract reads only the layer that continues its own
 heading. Everything else is unchanged: the step, the integrator, the
 termination, the coast through missing data and the exit test are those of
-MMF-4h.</p>
+MMF-4h, but for two things that differ since 2026-11-16. The termination: the
+original <code>advanceFrame.m</code> has line 945 (<code>maxRot(bad) = NaN;</code>) switched off, so an
+MMF-4h tract runs on straight through non-tissue, while <code>advanceFrame_ml.m</code> keeps the
+line and an MMF-ml tract still stops at the mask and the FA floor. The seeding: with
+the hold scheme on, the original skips the seeds in the zone (<code>mmf.seed_trusted</code>),
+and the copy tracks every seed.</p>
 <p><strong>MMF-ml leaves the professor's scheme untouched.</strong> Sehun Chun's
 <code>advanceFrame.m</code> and <code>nim_tractography_mmf.m</code> are not edited. MMF-ml runs on
 copies of them, <code>advanceFrame_ml.m</code> and <code>nim_tractography_mmf_ml.m</code>, which add
@@ -2044,7 +2049,10 @@ f(X, T) of the position and the heading. <code>runTractography</code> sends
 <code>algorithm: mmf</code> to the copy only for <code>field: lift</code> (or for the history veto,
 <code>mmf.veto_arc &gt; 0</code>). Every other <code>mmf</code> run uses the originals.
 <code>tests/unit/TestAdvanceFrameMl.m</code> checks that, with neither addition in use,
-the copies take exactly the same steps as the originals.</p>
+the copies take exactly the same steps as the originals where the originals'
+own later changes do not apply (its seeds lie outside the zone, so
+<code>mmf.seed_trusted</code> skips none, and its tracts stay in tissue, so line 945 does not
+come into play).</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>./bin/run_tractography.sh mmf_ml --score          # config/mmf_ml.yml
 </code></pre></div>
 <p>The layers are the <strong>lifts</strong> of the bundles. A bundle's direction field, lifted
@@ -2214,7 +2222,7 @@ its own heading:</p>
 In MMF-ml it is the read weight c(X, T): a point where c &lt; <code>mmf.hold_min</code>
 (0.15) has lost the tract's own layer. There the tract coasts on the mean
 connection of its last <code>mmf.hold_k</code> trusted nodes, at most <code>mmf.coast_max</code>
-voxels. On reaching trusted data again it is re-anchored if its heading is
+voxels (<code>Inf</code> by default: no cap). On reaching trusted data again it is re-anchored if its heading is
 within <code>mmf.exit_tol</code> (1.2 rad) of the layer read there. Otherwise it stops
 (<code>exit</code>).</p>
 <p><strong>Seeds</strong> start on the strongest layer of their voxel.</p>
