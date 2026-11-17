@@ -1,5 +1,15 @@
 # YAML Configuration Changelog
 
+## 2026-11-17 - advanceFrame: 'BundleRule' and 'BundleLaw' removed
+
+- No key changed: the tracker never passed them. `src/nim_tractography/advanceFrame.m`
+  no longer has the options `'BundleRule'` and `'BundleLaw'` (2026-11-03 and
+  2026-11-04), the stop reason `cross`, or `info.hold.bundleRule` / `bundleLaw`; a call
+  with either option is rejected as an unknown option. Everything else in the file is
+  as before, the `'ExitTol'` default of `Inf` and the non-finite connection included.
+- `advanceFrame.m` is therefore no longer the moving-frames test suite's version byte
+  for byte: the suite keeps the two options. The last commit with them is `dd5dee3`.
+
 ## 2026-11-17 - MMF-ml (multilayer moving frames) removed
 
 - Removed: the MMF-ml scheme of 2026-11-07 and everything that existed only for it.
