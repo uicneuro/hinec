@@ -16,7 +16,7 @@
         <link rel="prev" href="../High_Order/">
       
       
-        <link rel="next" href="../MMF_ML/">
+        <link rel="next" href="../RKF/">
       
       
         
@@ -914,10 +914,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#degenerate-data-mmf-4h-and-mmf-4s-mmfhold" class="md-nav__link">
+  <a href="#degenerate-data-mmf-4s-mmfhold" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Degenerate data: MMF-4h and MMF-4s (mmf.hold)
+        Degenerate data: MMF-4s (mmf.hold)
       
     </span>
   </a>
@@ -959,10 +959,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mmf-4h-and-mmf-4s-on-data" class="md-nav__link">
+  <a href="#mmf-4s-on-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        MMF-4h and MMF-4s on data
+        MMF-4s on data
       
     </span>
   </a>
@@ -989,34 +989,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../MMF_ML/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Multilayer Moving Frames (MMF-ml)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1972,10 +1944,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#degenerate-data-mmf-4h-and-mmf-4s-mmfhold" class="md-nav__link">
+  <a href="#degenerate-data-mmf-4s-mmfhold" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Degenerate data: MMF-4h and MMF-4s (mmf.hold)
+        Degenerate data: MMF-4s (mmf.hold)
       
     </span>
   </a>
@@ -2017,10 +1989,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mmf-4h-and-mmf-4s-on-data" class="md-nav__link">
+  <a href="#mmf-4s-on-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        MMF-4h and MMF-4s on data
+        MMF-4s on data
       
     </span>
   </a>
@@ -2106,7 +2078,7 @@ connection continuous; with the cubic and trilinear kernels the derivative of
 the field jumps at the voxel faces, the connection is discontinuous there, and
 the step — exact only for a connection that is constant along the arc — is
 then as accurate as any integrator on a kinked right-hand side (see the
-numbers below). <code>config/mmf_dti.yml</code> therefore uses the spline kernel. The
+numbers below). <code>config/mmf_dti_march.yml</code> therefore uses the spline kernel. The
 scheme runs with <code>'Twist' 'zero'</code> (a rotation-minimizing normal plane), so the
 arbitrary completion <code>e2, e3</code> never enters the position: a step uses only the
 curvature vector <code>(e1 . grad) e1</code> of the field, expressed in the carried frame
@@ -2143,12 +2115,8 @@ frame.</p>
 </table>
 <p>The drift at every point and the re-anchoring decisions are recorded
 (<code>meta.mmf.reanchored_fraction</code>; per step in <code>meta.trace</code> with <code>debug.trace</code>).
-The default tolerance is <code>0.2</code> rad, the one of MMF-4h and MMF-4s (see <a href="#on-data">the
-scores</a> for what it does on data). <code>config/mmf_dti.yml</code> sets <code>1e-3</code> rad,
-which is an order of magnitude below the heading
-error of a one-voxel CF4 step across a sharp bend and above the step-to-step
-wobble of interpolated data at normal steps (see the suite's notes, section on
-variants).</p>
+The default tolerance is <code>0.2</code> rad, the one of MMF-4s (see <a href="#on-data">the
+scores</a> for what it does on data).</p>
 <h2 id="termination">Termination<a class="headerlink" href="#termination" title="Permanent link">&para;</a></h2>
 <p>The connection is returned non-finite wherever a point is outside the volume,
 outside the propagation mask (or the brain mask), below the FA floor
@@ -2163,7 +2131,7 @@ again, and the adaptive mode re-anchors onto whatever bundle it meets), leaves t
 volume (<code>outside</code>) or reaches <code>max_arc</code>. The tracker drops only a last node that
 lies outside tissue, so tracks contain these straight runs outside the brain.
 <code>fa</code>, <code>outside_mask</code> and <code>outside_domain</code> no longer occur as stop reasons. With
-<code>angle_max: 0</code> (the presets of MMF-4h and MMF-4s) nothing limits the heading at
+<code>angle_max: 0</code> (the preset of MMF-4s) nothing limits the heading at
 re-entry. Before, <code>advanceFrame</code> stopped a tract <strong>before</strong> a step at whose stages
 the connection was not finite, and every node of a track was an integration node
 inside tissue; reverting the commit that switched the line off (the line, the
@@ -2208,48 +2176,22 @@ the hinec tracker's (<code>pos</code>, <code>dir</code> = the carried <code>e1</
 <code>turn</code> in degrees, <code>flip</code> always false, <code>n_steps</code>, <code>termination</code>), so
 <code>nim_track_diagnose</code> reads them, plus <code>drift</code> (angle to the data's <code>e1</code>),
 <code>reanchored</code>, <code>kappa</code>, <code>s</code>, <code>coasted</code> and <code>confidence</code>.</p>
-<h2 id="degenerate-data-mmf-4h-and-mmf-4s-mmfhold">Degenerate data: MMF-4h and MMF-4s (<code>mmf.hold</code>)<a class="headerlink" href="#degenerate-data-mmf-4h-and-mmf-4s-mmfhold" title="Permanent link">&para;</a></h2>
+<h2 id="degenerate-data-mmf-4s-mmfhold">Degenerate data: MMF-4s (<code>mmf.hold</code>)<a class="headerlink" href="#degenerate-data-mmf-4s-mmfhold" title="Permanent link">&para;</a></h2>
 <p>In a voxel where two bundles cross, the single tensor is a pancake and its
 principal axis means nothing. A tract that reads the connection there turns into
 the other bundle or, more often, stops on <code>angle_max</code>. The hold scheme of
 <code>advanceFrame</code> lets it cross instead: inside a zone of degenerate data it does not
 read the data at all but <strong>coasts</strong>.</p>
-<table>
-<thead>
-<tr>
-<th><code>mmf.hold</code></th>
-<th>scheme</th>
-<th>what the tract follows in the zone</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>none</code></td>
-<td>MMF-4a, the adaptive mode alone</td>
-<td>the data, as everywhere</td>
-</tr>
-<tr>
-<td><code>hold</code></td>
-<td>MMF-4h</td>
-<td>the mean connection of its last <code>hold_k</code> trusted nodes, in the carried frame, constant along the coast: a circle</td>
-</tr>
-<tr>
-<td><code>march</code> (default)</td>
-<td>MMF-4s</td>
-<td>that curvature and fan-out, marched by the flatness of the connection: exact on circles, logarithmic spirals and rays, and turning the curvature by the torsion on a helix</td>
-</tr>
-</tbody>
-</table>
-<p><code>march</code> is the default, and with it <code>reanchor_tol: 0.2</code>: a config that only selects
-<code>algorithm: mmf</code> runs MMF-4s, with whatever <code>angle_max</code> it has (the schema default is
-225). <code>config/mmf_dti.yml</code> sets <code>hold: none</code> and <code>reanchor_tol: 0.001</code> and is MMF-4a.</p>
-<p>The presets <code>config/mmf_dti_hold.yml</code> and <code>config/mmf_dti_march.yml</code> are <code>mmf_dti</code>
-with the scheme on, <code>reanchor_tol: 0.2</code> and <code>angle_max: 0</code> (see
-<a href="#angle-max">below</a> why). See <a href="#on-data">the scores</a> below: on the
-ISMRM 2015 phantom the scheme halves the wrong-path streamlines at the price of
-shorter tracks, and most of what the presets gain in F1 comes from <code>reanchor_tol</code>
-alone.</p>
-<p><strong>The zone.</strong> The confidence is the linear shape <code>CL = (l1 - l2)/l1</code> of the voxel
+<p>With <code>mmf.hold: march</code>, the default, this is <strong>MMF-4s</strong>: in the zone the tract follows
+the curvature and the fan-out of its last <code>hold_k</code> trusted nodes, marched by the
+flatness of the connection. That is exact on circles, logarithmic spirals and rays, and
+turns the curvature by the torsion on a helix. With it comes <code>reanchor_tol: 0.2</code>: a
+config that only selects <code>algorithm: mmf</code> runs MMF-4s, with whatever <code>angle_max</code> it has
+(the schema default is 225). The preset <code>config/mmf_dti_march.yml</code> sets
+<code>angle_max: 0</code> (see <a href="#angle-max">below</a> why); see <a href="#on-data">the scores</a> below.
+(<code>mmf.hold</code> also accepts <code>none</code>, no coasting, and <code>hold</code>, the connection held constant
+along the coast. They are not presented here.)</p>
+<p>The confidence is the linear shape <code>CL = (l1 - l2)/l1</code> of the voxel
 tensors (<code>nim.eval</code>), interpolated linearly and eroded by <code>hold_guard</code> voxels (the
 minimum over the point and 14 points at that distance); a point is in the zone
 where it is below <code>hold_min</code>. For a single bundle of eigenvalues 1.7, 0.3, 0.3
@@ -2271,7 +2213,7 @@ no data frame at the end of the step, so it is neither re-anchored nor exit-test
 and its steps through non-tissue are no coast, so its <code>coast_max</code> count restarts.
 Where it re-enters tissue it is an ordinary trusted step: the <code>adaptive</code> mode
 re-anchors when the drift reaches <code>reanchor_tol</code> (<code>reanchor</code> always), and only
-<code>angle_max</code> limits that snap, nothing with the presets' <code>angle_max: 0</code>.
+<code>angle_max</code> limits that snap, nothing with the preset's <code>angle_max: 0</code>.
 Since 2026-11-17 <code>exit_tol</code> and
 <code>coast_max</code> are <code>Inf</code> by default: no exit test, a tract leaving the zone is always
 re-anchored, and no cap of the coast. The scores below were measured with
@@ -2330,20 +2272,7 @@ in; a voxel outside the zone takes its differences from voxels outside it (centr
 or one-sided); and the nodal tensor is continued into the zone in the same way. The
 last two apply to the nodal connection, the default; with <code>mmf.connection:
 derivative</code> only the axis is filled. Without these the phantoms below read 0.3 to 5
-voxels instead of 0.02 to 0.35, and the march gains nothing over the hold.</p>
-<p><strong>The same bundle never crosses.</strong> In trusted data two tracts of one bundle cannot
-cross, being integral curves of one field; two coasts can, since each follows its own
-held or marched connection. In the suite's crossing runs MMF-4h and MMF-4s crossed
-373 and 370 pairs of same-family tracts, nearly all in the core, against 13 for the
-adaptive mode and none for RK4. <code>advanceFrame</code> therefore takes the label of each
-seed's bundle in two ways. <code>'BundleRule'</code> stops both tracts of a bundle on a step on
-which they would cross while one of them coasts (reason <code>cross</code>). <code>'BundleLaw'</code>,
-for the march with the planar connection, takes the divergence term of the march
-from the neighbouring tracts of the bundle at every step, so that the coasts of a
-bundle march as one sheet. The tracker passes neither yet: its seeds carry no bundle
-labels, and a bundle would have to be defined at the entrance of each zone (the
-tracts entering from the same side, close together, with headings within
-<code>exit_tol</code>); the law would also need its 3-D form.</p>
+voxels instead of 0.02 to 0.1.</p>
 <p><strong>The march in 3-D.</strong> The planar march of the suite's notes, <code>dsigma/ds = -sigma^2 +
 D</code>, <code>dkappa/ds = -kappa sigma</code>, has a matrix form. In the carried frame, whose
 normal plane is rotation-minimizing along the coast, the curvature vector
@@ -2463,7 +2392,7 @@ where the connection is not finite, is now crossed), the
 one-sided stencil at a volume face, a non-finite voxel in a spline field, the
 per-step trace and the rejection of <code>rkf45</code> and <code>csd</code>.</p>
 <p>For <code>mmf.hold</code> it runs the phantoms with the voxels of a zone turned into pancakes,
-CL 0 and the axis 90 degrees off, with the presets' settings. Without the scheme
+CL 0 and the axis 90 degrees off, with the preset's settings. Without the scheme
 every one of these tracts stops at the zone (<code>angle</code>):</p>
 <table>
 <thead>
@@ -2471,7 +2400,7 @@ every one of these tracts stops at the zone (<code>angle</code>):</p>
 <th>field</th>
 <th>zone</th>
 <th>seeds</th>
-<th>max distance from the true curve (voxels): hold / march</th>
+<th>max distance from the true curve (voxels)</th>
 </tr>
 </thead>
 <tbody>
@@ -2479,60 +2408,46 @@ every one of these tracts stops at the zone (<code>angle</code>):</p>
 <td>circles</td>
 <td>sector of 20 degrees, 4 to 8 voxels of arc</td>
 <td>32 phases at 4 radii</td>
-<td>0.04 median, 0.10 worst / the same</td>
+<td>0.04 median, 0.10 worst</td>
 </tr>
 <tr>
 <td>log spirals, 60 degrees, outwards</td>
 <td>annulus of 3 voxels, 6 of arc</td>
 <td>24 phases at 3 radii</td>
-<td>0.21, 0.25 / 0.02, 0.05</td>
+<td>0.02, 0.05</td>
 </tr>
 <tr>
 <td>the same, inwards</td>
 <td></td>
 <td>24 phases at 3 radii</td>
-<td>0.09, 0.17 / 0.02, 0.07</td>
+<td>0.02, 0.07</td>
 </tr>
 <tr>
 <td>helix of the fixture</td>
 <td>sector of 40 degrees, 11 of arc</td>
 <td>1, at the end of the coast</td>
-<td>0.35 / 0.04</td>
+<td>0.04</td>
 </tr>
 <tr>
 <td>crossing of the fixture</td>
 <td>the 7 voxels of band B</td>
 <td>8 phases</td>
-<td>0, straight to the far face / the same</td>
+<td>0, straight to the far face</td>
 </tr>
 </tbody>
 </table>
 <p>Without the filling of the zone and the one-sided stencils of the section above the
-circles read 1.0 and 1.5 voxels, the spirals outwards 1.2 and 1.8 for the hold and
-the march alike, and the helix 2.6. The test also pins that the scheme changes
+circles read 1.0 and 1.5 voxels, the spirals outwards 1.2 and 1.8, and the helix 2.6. The test also pins that the scheme changes
 nothing without a zone; <code>exit</code> (band A turned by 30 degrees beyond the crossing, with
 <code>exit_tol</code> 0.2, and no stop with <code>exit_tol</code> above that); <code>coast</code>; <code>focus</code> (rays through
-a point in 3-D, at r/r_0 = 0.32 where the cross-section is a tenth; the hold has no
-fan and runs into the hole around the centre, below the FA floor, which since
-2026-11-16 it crosses straight instead of stopping with <code>fa</code>); that a tract beside
+a point in 3-D, at r/r_0 = 0.32 where the cross-section is a tenth); that a tract beside
 low-CL voxels below the FA floor
 or outside the mask does not coast; the ring across a re-anchoring (circles in a tilted
-plane, two sectors fewer trusted nodes apart than the ring holds: the hold stays in
-the plane to 1e-6 voxel and the march to 0.04, against 0.4 to 0.6 with the ring left
-behind); that the FA floor and the mask inside the zone are crossed, with <code>exit_delay</code>
+plane, two sectors fewer trusted nodes apart than the ring holds: the march stays in
+the plane to 0.04 voxel, against 0.4 to 0.6 with the ring left behind); that the FA floor and the mask inside the zone are crossed, with <code>exit_delay</code>
 as well; the
 share of the zone and its warning at 40%; that <code>hold_min</code> and <code>hold_k</code> reach the
 scheme; the signs of the axial data; the trace and the rejected inputs.</p>
-<p>Measured before 2026-11-16, with the line 945 stop (see Termination): on the sample
-dataset (<code>data/parcellation_sample/sample.mat</code>, 128 x 128 x 50,
-<code>config/mmf_dti.yml</code> at <code>seeding.density: 1</code>, 147k seeds of which 100k lie in
-tissue) the tracker produces 69.7k tracks of at least 15 voxels in about 11
-minutes, every node inside the mask and no node-to-node turn above <code>angle_max</code>;
-<code>hinec_dti.yml</code> on the same seeds gives 74k in about 10 minutes, and for the
-68.4k seeds both keep the two tracks agree to a median nearest-node distance of
-0.25 voxel. The half-tracks end on the FA floor (77%), the volume faces (10%,
-the slab is cut at both ends), <code>angle_max</code> (9%, against 0.5% for hinec,
-for the reason given above), the mask (3%) and a missing axis (1%).</p>
 <p><a id="angle-max"></a></p>
 <h3 id="angle_max-is-not-needed-with-the-scheme">angle_max is not needed with the scheme<a class="headerlink" href="#angle_max-is-not-needed-with-the-scheme" title="Permanent link">&para;</a></h3>
 <p>With the scheme on, the tract transports its frame wherever the data are degenerate,
@@ -2540,14 +2455,8 @@ and these are the places where the data's axis turns sharply. <code>angle_max</c
 has little left to do, and the scheme's own exit test does that. (The numbers of this
 section and the next were measured before 2026-11-16, when tracts stopped at the mask
 and the FA floor; since then they run on through non-tissue, see Termination, and the
-scores would have to be measured again.) Of the half-tracks
-of <code>mmf_dti_hold</code> on the ISMRM 2015 phantom with the <code>angle_max</code> of <code>mmf_dti</code> (45 degrees
-per step), 14.7% stopped on it. In a trace of 8000 seeds, 86% of those stops were steps
-leaving the zone whose drift (1.1 rad median) the exit test would have stopped anyway,
-since the heading test of <code>angle_max</code> runs first; 3.5% had the zone within a voxel
-ahead, the axis swinging before the eroded confidence falls; 10% were in trusted data
-with trusted data ahead. The rotation of a step never reached the limit from <code>angle_max</code> (0.17 rad at
-most). With <code>angle_max</code> off those stops become exits, and the scores do not move:</p>
+scores would have to be measured again.) With <code>angle_max</code> off the stops it made become
+exits, and the scores do not move:</p>
 <table>
 <thead>
 <tr>
@@ -2563,28 +2472,6 @@ most). With <code>angle_max</code> off those stops become exits, and the scores 
 </tr>
 </thead>
 <tbody>
-<tr>
-<td><code>mmf_dti_hold</code>, 225</td>
-<td style="text-align: right;">48487</td>
-<td style="text-align: right;">53.9%</td>
-<td style="text-align: right;">6.1%</td>
-<td style="text-align: right;">0.483</td>
-<td style="text-align: right;">0.337</td>
-<td style="text-align: right;">0.497</td>
-<td style="text-align: right;">23</td>
-<td style="text-align: right;">45.6</td>
-</tr>
-<tr>
-<td><code>mmf_dti_hold</code>, 0 (the preset)</td>
-<td style="text-align: right;">48588</td>
-<td style="text-align: right;">53.5%</td>
-<td style="text-align: right;">6.8%</td>
-<td style="text-align: right;">0.483</td>
-<td style="text-align: right;">0.339</td>
-<td style="text-align: right;">0.497</td>
-<td style="text-align: right;">23</td>
-<td style="text-align: right;">46.8</td>
-</tr>
 <tr>
 <td><code>mmf_dti_march</code>, 225</td>
 <td style="text-align: right;">47874</td>
@@ -2609,13 +2496,9 @@ most). With <code>angle_max</code> off those stops become exits, and the scores 
 </tr>
 </tbody>
 </table>
-<p>So the presets run with <code>angle_max: 0</code>. Without the scheme it is a different matter: the
-adaptive mode does not transport through degenerate data, it re-anchors onto them,
-and <code>angle_max</code> is the only thing that stops that snap. <code>mmf_dti</code> with <code>reanchor_tol</code>
-0.2 and <code>angle_max: 0</code> gives 57634 streamlines of mean length 58.5, 53.2% valid and
-13.5% wrong path against 11.2%, F1 0.483 against 0.492. <code>mmf_dti</code> keeps its <code>angle_max</code>.</p>
+<p>So the preset runs with <code>angle_max: 0</code>.</p>
 <p><a id="on-data"></a></p>
-<h3 id="mmf-4h-and-mmf-4s-on-data">MMF-4h and MMF-4s on data<a class="headerlink" href="#mmf-4h-and-mmf-4s-on-data" title="Permanent link">&para;</a></h3>
+<h3 id="mmf-4s-on-data">MMF-4s on data<a class="headerlink" href="#mmf-4s-on-data" title="Permanent link">&para;</a></h3>
 <p>The ISMRM 2015 phantom has a ground truth. These rows come from the scorer of
 <code>bin/run_ismrm_scoring.sh</code> (scilpy 2.3, <code>scil_tractogram_segment_with_ROI_and_score</code>;
 point <code>ISMRM_VENV</code> at an environment that has it), with <code>--save_wpc_separately</code> for the
@@ -2664,39 +2547,6 @@ balances the two per bundle. All seeds with FA at least 0.1 in the mask,
 </thead>
 <tbody>
 <tr>
-<td><code>mmf_dti</code> (<code>reanchor_tol</code> 1e-3)</td>
-<td style="text-align: right;">56823</td>
-<td style="text-align: right;">58.2%</td>
-<td style="text-align: right;">10.3%</td>
-<td style="text-align: right;">0.391</td>
-<td style="text-align: right;">0.226</td>
-<td style="text-align: right;">0.436</td>
-<td style="text-align: right;">22</td>
-<td style="text-align: right;">55.9</td>
-</tr>
-<tr>
-<td><code>mmf_dti</code> with <code>reanchor_tol</code> 0.2</td>
-<td style="text-align: right;">56703</td>
-<td style="text-align: right;">54.5%</td>
-<td style="text-align: right;">11.2%</td>
-<td style="text-align: right;">0.509</td>
-<td style="text-align: right;">0.405</td>
-<td style="text-align: right;">0.492</td>
-<td style="text-align: right;">23</td>
-<td style="text-align: right;">54.0</td>
-</tr>
-<tr>
-<td><code>mmf_dti_hold</code> (with <code>angle_max</code> 225)</td>
-<td style="text-align: right;">48487</td>
-<td style="text-align: right;">53.9%</td>
-<td style="text-align: right;">6.1%</td>
-<td style="text-align: right;">0.483</td>
-<td style="text-align: right;">0.337</td>
-<td style="text-align: right;">0.497</td>
-<td style="text-align: right;">23</td>
-<td style="text-align: right;">45.6</td>
-</tr>
-<tr>
 <td><code>mmf_dti_march</code> (with <code>angle_max</code> 225)</td>
 <td style="text-align: right;">47874</td>
 <td style="text-align: right;">53.5%</td>
@@ -2709,15 +2559,8 @@ balances the two per bundle. All seeds with FA at least 0.1 in the mask,
 </tr>
 </tbody>
 </table>
-<p><code>reanchor_tol: 0.2</code> alone (MMF-4a in the notes) lifts F1 by far more than the scheme
-does, by trusting the smoother transported heading between the voxels, at the cost of
-more overreach (these two rows and the next were run with the <code>angle_max</code> of 225 that the
-presets have since dropped, see above). On top of it the hold halves the wrong-path streamlines (6367 to 2973,
-a share down by 45%) and cuts the overreach by a sixth, for 14% fewer streamlines, 16%
-shorter ones and 5% less overlap, so F1 hardly moves. It is a trade of recall for
-precision rather than a gain. The march adds nothing to the hold here: the fan-out of
-the last trusted nodes is a derivative of noisy data, and its gain on the phantoms
-above is for clean curved bundles. The settings were chosen on half the seeds, by a
+<p>This row was run with the <code>angle_max</code> of 225 that the preset has since dropped (see
+above). The settings were chosen on half the seeds, by a
 local reimplementation of the scorer's rules that read F1 about 0.01 lower and kept the
 order: <code>hold_min</code> 0.15 to 0.2, <code>hold_guard</code> 0.5, <code>exit_tol</code> 0.5 to 0.8 and <code>coast_max</code>
 12 to 20 were the best of those tried, 0.15 with the higher F1 and 0.2 with fewer wrong
@@ -2725,23 +2568,15 @@ paths; <code>hold_min</code> 0.25 and <code>hold_guard</code> 1 cost overlap. <c
 phantom's tissue voxels.</p>
 <p>On the sample dataset there is no ground truth, and its anisotropy is low: the median
 CL over the tissue is 0.2, so the default floor marks 51% of the tissue voxels and the
-tracker warns. With a quarter of the seeds, <code>mmf_dti</code> with <code>reanchor_tol</code> 0.2 gives
-17745 tracks of at least 15 voxels and a mean of 44.1; <code>mmf_dti_hold</code> gives 11900 and
-32.5 with 49% of the steps coasted, and with <code>hold_min: 0.1</code>, a zone of 12.5%, 14937
-and 40.0 with 10%. The fewer tracks are not a verdict either way, as the phantom shows,
-but a floor that coasts half of the arc is not detecting crossings. Lower it there.</p>
+tracker warns. A floor that coasts half of the arc is not detecting crossings: lower
+it there.</p>
 <h2 id="files">Files<a class="headerlink" href="#files" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>src/nim_tractography/nim_tractography_mmf.m</code> — the tracker (seeds, field,
   connection handles, termination, metadata)</li>
-<li><code>src/nim_tractography/advanceFrame.m</code> — the scheme (identical to the suite's copy)</li>
-<li><code>config/mmf_dti.yml</code> — tracker config: <code>algorithm: mmf</code>, CF4, spline kernel,
-  adaptive mode alone (MMF-4a: <code>hold: none</code>)</li>
-<li><code>config/mmf_dti_hold.yml</code>, <code>config/mmf_dti_march.yml</code> — the same with MMF-4h and
+<li><code>src/nim_tractography/advanceFrame.m</code> — the scheme</li>
+<li><code>config/mmf_dti_march.yml</code> — tracker config: <code>algorithm: mmf</code>, CF4, spline kernel,
   MMF-4s</li>
-<li>MMF-ml (<code>field: lift</code>, multilayer moving frames) and the history veto
-  (<code>mmf.veto_arc</code>) run on copies of the tracker and the scheme,
-  <code>nim_tractography_mmf_ml.m</code> and <code>advanceFrame_ml.m</code>; see <a href="../MMF_ML/">MMF_ML.md</a></li>
 <li><code>tests/unit/TestMmfTracker.m</code></li>
 </ul>
 

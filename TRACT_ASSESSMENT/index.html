@@ -844,34 +844,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../MMF_ML/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Multilayer Moving Frames (MMF-ml)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../RKF/" class="md-nav__link">
         
   
@@ -2147,7 +2119,7 @@ never as zeros.</p>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Consistency: one knob, or whole configs, on the same data</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>./bin/run_assessment.sh<span class="w"> </span>consistency<span class="w"> </span>--config<span class="w"> </span>hinec_dti<span class="w"> </span>--sweep<span class="w"> </span>interpolation.method<span class="o">=</span>trilinear,cubic,spline
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>./bin/run_assessment.sh<span class="w"> </span>consistency<span class="w"> </span>--configs<span class="w"> </span>hinec_dti<span class="w"> </span>mmf_dti<span class="w"> </span>hinec_csd<span class="w"> </span>standard_dti<span class="w"> </span>--set<span class="w"> </span><span class="s1">'seeding.roi=[Fornix]'</span><span class="w"> </span>--set<span class="w"> </span>seeding.density<span class="o">=</span><span class="m">1</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>./bin/run_assessment.sh<span class="w"> </span>consistency<span class="w"> </span>--configs<span class="w"> </span>hinec_dti<span class="w"> </span>mmf_dti_march<span class="w"> </span>hinec_csd<span class="w"> </span>standard_dti<span class="w"> </span>--set<span class="w"> </span><span class="s1">'seeding.roi=[Fornix]'</span><span class="w"> </span>--set<span class="w"> </span>seeding.density<span class="o">=</span><span class="m">1</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Repeatability: independent acquisitions, each preprocessed with run_hinec.sh and tracked</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>./bin/run_assessment.sh<span class="w"> </span>repeatability<span class="w"> </span><span class="se">\</span>

@@ -844,34 +844,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../MMF_ML/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Multilayer Moving Frames (MMF-ml)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../RKF/" class="md-nav__link">
         
   
@@ -1190,6 +1162,39 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-17-mmf-4s-is-the-moving-frames-scheme-presented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-17 - MMF-4s is the moving-frames scheme presented
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-17-advanceframe-bundlerule-and-bundlelaw-removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-17 - advanceFrame: 'BundleRule' and 'BundleLaw' removed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-17-mmf-ml-multilayer-moving-frames-removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-17 - MMF-ml (multilayer moving frames) removed
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#2026-11-17-mmfexit_tol-and-mmfcoast_max-are-inf-by-default" class="md-nav__link">
@@ -2394,6 +2399,39 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#2026-11-17-mmf-4s-is-the-moving-frames-scheme-presented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-17 - MMF-4s is the moving-frames scheme presented
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-17-advanceframe-bundlerule-and-bundlelaw-removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-17 - advanceFrame: 'BundleRule' and 'BundleLaw' removed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2026-11-17-mmf-ml-multilayer-moving-frames-removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-11-17 - MMF-ml (multilayer moving frames) removed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#2026-11-17-mmfexit_tol-and-mmfcoast_max-are-inf-by-default" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2971,24 +3009,70 @@
 
 
 <h1 id="yaml-configuration-changelog">YAML Configuration Changelog<a class="headerlink" href="#yaml-configuration-changelog" title="Permanent link">&para;</a></h1>
+<h2 id="2026-11-17-mmf-4s-is-the-moving-frames-scheme-presented">2026-11-17 - MMF-4s is the moving-frames scheme presented<a class="headerlink" href="#2026-11-17-mmf-4s-is-the-moving-frames-scheme-presented" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>config/mmf_dti.yml</code> (MMF-4a) and <code>config/mmf_dti_hold.yml</code> (MMF-4h) are no longer
+  shipped configs: they are test fixtures now, <code>tests/fixtures/mmf_dti_4a.yml</code> and
+  <code>tests/fixtures/mmf_dti_4h.yml</code>. <code>./bin/run_tractography.sh mmf_dti</code> and
+  <code>mmf_dti_hold</code> therefore no longer find a config; <code>config/mmf_dti_march.yml</code>
+  (MMF-4s) is the moving-frames preset.</li>
+<li>No key changed: <code>mmf.hold</code> still accepts <code>none</code> and <code>hold</code>, and a config that sets
+  them runs as before. The docs present MMF-4s only: the descriptions, the score rows
+  and the comparisons of MMF-4a and MMF-4h are removed from
+  <a href="../MMF_TRACTOGRAPHY/">MMF_TRACTOGRAPHY.md</a> and the config tables. The entries below
+  that name the two schemes or their configs describe the code as it was; the last
+  commit with them in the docs is <code>db45c54</code>.</li>
+</ul>
+<h2 id="2026-11-17-advanceframe-bundlerule-and-bundlelaw-removed">2026-11-17 - advanceFrame: 'BundleRule' and 'BundleLaw' removed<a class="headerlink" href="#2026-11-17-advanceframe-bundlerule-and-bundlelaw-removed" title="Permanent link">&para;</a></h2>
+<ul>
+<li>No key changed: the tracker never passed them. <code>src/nim_tractography/advanceFrame.m</code>
+  no longer has the options <code>'BundleRule'</code> and <code>'BundleLaw'</code> (2026-11-03 and
+  2026-11-04), the stop reason <code>cross</code>, or <code>info.hold.bundleRule</code> / <code>bundleLaw</code>; a call
+  with either option is rejected as an unknown option. Everything else in the file is
+  as before, the <code>'ExitTol'</code> default of <code>Inf</code> and the non-finite connection included.</li>
+<li><code>advanceFrame.m</code> is therefore no longer the moving-frames test suite's version byte
+  for byte: the suite keeps the two options. The last commit with them is <code>dd5dee3</code>.</li>
+</ul>
+<h2 id="2026-11-17-mmf-ml-multilayer-moving-frames-removed">2026-11-17 - MMF-ml (multilayer moving frames) removed<a class="headerlink" href="#2026-11-17-mmf-ml-multilayer-moving-frames-removed" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Removed: the MMF-ml scheme of 2026-11-07 and everything that existed only for it.
+  <code>field: lift</code> is no longer a value of <code>tractography.field</code> (it is <code>dti | csd</code>
+  again), for <code>algorithm: mmf</code> and for <code>algorithm: hinec</code>, where the lifts were a
+  peak field. The whole group <code>tractography.lift.*</code> is gone, and so are
+  <code>tractography.mmf.veto_arc</code> and <code>tractography.mmf.veto_tol</code> (the history veto,
+  which only the MMF-ml copy of the scheme had). A config that sets any of them is
+  rejected as an unknown key or value.</li>
+<li>Files removed: <code>src/nim_tractography/advanceFrame_ml.m</code>,
+  <code>nim_tractography_mmf_ml.m</code>, <code>nim_lift_connection.m</code>,
+  <code>src/nim_calculation/nim_lift_field.m</code>, <code>config/mmf_ml.yml</code>, <code>docs/MMF_ML.md</code>,
+  <code>scripts/lift_field_check.py</code>, <code>tests/fixtures/make_lift_crossing_nim.m</code> and the
+  tests <code>TestAdvanceFrameMl</code>, <code>TestLiftField</code>, <code>TestMmfHistoryVeto</code>.
+  <code>runTractography</code> sends every <code>algorithm: mmf</code> run to <code>nim_tractography_mmf</code>.</li>
+<li>Kept: <code>seeding.cl_min</code> and <code>seeding.coherence_min</code>, which came with the same commit
+  but are not part of the scheme. Cached lifts beside a dataset
+  (<code>&lt;nim&gt;_lift_&lt;hash&gt;.mat</code>) are not deleted and are no longer read.</li>
+<li>The entries below that mention MMF-ml, <code>field: lift</code>, the veto or the <code>_ml</code> files
+  describe the code as it was. The last commit with MMF-ml is <code>9c81caf</code>.</li>
+</ul>
 <h2 id="2026-11-17-mmfexit_tol-and-mmfcoast_max-are-inf-by-default">2026-11-17 - <code>mmf.exit_tol</code> and <code>mmf.coast_max</code> are <code>Inf</code> by default<a class="headerlink" href="#2026-11-17-mmfexit_tol-and-mmfcoast_max-are-inf-by-default" title="Permanent link">&para;</a></h2>
 <ul>
 <li>The defaults of <code>tractography.mmf.exit_tol</code> and <code>tractography.mmf.coast_max</code> are now
   <code>Inf</code> (they were <code>0.5</code> rad and <code>12</code> voxels of arc): no exit test and no cap of the
   coast. A tract leaving the degenerate zone is always re-anchored on the data, and a
-  tract still in the zone coasts on until it leaves the volume or reaches <code>max_arc</code>
-  (in <code>nim_tractography_mmf_ml</code> the mask and the FA floor stop it too). The trackers' own defaults (<code>nim_tractography_mmf</code>,
-  <code>nim_tractography_mmf_ml</code>) follow. The ranges of the two keys are <code>[0, Inf]</code>.</li>
+  tract still in the zone coasts on until it leaves the volume or reaches <code>max_arc</code>. The tracker's own defaults (<code>nim_tractography_mmf</code>) follow. The ranges of the two keys are <code>[0, Inf]</code>.</li>
 <li><strong>Behaviour change</strong> for every config with <code>mmf.hold: hold</code> or <code>march</code> (the default)
   that sets neither key: the stops <code>exit</code> and <code>coast</code> no longer occur. With
   <code>termination.angle_max: 0</code>, as in <code>config/mmf_dti_hold.yml</code> and
   <code>config/mmf_dti_march.yml</code>, nothing then tests the direction of a tract leaving the
-  zone. <code>config/mmf_ml.yml</code> sets <code>exit_tol: 1.2</code> and keeps its exit test; its coast
-  has no cap now. Set <code>exit_tol: 0.5</code> and <code>coast_max: 12</code> for the former behaviour.</li>
-<li>The scores of <a href="../MMF_TRACTOGRAPHY/">MMF_TRACTOGRAPHY.md</a> and <a href="../MMF_ML/">MMF_ML.md</a>
+  zone. Set <code>exit_tol: 0.5</code> and <code>coast_max: 12</code> for the former behaviour.</li>
+<li>The scores of <a href="../MMF_TRACTOGRAPHY/">MMF_TRACTOGRAPHY.md</a>
   were measured with the former defaults and were not measured again.</li>
 <li>A numeric key whose range has <code>Inf</code> as a bound takes <code>inf</code>, <code>Inf</code> or <code>.inf</code> in a
   config file and with <code>--set</code>; any other numeric key still rejects it.</li>
+<li><code>advanceFrame.m</code> itself now defaults <code>'ExitTol'</code> to <code>Inf</code>
+  (it was <code>'ReanchorTol'</code>), as the moving-frames test suite's version does. No run
+  through the tracker changes: it always passes <code>mmf.exit_tol</code>. Only a direct call
+  of <code>advanceFrame</code> with <code>'Confidence'</code> and no <code>'ExitTol'</code> loses its exit test.</li>
 </ul>
 <h2 id="2026-11-16-algorithm-mmf-a-non-finite-connection-no-longer-stops-a-tract">2026-11-16 - <code>algorithm: mmf</code>: a non-finite connection no longer stops a tract<a class="headerlink" href="#2026-11-16-algorithm-mmf-a-non-finite-connection-no-longer-stops-a-tract" title="Permanent link">&para;</a></h2>
 <ul>

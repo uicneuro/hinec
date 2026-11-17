@@ -844,34 +844,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../MMF_ML/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Multilayer Moving Frames (MMF-ml)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../RKF/" class="md-nav__link">
         
   
@@ -1263,17 +1235,6 @@
     <span class="md-ellipsis">
       
         tractography.csd
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tractographylift" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        tractography.lift
       
     </span>
   </a>
@@ -2178,17 +2139,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#tractographylift" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        tractography.lift
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#tractographymmf" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2325,7 +2275,7 @@ parameter. A key marked <code>hinec</code> is ignored by <code>standard</code>, 
 <td>string</td>
 <td><code>dti</code></td>
 <td>hinec, mmf, stitching</td>
-<td>Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks (hinec and stitching); lift = the lifts of the bundles on M = Omega x RP^2 built from the raw signal (nim_lift_field), one frame and one connection 1-form per bundle where bundles cross (with mmf this is MMF-ml, multilayer moving frames, run by nim_tractography_mmf_ml; see docs/MMF_ML.md and tractography.lift); with hinec the lifts are a peak field, the lift nearest the incoming tangent at every stencil voxel as for csd.</td>
+<td>Direction source. dti = DTI principal eigenvector; csd = CSD FOD peaks (hinec and stitching; mmf is dti only).</td>
 </tr>
 <tr>
 <td><code>act</code></td>
@@ -2770,160 +2720,6 @@ parameter. A key marked <code>hinec</code> is ignored by <code>standard</code>, 
 </tr>
 </tbody>
 </table>
-<h4 id="tractographylift"><code>tractography.lift</code><a class="headerlink" href="#tractographylift" title="Permanent link">&para;</a></h4>
-<table>
-<thead>
-<tr>
-<th>Key</th>
-<th>Type</th>
-<th>Default</th>
-<th>Applies to</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>smooth</code></td>
-<td>numeric</td>
-<td><code>0</code></td>
-<td>hinec, mmf</td>
-<td>Half-width T (voxels) of the regularisation of the orientation density along the fibres: each direction n_j is smoothed along x + t n_j, t = -T..T, weights T + 1 - |t|; 0 = off (nim_lift_field). Default 0: the kernel runs along straight lines, so on a bend of curvature k it mixes directions up to k T apart and pulls the lobe toward the upstream direction (ISMRM cingulum, k ~ 0.5 per voxel: the lifted curvature fell to 0.02 at T = 2). ISMRM mmf lift+hold F1 0.509 / 0.521 / 0.537 at T = 2 / 1 / 0.</td>
-</tr>
-<tr>
-<td><code>smooth_kernel</code></td>
-<td>string</td>
-<td><code>straight</code></td>
-<td>hinec, mmf</td>
-<td>Path of the regularisation along the fibres (lift.smooth &gt; 0): straight = the line x + t n_j; curved = the best of the circular arcs leaving (x, n_j) with curvature lift.smooth_kappa in lift.smooth_normals normal directions (and the straight line), the density read at each arc point in the dictionary direction nearest the arc tangent (Duits and Franken, IJCV 92:231-264, 2011: smoothing on position x orientation follows curves, not lines).</td>
-</tr>
-<tr>
-<td><code>smooth_kappa</code></td>
-<td>numeric</td>
-<td>``</td>
-<td>hinec, mmf</td>
-<td>Curvatures (per voxel) of the arcs of lift.smooth_kernel: curved, besides the straight line; the ISMRM cingulum bends at ~0.5 per voxel.</td>
-</tr>
-<tr>
-<td><code>smooth_normals</code></td>
-<td>numeric</td>
-<td><code>8</code></td>
-<td>hinec, mmf</td>
-<td>Number of normal directions m = cos(q) e2 + sin(q) e3, q = 2 pi i / smooth_normals, in which the arcs of lift.smooth_kernel: curved bend.</td>
-</tr>
-<tr>
-<td><code>bridge</code></td>
-<td>numeric</td>
-<td><code>2</code></td>
-<td>hinec, mmf</td>
-<td>Nodes a lift is continued through where its lobe is lost, when it continues beyond within 20 degrees (fibres do not end inside white matter); 0 = off.</td>
-</tr>
-<tr>
-<td><code>rel</code></td>
-<td>numeric</td>
-<td><code>0.1</code></td>
-<td>hinec, mmf</td>
-<td>A lift is a local maximum of p(x,.) of at least rel times the voxel maximum.</td>
-</tr>
-<tr>
-<td><code>mass_min</code></td>
-<td>numeric</td>
-<td><code>0.1</code></td>
-<td>hinec, mmf</td>
-<td>Minimum lobe mass of a lift: the share of the deconvolved fibre within 20 degrees of it, an estimate of its volume fraction.</td>
-</tr>
-<tr>
-<td><code>max_lifts</code></td>
-<td>numeric</td>
-<td><code>3</code></td>
-<td>hinec, mmf</td>
-<td>Maximum lifts per voxel.</td>
-</tr>
-<tr>
-<td><code>sep</code></td>
-<td>numeric</td>
-<td><code>15</code></td>
-<td>hinec, mmf</td>
-<td>Minimum angle (degrees) between two lifts of a voxel.</td>
-</tr>
-<tr>
-<td><code>ndirs</code></td>
-<td>numeric</td>
-<td><code>300</code></td>
-<td>hinec, mmf</td>
-<td>Dictionary directions on the half sphere for the non-negative deconvolution.</td>
-</tr>
-<tr>
-<td><code>kappa</code></td>
-<td>numeric</td>
-<td><code>20</code></td>
-<td>hinec, mmf</td>
-<td>Concentration of the Watson kernel W(t) = exp(kappa (t^2 - 1)) of the orientation density p = sum_j a_j W(u.n_j).</td>
-</tr>
-<tr>
-<td><code>ref_fa_pct</code></td>
-<td>numeric</td>
-<td><code>90</code></td>
-<td>hinec, mmf</td>
-<td>The single-fibre kernel is the median DTI l1 and (l2 + l3)/2 of the voxels above this FA percentile of the tissue.</td>
-</tr>
-<tr>
-<td><code>iso</code></td>
-<td>string</td>
-<td><code>auto</code></td>
-<td>hinec, mmf</td>
-<td>Isotropic compartments of the forward model, which carry no direction: auto = the hindered (l_perp) and the free water (3e-3 mm^2/s); none = sticks only (false lifts where the tissue is isotropic).</td>
-</tr>
-<tr>
-<td><code>continuation</code></td>
-<td>numeric</td>
-<td><code>0</code></td>
-<td>hinec, mmf</td>
-<td>Continuation prior beta (nim_lift_field): a second deconvolution whose prior of few lifts weighs direction n_j by c_j = 1 - beta max W(n_j . u^), u^ the moving-frame continuation of each neighbouring lift to the voxel (its nodal connection, curvature included); the directions a neighbouring fibre continues into cost less. 0 = off; needs lift.sparsity &gt; 0.</td>
-</tr>
-<tr>
-<td><code>sparsity</code></td>
-<td>numeric</td>
-<td><code>0.1</code></td>
-<td>hinec, mmf</td>
-<td>Prior of few lifts: the deconvolution minimises ||K a + K_iso c - y||^2 + sparsity (sum_j a_j)^2, so broad or isotropic signal goes to the isotropic compartments instead of becoming false lifts. ISMRM 2015 slab (32 directions): 0.1 keeps one lift in 85% of the single-bundle voxels at the v1 error (7.3 vs 7.5 deg) and halves the error in two-bundle crossings (12.8 vs 24.9 deg); 0 = none.</td>
-</tr>
-<tr>
-<td><code>read_min</code></td>
-<td>numeric</td>
-<td><code>0.25</code></td>
-<td>mmf</td>
-<td>The tracker reads a lift at a point when the corners carrying a lift within 30 degrees of the heading hold at least this share of the trilinear weight (renormalised over them). Inside crossings the weaker lift is missing at scattered nodes; at 0.5 31.9% of ISMRM 2015 half-tracks stopped there with 0.25-0.5 of the weight still on their lift.</td>
-</tr>
-<tr>
-<td><code>interp</code></td>
-<td>string</td>
-<td><code>corner</code></td>
-<td>mmf</td>
-<td>How the lifted field is read at a point (nim_lift_connection): corner = at each of the 8 corners the lift nearest the heading, trilinear (C0, jumps where a corner switches lift); sheet_linear / sheet_cubic = the local sheet of the heading on the 4 x 4 x 4 nodes (branch-matched from the nearest corner), interpolated trilinearly / with the Keys cubic kernel (C1, interpolation.method: cubic).</td>
-</tr>
-<tr>
-<td><code>stencil</code></td>
-<td>string</td>
-<td><code>ls</code></td>
-<td>mmf</td>
-<td>Derivative of each lift along its matched branch for the lifted nodal connection (nim_lift_connection): ls = least-squares slope over t = -2..2; fd4 = the stencil of the nodal connection of field: dti, (M_-2 - 8 M_-1 + 8 M_+1 - M_+2) / 12. On the ISMRM ground truth, bends with kappa &gt; 0.15: ls reads 0.37-0.61 of the curvature, fd4 0.45-0.71.</td>
-</tr>
-<tr>
-<td><code>read_tol</code></td>
-<td>numeric</td>
-<td><code>30</code></td>
-<td>mmf</td>
-<td>Degrees: a node contributes its lift to the point the tracker reads only when that lift is within read_tol of the heading. With mmf.hold the share of the weight so read is the confidence: the tract coasts where it falls below mmf.hold_min.</td>
-</tr>
-<tr>
-<td><code>fit</code></td>
-<td>logical</td>
-<td><code>false</code></td>
-<td>hinec, mmf</td>
-<td>Refit the stick model of each voxel from its lifts (Levenberg-Marquardt). Off: on synthetic crossings it undoes the regularisation along the fibres.</td>
-</tr>
-</tbody>
-</table>
 <h4 id="tractographymmf"><code>tractography.mmf</code><a class="headerlink" href="#tractographymmf" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
@@ -2948,7 +2744,7 @@ parameter. A key marked <code>hinec</code> is ignored by <code>standard</code>, 
 <td>numeric</td>
 <td><code>0.2</code></td>
 <td>mmf</td>
-<td>Drift tolerance of the adaptive mode, radians: the angle between the carried e1 and the data's e1 (modulo sign) at the end of a step at or above which the frame is re-read from the data. 0 re-anchors after every step like mode reanchor; a value above pi never, like transport. The default 0.2 is the tolerance of MMF-4s, the default scheme of algorithm: mmf (see mmf.hold), and of MMF-4h; config/mmf_dti.yml sets 0.001.</td>
+<td>Drift tolerance of the adaptive mode, radians: the angle between the carried e1 and the data's e1 (modulo sign) at the end of a step at or above which the frame is re-read from the data. 0 re-anchors after every step like mode reanchor; a value above pi never, like transport. The default 0.2 is the tolerance of MMF-4s, the default scheme of algorithm: mmf (see mmf.hold).</td>
 </tr>
 <tr>
 <td><code>gradient_delta</code></td>
@@ -2976,7 +2772,7 @@ parameter. A key marked <code>hinec</code> is ignored by <code>standard</code>, 
 <td>string</td>
 <td><code>march</code></td>
 <td>mmf</td>
-<td>How a tract crosses degenerate data, where the tensor is a crossing fitted as a pancake and its principal axis means nothing (see mmf.hold_min). none = it does not (MMF-4a, the adaptive mode alone): the tract reads the data, follows the axis of the pancake or stops on angle_max. hold = MMF-4h: it coasts through the zone on the mean connection of its last trusted nodes (advanceFrame 'Confidence'), a circle when the twist is zero. march = MMF-4s, the default, so that algorithm: mmf alone is MMF-4s: it coasts on the curvature and the fan-out of those nodes marched by the flatness law of the connection ('HoldCurvature' 'march'), exact on circles, logarithmic spirals and rays, and turning the curvature by the torsion on a helix. hold and march read nim.eval. Leaving the volume stops a tract inside the zone too; since 2026-11-16 the mask and the FA floor do not (the tract runs on straight through them, as elsewhere). config/mmf_dti.yml sets none, config/mmf_dti_hold.yml hold and config/mmf_dti_march.yml march; docs/MMF_TRACTOGRAPHY.md has the scores against the ground truth of the ISMRM 2015 phantom.</td>
+<td>How a tract crosses degenerate data, where the tensor is a crossing fitted as a pancake and its principal axis means nothing (see mmf.hold_min). march = MMF-4s, the default, so that algorithm: mmf alone is MMF-4s: the tract coasts through the zone (advanceFrame 'Confidence') on the curvature and the fan-out of its last trusted nodes marched by the flatness law of the connection ('HoldCurvature' 'march'), exact on circles, logarithmic spirals and rays, and turning the curvature by the torsion on a helix. Also accepted: none = no coasting, the tract reads the data, follows the axis of the pancake or stops on angle_max; hold = it coasts on the mean connection of those nodes, held constant. hold and march read nim.eval. Leaving the volume stops a tract inside the zone too; since 2026-11-16 the mask and the FA floor do not (the tract runs on straight through them, as elsewhere). config/mmf_dti_march.yml is the preset; docs/MMF_TRACTOGRAPHY.md has the scores against the ground truth of the ISMRM 2015 phantom.</td>
 </tr>
 <tr>
 <td><code>hold_min</code></td>
@@ -3004,7 +2800,7 @@ parameter. A key marked <code>hinec</code> is ignored by <code>standard</code>, 
 <td>numeric</td>
 <td><code>Inf</code></td>
 <td>mmf</td>
-<td>Longest coast, voxels of arc (advanceFrame 'CoastMax' = coast_max/step steps): a tract still in the zone after this stops with reason coast. Inf, the default, is no cap: the coast goes on until it leaves the zone, leaves the volume or reaches max_arc (in nim_tractography_mmf_ml the mask and the FA floor stop it too). The scores of docs/MMF_TRACTOGRAPHY.md were measured with 12.</td>
+<td>Longest coast, voxels of arc (advanceFrame 'CoastMax' = coast_max/step steps): a tract still in the zone after this stops with reason coast. Inf, the default, is no cap: the coast goes on until it leaves the zone, leaves the volume or reaches max_arc. The scores of docs/MMF_TRACTOGRAPHY.md were measured with 12.</td>
 </tr>
 <tr>
 <td><code>exit_tol</code></td>
@@ -3025,21 +2821,7 @@ parameter. A key marked <code>hinec</code> is ignored by <code>standard</code>, 
 <td>logical</td>
 <td><code>true</code></td>
 <td>mmf</td>
-<td>Seed only in trusted data (mmf.hold hold or march): a seed whose confidence, read as the scheme reads it at a node (CL interpolated over the tissue and eroded by mmf.hold_guard), is below mmf.hold_min has no trusted node and would coast straight along the filled axis; it is not tracked and is counted in meta.mmf.seeds_skipped as zone. The erosion also skips seeds within about mmf.hold_guard of the zone. false = track it (the behaviour before 2026-11-16). No effect with hold: none, and not read by the runs of nim_tractography_mmf_ml (field: lift or mmf.veto_arc &gt; 0).</td>
-</tr>
-<tr>
-<td><code>veto_arc</code></td>
-<td>numeric</td>
-<td><code>0</code></td>
-<td>mmf</td>
-<td>History veto of mmf.hold, look-back in voxels of arc (advanceFrame_ml 'VetoK' = round(veto_arc/step); a run with it goes to nim_tractography_mmf_ml); 0 = off. A trusted step whose end the data see more than mmf.veto_tol from the heading veto_arc back is not taken: the tract returns there and coasts on its ring (a crossing whose tensor looks linear along the other bundle).</td>
-</tr>
-<tr>
-<td><code>veto_tol</code></td>
-<td>numeric</td>
-<td><code>0.5236</code></td>
-<td>mmf</td>
-<td>History veto: largest angle, radians, between the data e1 at a step end and the heading mmf.veto_arc back (advanceFrame_ml 'VetoTol'; 0.5236 = 30 deg).</td>
+<td>Seed only in trusted data (mmf.hold hold or march): a seed whose confidence, read as the scheme reads it at a node (CL interpolated over the tissue and eroded by mmf.hold_guard), is below mmf.hold_min has no trusted node and would coast straight along the filled axis; it is not tracked and is counted in meta.mmf.seeds_skipped as zone. The erosion also skips seeds within about mmf.hold_guard of the zone. false = track it (the behaviour before 2026-11-16). No effect with hold: none.</td>
 </tr>
 </tbody>
 </table>

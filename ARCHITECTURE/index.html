@@ -1367,34 +1367,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../MMF_ML/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Multilayer Moving Frames (MMF-ml)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../RKF/" class="md-nav__link">
         
   
@@ -2874,7 +2846,7 @@
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>│   ├── hinec_dti_cubic_recall.yml  #   Cubic, recall-tuned termination
 <a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>│   ├── hinec_dti_fast.yml          #   RK2, quick screening
 <a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>│   ├── hinec_dti_euler.yml         #   Euler, lowest-order comparison point
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>│   ├── mmf_dti.yml                 #   Moving frames tractography, DTI field
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>│   ├── mmf_dti_march.yml           #   Moving frames tractography (MMF-4s), DTI field
 <a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>│   ├── ismrm2015.yml               #   ISMRM 2015 challenge dataset
 <a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>│   ├── irontract.yml               #   IronTract challenge dataset
 <a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>│   └── reference.yml               #   Convergence-ladder template
@@ -3678,8 +3650,8 @@ proceeds without ACT.</p>
   the default) or is a sign-aligned central difference of its principal axis (<code>derivative</code>)</li>
 <li><code>mmf.mode</code> (<code>transport</code> / <code>reanchor</code> / <code>adaptive</code>) and <code>mmf.reanchor_tol</code> set how the
   carried frame is re-anchored to the data</li>
-<li><code>mmf.hold</code> (<code>none</code> / <code>hold</code> / <code>march</code>) lets a tract coast through degenerate data on the
-  connection of its last trusted nodes, held (MMF-4h) or marched (MMF-4s, the default)</li>
+<li><code>mmf.hold</code> (<code>march</code>, the default: MMF-4s) lets a tract coast through degenerate data on the
+  connection of its last trusted nodes, marched by the flatness of the connection</li>
 <li>DTI only (<code>field: csd</code> is rejected); ACT masks are not used</li>
 </ul>
 <p>The trackers share these stopping criteria:</p>
@@ -3867,7 +3839,7 @@ the schema by canonical path, by <code>group.key</code>, or by a bare leaf name 
 <td>0.5</td>
 </tr>
 <tr>
-<td><code>mmf_dti.yml</code></td>
+<td><code>mmf_dti_march.yml</code></td>
 <td>tracker</td>
 <td>mmf</td>
 <td>dti</td>
