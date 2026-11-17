@@ -18,6 +18,10 @@
   were measured with the former defaults and were not measured again.
 - A numeric key whose range has `Inf` as a bound takes `inf`, `Inf` or `.inf` in a
   config file and with `--set`; any other numeric key still rejects it.
+- `advanceFrame.m` and `advanceFrame_ml.m` themselves now default `'ExitTol'` to `Inf`
+  (it was `'ReanchorTol'`), as the moving-frames test suite's version does. No run
+  through the trackers changes: they always pass `mmf.exit_tol`. Only a direct call
+  of `advanceFrame` with `'Confidence'` and no `'ExitTol'` loses its exit test.
 
 ## 2026-11-16 - `algorithm: mmf`: a non-finite connection no longer stops a tract
 

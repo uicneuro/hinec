@@ -98,8 +98,8 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 transported e_1 and the data's e_1 (modulo sign) at the
 %                 end of the step. 0 re-anchors after every step like
 %                 'reanchor', Inf never, like 'transport'. Ignored by the
-%                 other modes, and the default of 'ExitTol' of the hold
-%                 scheme. The default is an order of magnitude below
+%                 other modes ('ExitTol' of the hold scheme had it as its
+%                 default before 2026-11-17). The default is an order of magnitude below
 %                 the heading error of a one-voxel CF4 step across a bend
 %                 (~1e-2 rad) and above the step-to-step wobble of the
 %                 interpolated test data at normal steps, so it fires on
@@ -241,7 +241,9 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 largest number of consecutive steps started in the zone
 %                 (default Inf)
 %       'ExitTol' largest drift, in radians, of a tract leaving the zone
-%                 (default 'ReanchorTol'). Trusted tracking and this test
+%                 (default Inf: no test, a tract leaving the zone is
+%                 always re-anchored; 'ReanchorTol' before 2026-11-17).
+%                 Trusted tracking and this test
 %                 want different things of noisy data: a tolerance small
 %                 enough to keep to the data, and one above the disagreement
 %                 of neighbouring voxels.
@@ -411,7 +413,7 @@ twist   = 'data';
 frame0  = [];
 maxTurn = 0.5;
 reanchorTol = 1e-3;
-exitTol    = [];             % hold scheme: the test on leaving the zone ([]: reanchorTol)
+exitTol    = Inf;            % hold scheme: the test on leaving the zone (Inf: none)
 confidence = [];             % the hold scheme: confidence of the data (handle or nodal field)
 holdMin    = 0.2;
 holdK      = 3;
@@ -609,9 +611,6 @@ marchHold = useHold && strcmp(holdCurv, 'march');    % MMF-4s
 if marchHold && m == 3 && (~dropTwist || strcmp(holdTwist, 'hold') || strcmp(holdDiv, 'hold'))
     error('advanceFrame:badOptions', ['''HoldCurvature'' ''march'' (MMF-4s) with 3 frame vectors needs a rotation-minimizing ' ...
         'frame and the divergence term zero: use ''Twist'' ''zero''; ''HoldTwist'' and ''HoldDivergence'' ''hold'' are not defined for it.']);
-end
-if isempty(exitTol)
-    exitTol = reanchorTol;
 end
 holdDivOn = marchHold && strcmp(holdDiv, 'hold');
 if holdDivOn && isempty(evalMF)
