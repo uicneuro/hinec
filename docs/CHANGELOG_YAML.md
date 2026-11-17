@@ -1,41 +1,44 @@
 # YAML Configuration Changelog
 
-## 2026-11-17 - `mmf.seed_trusted` in `nim_tractography_mmf_ml` too
+## 2026-11-17 - MMF-ml (multilayer moving frames) removed
 
-- No new key. `nim_tractography_mmf_ml` (the runs with `field: lift` or
-  `mmf.veto_arc > 0`) now reads `tractography.mmf.seed_trusted` (default `true`) as
-  `nim_tractography_mmf` does since 2026-11-16: with `mmf.hold` `hold` or `march`, a
-  seed whose confidence is finite and below `mmf.hold_min` is not tracked. The
-  confidence is the one the scheme reads at a node: CL on `field: dti`, and on
-  `field: lift` the read weight of the lift of the seed's heading (the lower of the
-  two directions the seed is tracked in). The seed is counted in
-  `meta.mmf.seeds_skipped` under `zone`, its `debug.trace` record keeps its
-  confidence, and `meta.mmf` gains `seed_trusted`.
-- **Behaviour change** for those runs, `config/mmf_ml.yml` included: the seeds in the
-  zone are no longer tracked. `seed_trusted: false` restores the tracker as it was.
-  The scores of [MMF_ML.md](MMF_ML.md) were measured before and not measured again.
+- Removed: the MMF-ml scheme of 2026-11-07 and everything that existed only for it.
+  `field: lift` is no longer a value of `tractography.field` (it is `dti | csd`
+  again), for `algorithm: mmf` and for `algorithm: hinec`, where the lifts were a
+  peak field. The whole group `tractography.lift.*` is gone, and so are
+  `tractography.mmf.veto_arc` and `tractography.mmf.veto_tol` (the history veto,
+  which only the MMF-ml copy of the scheme had). A config that sets any of them is
+  rejected as an unknown key or value.
+- Files removed: `src/nim_tractography/advanceFrame_ml.m`,
+  `nim_tractography_mmf_ml.m`, `nim_lift_connection.m`,
+  `src/nim_calculation/nim_lift_field.m`, `config/mmf_ml.yml`, `docs/MMF_ML.md`,
+  `scripts/lift_field_check.py`, `tests/fixtures/make_lift_crossing_nim.m` and the
+  tests `TestAdvanceFrameMl`, `TestLiftField`, `TestMmfHistoryVeto`.
+  `runTractography` sends every `algorithm: mmf` run to `nim_tractography_mmf`.
+- Kept: `seeding.cl_min` and `seeding.coherence_min`, which came with the same commit
+  but are not part of the scheme. Cached lifts beside a dataset
+  (`<nim>_lift_<hash>.mat`) are not deleted and are no longer read.
+- The entries below that mention MMF-ml, `field: lift`, the veto or the `_ml` files
+  describe the code as it was. The last commit with MMF-ml is `9c81caf`.
 
 ## 2026-11-17 - `mmf.exit_tol` and `mmf.coast_max` are `Inf` by default
 
 - The defaults of `tractography.mmf.exit_tol` and `tractography.mmf.coast_max` are now
   `Inf` (they were `0.5` rad and `12` voxels of arc): no exit test and no cap of the
   coast. A tract leaving the degenerate zone is always re-anchored on the data, and a
-  tract still in the zone coasts on until it leaves the volume or reaches `max_arc`
-  (in `nim_tractography_mmf_ml` the mask and the FA floor stop it too). The trackers' own defaults (`nim_tractography_mmf`,
-  `nim_tractography_mmf_ml`) follow. The ranges of the two keys are `[0, Inf]`.
+  tract still in the zone coasts on until it leaves the volume or reaches `max_arc`. The tracker's own defaults (`nim_tractography_mmf`) follow. The ranges of the two keys are `[0, Inf]`.
 - **Behaviour change** for every config with `mmf.hold: hold` or `march` (the default)
   that sets neither key: the stops `exit` and `coast` no longer occur. With
   `termination.angle_max: 0`, as in `config/mmf_dti_hold.yml` and
   `config/mmf_dti_march.yml`, nothing then tests the direction of a tract leaving the
-  zone. `config/mmf_ml.yml` sets `exit_tol: 1.2` and keeps its exit test; its coast
-  has no cap now. Set `exit_tol: 0.5` and `coast_max: 12` for the former behaviour.
-- The scores of [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md) and [MMF_ML.md](MMF_ML.md)
+  zone. Set `exit_tol: 0.5` and `coast_max: 12` for the former behaviour.
+- The scores of [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md)
   were measured with the former defaults and were not measured again.
 - A numeric key whose range has `Inf` as a bound takes `inf`, `Inf` or `.inf` in a
   config file and with `--set`; any other numeric key still rejects it.
-- `advanceFrame.m` and `advanceFrame_ml.m` themselves now default `'ExitTol'` to `Inf`
+- `advanceFrame.m` itself now defaults `'ExitTol'` to `Inf`
   (it was `'ReanchorTol'`), as the moving-frames test suite's version does. No run
-  through the trackers changes: they always pass `mmf.exit_tol`. Only a direct call
+  through the tracker changes: it always passes `mmf.exit_tol`. Only a direct call
   of `advanceFrame` with `'Confidence'` and no `'ExitTol'` loses its exit test.
 
 ## 2026-11-16 - `algorithm: mmf`: a non-finite connection no longer stops a tract

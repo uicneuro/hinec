@@ -275,13 +275,6 @@ function [groups, d] = options_dictionary()
     d.length_y_abs = {'tractography.filter.length_y_abs', 'step 5: total y, mm'};
     d.length_z_abs = {'tractography.filter.length_z_abs', 'step 5: total z, mm'};
     d.csd_lmax         = {'tractography.csd.lmax', 'used by nim_field (step 2) to build nim.peaks; not read by trackers'};
-    d.lift_read_tol = {'tractography.lift.read_tol', 'field: lift: degrees within which a node''s lift is read for the heading; with mmf.hold the read weight is the confidence'};
-    d.lift_stencil = {'tractography.lift.stencil', 'field: lift: derivative of the lifts along their branches for the lifted nodal connection (ls | fd4)'};
-    d.lift_interp = {'tractography.lift.interp', 'field: lift: corner | sheet_linear | sheet_cubic, how the lifted field is read at a point'};
-    d.lift_read_min = {'tractography.lift.read_min', 'field: lift: least share of the trilinear weight on corners with a lift within 30 deg of the heading for the lifted field to be read'};
-    for lk = {'smooth', 'smooth_kernel', 'smooth_kappa', 'smooth_normals', 'bridge', 'rel', 'mass_min', 'max_lifts', 'sep', 'ndirs', 'kappa', 'ref_fa_pct', 'fit', 'iso', 'sparsity', 'continuation'}
-        d.(['lift_' lk{1}]) = {['tractography.lift.' lk{1}], 'field: lift, used by nim_field (step 2) to build nim.lift_U/lift_ok (nim_lift_field); not read by trackers'};
-    end
     d.csd_peaks_file   = {'tractography.csd.peaks_file', 'optional external peak MAT loaded by nim_field (step 2); empty uses native CSD'};
     d.csd_max_peaks    = {'tractography.csd.max_peaks', 'P, the peak dimension of nim.peaks'};
     d.csd_peak_thresh  = {'tractography.csd.peak_thresh', 'relative amplitude below which a peak is dropped'};
@@ -301,8 +294,6 @@ function [groups, d] = options_dictionary()
     d.mmf_exit_tol       = {'tractography.mmf.exit_tol', 'mmf only: largest drift, radians, of a tract leaving the zone (advanceFrame ''ExitTol'')'};
     d.mmf_exit_delay     = {'tractography.mmf.exit_delay', 'mmf only: arc of coast beyond the edge of the zone before the exit test, voxels'};
     d.mmf_seed_trusted   = {'tractography.mmf.seed_trusted', 'mmf only: with hold or march, a seed whose confidence is below hold_min is not tracked (seeds_skipped: zone)'};
-    d.mmf_veto_arc       = {'tractography.mmf.veto_arc', 'mmf only: history veto look-back, voxels of arc (0 = off)'};
-    d.mmf_veto_tol       = {'tractography.mmf.veto_tol', 'mmf only: history veto, largest angle between data e1 and the heading veto_arc back, radians'};
     d.trace     = {'tractography.debug.trace', 'record a per-step trace (position, direction, FA, turn, stop reason) into meta.trace'};
     d.trace_max = {'tractography.debug.trace_max', 'how many seeds to trace, sampled evenly (0 = all)'};
     d.output_arc_step   = {'tractography.output.arc_step', 'step 6: resample saved tracks to this arc spacing (0 = keep every step)'};
@@ -319,8 +310,7 @@ function [groups, d] = options_dictionary()
     groups(end+1) = struct('title', 'ACT', 'fields', {{'act_enabled','wm_mask','gm_mask','csf_mask'}});
     groups(end+1) = struct('title', 'field construction (consumed in step 2, not by the tracker)', 'fields', ...
         {{'csd_lmax','csd_peaks_file','csd_max_peaks','csd_peak_thresh','csd_peak_min_sep','csd_n_iter'}});
-    groups(end+1) = struct('title', 'lift', 'fields', {{'lift_smooth','lift_smooth_kernel','lift_smooth_kappa','lift_smooth_normals','lift_bridge','lift_rel','lift_mass_min','lift_max_lifts','lift_sep','lift_ndirs','lift_kappa','lift_ref_fa_pct','lift_fit','lift_iso','lift_sparsity','lift_continuation','lift_read_min','lift_read_tol','lift_stencil','lift_interp'}});
-    groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_mode','mmf_reanchor_tol','mmf_gradient_delta','mmf_connection','mmf_max_turn','mmf_hold','mmf_hold_min','mmf_hold_k','mmf_hold_guard','mmf_coast_max','mmf_exit_tol','mmf_exit_delay','mmf_seed_trusted','mmf_veto_arc','mmf_veto_tol'}});
+    groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_mode','mmf_reanchor_tol','mmf_gradient_delta','mmf_connection','mmf_max_turn','mmf_hold','mmf_hold_min','mmf_hold_k','mmf_hold_guard','mmf_coast_max','mmf_exit_tol','mmf_exit_delay','mmf_seed_trusted'}});
     groups(end+1) = struct('title', 'stitching', 'fields', {{'stitching'}});
     groups(end+1) = struct('title', 'post-processing (steps 5-6, not read by the tracker)', 'fields', ...
         {{'include_roi','exclude_roi','roi_filter_mode','roi_filter_dilate','endpoints_in','contained_in','any_in', ...

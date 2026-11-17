@@ -117,7 +117,7 @@ function tf = is_default(v, d)
             tf = strcmp(char(v), char(d)); return;
         end
         if islogical(v) || islogical(d), tf = isequal(logical(v), logical(d)); return; end
-        if isnumeric(v) && isnumeric(d), tf = isequal(double(v), double(d)); return; end   % vectors too (lift.smooth_kappa)
+        if isnumeric(v) && isnumeric(d), tf = isequal(double(v), double(d)); return; end   % vectors too
         tf = isequal(v, d);
     catch
         tf = false;

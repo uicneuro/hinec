@@ -424,11 +424,7 @@ track_meta = struct();   % populated by hinec, mmf, stitching and template; empt
 if strcmpi(algorithm, 'mmf')
     fprintf('Running moving frames tractography (advanceFrame: frame transport by the connection, exponential step)...\n');
     tic;
-    if needs_mmf_ml(options)   % field: lift (MMF-ml) or the history veto: the copy with the additions
-        [tracks, track_meta] = nim_tractography_mmf_ml(nim, options);
-    else                       % Sehun Chun's tracker, unchanged
-        [tracks, track_meta] = nim_tractography_mmf(nim, options);
-    end
+    [tracks, track_meta] = nim_tractography_mmf(nim, options);
     elapsed_time = toc;
     output_filename = sprintf('tracks_mmf_%s.mat', timestamp);
 elseif strcmpi(algorithm, 'hinec')
@@ -602,11 +598,4 @@ if isfield(s, field) && ~isempty(s.(field))
 else
     val = default;
 end
-end
-
-function tf = needs_mmf_ml(options)
-% algorithm: mmf runs nim_tractography_mmf_ml (MMF-ml, docs/MMF_ML.md) for what only that copy has, the
-% layered field (field: lift) and the history veto (mmf.veto_arc > 0); everything else runs nim_tractography_mmf.
-tf = (isfield(options, 'field') && strcmpi(char(options.field), 'lift')) || ...
-     (isfield(options, 'mmf_veto_arc') && ~isempty(options.mmf_veto_arc) && options.mmf_veto_arc > 0);
 end
