@@ -112,6 +112,10 @@ function value = parse_scalar(str)
     end
     if strcmpi(str, 'true'),  value = true;  return; end
     if strcmpi(str, 'false'), value = false; return; end
+    if ~isempty(regexpi(str, '^[+-]?\.?inf$', 'once'))           % inf, Inf, .inf: no limit, for the keys whose range allows it
+        value = Inf;  if str(1) == '-', value = -Inf; end
+        return;
+    end
     num = str2double(str);
     if ~isnan(num) && ~isempty(regexp(str, '^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$', 'once'))
         value = num; return;
@@ -123,7 +127,7 @@ end
 function v = check_override(v, entry, key)
     switch entry.type
         case 'numeric'
-            if ~isnumeric(v) || ~isscalar(v) || ~isfinite(v)
+            if ~isnumeric(v) || ~isscalar(v) || isnan(v) || (isinf(v) && ~any(entry.range == v))   % Inf only as a bound of the range
                 error('nim_config_apply_overrides:badType', ...
                     '--set %s: expected a number.', key);
             end

@@ -289,8 +289,9 @@ tractography:
                              # degenerate data instead of reading it
     hold_min: 0.2            # linear shape CL below which the data are degenerate
     coast_max: 12            # voxels of arc; a longer coast stops the tract
+                             # (default inf: no cap)
     exit_tol: 0.5            # radians; heading off the data at which leaving the
-                             # zone stops the tract
+                             # zone stops the tract (default inf: no exit test)
 ```
 
 Every key, its type, range and default is generated from the schema

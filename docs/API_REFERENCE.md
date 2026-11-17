@@ -621,8 +621,8 @@ plus:
 | `mmf.hold_min` | `mmf_hold_min` | 0.2 | Linear shape CL below which the data are degenerate |
 | `mmf.hold_k` | `mmf_hold_k` | 3 | Trusted nodes the coast starts from |
 | `mmf.hold_guard` | `mmf_hold_guard` | 0.5 | Erosion radius of the confidence, voxels |
-| `mmf.coast_max` | `mmf_coast_max` | 12 | Longest coast, voxels of arc |
-| `mmf.exit_tol` | `mmf_exit_tol` | 0.5 | Largest angle (radians) to the data with which a tract may leave the zone |
+| `mmf.coast_max` | `mmf_coast_max` | Inf | Longest coast, voxels of arc (Inf: no cap) |
+| `mmf.exit_tol` | `mmf_exit_tol` | Inf | Largest angle (radians) to the data with which a tract may leave the zone (Inf: no exit test) |
 | `mmf.exit_delay` | `mmf_exit_delay` | 0 | Arc of coast beyond the edge of the zone before that test, voxels |
 
 ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle limit

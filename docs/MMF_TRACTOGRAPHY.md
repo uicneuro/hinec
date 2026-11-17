@@ -174,7 +174,11 @@ nothing else, so neither the edge of the mask nor the FA floor is a zone.
 
 **Leaving it.** In the `adaptive` and `reanchor` modes, a tract reaching a trusted
 node is re-anchored if its heading is within `exit_tol` of the data; otherwise the
-coast has left the bundle and it stops (`exit`). The heading test of
+coast has left the bundle and it stops (`exit`). Since 2026-11-17 `exit_tol` and
+`coast_max` are `Inf` by default: no exit test, a tract leaving the zone is always
+re-anchored, and no cap of the coast. The scores below were measured with
+`exit_tol: 0.5` and `coast_max: 12`, the defaults until then, and were not measured
+again; set the two keys to get them. The heading test of
 `angle_max` comes first: data at the end of the step further from the heading
 at its start than `angle_max` allows stop the tract with `angle`. In `transport` mode nothing is re-anchored or tested on leaving: the tract
 keeps its heading and only `angle_max` applies. `exit_tol` is apart from

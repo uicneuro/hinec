@@ -1,5 +1,24 @@
 # YAML Configuration Changelog
 
+## 2026-11-17 - `mmf.exit_tol` and `mmf.coast_max` are `Inf` by default
+
+- The defaults of `tractography.mmf.exit_tol` and `tractography.mmf.coast_max` are now
+  `Inf` (they were `0.5` rad and `12` voxels of arc): no exit test and no cap of the
+  coast. A tract leaving the degenerate zone is always re-anchored on the data, and a
+  tract still in the zone coasts on until the volume, the mask, the FA floor or
+  `max_arc` stops it. The trackers' own defaults (`nim_tractography_mmf`,
+  `nim_tractography_mmf_ml`) follow. The ranges of the two keys are `[0, Inf]`.
+- **Behaviour change** for every config with `mmf.hold: hold` or `march` (the default)
+  that sets neither key: the stops `exit` and `coast` no longer occur. With
+  `termination.angle_max: 0`, as in `config/mmf_dti_hold.yml` and
+  `config/mmf_dti_march.yml`, nothing then tests the direction of a tract leaving the
+  zone. `config/mmf_ml.yml` sets `exit_tol: 1.2` and keeps its exit test; its coast
+  has no cap now. Set `exit_tol: 0.5` and `coast_max: 12` for the former behaviour.
+- The scores of [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md) and [MMF_ML.md](MMF_ML.md)
+  were measured with the former defaults and were not measured again.
+- A numeric key whose range has `Inf` as a bound takes `inf`, `Inf` or `.inf` in a
+  config file and with `--set`; any other numeric key still rejects it.
+
 ## 2026-11-10 - `algorithm: mmf` is MMF-4s by default
 
 - The defaults of `tractography.mmf.hold` and `tractography.mmf.reanchor_tol` are now

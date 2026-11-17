@@ -81,7 +81,8 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % and fan-out marched by the flatness law of the connection (marched), and on
 % leaving the zone it is re-anchored if its heading agrees with the data and
 % stops otherwise ('exit', by mmf.exit_tol, in the adaptive and reanchor modes; a
-% coast longer than mmf.coast_max stops, 'coast'; a
+% coast longer than mmf.coast_max stops, 'coast'; both are Inf by default, no
+% test and no cap; a
 % marched coast that reaches the focus of its fan stops, 'focus'). The confidence
 % is the linear shape CL = (lambda_1 - lambda_2)/lambda_1 of the voxel tensors,
 % interpolated linearly and eroded by mmf.hold_guard voxels, see confidence_at.
@@ -116,8 +117,8 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %   mmf_hold           'none' | 'hold' | 'march' (default 'march', MMF-4s; needs nim.eval), and for those
 %   mmf_hold_min, mmf_hold_k, mmf_hold_guard, mmf_coast_max, mmf_exit_tol,
 %   mmf_exit_delay     the confidence floor, the ring, the erosion radius, the
-%                      longest coast, the test on leaving the zone and the arc
-%                      of coast before it
+%                      longest coast (default Inf: no cap), the test on leaving the
+%                      zone (default Inf: no test) and the arc of coast before it
 %   angle_thresh       degrees of turning per VOXEL OF ARC (nim_angle_limit),
 %                      applied as advanceFrame's 'MaxTurn', see above
 %   max_arc            arc length followed from the seed in each direction
@@ -188,13 +189,13 @@ if use_hold && (~isfield(nim, 'eval') || isempty(nim.eval))
     error('mmf:hold', 'nim_tractography_mmf: mmf.hold needs the eigenvalues nim.eval for the confidence of the data.');
 end
 hold_min   = o('mmf_hold_min', 0.2);
-exit_tol   = o('mmf_exit_tol', 0.5);
+exit_tol   = o('mmf_exit_tol', Inf);                       % Inf: no exit test
 hold_k     = o('mmf_hold_k', 3);
 if use_hold && (hold_k < 1 || hold_k ~= round(hold_k))
     error('mmf:hold', 'nim_tractography_mmf: tractography.mmf.hold_k must be a positive integer, not %g.', hold_k);
 end
 hold_guard = o('mmf_hold_guard', 0.5);
-coast_max  = o('mmf_coast_max', 12);
+coast_max  = o('mmf_coast_max', Inf);                      % Inf: no cap of the coast
 exit_delay = o('mmf_exit_delay', 0);
 maxTurn = deg2rad(nim_angle_limit(options.angle_thresh, h));   % min(angle_max*h, 90) deg per step; Inf disables
 angle_off = ~isfinite(maxTurn);
@@ -340,8 +341,10 @@ hold_args = {};
 if use_hold
     hold_args = {'Confidence', @(X) confidence_at(X, fld), 'HoldMin', hold_min, 'HoldK', hold_k, 'HoldCurvature', hold_mode, ...
                  'CoastMax', round(coast_max / h), 'ExitTol', exit_tol, 'ExitDelay', round(exit_delay / h)};
-    fprintf('MMF: %s through degenerate data, CL below %.3g (%.1f%% of the tissue voxels) eroded by %.3g voxel, from %d trusted nodes, at most %.3g voxels of arc\n', ...
-        ifelse(strcmp(hold_mode, 'hold'), 'MMF-4h holds the connection', 'MMF-4s marches the connection'), hold_min, 100 * zone_fraction, hold_guard, hold_k, coast_max);
+    fprintf('MMF: %s through degenerate data, CL below %.3g (%.1f%% of the tissue voxels) eroded by %.3g voxel, from %d trusted nodes, %s, %s\n', ...
+        ifelse(strcmp(hold_mode, 'hold'), 'MMF-4h holds the connection', 'MMF-4s marches the connection'), hold_min, 100 * zone_fraction, hold_guard, hold_k, ...
+        ifelse(isfinite(coast_max), sprintf('at most %.3g voxels of arc', coast_max), 'no cap of the coast'), ...
+        ifelse(isfinite(exit_tol), sprintf('exit test %.3g rad', exit_tol), 'no exit test'));
 end
 
 % ---- seeds -------------------------------------------------------------------
