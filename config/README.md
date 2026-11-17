@@ -113,23 +113,20 @@ stay directly comparable.
 |------------|-------------------|-------------------|
 | **standard** (FACT) | `standard_dti.yml` | — *(FACT is DTI-only)* |
 | **hinec** (interpolated) | `hinec_dti.yml` (+ variants below) | `hinec_csd.yml` |
-| **mmf** (moving frames) | `mmf_dti.yml`, `mmf_dti_hold.yml`, `mmf_dti_march.yml` | — *(DTI only; `csd` is rejected)* |
+| **mmf** (moving frames) | `mmf_dti_march.yml` | — *(DTI only; `csd` is rejected)* |
 
 - `standard_dti` — FACT, discrete voxel tensors, no interpolation. Deterministic baseline.
 - `hinec_dti` / `hinec_csd` — interpolated streamlines, trajectory-dependent
   direction, RKF45 + trilinear by default, optional ACT. `hinec_csd` computes
   its own FOD peaks (`nim_csd`) at track time — no separate step needed.
-- `mmf_dti` — moving frames tractography (`advanceFrame`): the fibre carries an
-  orthonormal frame transported by the connection of the data with the
-  closed-form exponential step; CF4 (`rk4`), spline kernel, adaptive
-  re-anchoring (`mmf.mode: adaptive`) alone: MMF-4a (`mmf.hold: none`,
-  `mmf.reanchor_tol` 0.001 rad). ACT masks are not used. See
-  [docs/MMF_TRACTOGRAPHY.md](../docs/MMF_TRACTOGRAPHY.md).
-- `mmf_dti_hold`, `mmf_dti_march` — `mmf_dti` coasting through degenerate data
-  (a crossing fitted as a pancake) instead of reading it: on the held connection of
-  the last trusted nodes (MMF-4h), or on that curvature and fan-out marched by the
-  flatness of the connection (MMF-4s), with `mmf.reanchor_tol` 0.2 rad and no
-  `angle_max` (`termination.angle_max: 0`: the scheme's exit test takes its place). The confidence
+- `mmf_dti_march` — moving frames tractography (`advanceFrame`), MMF-4s: the fibre
+  carries an orthonormal frame transported by the connection of the data with the
+  closed-form exponential step; CF4 (`rk4`), spline kernel, adaptive re-anchoring
+  (`mmf.mode: adaptive`, `mmf.reanchor_tol` 0.2 rad). Through degenerate data (a
+  crossing fitted as a pancake) it coasts instead of reading them, on the curvature
+  and fan-out of its last trusted nodes marched by the flatness of the connection.
+  No `angle_max` (`termination.angle_max: 0`). ACT masks are not used. See
+  [docs/MMF_TRACTOGRAPHY.md](../docs/MMF_TRACTOGRAPHY.md). The confidence
   floor `mmf.hold_min` belongs to the dataset: the tracker warns when it marks more
   than 40% of the tissue.
   MMF-4s (`mmf.hold: march`, `mmf.reanchor_tol` 0.2 rad) is also the schema default:
@@ -285,7 +282,7 @@ tractography:
     mode: adaptive           # transport | reanchor | adaptive
     reanchor_tol: 0.2        # radians; drift of the carried e1 from the data's e1
                              # at which the adaptive mode re-anchors
-    hold: march              # none (MMF-4a) | hold (MMF-4h) | march (MMF-4s): coast through
+    hold: march              # march (MMF-4s, the default): coast through
                              # degenerate data instead of reading it
     hold_min: 0.2            # linear shape CL below which the data are degenerate
     coast_max: 12            # voxels of arc; a longer coast stops the tract

@@ -32,7 +32,7 @@ classdef TestSeedClMask < matlab.unittest.TestCase
         end
 
         function schemaDefaultIsOff(tc)
-            c = load_config_yaml(fullfile(fileparts(mfilename('fullpath')), '..', '..', 'config', 'mmf_dti_hold.yml'));
+            c = load_config_yaml(fullfile(fileparts(mfilename('fullpath')), '..', '..', 'config', 'mmf_dti_march.yml'));
             tc.verifyEqual(c.tractography.seeding.cl_min, 0);
             o = nim_config_to_options(c);
             tc.verifyEqual(o.seed_cl_min, 0);

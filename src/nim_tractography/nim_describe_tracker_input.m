@@ -286,7 +286,7 @@ function [groups, d] = options_dictionary()
     d.mmf_gradient_delta = {'tractography.mmf.gradient_delta', 'mmf only: central-difference step (voxels) for the connection components'};
     d.mmf_connection     = {'tractography.mmf.connection', 'mmf only: nodal (connection at the voxel nodes, interpolated) | derivative (central difference of the interpolated field)'};
     d.mmf_max_turn       = {'tractography.mmf.max_turn', 'mmf only: MaxTurn, radians per step (0 = from angle_max)'};
-    d.mmf_hold           = {'tractography.mmf.hold', 'mmf only: none | hold (MMF-4h) | march (MMF-4s): how a tract crosses degenerate data; reads nim.eval'};
+    d.mmf_hold           = {'tractography.mmf.hold', 'mmf only: march (MMF-4s, the default; none and hold are accepted too): how a tract crosses degenerate data; reads nim.eval'};
     d.mmf_hold_min       = {'tractography.mmf.hold_min', 'mmf only: linear shape CL below which the data are degenerate (advanceFrame ''HoldMin'')'};
     d.mmf_hold_k         = {'tractography.mmf.hold_k', 'mmf only: trusted nodes the coast starts from (advanceFrame ''HoldK'')'};
     d.mmf_hold_guard     = {'tractography.mmf.hold_guard', 'mmf only: erosion radius of the confidence, voxels'};

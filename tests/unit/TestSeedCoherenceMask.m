@@ -52,7 +52,7 @@ classdef TestSeedCoherenceMask < matlab.unittest.TestCase
         end
 
         function schemaDefaultIsOff(tc)
-            c = load_config_yaml(fullfile(fileparts(mfilename('fullpath')), '..', '..', 'config', 'mmf_dti_hold.yml'));
+            c = load_config_yaml(fullfile(fileparts(mfilename('fullpath')), '..', '..', 'config', 'mmf_dti_march.yml'));
             tc.verifyEqual(c.tractography.seeding.coherence_min, 0);
             tc.verifyEqual(nim_config_to_options(c).seed_coherence_min, 0);
         end

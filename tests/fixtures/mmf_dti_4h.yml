@@ -5,7 +5,8 @@
 # with reanchor_tol 0.2 rad, which trusts the transported heading further: see the
 # scores against the ISMRM 2015 ground truth in docs/MMF_TRACTOGRAPHY.md.
 #
-# ./bin/run_tractography.sh mmf_dti_hold --score
+# A TEST FIXTURE since 2026-11-17 (it was config/mmf_dti_hold.yml): the tests of the
+# tracker read it. The shipped moving-frames config is config/mmf_dti_march.yml.
 #
 # Canonical nested schema. Only non-default values appear here;
 # everything else comes from nim_config_schema defaults.

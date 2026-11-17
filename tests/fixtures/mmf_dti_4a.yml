@@ -6,7 +6,8 @@
 # none here, while algorithm: mmf alone is MMF-4s (hold: march, reanchor_tol 0.2, the
 # schema defaults; config/mmf_dti_march.yml). See docs/MMF_TRACTOGRAPHY.md.
 #
-# ./bin/run_tractography.sh mmf_dti --score
+# A TEST FIXTURE since 2026-11-17 (it was config/mmf_dti.yml): the tests of the tracker
+# read their options from it. The shipped moving-frames config is config/mmf_dti_march.yml.
 #
 # Canonical nested schema. Only non-default values appear here;
 # everything else comes from nim_config_schema defaults.

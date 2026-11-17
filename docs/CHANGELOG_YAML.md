@@ -1,5 +1,19 @@
 # YAML Configuration Changelog
 
+## 2026-11-17 - MMF-4s is the moving-frames scheme presented
+
+- `config/mmf_dti.yml` (MMF-4a) and `config/mmf_dti_hold.yml` (MMF-4h) are no longer
+  shipped configs: they are test fixtures now, `tests/fixtures/mmf_dti_4a.yml` and
+  `tests/fixtures/mmf_dti_4h.yml`. `./bin/run_tractography.sh mmf_dti` and
+  `mmf_dti_hold` therefore no longer find a config; `config/mmf_dti_march.yml`
+  (MMF-4s) is the moving-frames preset.
+- No key changed: `mmf.hold` still accepts `none` and `hold`, and a config that sets
+  them runs as before. The docs present MMF-4s only: the descriptions, the score rows
+  and the comparisons of MMF-4a and MMF-4h are removed from
+  [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md) and the config tables. The entries below
+  that name the two schemes or their configs describe the code as it was; the last
+  commit with them in the docs is `db45c54`.
+
 ## 2026-11-17 - advanceFrame: 'BundleRule' and 'BundleLaw' removed
 
 - No key changed: the tracker never passed them. `src/nim_tractography/advanceFrame.m`

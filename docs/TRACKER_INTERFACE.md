@@ -150,7 +150,7 @@ same for the fields a tracker is expected to honour.
 | `trace`, `trace_max` | `debug.*` | if you support tracing, record a per-step trace for `trace_max` evenly spaced seeds into `meta.trace` (see `nim_tractography_hinec` for the record layout and `docs/CONVERGENCE.md` for what it is used for) |
 | `mmf_mode` | `mmf.mode` | how the carried frame relates to the data frame (`transport`, `reanchor`, `adaptive`); `mmf` only |
 | `mmf_reanchor_tol` | `mmf.reanchor_tol` | drift (radians) between the carried and the data's `e1` at which the adaptive mode re-anchors; `mmf` only |
-| `mmf_hold` | `mmf.hold` | how a tract crosses degenerate data: `none`, `hold` (MMF-4h), `march` (MMF-4s); reads `nim.eval`; `mmf` only |
+| `mmf_hold` | `mmf.hold` | how a tract crosses degenerate data: `march` (MMF-4s, the default); reads `nim.eval`; `mmf` only |
 | `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard` | `mmf.*` | confidence floor, trusted nodes of the ring, erosion radius (voxels); `mmf` only |
 | `mmf_coast_max`, `mmf_exit_tol`, `mmf_exit_delay` | `mmf.*` | longest coast (voxels of arc), largest drift on leaving the zone (radians), arc of coast before that test (voxels); `mmf` only |
 | `mmf_seed_trusted` | `mmf.seed_trusted` | with the scheme on, a seed in the zone is not tracked (`seeds_skipped`: `zone`); `mmf` only |

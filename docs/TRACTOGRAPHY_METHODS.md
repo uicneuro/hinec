@@ -262,7 +262,7 @@ See also [Run Directory System](RUN_DIRECTORY_SYSTEM.md) and
 | Fast baseline / sanity check | `standard` (`config/standard_dti.yml`) |
 | Best deterministic single-tensor result | `hinec` + `field: dti` (`config/hinec_dti.yml`; loosen `termination.angle_max` / `termination.fa_min` to push recall) |
 | Crossings resolved by FOD | `hinec` + `field: csd` (`config/hinec_csd.yml`) |
-| Frame transported by the data's connection, exact circular-arc steps | `mmf` (`config/mmf_dti.yml`; DTI only — [Moving frames](MMF_TRACTOGRAPHY.md)) |
+| Frame transported by the data's connection, exact circular-arc steps | `mmf` (`config/mmf_dti_march.yml`; DTI only — [Moving frames](MMF_TRACTOGRAPHY.md)) |
 | Cut overreach after tracking | any of the above, then [`run_sift.sh`](#sift-tractogram-filtering) |
 | Probabilistic recall reference | External PFT comparison (research result only) |
 

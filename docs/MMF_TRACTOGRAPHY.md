@@ -53,7 +53,7 @@ connection continuous; with the cubic and trilinear kernels the derivative of
 the field jumps at the voxel faces, the connection is discontinuous there, and
 the step — exact only for a connection that is constant along the arc — is
 then as accurate as any integrator on a kinked right-hand side (see the
-numbers below). `config/mmf_dti.yml` therefore uses the spline kernel. The
+numbers below). `config/mmf_dti_march.yml` therefore uses the spline kernel. The
 scheme runs with `'Twist' 'zero'` (a rotation-minimizing normal plane), so the
 arbitrary completion `e2, e3` never enters the position: a step uses only the
 curvature vector `(e1 . grad) e1` of the field, expressed in the carried frame
@@ -72,12 +72,8 @@ frame.
 
 The drift at every point and the re-anchoring decisions are recorded
 (`meta.mmf.reanchored_fraction`; per step in `meta.trace` with `debug.trace`).
-The default tolerance is `0.2` rad, the one of MMF-4h and MMF-4s (see [the
-scores](#on-data) for what it does on data). `config/mmf_dti.yml` sets `1e-3` rad,
-which is an order of magnitude below the heading
-error of a one-voxel CF4 step across a sharp bend and above the step-to-step
-wobble of interpolated data at normal steps (see the suite's notes, section on
-variants).
+The default tolerance is `0.2` rad, the one of MMF-4s (see [the
+scores](#on-data) for what it does on data).
 
 ## Termination
 
@@ -95,7 +91,7 @@ again, and the adaptive mode re-anchors onto whatever bundle it meets), leaves t
 volume (`outside`) or reaches `max_arc`. The tracker drops only a last node that
 lies outside tissue, so tracks contain these straight runs outside the brain.
 `fa`, `outside_mask` and `outside_domain` no longer occur as stop reasons. With
-`angle_max: 0` (the presets of MMF-4h and MMF-4s) nothing limits the heading at
+`angle_max: 0` (the preset of MMF-4s) nothing limits the heading at
 re-entry. Before, `advanceFrame` stopped a tract **before** a step at whose stages
 the connection was not finite, and every node of a track was an integration node
 inside tissue; reverting the commit that switched the line off (the line, the
@@ -144,7 +140,7 @@ the hinec tracker's (`pos`, `dir` = the carried `e1`, `fa`, `h`, `chord`,
 `nim_track_diagnose` reads them, plus `drift` (angle to the data's `e1`),
 `reanchored`, `kappa`, `s`, `coasted` and `confidence`.
 
-## Degenerate data: MMF-4h and MMF-4s (`mmf.hold`)
+## Degenerate data: MMF-4s (`mmf.hold`)
 
 In a voxel where two bundles cross, the single tensor is a pancake and its
 principal axis means nothing. A tract that reads the connection there turns into
@@ -152,24 +148,17 @@ the other bundle or, more often, stops on `angle_max`. The hold scheme of
 `advanceFrame` lets it cross instead: inside a zone of degenerate data it does not
 read the data at all but **coasts**.
 
-| `mmf.hold` | scheme | what the tract follows in the zone |
-|---|---|---|
-| `none` | MMF-4a, the adaptive mode alone | the data, as everywhere |
-| `hold` | MMF-4h | the mean connection of its last `hold_k` trusted nodes, in the carried frame, constant along the coast: a circle |
-| `march` (default) | MMF-4s | that curvature and fan-out, marched by the flatness of the connection: exact on circles, logarithmic spirals and rays, and turning the curvature by the torsion on a helix |
+With `mmf.hold: march`, the default, this is **MMF-4s**: in the zone the tract follows
+the curvature and the fan-out of its last `hold_k` trusted nodes, marched by the
+flatness of the connection. That is exact on circles, logarithmic spirals and rays, and
+turns the curvature by the torsion on a helix. With it comes `reanchor_tol: 0.2`: a
+config that only selects `algorithm: mmf` runs MMF-4s, with whatever `angle_max` it has
+(the schema default is 225). The preset `config/mmf_dti_march.yml` sets
+`angle_max: 0` (see [below](#angle-max) why); see [the scores](#on-data) below.
+(`mmf.hold` also accepts `none`, no coasting, and `hold`, the connection held constant
+along the coast. They are not presented here.)
 
-`march` is the default, and with it `reanchor_tol: 0.2`: a config that only selects
-`algorithm: mmf` runs MMF-4s, with whatever `angle_max` it has (the schema default is
-225). `config/mmf_dti.yml` sets `hold: none` and `reanchor_tol: 0.001` and is MMF-4a.
-
-The presets `config/mmf_dti_hold.yml` and `config/mmf_dti_march.yml` are `mmf_dti`
-with the scheme on, `reanchor_tol: 0.2` and `angle_max: 0` (see
-[below](#angle-max) why). See [the scores](#on-data) below: on the
-ISMRM 2015 phantom the scheme halves the wrong-path streamlines at the price of
-shorter tracks, and most of what the presets gain in F1 comes from `reanchor_tol`
-alone.
-
-**The zone.** The confidence is the linear shape `CL = (l1 - l2)/l1` of the voxel
+The confidence is the linear shape `CL = (l1 - l2)/l1` of the voxel
 tensors (`nim.eval`), interpolated linearly and eroded by `hold_guard` voxels (the
 minimum over the point and 14 points at that distance); a point is in the zone
 where it is below `hold_min`. For a single bundle of eigenvalues 1.7, 0.3, 0.3
@@ -192,7 +181,7 @@ no data frame at the end of the step, so it is neither re-anchored nor exit-test
 and its steps through non-tissue are no coast, so its `coast_max` count restarts.
 Where it re-enters tissue it is an ordinary trusted step: the `adaptive` mode
 re-anchors when the drift reaches `reanchor_tol` (`reanchor` always), and only
-`angle_max` limits that snap, nothing with the presets' `angle_max: 0`.
+`angle_max` limits that snap, nothing with the preset's `angle_max: 0`.
 Since 2026-11-17 `exit_tol` and
 `coast_max` are `Inf` by default: no exit test, a tract leaving the zone is always
 re-anchored, and no cap of the coast. The scores below were measured with
@@ -252,7 +241,7 @@ in; a voxel outside the zone takes its differences from voxels outside it (centr
 or one-sided); and the nodal tensor is continued into the zone in the same way. The
 last two apply to the nodal connection, the default; with `mmf.connection:
 derivative` only the axis is filled. Without these the phantoms below read 0.3 to 5
-voxels instead of 0.02 to 0.35, and the march gains nothing over the hold.
+voxels instead of 0.02 to 0.1.
 
 **The march in 3-D.** The planar march of the suite's notes, `dsigma/ds = -sigma^2 +
 D`, `dkappa/ds = -kappa sigma`, has a matrix form. In the carried frame, whose
@@ -335,44 +324,29 @@ one-sided stencil at a volume face, a non-finite voxel in a spline field, the
 per-step trace and the rejection of `rkf45` and `csd`.
 
 For `mmf.hold` it runs the phantoms with the voxels of a zone turned into pancakes,
-CL 0 and the axis 90 degrees off, with the presets' settings. Without the scheme
+CL 0 and the axis 90 degrees off, with the preset's settings. Without the scheme
 every one of these tracts stops at the zone (`angle`):
 
-| field | zone | seeds | max distance from the true curve (voxels): hold / march |
+| field | zone | seeds | max distance from the true curve (voxels) |
 |---|---|---|---|
-| circles | sector of 20 degrees, 4 to 8 voxels of arc | 32 phases at 4 radii | 0.04 median, 0.10 worst / the same |
-| log spirals, 60 degrees, outwards | annulus of 3 voxels, 6 of arc | 24 phases at 3 radii | 0.21, 0.25 / 0.02, 0.05 |
-| the same, inwards | | 24 phases at 3 radii | 0.09, 0.17 / 0.02, 0.07 |
-| helix of the fixture | sector of 40 degrees, 11 of arc | 1, at the end of the coast | 0.35 / 0.04 |
-| crossing of the fixture | the 7 voxels of band B | 8 phases | 0, straight to the far face / the same |
+| circles | sector of 20 degrees, 4 to 8 voxels of arc | 32 phases at 4 radii | 0.04 median, 0.10 worst |
+| log spirals, 60 degrees, outwards | annulus of 3 voxels, 6 of arc | 24 phases at 3 radii | 0.02, 0.05 |
+| the same, inwards | | 24 phases at 3 radii | 0.02, 0.07 |
+| helix of the fixture | sector of 40 degrees, 11 of arc | 1, at the end of the coast | 0.04 |
+| crossing of the fixture | the 7 voxels of band B | 8 phases | 0, straight to the far face |
 
 Without the filling of the zone and the one-sided stencils of the section above the
-circles read 1.0 and 1.5 voxels, the spirals outwards 1.2 and 1.8 for the hold and
-the march alike, and the helix 2.6. The test also pins that the scheme changes
+circles read 1.0 and 1.5 voxels, the spirals outwards 1.2 and 1.8, and the helix 2.6. The test also pins that the scheme changes
 nothing without a zone; `exit` (band A turned by 30 degrees beyond the crossing, with
 `exit_tol` 0.2, and no stop with `exit_tol` above that); `coast`; `focus` (rays through
-a point in 3-D, at r/r_0 = 0.32 where the cross-section is a tenth; the hold has no
-fan and runs into the hole around the centre, below the FA floor, which since
-2026-11-16 it crosses straight instead of stopping with `fa`); that a tract beside
+a point in 3-D, at r/r_0 = 0.32 where the cross-section is a tenth); that a tract beside
 low-CL voxels below the FA floor
 or outside the mask does not coast; the ring across a re-anchoring (circles in a tilted
-plane, two sectors fewer trusted nodes apart than the ring holds: the hold stays in
-the plane to 1e-6 voxel and the march to 0.04, against 0.4 to 0.6 with the ring left
-behind); that the FA floor and the mask inside the zone are crossed, with `exit_delay`
+plane, two sectors fewer trusted nodes apart than the ring holds: the march stays in
+the plane to 0.04 voxel, against 0.4 to 0.6 with the ring left behind); that the FA floor and the mask inside the zone are crossed, with `exit_delay`
 as well; the
 share of the zone and its warning at 40%; that `hold_min` and `hold_k` reach the
 scheme; the signs of the axial data; the trace and the rejected inputs.
-
-Measured before 2026-11-16, with the line 945 stop (see Termination): on the sample
-dataset (`data/parcellation_sample/sample.mat`, 128 x 128 x 50,
-`config/mmf_dti.yml` at `seeding.density: 1`, 147k seeds of which 100k lie in
-tissue) the tracker produces 69.7k tracks of at least 15 voxels in about 11
-minutes, every node inside the mask and no node-to-node turn above `angle_max`;
-`hinec_dti.yml` on the same seeds gives 74k in about 10 minutes, and for the
-68.4k seeds both keep the two tracks agree to a median nearest-node distance of
-0.25 voxel. The half-tracks end on the FA floor (77%), the volume faces (10%,
-the slab is cut at both ends), `angle_max` (9%, against 0.5% for hinec,
-for the reason given above), the mask (3%) and a missing axis (1%).
 
 <a id="angle-max"></a>
 ### angle_max is not needed with the scheme
@@ -382,30 +356,18 @@ and these are the places where the data's axis turns sharply. `angle_max` then
 has little left to do, and the scheme's own exit test does that. (The numbers of this
 section and the next were measured before 2026-11-16, when tracts stopped at the mask
 and the FA floor; since then they run on through non-tissue, see Termination, and the
-scores would have to be measured again.) Of the half-tracks
-of `mmf_dti_hold` on the ISMRM 2015 phantom with the `angle_max` of `mmf_dti` (45 degrees
-per step), 14.7% stopped on it. In a trace of 8000 seeds, 86% of those stops were steps
-leaving the zone whose drift (1.1 rad median) the exit test would have stopped anyway,
-since the heading test of `angle_max` runs first; 3.5% had the zone within a voxel
-ahead, the axis swinging before the eroded confidence falls; 10% were in trusted data
-with trusted data ahead. The rotation of a step never reached the limit from `angle_max` (0.17 rad at
-most). With `angle_max` off those stops become exits, and the scores do not move:
+scores would have to be measured again.) With `angle_max` off the stops it made become
+exits, and the scores do not move:
 
 | `angle_max` | streamlines | valid | wrong path | overlap | overreach | mean F1 | bundles | mean length |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
-| `mmf_dti_hold`, 225 | 48487 | 53.9% | 6.1% | 0.483 | 0.337 | 0.497 | 23 | 45.6 |
-| `mmf_dti_hold`, 0 (the preset) | 48588 | 53.5% | 6.8% | 0.483 | 0.339 | 0.497 | 23 | 46.8 |
 | `mmf_dti_march`, 225 | 47874 | 53.5% | 5.8% | 0.476 | 0.325 | 0.495 | 23 | 45.3 |
 | `mmf_dti_march`, 0 (the preset) | 47979 | 53.2% | 6.4% | 0.477 | 0.329 | 0.495 | 23 | 46.5 |
 
-So the presets run with `angle_max: 0`. Without the scheme it is a different matter: the
-adaptive mode does not transport through degenerate data, it re-anchors onto them,
-and `angle_max` is the only thing that stops that snap. `mmf_dti` with `reanchor_tol`
-0.2 and `angle_max: 0` gives 57634 streamlines of mean length 58.5, 53.2% valid and
-13.5% wrong path against 11.2%, F1 0.483 against 0.492. `mmf_dti` keeps its `angle_max`.
+So the preset runs with `angle_max: 0`.
 
 <a id="on-data"></a>
-### MMF-4h and MMF-4s on data
+### MMF-4s on data
 
 The ISMRM 2015 phantom has a ground truth. These rows come from the scorer of
 `bin/run_ismrm_scoring.sh` (scilpy 2.3, `scil_tractogram_segment_with_ROI_and_score`;
@@ -442,20 +404,10 @@ balances the two per bundle. All seeds with FA at least 0.1 in the mask,
 
 | config | streamlines | valid | wrong path | overlap | overreach | mean F1 | bundles | mean length |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
-| `mmf_dti` (`reanchor_tol` 1e-3) | 56823 | 58.2% | 10.3% | 0.391 | 0.226 | 0.436 | 22 | 55.9 |
-| `mmf_dti` with `reanchor_tol` 0.2 | 56703 | 54.5% | 11.2% | 0.509 | 0.405 | 0.492 | 23 | 54.0 |
-| `mmf_dti_hold` (with `angle_max` 225) | 48487 | 53.9% | 6.1% | 0.483 | 0.337 | 0.497 | 23 | 45.6 |
 | `mmf_dti_march` (with `angle_max` 225) | 47874 | 53.5% | 5.8% | 0.476 | 0.325 | 0.495 | 23 | 45.3 |
 
-`reanchor_tol: 0.2` alone (MMF-4a in the notes) lifts F1 by far more than the scheme
-does, by trusting the smoother transported heading between the voxels, at the cost of
-more overreach (these two rows and the next were run with the `angle_max` of 225 that the
-presets have since dropped, see above). On top of it the hold halves the wrong-path streamlines (6367 to 2973,
-a share down by 45%) and cuts the overreach by a sixth, for 14% fewer streamlines, 16%
-shorter ones and 5% less overlap, so F1 hardly moves. It is a trade of recall for
-precision rather than a gain. The march adds nothing to the hold here: the fan-out of
-the last trusted nodes is a derivative of noisy data, and its gain on the phantoms
-above is for clean curved bundles. The settings were chosen on half the seeds, by a
+This row was run with the `angle_max` of 225 that the preset has since dropped (see
+above). The settings were chosen on half the seeds, by a
 local reimplementation of the scorer's rules that read F1 about 0.01 lower and kept the
 order: `hold_min` 0.15 to 0.2, `hold_guard` 0.5, `exit_tol` 0.5 to 0.8 and `coast_max`
 12 to 20 were the best of those tried, 0.15 with the higher F1 and 0.2 with fewer wrong
@@ -464,19 +416,14 @@ phantom's tissue voxels.
 
 On the sample dataset there is no ground truth, and its anisotropy is low: the median
 CL over the tissue is 0.2, so the default floor marks 51% of the tissue voxels and the
-tracker warns. With a quarter of the seeds, `mmf_dti` with `reanchor_tol` 0.2 gives
-17745 tracks of at least 15 voxels and a mean of 44.1; `mmf_dti_hold` gives 11900 and
-32.5 with 49% of the steps coasted, and with `hold_min: 0.1`, a zone of 12.5%, 14937
-and 40.0 with 10%. The fewer tracks are not a verdict either way, as the phantom shows,
-but a floor that coasts half of the arc is not detecting crossings. Lower it there.
+tracker warns. A floor that coasts half of the arc is not detecting crossings: lower
+it there.
 
 ## Files
 
 - `src/nim_tractography/nim_tractography_mmf.m` — the tracker (seeds, field,
   connection handles, termination, metadata)
-- `src/nim_tractography/advanceFrame.m` — the scheme (identical to the suite's copy)
-- `config/mmf_dti.yml` — tracker config: `algorithm: mmf`, CF4, spline kernel,
-  adaptive mode alone (MMF-4a: `hold: none`)
-- `config/mmf_dti_hold.yml`, `config/mmf_dti_march.yml` — the same with MMF-4h and
+- `src/nim_tractography/advanceFrame.m` — the scheme
+- `config/mmf_dti_march.yml` — tracker config: `algorithm: mmf`, CF4, spline kernel,
   MMF-4s
 - `tests/unit/TestMmfTracker.m`

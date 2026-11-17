@@ -1,7 +1,11 @@
-# MMF-4s: moving frames tractography that marches its connection through degenerate
-# data. As mmf_dti_hold, with the curvature and the fan-out of the last trusted nodes
-# carried through the zone by the flatness law of the connection instead of held
-# constant: exact on circles, logarithmic spirals and rays, and turning the curvature
+# MMF-4s: moving frames tractography (advanceFrame) on the DTI principal-eigenvector
+# field that marches its connection through degenerate data. The fibre carries an
+# orthonormal frame transported by the connection of the data with the closed-form
+# exponential step, CF4 (integrator rk4 -> Lie group order 4), re-anchored to the data
+# where the carried heading drifts. Where the tensor is a crossing fitted as a pancake
+# the tract coasts instead of reading the data: the curvature and the fan-out of its
+# last trusted nodes are carried through the zone by the flatness law of the
+# connection, exact on circles, logarithmic spirals and rays, and turning the curvature
 # by the torsion on a helix. See docs/MMF_TRACTOGRAPHY.md.
 #
 # ./bin/run_tractography.sh mmf_dti_march --score

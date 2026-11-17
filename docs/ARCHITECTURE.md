@@ -59,7 +59,7 @@ hinec/
 │   ├── hinec_dti_cubic_recall.yml  #   Cubic, recall-tuned termination
 │   ├── hinec_dti_fast.yml          #   RK2, quick screening
 │   ├── hinec_dti_euler.yml         #   Euler, lowest-order comparison point
-│   ├── mmf_dti.yml                 #   Moving frames tractography, DTI field
+│   ├── mmf_dti_march.yml           #   Moving frames tractography (MMF-4s), DTI field
 │   ├── ismrm2015.yml               #   ISMRM 2015 challenge dataset
 │   ├── irontract.yml               #   IronTract challenge dataset
 │   └── reference.yml               #   Convergence-ladder template
@@ -552,8 +552,8 @@ Three algorithms are available:
   the default) or is a sign-aligned central difference of its principal axis (`derivative`)
 - `mmf.mode` (`transport` / `reanchor` / `adaptive`) and `mmf.reanchor_tol` set how the
   carried frame is re-anchored to the data
-- `mmf.hold` (`none` / `hold` / `march`) lets a tract coast through degenerate data on the
-  connection of its last trusted nodes, held (MMF-4h) or marched (MMF-4s, the default)
+- `mmf.hold` (`march`, the default: MMF-4s) lets a tract coast through degenerate data on the
+  connection of its last trusted nodes, marched by the flatness of the connection
 - DTI only (`field: csd` is rejected); ACT masks are not used
 
 The trackers share these stopping criteria:
@@ -686,7 +686,7 @@ Configs come in two families, and the family determines which launcher consumes 
 | `hinec_dti_cubic_recall.yml` | tracker | hinec | dti | rkf45 | cubic | 0.2 |
 | `hinec_dti_fast.yml` | tracker | hinec | dti | rk2 | trilinear | 0.3 |
 | `hinec_dti_euler.yml` | tracker | hinec | dti | euler | trilinear | 0.5 |
-| `mmf_dti.yml` | tracker | mmf | dti | rk4 (CF4) | spline | 0.2 |
+| `mmf_dti_march.yml` | tracker | mmf | dti | rk4 (CF4) | spline | 0.2 |
 | `ismrm2015.yml` | dataset | hinec | dti | rkf45 | trilinear | 0.2 |
 | `irontract.yml` | dataset | hinec | dti | rkf45 | trilinear | 0.2 |
 | `hinec_default.yml` | fallback | hinec | dti | rk4 | cubic | 0.2 |

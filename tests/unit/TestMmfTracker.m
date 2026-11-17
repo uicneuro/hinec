@@ -37,7 +37,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             seed = false(size(FA)); seed(round(C + 15), round(C), 5) = true;
             tc.R0 = hypot(round(C + 15) - C, round(C) - C);   % 15.508: the seed voxel centre is off the radius-15 circle
 
-            cfg = load_config_yaml(fullfile(fileparts(fileparts(here)), 'config', 'mmf_dti.yml'));
+            cfg = load_config_yaml(fullfile(fileparts(here), 'fixtures', 'mmf_dti_4a.yml'));   % config/mmf_dti.yml until 2026-11-17
             tc.Opts = nim_config_to_options(cfg);
             tc.Opts.seed_mask = seed;
             tc.Opts.wm_mask = []; tc.Opts.gm_mask = []; tc.Opts.csf_mask = [];
@@ -536,7 +536,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
     methods (Test)
         function nodalConnectionIsTheDefault(tc)
             here = fileparts(mfilename('fullpath'));
-            cfg = load_config_yaml(fullfile(fileparts(fileparts(here)), 'config', 'mmf_dti.yml'));
+            cfg = load_config_yaml(fullfile(fileparts(here), 'fixtures', 'mmf_dti_4a.yml'));   % config/mmf_dti.yml until 2026-11-17
             o = nim_config_to_options(cfg);
             tc.verifyEqual(o.mmf_connection, 'nodal');
             tc.verifyEqual(o.mmf_max_turn, 0);
@@ -578,7 +578,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
     end
     methods
         function o = holdOpts(tc, scheme)
-            % The options of config/mmf_dti_hold.yml and mmf_dti_march.yml on the phantoms.
+            % The options of config/mmf_dti_march.yml (and of the fixture mmf_dti_4h.yml) on the phantoms.
             o = tc.Opts; o.mmf_connection = 'nodal'; o.mmf_hold = scheme; o.mmf_reanchor_tol = 0.2;
             o.step_size = 0.2; o.max_arc = 40; o.max_steps = 200;
         end
@@ -1108,8 +1108,8 @@ classdef TestMmfTracker < matlab.unittest.TestCase
         function algorithmMmfAloneIsMMF4s(tc)
             % The schema defaults of tractography.mmf are those of MMF-4s (hold: march,
             % reanchor_tol 0.2 rad): a config that only selects the algorithm runs it, and a
-            % tracker handed neither option does too. mmf_dti.yml sets hold: none and
-            % reanchor_tol 0.001 and stays MMF-4a.
+            % tracker handed neither option does too. The fixture mmf_dti_4a.yml sets hold: none
+            % and reanchor_tol 0.001 and stays MMF-4a.
             here = fileparts(mfilename('fullpath'));
             cfgdir = fullfile(fileparts(fileparts(here)), 'config');
             p = [tempname '.yml'];
@@ -1121,7 +1121,8 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             evalc('m = nim_config_to_options(load_config_yaml(fullfile(cfgdir, ''mmf_dti_march.yml'')));');
             tc.verifyEqual(d.mmf_hold, m.mmf_hold);
             tc.verifyEqual(d.mmf_reanchor_tol, m.mmf_reanchor_tol);
-            evalc('a = nim_config_to_options(load_config_yaml(fullfile(cfgdir, ''mmf_dti.yml'')));');
+            fixdir = fullfile(fileparts(here), 'fixtures');
+            evalc('a = nim_config_to_options(load_config_yaml(fullfile(fixdir, ''mmf_dti_4a.yml'')));');
             tc.verifyEqual(a.mmf_hold, 'none');
             tc.verifyEqual(a.mmf_reanchor_tol, 1e-3);
             o = rmfield(tc.holdOpts('none'), {'mmf_hold', 'mmf_reanchor_tol'});   % the tracker's own defaults
@@ -1132,9 +1133,11 @@ classdef TestMmfTracker < matlab.unittest.TestCase
         function thePresetsAreMmfDtiWithTheSchemeOn(tc)
             here = fileparts(mfilename('fullpath'));
             cfgdir = fullfile(fileparts(fileparts(here)), 'config');
-            evalc('base = nim_config_to_options(load_config_yaml(fullfile(cfgdir, ''mmf_dti.yml'')));');
+            fixdir = fullfile(fileparts(here), 'fixtures');                 % MMF-4a and MMF-4h are fixtures since 2026-11-17
+            files = struct('hold', fullfile(fixdir, 'mmf_dti_4h.yml'), 'march', fullfile(cfgdir, 'mmf_dti_march.yml'));
+            evalc('base = nim_config_to_options(load_config_yaml(fullfile(fixdir, ''mmf_dti_4a.yml'')));');
             for preset = {'hold', 'march'}
-                evalc('p = nim_config_to_options(load_config_yaml(fullfile(cfgdir, [''mmf_dti_'' preset{1} ''.yml''])));');
+                evalc('p = nim_config_to_options(load_config_yaml(files.(preset{1})));');
                 tc.verifyEqual(p.mmf_hold, preset{1});
                 tc.verifyEqual(p.mmf_reanchor_tol, 0.2);
                 tc.verifyEqual(p.angle_thresh, 0);                       % the exit test takes the place of angle_max

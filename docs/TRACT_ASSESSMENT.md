@@ -76,7 +76,7 @@ never as zeros.
 
 # Consistency: one knob, or whole configs, on the same data
 ./bin/run_assessment.sh consistency --config hinec_dti --sweep interpolation.method=trilinear,cubic,spline
-./bin/run_assessment.sh consistency --configs hinec_dti mmf_dti hinec_csd standard_dti --set 'seeding.roi=[Fornix]' --set seeding.density=1
+./bin/run_assessment.sh consistency --configs hinec_dti mmf_dti_march hinec_csd standard_dti --set 'seeding.roi=[Fornix]' --set seeding.density=1
 
 # Repeatability: independent acquisitions, each preprocessed with run_hinec.sh and tracked
 ./bin/run_assessment.sh repeatability \

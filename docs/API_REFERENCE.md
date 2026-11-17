@@ -648,7 +648,7 @@ plus:
 | `mmf.mode` | `mmf_mode` | `'adaptive'` | `transport` / `reanchor` / `adaptive` — how the carried frame relates to the data frame along the tract |
 | `mmf.reanchor_tol` | `mmf_reanchor_tol` | 0.2 | Drift (radians) between the carried and the data's $\mathbf{e}_1$ at which the adaptive mode re-anchors |
 | `mmf.gradient_delta` | `mmf_gradient_delta` | 1e-3 | Central-difference step (voxels) for the derivative of the interpolated principal axis |
-| `mmf.hold` | `mmf_hold` | `'march'` | `none` (MMF-4a) / `hold` (MMF-4h) / `march` (MMF-4s, the default) — how a tract crosses degenerate data; reads `nim.eval`. See [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md) |
+| `mmf.hold` | `mmf_hold` | `'march'` | `march` (MMF-4s, the default; `none` and `hold` are accepted too) — how a tract crosses degenerate data; reads `nim.eval`. See [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md) |
 | `mmf.hold_min` | `mmf_hold_min` | 0.2 | Linear shape CL below which the data are degenerate |
 | `mmf.hold_k` | `mmf_hold_k` | 3 | Trusted nodes the coast starts from |
 | `mmf.hold_guard` | `mmf_hold_guard` | 0.5 | Erosion radius of the confidence, voxels |
