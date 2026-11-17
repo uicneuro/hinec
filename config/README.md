@@ -292,6 +292,7 @@ tractography:
                              # (default inf: no cap)
     exit_tol: 0.5            # radians; heading off the data at which leaving the
                              # zone stops the tract (default inf: no exit test)
+    seed_trusted: true       # with hold or march, a seed in the zone is not tracked
 ```
 
 Every key, its type, range and default is generated from the schema

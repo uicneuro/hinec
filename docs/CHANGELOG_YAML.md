@@ -5,8 +5,8 @@
 - The defaults of `tractography.mmf.exit_tol` and `tractography.mmf.coast_max` are now
   `Inf` (they were `0.5` rad and `12` voxels of arc): no exit test and no cap of the
   coast. A tract leaving the degenerate zone is always re-anchored on the data, and a
-  tract still in the zone coasts on until the volume, the mask, the FA floor or
-  `max_arc` stops it. The trackers' own defaults (`nim_tractography_mmf`,
+  tract still in the zone coasts on until it leaves the volume or reaches `max_arc`
+  (in `nim_tractography_mmf_ml` the mask and the FA floor stop it too). The trackers' own defaults (`nim_tractography_mmf`,
   `nim_tractography_mmf_ml`) follow. The ranges of the two keys are `[0, Inf]`.
 - **Behaviour change** for every config with `mmf.hold: hold` or `march` (the default)
   that sets neither key: the stops `exit` and `coast` no longer occur. With
@@ -18,6 +18,76 @@
   were measured with the former defaults and were not measured again.
 - A numeric key whose range has `Inf` as a bound takes `inf`, `Inf` or `.inf` in a
   config file and with `--set`; any other numeric key still rejects it.
+
+## 2026-11-16 - `algorithm: mmf`: a non-finite connection no longer stops a tract
+
+- No new key. `src/nim_tractography/advanceFrame.m` takes the moving-frames test
+  suite's version, which differs from the one before in one line: `maxRot(bad) = NaN;`
+  in `lieStep` is switched off. A non-finite connection at a stage of a step (outside
+  the volume or the mask, below the FA floor, no principal axis) is taken as zero and
+  the step is taken.
+- **Behaviour change** for every run of `algorithm: mmf` (`nim_tractography_mmf`; not
+  `nim_tractography_mmf_ml`, whose `advanceFrame_ml.m` keeps the line): a tract that
+  leaves the tissue is no longer stopped there but runs on straight through non-tissue
+  until it re-enters tissue, leaves the volume (`outside`) or reaches `max_arc`, and
+  the track keeps those nodes. `fa`, `outside_mask` and `outside_domain` no longer
+  occur in `meta.termination`. With `mmf.hold`, a coast that leaves the zone into
+  non-tissue is not exit-tested and its `coast_max` count restarts, and the zero
+  connection of such a run enters the hold ring. `fa`, `mask` and
+  `termination.fa_min` no longer stop this tracker (their descriptions say so).
+  Reverting the commit (the line, the tests and the notes) restores the tracker; the
+  numbers of MMF_TRACTOGRAPHY.md that were measured with the stop are marked so.
+
+## 2026-11-16 - `preprocessing.refit_zeroed_tensors`: the voxels the fit left at zero get a tensor
+
+- New key `preprocessing.refit_zeroed_tensors` (logical, default `true`). The voxels
+  of the mask that `nim_dt_spd` left at zero (no tensor, FA 0: no tissue to every
+  tracker) get their log-linear least-squares tensor with the eigenvalues raised to
+  1e-7 mm²/s (`src/nim_calculation/nim_dt_refit_zeroed.m`). Nearly all of them are the
+  voxels whose least-squares tensor has a negative eigenvalue: `nim_dt_spd` sends them
+  to BFGS (`lib/bfgs/vox_dt_bfgs.m`), whose tensor comes back 1e6 or more too large
+  (it multiplies by 1000 where it should divide, and its gradient reads the wrong
+  gradient directions) and is rejected by the bound on the eigenvalues. A voxel whose
+  signals do not determine a tensor stays at zero. `vox_dt_bfgs.m` is not changed.
+- Applied by `main` after `nim_fa` and again before the save (the voxels the improved
+  mask adds), by `runTractography` to the nim it loads, so that a dataset made before
+  reaches the trackers without holes (in memory: the file is not rewritten), and by
+  `cc_extraction/extract_cc_tracks.m` after its `nim_fa`.
+- **Behaviour change** for every pipeline and tractography run: the voxels that were
+  holes now carry a tensor where their signals allow it. On the TrackerYoga phantom all
+  352 holes (12% of the mask, b = 1000; 1697 of 1698 in the noisy set), with the
+  tensors of the suite's refit to the last bit. On the ISMRM 2015 phantom 2681 of its
+  8562 holes; the other 5881 stay at zero (5878 have no eigenvalue above 1e-7, 3 have
+  b0 <= 0). 2196 of the 2681 lie at the edge of the mask, and they come out close to
+  linear (FA median 0.98, 90th percentile 0.999, against a median of 0.07 for the
+  voxels of the mask with a tensor): in least squares their third eigenvalue is
+  negative in all of them and their second in 1354, and both are floored. These
+  voxels now pass every FA threshold: seeding (`seeding.fa_min`), the FA stop, the
+  mask improvement and the segmentation of `main`, and with `mmf.hold` their CL near 1
+  makes them trusted (and seeded under `mmf.seed_trusted`); `seeding.cl_min` does not
+  drop them either. The segmentation runs before the second call, so the voxels the
+  improved mask adds are segmented with FA 0.
+- `refit_zeroed_tensors: false` leaves them all at zero, as before. `main` reads it
+  from the pipeline config and `runTractography` from the tracking config (a call
+  without a config always refits): set it in both.
+
+## 2026-11-16 - `mmf.seed_trusted`: seeds only in trusted data
+
+- New key `tractography.mmf.seed_trusted` (logical, default `true`; flat option name
+  `mmf_seed_trusted`), read by `algorithm: mmf` with `mmf.hold` `hold` or `march`: a
+  seed whose confidence, read as the scheme reads it at a node (CL interpolated over
+  the tissue and eroded by `mmf.hold_guard`), is below `mmf.hold_min` is not tracked.
+  Such a seed has no trusted node and would coast straight along the filled axis.
+  It is counted in `meta.mmf.seeds_skipped` under the new reason `zone`, its
+  `debug.trace` record keeps its confidence, and `meta.mmf` gains `seed_trusted`.
+  See [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md).
+- **Behaviour change** for every run of `nim_tractography_mmf` with the scheme on, the
+  schema default (MMF-4s) and `config/mmf_dti_hold.yml`, `config/mmf_dti_march.yml`
+  included: the seeds in the zone, and within about `hold_guard` of it, are no longer
+  tracked. `seed_trusted: false` restores the tracker as it was. `hold: none`
+  (`config/mmf_dti.yml`) is unaffected, and so are the runs of
+  `nim_tractography_mmf_ml` (`field: lift`, as `config/mmf_ml.yml`, or
+  `mmf.veto_arc > 0`), which do not read the key.
 
 ## 2026-11-10 - `algorithm: mmf` is MMF-4s by default
 

@@ -68,11 +68,11 @@ Always present for any processed dataset.
 | `bval` | `[V 1]` | b-value per volume |
 | `bvec` | `[V 3]` | unit gradient direction per volume |
 | `img_b0`, `img_bi` | `[X Y Z]`, `[X Y Z V-nb0]` | mean b0 image; diffusion-weighted volumes only |
-| `mask` | `[X Y Z]` | brain mask, 1 inside. Tracking stops on leaving it |
+| `mask` | `[X Y Z]` | brain mask, 1 inside. Tracking stops on leaving it (`mmf`: since 2026-11-16 not a stop, the tract runs on straight; see MMF_TRACTOGRAPHY.md) |
 | `DT` | `[X Y Z 6]` | diffusion tensor as `[Dxx Dyy Dzz Dxy Dyz Dxz]`; `nim_reshape_d` rebuilds the 3×3 |
 | `evec` | `[X Y Z 3 3]` | eigenvectors: `evec(x,y,z,:,k)` is the k-th, **k = 1 is the principal**. Sign is arbitrary voxel to voxel — see below |
 | `eval` | `[X Y Z 3]` | eigenvalues, descending. `[0 0 0]` where the fit was skipped (mask edge) |
-| `FA` | `[X Y Z]` | fractional anisotropy; the termination criterion |
+| `FA` | `[X Y Z]` | fractional anisotropy; the termination criterion (`mmf`: since 2026-11-16 not a stop) |
 | `parcellation_mask` | `[X Y Z]` uint16 | region label per voxel, 0 = none |
 | `atlas_labels` | struct | label index → name |
 | `roi_masks` | `containers.Map` | bundle name → `[X Y Z]` logical (ISMRM scoring ROIs); read by `nim_roi_mask` |
@@ -133,7 +133,7 @@ same for the fields a tracker is expected to honour.
 | `seed_density` | `seeding.density` | seeds per seeded voxel — honour it exactly |
 | `seed_strategy` | `seeding.strategy` | `uniform` (deterministic lattice, `nim_seed_offsets`) or `random` |
 | `step_size` | `integrator.step` | `h` in voxels (initial step for adaptive schemes) |
-| `termination_fa` | `termination.fa_min` | stop when the interpolated FA drops below this |
+| `termination_fa` | `termination.fa_min` | stop when the interpolated FA drops below this (`mmf`: since 2026-11-16 not a stop) |
 | `angle_thresh` | `termination.angle_max` | maximum turn in **degrees per voxel of arc**, i.e. minimum radius of curvature `57.3 / angle_max` voxels. For a fixed step, the test is `turn_this_step / h > angle_thresh` — so the limit means the same thing at every `h` |
 | `max_arc` | `termination.max_arc` | stop a half-track after this arc length in voxels (`max_steps = ceil(max_arc/step)` is the same limit as a count) |
 | `min_length` | `termination.min_arc` | discard a finished track whose chord length `sum(‖diff(track)‖)` is below this |
@@ -153,6 +153,7 @@ same for the fields a tracker is expected to honour.
 | `mmf_hold` | `mmf.hold` | how a tract crosses degenerate data: `none`, `hold` (MMF-4h), `march` (MMF-4s); reads `nim.eval`; `mmf` only |
 | `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard` | `mmf.*` | confidence floor, trusted nodes of the ring, erosion radius (voxels); `mmf` only |
 | `mmf_coast_max`, `mmf_exit_tol`, `mmf_exit_delay` | `mmf.*` | longest coast (voxels of arc), largest drift on leaving the zone (radians), arc of coast before that test (voxels); `mmf` only |
+| `mmf_seed_trusted` | `mmf.seed_trusted` | with the scheme on, a seed in the zone is not tracked (`seeds_skipped`: `zone`); `mmf` only |
 | `mmf_gradient_delta` | `mmf.gradient_delta` | central-difference step (voxels) for the derivative of the interpolated principal axis that forms the connection; `mmf` only |
 
 ### Present but not yours
@@ -252,7 +253,7 @@ quickest way to know a new tracker is at least well-formed.
 
 - [ ] reads seeds from `options.seed_mask`, honours `seed_density` exactly
 - [ ] handles the eigenvector sign (per-voxel flip or dyadic interpolation)
-- [ ] stops on FA, mask, volume edge, turn per voxel of arc, `max_arc`
+- [ ] stops on FA, mask, volume edge, turn per voxel of arc, `max_arc` (`mmf` since 2026-11-16 on the volume edge, the turn and `max_arc` only)
 - [ ] applies `min_length` to the chord of the joined track
 - [ ] returns `tracks` as `[bwd reversed; seed; fwd]`, N×3, no NaN
 - [ ] returns `meta.seed_index` / `seed_points` indexed by kept track
@@ -282,7 +283,7 @@ field through the exponential step of `advanceFrame.m`. It reads
 `options.mmf_mode`, `options.mmf_reanchor_tol`, `options.mmf_gradient_delta`,
 `options.mmf_connection`, `options.mmf_max_turn` and the hold scheme's
 `options.mmf_hold`, `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard`, `mmf_coast_max`,
-`mmf_exit_tol` and `mmf_exit_delay` (the `mmf.*` group; the scheme also reads
+`mmf_exit_tol`, `mmf_exit_delay` and `mmf_seed_trusted` (the `mmf.*` group; the scheme also reads
 `nim.eval`), runs on
 `field: dti` only (`csd` is rejected), maps
 `integrator` `euler` / `rk2` / `rk4` to Lie group order 1 / 2 / 4 (`rkf45` is
@@ -293,7 +294,7 @@ the turn of the heading as the data see it, in every mode. Besides the contract 
 `focus` among them with the hold scheme), `mmf` (the scheme settings, the fractions
 of re-anchored and coasted steps, the zone's share of the tissue voxels,
 `seeds_alive` and the
-`seeds_skipped` reasons) and, with `debug.trace`, a per-step `trace` whose
+`seeds_skipped` reasons, `zone` among them with `mmf.hold` and `mmf.seed_trusted`) and, with `debug.trace`, a per-step `trace` whose
 records have the hinec layout above (`pos`, `dir`, `fa`, `h`, `chord`, `turn`,
 `flip`, `n_steps`, `termination`; `flip` is always false) plus `drift`,
 `reanchored`, `kappa`, `s`, `coasted` and `confidence`, so `nim_track_diagnose`

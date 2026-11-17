@@ -119,6 +119,16 @@ if ~isfield(nim, 'FA')
     error('FA not found. Please run main() first to generate DTI data.');
 end
 
+% The voxels of the mask that the tensor fit left at zero get their least-squares
+% tensor (preprocessing.refit_zeroed_tensors, default true; see nim_dt_refit_zeroed):
+% main does it to the nims it makes, and this reaches a dataset made before, in
+% memory (the file is not rewritten). A nim without holes is left as it is. The key
+% read here is the one of the tracking config; a call without a config always refits.
+if ~use_config || ~isfield(config, 'preprocessing') || ...
+        ~isfield(config.preprocessing, 'refit_zeroed_tensors') || config.preprocessing.refit_zeroed_tensors
+    nim = nim_dt_refit_zeroed(nim);
+end
+
 % A tractography-only run may request bundle masks that were not baked into
 % the reusable dataset nim. Attach them here so seeding and ROI filters
 % resolve the same named masks without rerunning preprocessing.

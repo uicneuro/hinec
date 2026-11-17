@@ -83,15 +83,25 @@ variants).
 
 The connection is returned non-finite wherever a point is outside the volume,
 outside the propagation mask (or the brain mask), below the FA floor
-`termination.fa_min` or without a well-conditioned principal axis;
-`advanceFrame` stops a tract **before** a step at whose stages the connection
-is not finite. The stages are the start of a step, its midpoint (orders 2 and
-4) and its end (order 4), so with orders 1 and 2 the scheme never examines
-the end of a step: the tracker drops a last node that lies outside tissue.
-Every node of a track is therefore a valid integration node inside tissue.
-Leaving the volume stops the tract as well, and the cut boundary point is
-dropped, so tracks consist of integration nodes only, like those of the other
-trackers.
+`termination.fa_min` or without a well-conditioned principal axis.
+
+**Since 2026-11-16 a non-finite connection does not stop a tract.** `advanceFrame`
+takes it as zero at that stage of the step and takes the step (line 945 of
+`advanceFrame.m`, `maxRot(bad) = NaN;`, is switched off, so that the file is the
+moving-frames test suite's). A tract that leaves the mask, drops below the FA floor
+or meets a point without a principal axis runs on **straight** along its carried
+`e1`, through non-tissue, until it re-enters tissue (where the data's axis is read
+again, and the adaptive mode re-anchors onto whatever bundle it meets), leaves the
+volume (`outside`) or reaches `max_arc`. The tracker drops only a last node that
+lies outside tissue, so tracks contain these straight runs outside the brain.
+`fa`, `outside_mask` and `outside_domain` no longer occur as stop reasons. With
+`angle_max: 0` (the presets of MMF-4h and MMF-4s) nothing limits the heading at
+re-entry. Before, `advanceFrame` stopped a tract **before** a step at whose stages
+the connection was not finite, and every node of a track was an integration node
+inside tissue; reverting the commit that switched the line off (the line, the
+tests and these notes) restores it. `advanceFrame.m`'s own help still describes the
+`nan` stop, as the suite's copy does. Leaving the volume stops the tract, and the
+cut boundary point is dropped.
 
 The angle limit `termination.angle_max` (degrees per voxel of arc, through
 `nim_angle_limit`: `min(angle_max * h, 90)` degrees per step, none for
@@ -121,11 +131,12 @@ test of the streamline trackers does. `termination.max_arc` is `advanceFrame`'s
 The reasons are counted over the half-tracks of the seeds that were tracked in
 `meta.termination` (`max_arc`, `angle`, `fa`, `outside_mask`, `outside`,
 `outside_domain`, `no_direction`, and with `mmf.hold` `coast`, `exit` and `focus`,
-see below); an `advanceFrame` stop on a non-finite
-connection is resolved into one of these by probing the stages of the next
-step and their difference stencils. Seeds outside tissue or without a
+see below; since 2026-11-16 `fa`, `outside_mask` and `outside_domain` do not
+occur, see above). Seeds outside tissue or without a
 direction are not tracked and are counted by reason in
-`meta.mmf.seeds_skipped`. ACT masks are not used by this tracker.
+`meta.mmf.seeds_skipped`, and so, with `mmf.hold` and `mmf.seed_trusted` (the
+default), are the seeds in the zone of the scheme (`zone`, see below). ACT masks are
+not used by this tracker.
 
 With `debug.trace` the per-step records of the traced seeds have the layout of
 the hinec tracker's (`pos`, `dir` = the carried `e1`, `fa`, `h`, `chord`,
@@ -174,7 +185,15 @@ nothing else, so neither the edge of the mask nor the FA floor is a zone.
 
 **Leaving it.** In the `adaptive` and `reanchor` modes, a tract reaching a trusted
 node is re-anchored if its heading is within `exit_tol` of the data; otherwise the
-coast has left the bundle and it stops (`exit`). Since 2026-11-17 `exit_tol` and
+coast has left the bundle and it stops (`exit`). Since 2026-11-16 this holds only
+where the coast leaves the zone onto tissue: a coast that leaves it into non-tissue
+(outside the mask, below the FA floor; also when the `exit_delay` steps end there) has
+no data frame at the end of the step, so it is neither re-anchored nor exit-tested,
+and its steps through non-tissue are no coast, so its `coast_max` count restarts.
+Where it re-enters tissue it is an ordinary trusted step: the `adaptive` mode
+re-anchors when the drift reaches `reanchor_tol` (`reanchor` always), and only
+`angle_max` limits that snap, nothing with the presets' `angle_max: 0`.
+Since 2026-11-17 `exit_tol` and
 `coast_max` are `Inf` by default: no exit test, a tract leaving the zone is always
 re-anchored, and no cap of the coast. The scores below were measured with
 `exit_tol: 0.5` and `coast_max: 12`, the defaults until then, and were not measured
@@ -192,11 +211,35 @@ nor reset it. A coast longer than `coast_max` voxels stops (`coast`), and so doe
 marched coast whose fan closes to a tenth of its cross-section, the density ten
 times the ring's (`focus`). `angle_max`, when it is active, applies to the coast's
 own rotation.
-**The volume, the mask and the FA floor stay stops**: the confidence is NaN outside
-tissue, which `advanceFrame` takes for no data, and the connection is not finite
-there. A seed in the zone has no trusted node and coasts straight, along the axis
-of the filled field described next; where that axis ties, the seed is skipped as
-`no_direction`.
+**The mask and the FA floor are crossed like elsewhere** (leaving the volume still
+stops the tract, `outside`): the confidence is NaN outside tissue, which
+`advanceFrame` takes for no data, and the connection is not finite there, which since
+2026-11-16 it takes as zero (see Termination). The tract crosses a slab of non-tissue
+straight, no longer as a coast (no `coast_max` count, no exit test, see "Leaving
+it"), and the zero connection of its steps enters the ring: a coast that starts within
+`hold_k` steps after such a run holds a reduced curvature, and a straight one after a
+run of at least `hold_k` steps. A seed in the zone has no trusted node
+and would coast straight, along the
+axis of the filled field described next. **Seeds only in trusted data**
+(`mmf.seed_trusted`, default `true`, since 2026-11-16): such a seed is not tracked
+but skipped as `zone` in `meta.mmf.seeds_skipped`, its trace record (with
+`debug.trace`) a zero-step one that keeps its confidence. The test is the scheme's
+own at a first node, the confidence read as at every node (CL interpolated over the
+tissue and eroded by `hold_guard`) finite and below `hold_min`, so that the erosion
+also takes the seeds within about `hold_guard` of the zone; seeds at the edge of
+the tissue are not taken, as the edge is no zone. The key shares its aim, tracts that
+start only in trusted data, and its test with the `TrustedSeeds` of the moving frames
+test suite (`runtractographycrossingtest.m`), but where the suite replaces all the
+seeds of such a family by as many on the trusted part of its entry wall,
+`seed_trusted` drops each seed in the zone and adds none, so fewer tracks result (the
+dropped seeds stay counted in `meta.n_seeds`). It differs from
+`seeding.cl_min`, which drops whole voxels by their own CL before any tracker runs
+(no interpolation, no erosion, absent from `meta.n_seeds`). Neither key drops the
+voxels the tensor refit fills (`preprocessing.refit_zeroed_tensors`): at the noisy
+edge of a mask their floored tensors are close to linear, CL near 1, and read as
+trusted. With
+`seed_trusted: false` the seed coasts as before; where the axis of the filled field
+ties, the seed is skipped as `no_direction` either way.
 
 **The trusted nodes must not read the zone.** The held connection comes from the
 nodes just before it, and these are exactly where the voxel pipeline would mix the
@@ -293,12 +336,15 @@ lattice and order, `seed_density`, random jitter, `min_length`, a run across
 the chunk boundary of 4000 seeds, a seed that cannot be tracked), the straight
 field (a line to roundoff), the sign alignment of the connection across the
 flip locus of the principal axis, the precedence of `propagation_mask` over
-the brain mask, the termination reasons (`max_arc`, `angle`, `fa`,
-`outside_mask`, `outside`) with every integrator, `angle_max` on both
+the brain mask, the termination reasons (`max_arc`, `angle`, `outside`) with every
+integrator, and, since 2026-11-16, the straight runs through non-tissue (beyond the
+mask, through an FA cliff, with no `fa` or `outside_mask` stop), `angle_max` on both
 the step and the data's heading (a 90-degree interface between bundles with
 the stages straddling the swap plane, and the crossing fixture at eight
 sub-voxel seed phases: every mode stops with `angle` and no track has a kink
-above `angle_max`), the safety ceiling when `angle_max` is disabled, the
+above `angle_max`), the safety ceiling when `angle_max` is disabled (a stage within
+`gradient_delta` of a swap plane stops with `no_direction`; a stage exactly on it,
+where the connection is not finite, is now crossed), the
 one-sided stencil at a volume face, a non-finite voxel in a spline field, the
 per-step trace and the rejection of `rkf45` and `csd`.
 
@@ -320,15 +366,19 @@ the march alike, and the helix 2.6. The test also pins that the scheme changes
 nothing without a zone; `exit` (band A turned by 30 degrees beyond the crossing, with
 `exit_tol` 0.2, and no stop with `exit_tol` above that); `coast`; `focus` (rays through
 a point in 3-D, at r/r_0 = 0.32 where the cross-section is a tenth; the hold has no
-fan and runs on to the FA floor); that a tract beside low-CL voxels below the FA floor
+fan and runs into the hole around the centre, below the FA floor, which since
+2026-11-16 it crosses straight instead of stopping with `fa`); that a tract beside
+low-CL voxels below the FA floor
 or outside the mask does not coast; the ring across a re-anchoring (circles in a tilted
 plane, two sectors fewer trusted nodes apart than the ring holds: the hold stays in
 the plane to 1e-6 voxel and the march to 0.04, against 0.4 to 0.6 with the ring left
-behind); the FA floor and the mask inside the zone, with `exit_delay` as well; the
+behind); that the FA floor and the mask inside the zone are crossed, with `exit_delay`
+as well; the
 share of the zone and its warning at 40%; that `hold_min` and `hold_k` reach the
 scheme; the signs of the axial data; the trace and the rejected inputs.
 
-On the sample dataset (`data/parcellation_sample/sample.mat`, 128 x 128 x 50,
+Measured before 2026-11-16, with the line 945 stop (see Termination): on the sample
+dataset (`data/parcellation_sample/sample.mat`, 128 x 128 x 50,
 `config/mmf_dti.yml` at `seeding.density: 1`, 147k seeds of which 100k lie in
 tissue) the tracker produces 69.7k tracks of at least 15 voxels in about 11
 minutes, every node inside the mask and no node-to-node turn above `angle_max`;
@@ -343,7 +393,10 @@ for the reason given above), the mask (3%) and a missing axis (1%).
 
 With the scheme on, the tract transports its frame wherever the data are degenerate,
 and these are the places where the data's axis turns sharply. `angle_max` then
-has little left to do, and the scheme's own exit test does that. Of the half-tracks
+has little left to do, and the scheme's own exit test does that. (The numbers of this
+section and the next were measured before 2026-11-16, when tracts stopped at the mask
+and the FA floor; since then they run on through non-tissue, see Termination, and the
+scores would have to be measured again.) Of the half-tracks
 of `mmf_dti_hold` on the ISMRM 2015 phantom with the `angle_max` of `mmf_dti` (45 degrees
 per step), 14.7% stopped on it. In a trace of 8000 seeds, 86% of those stops were steps
 leaving the zone whose drift (1.1 rad median) the exit test would have stopped anyway,

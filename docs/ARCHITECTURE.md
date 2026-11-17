@@ -67,6 +67,7 @@ hinec/
 ├── src/                            # Source code modules
 │   ├── nim_calculation/            #   Tensor, eigendecomposition, FA, CSD
 │   │   ├── nim_dt_spd.m            #     Diffusion tensor (SPD-constrained)
+│   │   ├── nim_dt_refit_zeroed.m   #     Least-squares tensor for the voxels the fit left at zero
 │   │   ├── nim_dt.m                #     Diffusion tensor (basic LSF)
 │   │   ├── nim_eig.m               #     Eigenvalue/eigenvector decomposition
 │   │   ├── nim_fa.m                #     Fractional anisotropy
@@ -328,6 +329,8 @@ nim_eig             → .evec (eigenvectors), .eval (eigenvalues)
     |
 nim_fa              → .FA (fractional anisotropy map)
     |
+nim_dt_refit_zeroed → .DT, .evec, .eval, .FA of the voxels left at zero (preprocessing.refit_zeroed_tensors)
+    |
 nim_registration    → .registration (transforms, quality metrics)   [optional]
     |
 nim_parcellation    → .parcellation_mask, .labels, .atlas_labels
@@ -368,6 +371,8 @@ nim_read
               +---> nim_eig (requires: .DT)
                         |
                         +---> nim_fa (requires: .eval)
+                                  |
+                                  +---> nim_dt_refit_zeroed (requires: .img_b0, .img_bi, .bval, .bvec, .mask, .eval)
                         |
     +-------------------+
     |
@@ -454,13 +459,15 @@ Tissue segmentation is *not* part of this pipeline; it runs from `main.m` (Stage
 
 ### Stage 3: DTI Calculation
 
-Three sequential functions compute the diffusion tensor model:
+Three sequential functions compute the diffusion tensor model, and a fourth fills the voxels the first left at zero:
 
-1. **`nim_dt_spd.m`**: Fits diffusion tensors using least squares, then enforces positive-definiteness via BFGS optimization with Cholesky parameterization. Stores 6-element tensor representation in `nim.DT`.
+1. **`nim_dt_spd.m`**: Fits diffusion tensors using least squares, then enforces positive-definiteness via BFGS optimization with Cholesky parameterization. Stores 6-element tensor representation in `nim.DT`. In practice every BFGS result is rejected by its bound on the eigenvalues and the voxel is left at zero (see item 4).
 
 2. **`nim_eig.m`**: Eigendecomposition of each voxel's 3x3 tensor. Sorts eigenvalues in descending order (lambda1 >= lambda2 >= lambda3). Stores eigenvectors and eigenvalues.
 
 3. **`nim_fa.m`**: Computes fractional anisotropy from eigenvalues. Values range 0 (isotropic) to 1 (perfectly anisotropic).
+
+4. **`nim_dt_refit_zeroed.m`** (`preprocessing.refit_zeroed_tensors`, default true): gives the voxels of the mask that `nim_dt_spd` left at zero their least-squares tensor with the eigenvalues floored at 1e-7 mm²/s. Nearly all of them are the voxels it sent to BFGS, whose result is rejected because `vox_dt_bfgs` returns it 1e6 or more too large (a wrong scale and a wrong gradient). Run again before the save for the voxels the improved mask adds, and by `runTractography` on a dataset made before.
 
 ### Stage 4: Registration (`nim_registration.m`, optional)
 

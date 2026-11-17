@@ -215,20 +215,26 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyError(@() nim_tractography_mmf(tc.Nim, o), 'mmf:field');
         end
 
-        function stopsAtTheMaskAndReportsWhy(tc)
-            % Both halves leave the allowed half-plane y > 30 and both say so,
-            % with every integrator: the scheme examines the stages of a step,
-            % and a step end it never examined (orders 1, 2) is dropped by the
-            % tracker when it lies outside tissue.
+        function runsOnStraightBeyondTheMask(tc)
+            % Both halves leave the allowed half-plane y > 30, with every integrator. Since
+            % 2026-11-16 a non-finite connection no longer stops a tract (advanceFrame.m line
+            % 945 switched off, as in the moving-frames suite): it is taken as zero, so a half
+            % that leaves the mask runs on straight along its carried e1. One half runs out
+            % through the blocked half-plane to the face of the volume ('outside'), the other
+            % comes round the circle and crosses it straight to max_arc. Until then both
+            % stopped at the edge of the mask ('outside_mask').
             nim = tc.Nim; nim.mask(:, 1:30, :) = false;
             o = tc.Opts; o.propagation_mask = nim.mask;
             for integ = {'euler', 'rk2', 'rk4'}
                 o.integrator = integ{1};
                 evalc('[T, meta] = nim_tractography_mmf(nim, o);');
                 tc.assertNumElements(T, 1);
-                tc.verifyTrue(all(round(T{1}(:, 2)) >= 31), [integ{1} ': a node lies in the blocked half-plane']);
-                tc.verifyEqual(meta.termination.reason, {'outside_mask'}, integ{1});
-                tc.verifyEqual(meta.termination.count, 2, integ{1});
+                tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 0, integ{1});
+                tc.verifyEqual(tc.countOf(meta, 'outside'), 1, integ{1});
+                tc.verifyEqual(tc.countOf(meta, 'max_arc'), 1, integ{1});
+                P = T{1}; out = P(:, 2) < 30.5;
+                tc.verifyLessThan(min(P(:, 2)), 2, [integ{1} ': the half in the blocked half-plane reaches the face']);
+                tc.verifyLessThan(tc.offStraight(P, out), 1e-9, [integ{1} ': beyond the mask a half runs straight']);
             end
         end
 
@@ -241,7 +247,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyEqual(meta.termination.reason, {'max_arc'});
         end
 
-        function reportsVolumeAndFaStops(tc)
+        function reportsVolumeStopsAndRunsThroughAnFaCliff(tc)
             dims = [20 20 60];
             nim = tc.straightNim(dims);
             o = tc.Opts; o.seed_mask = false(dims); o.seed_mask(10, 11, 30) = true;
@@ -254,14 +260,16 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                 tc.verifyEqual(meta.termination.reason, {'outside'}, integ{1});
                 tc.verifyEqual(meta.termination.count, 2, integ{1});
                 tc.verifyTrue(all(T{1}(:, 3) >= 1 & T{1}(:, 3) <= 60), integ{1});
-                % An FA cliff at z = 46: the forward half stops with 'fa' and no
-                % node lies where the interpolated FA is below the floor (0.1,
-                % i.e. beyond z = 45.9).
+                % An FA cliff at z = 46: since 2026-11-16 (a non-finite connection is
+                % taken as zero) it no longer stops the forward half with 'fa': the
+                % half runs on straight through the voxels below the floor to the
+                % face of the volume.
                 nf = nim; nf.FA(:, :, 46:end) = 0;
                 evalc('[T, meta] = nim_tractography_mmf(nf, o);');
-                tc.verifyEqual(tc.countOf(meta, 'fa'), 1, integ{1});
-                tc.verifyEqual(tc.countOf(meta, 'outside'), 1, integ{1});
-                tc.verifyLessThan(max(T{1}(:, 3)), 45.9, integ{1});
+                tc.verifyEqual(tc.countOf(meta, 'fa'), 0, integ{1});
+                tc.verifyEqual(tc.countOf(meta, 'outside'), 2, integ{1});
+                tc.verifyGreaterThan(max(T{1}(:, 3)), 59, integ{1});
+                tc.verifyEqual(range(T{1}(:, 1:2)), [0 0], integ{1});
             end
         end
 
@@ -368,10 +376,11 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             end
             % Density 8 on two voxels: the sub-voxel lattice of nim_seed_offsets,
             % seed_points aligned with the tracks, and min_length applied to the
-            % arc length: on the circle through (46, 31) a mask at y > 40 cuts
-            % the forward half after ~10 voxels (the backward half runs its 60
-            % before coming round), ~70 voxels in all; the circle through
-            % (36, 31) runs the full 120.
+            % arc length: on the circle through (46, 31) the forward half leaves a
+            % mask at y > 40 after ~10 voxels and, since 2026-11-16 not stopped there,
+            % runs on straight to the face of the volume (the backward half runs its
+            % 60 before coming round), ~95 voxels in all; the circle through (36, 31)
+            % runs the full 120.
             nim = tc.Nim; nim.mask(:, 41:end, :) = false;
             o = tc.Opts; o.seed_density = 8; o.propagation_mask = nim.mask;
             o.seed_mask = false(size(FA)); o.seed_mask(46, 31, 5) = true; o.seed_mask(36, 31, 5) = true;
@@ -385,7 +394,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                 tc.verifyTrue(any(all(abs(T{t} - meta.seed_points(t, :)) < 1e-12, 2)), 'seed_points row is not on its track');
             end
             arc = cellfun(@(t) sum(sqrt(sum(diff(t, 1, 1).^2, 2))), T);
-            tc.verifyEqual(nnz(arc > 100), 8); tc.verifyEqual(nnz(arc < 80), 8);
+            tc.verifyEqual(nnz(arc > 100), 8); tc.verifyEqual(nnz(arc < 100), 8);
             o.min_length = 100;
             evalc('[T, meta] = nim_tractography_mmf(nim, o);');
             tc.verifyEqual(numel(T), 8);
@@ -463,16 +472,23 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             % then meets |kappa| ~ 1/delta, and the exponential step would
             % rotate the frame by an arbitrary angle and retrace the track; the
             % tracker keeps a ceiling of pi per step there and reports the stop
-            % as 'no_direction' (the data are singular), not as 'angle'. Here
-            % the step from the voxel centre with h = 0.25 puts a CF4 stage on
-            % the swap plane y = 30.5 of the two-bundle field.
+            % as 'no_direction' (the data are singular), not as 'angle'. With
+            % h = 0.25001 the end stage of a step lands 4e-4 voxel beyond the swap
+            % plane y = 30.5 of the two-bundle field: the ceiling stops the half.
+            % With h = 0.25 a stage lands EXACTLY on the plane, where the principal
+            % axis ties and the connection is not finite: until 2026-11-16 that
+            % stopped the half there ('no_direction' through 'nan'); since then
+            % (advanceFrame.m line 945 switched off) the stage is taken as zero, the
+            % step goes straight across the plane, and beyond it the adaptive mode
+            % re-anchors the frame onto the other bundle, which the half then
+            % follows to max_arc.
             dims = [60 60 6];
             nim = struct('FA', ones(dims), 'mask', true(dims), 'evec', zeros([dims 3 3]));
             nim.evec(:, 1:30, :, 2, 1) = 1;   nim.evec(:, 1:30, :, 1, 2) = 1;
             nim.evec(:, 31:end, :, 1, 1) = 1; nim.evec(:, 31:end, :, 2, 2) = 1;
             nim.evec(:, :, :, 3, 3) = 1;
             o = tc.Opts; o.seed_mask = false(dims); o.seed_mask(30, 20, 3) = true;
-            o.step_size = 0.25; o.max_arc = 40; o.max_steps = 160; o.angle_thresh = 0;
+            o.step_size = 0.25001; o.max_arc = 40; o.max_steps = 160; o.angle_thresh = 0;
             evalc('[T, meta] = nim_tractography_mmf(nim, o);');
             tc.assertNumElements(T, 1);
             tc.verifyEqual(meta.mmf.max_turn_rad, Inf);
@@ -481,6 +497,15 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyEqual(tc.countOf(meta, 'outside'), 1);
             tc.verifyLessThan(max(T{1}(:, 2)), 30.5);
             tc.verifyTrue(all(diff(T{1}(:, 2)) > 0), 'the track retraces itself');
+            o.step_size = 0.25;
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            tc.assertNumElements(T, 1);
+            tc.verifyEqual(tc.countOf(meta, 'angle'), 0);
+            tc.verifyEqual(tc.countOf(meta, 'no_direction'), 0);
+            tc.verifyEqual(tc.countOf(meta, 'outside'), 1);
+            tc.verifyEqual(tc.countOf(meta, 'max_arc'), 1);
+            tc.verifyGreaterThan(max(T{1}(:, 2)), 30.5, 'the half crosses the swap plane');
+            tc.verifyGreaterThan(max(T{1}(:, 1)), 50, 'and follows the other bundle beyond it');
         end
 
         function nodesOnAVolumeFaceAreNotDead(tc)
@@ -581,6 +606,32 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             nim.evec(:, :, :, 1, 1) = e1x;  nim.evec(:, :, :, 2, 1) = e1y;
             nim.evec(:, :, :, 1, 2) = -e1y; nim.evec(:, :, :, 2, 2) = e1x;
         end
+        function d = offStraight(~, P, sel)
+            % Largest distance of the nodes of each contiguous run of sel from the chord of
+            % the run: 0 for runs that are straight lines.
+            d = 0; k = find(diff([false; sel(:); false]) ~= 0);
+            for i = 1:2:numel(k) - 1
+                Q = P(k(i):k(i+1)-1, :);
+                if size(Q, 1) < 3, continue; end
+                u = (Q(end, :) - Q(1, :)) / max(norm(Q(end, :) - Q(1, :)), eps);
+                w = Q - Q(1, :); d = max(d, max(vecnorm(w - (w * u.') .* u, 2, 2)));
+            end
+        end
+        function ok = isTissue(~, nim, X, fa_min)
+            % e1_at's test of tissue short of the principal axis (as confidence_at), with
+            % nim.mask as the propagation mask: the mask at the nearest voxel and the
+            % linearly interpolated FA at or above the floor (inside the volume).
+            v = min(max(round(X), 1), size(nim.mask));
+            ok = nim.mask(sub2ind(size(nim.mask), v(:, 1), v(:, 2), v(:, 3))) > 0 & ...
+                 interpn(nim.FA, X(:, 1), X(:, 2), X(:, 3), 'linear', 0) >= fa_min;
+        end
+        function Q = inTissue(~, P, s, isIn)
+            % The part of the track P inside tissue (isIn of the nodes) that contains the seed s.
+            [~, k] = min(vecnorm(P - s, 2, 2)); ok = isIn(P);
+            a = k; while a > 1 && ok(a - 1), a = a - 1; end
+            b = k; while b < size(P, 1) && ok(b + 1), b = b + 1; end
+            Q = P(a:b, :);
+        end
         function e = spiralError(tc, T, p, alpha)
             % Largest distance of the track's nodes from the spiral through p: the gap
             % along the circle about the centre, whose normal component is cos(alpha) of it.
@@ -676,7 +727,12 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                     o.mmf_hold = scheme{1};
                     evalc('[T, meta] = nim_tractography_mmf(nim, o);');
                     tc.assertNumElements(T, 24, scheme{1});
-                    e.(scheme{1}){way} = arrayfun(@(k) tc.spiralError(T{k}, meta.seed_points(k, :), alpha), (1:24)');
+                    % over the part of the track in tissue (FA 1 in the annulus 4 < r < 27) that
+                    % contains the seed: since 2026-11-16 a half that leaves the tissue, through
+                    % the hole r < 4 or the rim r > 27, runs on straight instead of stopping
+                    inT = @(X) tc.isTissue(nim, X, o.termination_fa);
+                    e.(scheme{1}){way} = arrayfun(@(k) tc.spiralError(tc.inTissue(T{k}, meta.seed_points(k, :), inT), ...
+                        meta.seed_points(k, :), alpha), (1:24)');
                 end
                 tc.verifyLessThan(median(e.march{way}), 0.03);
                 tc.verifyLessThan(max(e.march{way}), 0.1);
@@ -791,7 +847,8 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             % Rays through a point in 3-D, kappa = 0, B = I/r. Inwards the fan closes and the
             % density the march carries, 1/u = (r_0/r)^2, reaches ten times its value at
             % r/r_0 = 0.32: 'focus'. The hold has no fan and runs into the hole around the
-            % centre, the FA floor.
+            % centre (FA 0), which since 2026-11-16 (a non-finite connection is taken as
+            % zero) no longer stops it with 'fa': it crosses the hole straight.
             d = [41 41 41]; ctr = 21;
             [X, Y, Z] = ndgrid(1:d(1), 1:d(2), 1:d(3));
             x = X - ctr; y = Y - ctr; z = Z - ctr; r = sqrt(x.^2 + y.^2 + z.^2); r(r == 0) = 1;
@@ -817,28 +874,39 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             o.mmf_hold = 'hold';
             evalc('[T, meta] = nim_tractography_mmf(nim, o);');
             tc.verifyEqual(tc.countOf(meta, 'focus'), 0);
-            tc.verifyEqual(tc.countOf(meta, 'fa'), 1);
-            tc.verifyLessThan(min(sqrt(sum((T{1} - ctr) .^ 2, 2))), 2.5);
+            tc.verifyEqual(tc.countOf(meta, 'fa'), 0);
+            rr = sqrt(sum((T{1} - ctr) .^ 2, 2));
+            tc.verifyLessThan(min(rr), 2.5);
+            tc.verifyGreaterThan(nnz(rr < 1.5), 0, 'the hold enters the hole');
+            u = [9 9 5] / norm([9 9 5]);                               % the ray of the seed
+            tc.verifyLessThan(min((T{1} - ctr) * u.'), -1.5, 'and crosses it to the far side');
         end
-        function theFaFloorAndTheMaskStayStopsInTheZone(tc)
-            % A slab across the sector below the FA floor, then outside the mask: the coast
-            % does not read the data, but a tract that goes out of tissue stops there, and
-            % for that reason.
+        function theFaFloorAndTheMaskAreCrossedInTheZone(tc)
+            % A slab across the sector below the FA floor, then outside the mask. Until
+            % 2026-11-16 a tract that went out of tissue in the zone stopped there ('fa',
+            % 'outside_mask'). Since then (advanceFrame.m line 945 switched off) a
+            % non-finite connection is taken as zero: the coast crosses the slab and both
+            % halves go on round the circle to max_arc.
             [nim, ~, phi] = tc.spiralNim(pi/2);
             nim = tc.degenerate(nim, phi > deg2rad(60) & phi < deg2rad(80));
             cut = phi > deg2rad(68) & phi < deg2rad(72);
             seed = false(size(nim.FA)); seed(round(tc.C + 15), round(tc.C), 5) = true;
             o = tc.holdOpts('hold'); o.seed_mask = seed; o.termination_fa = 0.5;
             n1 = nim; n1.FA(cut) = 0.1;
+            onCircle = @(P) max(abs(hypot(P(:, 1) - tc.C, P(:, 2) - tc.C) - tc.R0));
             evalc('[T, meta] = nim_tractography_mmf(n1, o);');
-            tc.verifyEqual(tc.countOf(meta, 'fa'), 1);                   % the half that reaches the sector
+            tc.verifyEqual(tc.countOf(meta, 'fa'), 0);
+            tc.verifyEqual(tc.countOf(meta, 'max_arc'), 2);
             FAI = griddedInterpolant(n1.FA, 'linear');
-            tc.verifyGreaterThanOrEqual(min(FAI(T{1})), o.termination_fa);
+            tc.verifyGreaterThan(nnz(FAI(T{1}) < o.termination_fa), 0, 'the coast crosses the slab below the floor');
+            tc.verifyLessThan(onCircle(T{1}), 0.5);
             n2 = nim; n2.mask(cut) = false; n2.FA = tc.Nim.FA;
             evalc('[T, meta] = nim_tractography_mmf(n2, o);');
-            tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 1);
+            tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 0);
+            tc.verifyEqual(tc.countOf(meta, 'max_arc'), 2);
             vox = sub2ind(size(n2.mask), round(T{1}(:, 1)), round(T{1}(:, 2)), round(T{1}(:, 3)));
-            tc.verifyTrue(all(n2.mask(vox)));
+            tc.verifyGreaterThan(nnz(~n2.mask(vox)), 0, 'the coast crosses the slab outside the mask');
+            tc.verifyLessThan(onCircle(T{1}), 0.5);
         end
         function theEdgeOfTheTissueIsNotAZone(tc)
             % A straight bundle of CL 0.22, just above the floor, between fitted, isotropic
@@ -918,13 +986,17 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             evalc('[~, m2] = nim_tractography_mmf(nim, o);');
             tc.verifyEqual(nnz(m2.trace(1).forward.coasted) - nnz(m0.trace(1).forward.coasted), 10);
             tc.verifyEqual(m2.mmf.exit_delay, 2);
-            % It is no way out of the tissue: here the band ends two voxels beyond the crossing.
+            % Here the band ends two voxels beyond the crossing. Until 2026-11-16 the tract
+            % stopped there ('outside_mask'); since then (a non-finite connection is taken as
+            % zero) it runs on straight along x beyond the tissue to the face of the volume.
             nim.FA(49:end, :, :) = 0; nim.mask(49:end, :, :) = 0;
             o.mmf_exit_delay = 6;
             evalc('[T, meta] = nim_tractography_mmf(nim, o);');
-            tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 1);
-            vox = sub2ind(size(nim.mask), round(T{1}(:, 1)), round(T{1}(:, 2)), round(T{1}(:, 3)));
-            tc.verifyTrue(all(nim.mask(vox) > 0));
+            tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 0);
+            tc.verifyEqual(tc.countOf(meta, 'outside'), 2);
+            P = T{1}; out = P(:, 1) >= 48.5;
+            tc.verifyGreaterThan(max(P(:, 1)), 79);
+            tc.verifyEqual(P(out, 2:3), repmat([30 3], nnz(out), 1), 'AbsTol', 1e-9);
         end
         function theTraceRecordsTheCoast(tc)
             nim = make_synthetic_nim('crossing');
@@ -985,10 +1057,53 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             evalc('T1 = nim_tractography_mmf(nim, o);');
             tc.verifyGreaterThan(max(abs(T1{1}(end, :) - T3{1}(end, :))), 1e-3);
             o.mmf_hold_k = 3; o.mmf_hold_min = 0.7; o.mmf_coast_max = 12;      % the cap is Inf by default
+            o.mmf_seed_trusted = false;          % the seed is in the zone now: tracked only without mmf.seed_trusted
             evalc('[Tz, meta] = nim_tractography_mmf(nim, o);');
             tc.verifyEqual(tc.countOf(meta, 'coast'), 2);
             tc.verifyLessThan(sum(sqrt(sum(diff(Tz{1}) .^ 2, 2))), 26);
             tc.verifyEqual(meta.mmf.hold_min, 0.7);
+        end
+        function aSeedInTheZoneIsNotTracked(tc)
+            % mmf.seed_trusted (the default): a seed whose confidence is below the floor has no
+            % trusted node and would coast straight along the filled axis; it is skipped as
+            % 'zone' and accounted for, and the other seeds are tracked as without the key.
+            [nim, ~, phi] = tc.spiralNim(pi/2);
+            nim = tc.degenerate(nim, phi > deg2rad(60) & phi < deg2rad(80));
+            seed = false(size(nim.FA));
+            seed(round(tc.C + 15), round(tc.C), 5) = true;              % phi = 0: trusted
+            seed(36, 45, 5) = true;                                      % phi = 69 deg, r = 15.5: in the zone
+            for scheme = {'hold', 'march'}
+                o = tc.holdOpts(scheme{1}); o.seed_mask = seed; o.trace = true; o.trace_max = 0;
+                tc.verifyTrue(o.mmf_seed_trusted, 'the schema default reaches the options');
+                evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+                evalc('nim_check_tracker_output(T, meta);');
+                tc.assertNumElements(T, 1, scheme{1});
+                tc.verifyEqual(meta.n_seeds, 2, scheme{1});
+                tc.verifyEqual(meta.seed_points, [round(tc.C + 15) round(tc.C) 5], scheme{1});
+                tc.verifyEqual(meta.mmf.seeds_alive, 1, scheme{1});
+                tc.verifyEqual(meta.mmf.seeds_skipped.reason, {'zone'}, scheme{1});
+                tc.verifyEqual(meta.mmf.seeds_skipped.count, 1, scheme{1});
+                tc.verifyTrue(meta.mmf.seed_trusted, scheme{1});
+                tc.verifyEqual(meta.trace(2).forward.n_steps, 0, scheme{1});
+                tc.verifyEqual(meta.trace(2).backward.termination, 'zone', scheme{1});
+                tc.verifyLessThan(meta.trace(2).forward.confidence, meta.mmf.hold_min, scheme{1});
+                tc.verifyEqual(meta.trace(2).seed_point, [36 45 5], scheme{1});
+                tc.verifyGreaterThanOrEqual(meta.trace(1).forward.confidence(1), meta.mmf.hold_min, scheme{1});
+                o.mmf_seed_trusted = false;                              % before 2026-11-16: both are tracked
+                evalc('[T0, meta0] = nim_tractography_mmf(nim, o);');
+                tc.assertNumElements(T0, 2, scheme{1});
+                tc.verifyEmpty(meta0.mmf.seeds_skipped.reason, scheme{1});
+                tc.verifyFalse(meta0.mmf.seed_trusted, scheme{1});
+                tc.verifyEqual(T{1}, T0{1}, 'AbsTol', 1e-12, scheme{1});
+                rz = meta0.trace(2).forward;                             % the seed in the zone, tracked:
+                tc.verifyTrue(rz.coasted(1), scheme{1});                 % it coasts from its first node,
+                cz = rz.pos(rz.coasted, :); sv = svd(cz - mean(cz, 1));  % on a straight line
+                tc.verifyLessThan(sv(2), 1e-9, [scheme{1} ': the coast from the seed in the zone is straight']);
+            end
+            o = tc.holdOpts('none'); o.seed_mask = seed;                 % no zone without the scheme
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            tc.verifyEqual(meta.mmf.seeds_alive, 2);
+            tc.verifyFalse(any(strcmp(meta.mmf.seeds_skipped.reason, 'zone')));
         end
         function algorithmMmfAloneIsMMF4s(tc)
             % The schema defaults of tractography.mmf are those of MMF-4s (hold: march,

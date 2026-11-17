@@ -5,7 +5,7 @@ function result = extract_cc_tracks(data_prefix, config_file, out_dir, varargin)
 %   result = extract_cc_tracks(..., 'mask_file', 'cc_extraction/sample_M.nii.gz')
 %
 % Pipeline (same call sequence as main.m + runTractography.m, minus the FSL/SPM steps):
-%   nim_read -> nim_dt_spd -> nim_eig -> nim_fa
+%   nim_read -> nim_dt_spd -> nim_eig -> nim_fa -> nim_dt_refit_zeroed (preprocessing.refit_zeroed_tensors)
 %     -> FA-based WM/GM/CSF masks (same adaptive thresholds as preproc_tissue_segmentation.m,
 %        with MATLAB imerode(…, ones(3,3,3)) standing in for `fslmaths -ero`, whose default kernel is that 3x3x3 box)
 %     -> seed mask = brain mask & FA > 0.05   (Strategy 1 of runTractography.m)
@@ -76,6 +76,9 @@ function result = extract_cc_tracks(data_prefix, config_file, out_dir, varargin)
     nim = nim_dt_spd(nim);
     nim = nim_eig(nim);
     nim = nim_fa(nim);
+    if ~isfield(config.preprocessing, 'refit_zeroed_tensors') || config.preprocessing.refit_zeroed_tensors
+        nim = nim_dt_refit_zeroed(nim);         % the voxels the fit left at zero, as main does
+    end
 
     %% ---- tissue masks for ACT (preproc_tissue_segmentation.m logic, no FSL) --------------------------------
     bm = nim.mask > 0.5;

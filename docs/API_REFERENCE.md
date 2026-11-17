@@ -48,9 +48,10 @@ The trailing arguments are **positional and type-dispatched**, not name-value:
 - Short-circuits if the output `.mat` already exists, and skips preprocessing if
   the preprocessed `.nii.gz` exists. Delete the target to force reprocessing.
 - Detects raw data by `_raw` in the filename and triggers preprocessing.
-- Runs `nim_read` → `nim_dt_spd` → `nim_eig` → `nim_fa` → optional
+- Runs `nim_read` → `nim_dt_spd` → `nim_eig` → `nim_fa` →
+  `nim_dt_refit_zeroed` (`preprocessing.refit_zeroed_tensors`) → optional
   `nim_registration` → parcellation → mask improvement → tissue segmentation →
-  `nim_save`.
+  `nim_dt_refit_zeroed` again (the voxels the improved mask adds) → `nim_save`.
 - Adds every `src/nim_*` directory and `lib/spm12` to the MATLAB path, and
   `char()`-converts path inputs.
 
@@ -321,7 +322,37 @@ Per voxel: compute the ADC $Y = \ln(S_0/S)/b$, build the design matrix $H$, solv
 $D = H \backslash Y$, and if any eigenvalue is negative re-solve by BFGS over a
 Cholesky parameterization (`lib/bfgs/vox_dt_bfgs.m`), which cannot produce a
 non-SPD tensor. NaN, Inf and unrealistic eigenvalues (> 0.01) are rejected;
-eigenvalues are then sorted with `maxk`.
+eigenvalues are then sorted with `maxk`. A rejected voxel is left at zero. In
+practice every voxel sent to BFGS is: `vox_dt_bfgs` scales `b` by 1/1000 and then
+multiplies the tensor by 1000 where it should divide (a factor 1e6), and its gradient
+(`gradf`) reads the x-components of the first three gradient directions instead of
+each sample's direction, so it does not minimise its objective either; its tensor
+comes back 1e6 or more too large (6e6 to 1e7 times the least-squares one on the
+TrackerYoga holes) and fails the bound. Fixing the scale alone would not repair it.
+The holes were 12% of the mask of the TrackerYoga phantom and 4.7% of the ISMRM 2015
+phantom's. `nim_dt_refit_zeroed` fills them.
+
+### `nim_dt_refit_zeroed(nim, floor_ev)`
+
+A tensor for the voxels of the mask that the fit left at zero (eigenvalues and `.DT`
+all zero), behind `preprocessing.refit_zeroed_tensors` (default `true`). Each gets its log-linear
+least-squares tensor with the eigenvalues raised to `floor_ev` (default `1e-7`
+mm²/s), and `.DT`, `.evec`, `.eval` and `.FA` are set from it. A voxel stays at zero
+when its b0 is not positive, when fewer than six of its diffusion-weighted samples are
+positive or their gradients do not determine the tensor, when the tensor has no
+eigenvalue above `floor_ev`, or when its largest eigenvalue exceeds 0.01. A nim
+without holes, or without the raw signals (`.img_b0`, `.img_bi`, `.bval`, `.bvec`,
+`.thrsh_b0`) on its grid, is returned as it is. Where the least-squares tensor has
+negative eigenvalues, as at the noisy edge of a mask, the floored tensor is close to
+linear (FA near 1).
+
+**Returns** `[nim, n_refit, n_zero]`: the voxels refitted and the holes found.
+
+`main` calls it after `nim_fa`, and again before the save for the voxels the
+improved mask adds, behind the key of the pipeline config; `runTractography` calls it
+on the dataset it loads, so that a nim made before reaches the trackers without holes
+(in memory only), behind the key of the tracking config (always, when it is called
+without a config); `cc_extraction/extract_cc_tracks.m` after its `nim_fa`.
 
 ### `nim_dt(nim, opts)`
 
@@ -624,6 +655,7 @@ plus:
 | `mmf.coast_max` | `mmf_coast_max` | Inf | Longest coast, voxels of arc (Inf: no cap) |
 | `mmf.exit_tol` | `mmf_exit_tol` | Inf | Largest angle (radians) to the data with which a tract may leave the zone (Inf: no exit test) |
 | `mmf.exit_delay` | `mmf_exit_delay` | 0 | Arc of coast beyond the edge of the zone before that test, voxels |
+| `mmf.seed_trusted` | `mmf_seed_trusted` | true | With the scheme on, a seed in the zone (confidence below `hold_min`) is not tracked (`seeds_skipped`: `zone`) |
 
 ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle limit
 `termination.angle_max` becomes `advanceFrame`'s `MaxTurn` through
@@ -632,13 +664,15 @@ rotation of a step and the turn of the heading as the data see it (the data's
 $\mathbf{e}_1$ at the end of a step against the heading at its start, in every
 mode). `meta` carries
 `.seed_index`, `.seed_points`, `.n_seeds`; `.termination` (`reason` / `count`
-over the half-tracks of the seeds that were tracked: `max_arc`, `angle`, `fa`,
-`outside_mask`, `outside`, `outside_domain`, `no_direction`, and with `mmf.hold`
-`coast`, `exit`, `focus`; empty when no seed was); `.mmf` (`order`, `mode`,
+over the half-tracks of the seeds that were tracked: `max_arc`, `angle`,
+`outside`, `no_direction`, and with `mmf.hold` `coast`, `exit`, `focus`; empty
+when no seed was; since 2026-11-16 a non-finite connection no longer stops a tract,
+which runs on straight through non-tissue, so `fa`, `outside_mask` and
+`outside_domain` no longer occur); `.mmf` (`order`, `mode`,
 `reanchor_tol`, `twist`, `max_turn_rad`, `gradient_delta`, `kernel`, the `mmf.hold`
 settings, `zone_fraction`, `reanchored_fraction`, `coasted_fraction`, `seeds_alive`,
 `seeds_skipped` with `reason` / `count` of the seeds outside tissue or without
-a direction); and, with `debug.trace`, `.trace` (per traced seed: `seed_index`,
+a direction, and with `mmf.hold` and `mmf.seed_trusted` of those in the zone, `zone`); and, with `debug.trace`, `.trace` (per traced seed: `seed_index`,
 `seed_point`, and `forward` / `backward` records with the fields of the hinec
 record that `nim_track_diagnose` reads — `pos`, `dir` (the carried
 $\mathbf{e}_1$), `fa`, `h`, `chord`, `turn` in degrees, `flip` (always false),

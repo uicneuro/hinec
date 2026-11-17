@@ -156,6 +156,7 @@ function options = nim_config_to_options(config)
     options.mmf_coast_max      = t.mmf.coast_max;
     options.mmf_exit_tol       = t.mmf.exit_tol;
     options.mmf_exit_delay     = t.mmf.exit_delay;
+    options.mmf_seed_trusted   = t.mmf.seed_trusted;
     options.mmf_veto_arc       = t.mmf.veto_arc;
     options.mmf_veto_tol       = t.mmf.veto_tol;
 

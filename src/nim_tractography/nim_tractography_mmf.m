@@ -49,14 +49,26 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %
 % TERMINATION. The connection is returned non-finite wherever a point is
 % outside the volume, outside the propagation mask (or the brain mask), below
-% the FA floor or without a well-conditioned principal axis; advanceFrame
-% stops a tract BEFORE a step at whose stages the connection is not finite.
-% The stages are the start of the step, its midpoint (orders 2 and 4) and its
-% end (order 4), so with orders 1 and 2 the scheme never examines the end of a
-% step: a last node that lies outside tissue is dropped here, and every node
-% of a track is a valid integration node inside tissue. Leaving the volume
-% stops a tract as well; the cut boundary point is dropped, so tracks consist
-% of integration nodes only, like those of the other trackers. The angle
+% the FA floor or without a well-conditioned principal axis. SINCE 2026-11-16
+% advanceFrame takes a non-finite connection at a stage of a step as zero and
+% TAKES THE STEP (line 945 of advanceFrame.m, maxRot(bad) = NaN, is switched
+% off, as in the moving-frames test suite): a tract that leaves the mask, drops
+% below the FA floor or meets a point without an axis is no longer stopped
+% there but runs on straight along its carried e1, through non-tissue, until it
+% re-enters tissue, leaves the volume ('outside') or reaches max_arc. Before,
+% advanceFrame stopped it before such a step ('nan', resolved here into fa,
+% outside_mask, outside_domain or no_direction by why_stopped, which keeps that
+% resolution for an advanceFrame with the line on). Only a last node that lies
+% outside tissue is dropped here; the earlier nodes of such a run stay in the
+% track. Leaving the volume stops a tract; the cut boundary point is dropped.
+% Through non-tissue the hold ring takes the zero connection: a coast that starts
+% within mmf.hold_k steps after such a run holds a reduced curvature, and a
+% straight one after a run of at least mmf.hold_k steps. A coast that leaves the
+% zone into non-tissue is not exit-tested (the data frame is not finite there) and
+% its coast_max count restarts; where it re-enters tissue it is re-anchored like
+% any trusted step, and only angle_max limits that snap (nothing with
+% angle_max <= 0). advanceFrame.m's own help still describes the 'nan' stop (the
+% file is the suite's). The angle
 % limit termination.angle_max (degrees per voxel of arc; through
 % nim_angle_limit it is min(angle_max*h, 90) degrees per step, none for
 % angle_max <= 0) is advanceFrame's 'MaxTurn', applied to the rotation
@@ -88,9 +100,15 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % interpolated linearly and eroded by mmf.hold_guard voxels, see confidence_at.
 % advanceFrame takes a non-finite confidence for no data and then reads the
 % connection, which is not finite outside tissue: the confidence is NaN there,
-% so the volume, the mask and the FA floor stay stops inside the zone. A seed in
-% the zone has no trusted node and coasts straight along the axis of the filled
-% field (where that axis ties, it is skipped as 'no_direction'). The trusted nodes must not
+% and since 2026-11-16 the tract crosses the slab of non-tissue straight, as
+% everywhere else (see TERMINATION; before, the volume, the mask and the FA floor
+% stayed stops inside the zone). A seed in
+% the zone has no trusted node and would coast straight along the axis of the
+% filled field: with mmf.seed_trusted (the default) it is not tracked, but skipped
+% as 'zone' (its confidence, read as the scheme reads it at a node, finite and
+% below mmf.hold_min: advanceFrame's own test of a first node; the erosion also
+% takes the seeds within about mmf.hold_guard of the zone), and without it it
+% coasts (where that axis ties, it is skipped as 'no_direction'). The trusted nodes must not
 % read the zone either, and they would, through the kernel (the spline is
 % global, and the jump of the axis at the edge of a zone rings over several
 % voxels) and through the stencil of the nodal connection (two voxels), which
@@ -119,6 +137,8 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %   mmf_exit_delay     the confidence floor, the ring, the erosion radius, the
 %                      longest coast (default Inf: no cap), the test on leaving the
 %                      zone (default Inf: no test) and the arc of coast before it
+%   mmf_seed_trusted   with mmf_hold, a seed in the zone is not tracked (default
+%                      true; false tracks it, a straight coast)
 %   angle_thresh       degrees of turning per VOXEL OF ARC (nim_angle_limit),
 %                      applied as advanceFrame's 'MaxTurn', see above
 %   max_arc            arc length followed from the seed in each direction
@@ -132,14 +152,15 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %           forward half], integration nodes only, arc length >= min_length
 %   meta    seed_index (1 x T), seed_points (T x 3), n_seeds;
 %           termination: reason/count over the half-tracks of the live seeds
-%           (max_arc, angle, fa, outside_mask, outside, outside_domain,
-%           no_direction, and with mmf.hold coast, exit, focus; empty when no
-%           seed is alive);
+%           (max_arc, angle, outside, no_direction, and with mmf.hold coast,
+%           exit, focus; empty when no seed is alive; fa, outside_mask and
+%           outside_domain no longer occur since 2026-11-16, see TERMINATION);
 %           mmf: the scheme settings, zone_fraction (the share of the tissue voxels
 %           below mmf.hold_min, before the erosion), reanchored_fraction and
 %           coasted_fraction of the steps, seeds_alive, and seeds_skipped
 %           (reason/count of the seeds outside
-%           the volume or the mask, below the FA floor or without a direction);
+%           the volume or the mask, below the FA floor or without a direction,
+%           and with mmf.hold and mmf.seed_trusted of those in the zone, 'zone');
 %           trace (debug.trace): per traced seed, forward/backward records with
 %           the fields the hinec tracker writes - pos, dir (the carried e1),
 %           fa (interpolated), h, chord, turn (degrees: the rotation of the
@@ -197,6 +218,7 @@ end
 hold_guard = o('mmf_hold_guard', 0.5);
 coast_max  = o('mmf_coast_max', Inf);                      % Inf: no cap of the coast
 exit_delay = o('mmf_exit_delay', 0);
+seed_trusted = logical(o('mmf_seed_trusted', true));   % the schema default (tractography.mmf.seed_trusted)
 maxTurn = deg2rad(nim_angle_limit(options.angle_thresh, h));   % min(angle_max*h, 90) deg per step; Inf disables
 angle_off = ~isfinite(maxTurn);
 if angle_off
@@ -336,7 +358,7 @@ fld = struct('DI', {DI}, 'FAI', FAI, 'prop', prop, 'dims', dims, 'fa_min', termi
              'CLI', CLI, 'TSI', TSI, 'probes', probes, 'hold_min', ifelse(use_hold, hold_min, -Inf));
 fprintf('MMF: connection %s (%s)\n', conn, ifelse(strcmp(conn, 'nodal'), ...
     'computed at the voxel nodes, interpolated', sprintf('central difference %.2g voxel of the interpolated field', delta)));
-names = reason_names();
+names = [reason_names(), {'zone'}];             % why a seed is skipped: e1_at's codes, then a seed in the zone (mmf.seed_trusted)
 hold_args = {};
 if use_hold
     hold_args = {'Confidence', @(X) confidence_at(X, fld), 'HoldMin', hold_min, 'HoldK', hold_k, 'HoldCurvature', hold_mode, ...
@@ -351,9 +373,25 @@ end
 seed_points = seeds_from_mask(options.seed_mask, options, dims);
 n_seeds = size(seed_points, 1);
 [e1s, alive_seed, code0] = e1_at(seed_points, fld);
+n_direction = nnz(alive_seed);
+seed_conf = NaN(n_seeds, 1);                    % the confidence of a seed skipped in the zone, for its trace
+if use_hold && seed_trusted
+    % A seed in the zone has no trusted node and would coast straight along the filled axis.
+    % The test is advanceFrame's own at a first node: the confidence finite and below the floor.
+    ia = find(alive_seed);
+    cs = confidence_at(seed_points(ia, :), fld);
+    iz = ia(isfinite(cs) & cs < hold_min);
+    seed_conf(iz) = cs(isfinite(cs) & cs < hold_min);
+    code0(iz) = numel(names); alive_seed(iz) = false;
+end
 skipped_cnt = arrayfun(@(c) nnz(code0 == c), 1:numel(names))';   % the seeds not tracked, by reason
 has = find(skipped_cnt > 0);
-fprintf('MMF: %d seeds, %d inside tissue with a direction\n', n_seeds, nnz(alive_seed));
+if use_hold && seed_trusted
+    fprintf('MMF: %d seeds, %d inside tissue with a direction, of which %d in the zone (confidence below %.3g) are not tracked (mmf.seed_trusted)\n', ...
+        n_seeds, n_direction, skipped_cnt(end), hold_min);
+else
+    fprintf('MMF: %d seeds, %d inside tissue with a direction\n', n_seeds, n_direction);
+end
 
 % ---- which seeds are traced per step (debug.trace) ---------------------------
 do_trace = false(n_seeds, 1);
@@ -384,8 +422,8 @@ for c0 = 1:chunk:numel(live)
         sgn = 3 - 2 * dirn;                     % +1 forward, -1 backward
         [tr, fr, info] = advanceFrame(wFcn, mfFcn, dom, S, sgn * d0, h, smax, ...
             'Order', order, 'Mode', mode, 'ReanchorTol', rtol, 'Twist', 'zero', 'MaxTurn', maxTurn, hold_args{:});
-        % Integration nodes only: drop a clipped boundary point, and a step end
-        % the scheme never examined (orders 1 and 2) that lies outside tissue.
+        % Drop a clipped boundary point, and a last node that lies outside tissue
+        % (since 2026-11-16 the earlier nodes of a straight run through non-tissue stay).
         Pq = tr(:);
         for q = 1:numel(idx)
             if info.clipped(q), Pq{q} = Pq{q}(1:end-1, :); end
@@ -433,7 +471,7 @@ meta.n_seeds     = n_seeds;
 meta.mmf = struct('order', order, 'mode', mode, 'reanchor_tol', rtol, 'twist', 'zero', ...
                   'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'connection', conn, 'kernel', kernel, ...
                   'hold', hold_mode, 'hold_min', hold_min, 'hold_k', hold_k, 'hold_guard', hold_guard, 'zone_fraction', zone_fraction, ...
-                  'coast_max', coast_max, 'exit_tol', exit_tol, 'exit_delay', exit_delay, ...
+                  'coast_max', coast_max, 'exit_tol', exit_tol, 'exit_delay', exit_delay, 'seed_trusted', seed_trusted, ...
                   'reanchored_fraction', n_re / max(n_st, 1), 'coasted_fraction', n_co / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
                   'seeds_skipped', struct('reason', {reshape(names(has), [], 1)}, 'count', {skipped_cnt(has)}));
 tt = term(alive_seed, :); tt = tt(:); tt = tt(~cellfun(@isempty, tt));
@@ -449,8 +487,8 @@ end
 if any(do_trace)
     ti = find(do_trace(:))';
     for k = ti(~alive_seed(ti))                 % a skipped seed: a zero-step record with its reason
-        trace_fwd{k} = trace_skipped(seed_points(k, :), names{code0(k)}, dirnames{1}, fld);
-        trace_bwd{k} = trace_skipped(seed_points(k, :), names{code0(k)}, dirnames{2}, fld);
+        trace_fwd{k} = trace_skipped(seed_points(k, :), names{code0(k)}, dirnames{1}, fld, seed_conf(k));
+        trace_bwd{k} = trace_skipped(seed_points(k, :), names{code0(k)}, dirnames{2}, fld, seed_conf(k));
     end
     meta.trace = struct('seed_index', num2cell(ti), ...
                         'seed_point', num2cell(seed_points(ti, :), 2)', ...
@@ -668,8 +706,8 @@ function c = confidence_at(X, fld)
 % (min ignores NaN, so the erosion stays within the data), so that the edge of the
 % tissue is not a zone. NaN where the point is not tissue, as e1_at tests it short
 % of the principal axis: advanceFrame then reads the connection, which is not
-% finite there and stops the tract, whereas 'no_direction', the degenerate data
-% themselves, is left to the zone.
+% finite there (since 2026-11-16 taken as zero: the tract crosses it straight),
+% whereas 'no_direction', the degenerate data themselves, is left to the zone.
 c = NaN(size(X, 1), 1);
 inside = all(X >= 1, 2) & all(X <= fld.dims, 2);
 if ~any(inside), return; end
@@ -688,7 +726,9 @@ end
 
 function reason = why_stopped(stop, P, F, hh, fld, xdrop)
 % advanceFrame's reasons, with 'nan' resolved into what made the connection
-% non-finite: the node dropped for lying outside tissue (xdrop, if any), else
+% non-finite (an advanceFrame with line 945 on; since 2026-11-16 'nan' no longer
+% occurs and fa, outside_mask and outside_domain are no stop reasons any more):
+% the node dropped for lying outside tissue (xdrop, if any), else
 % the first failing point among the stages of the next step (its midpoint and
 % end along the carried e1, then the node itself), each with the six probes
 % of the central-difference stencil, in the order the tests are applied. A
@@ -729,11 +769,12 @@ rec = struct('direction', dirname, 'pos', P, 'dir', reshape(F(1:n, 1, :), n, 3),
              'confidence', info.confidence{q}(1:n), 'n_steps', n - 1, 'termination', reason);
 end
 
-function rec = trace_skipped(x, reason, dirname, fld)
-% The zero-step record of a seed that was not tracked.
+function rec = trace_skipped(x, reason, dirname, fld, conf)
+% The zero-step record of a seed that was not tracked; conf, the confidence of a
+% seed skipped in the zone (NaN for the other reasons).
 rec = struct('direction', dirname, 'pos', x, 'dir', NaN(1, 3), 'fa', fld.FAI(x(1), x(2), x(3)), ...
              'h', NaN, 'chord', NaN, 'turn', NaN, 'flip', false, 'drift', 0, 'reanchored', false, ...
-             'kappa', NaN, 's', 0, 'coasted', false, 'confidence', NaN, 'n_steps', 0, 'termination', reason);
+             'kappa', NaN, 's', 0, 'coasted', false, 'confidence', conf, 'n_steps', 0, 'termination', reason);
 end
 
 function seed_points = seeds_from_mask(seed_mask, options, dims)
