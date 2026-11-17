@@ -615,14 +615,14 @@ plus:
 | `field` | `field` | `'dti'` | `'dti'` only; `'csd'` is rejected (`mmf:field`) |
 | `integrator.method` | `integrator` | `'rk4'` | `euler` / `rk2` / `rk4` → Lie group order 1 / 2 / 4 (Lie-Euler, exponential midpoint, CF4); `rkf45` is rejected (`mmf:integrator`) |
 | `mmf.mode` | `mmf_mode` | `'adaptive'` | `transport` / `reanchor` / `adaptive` — how the carried frame relates to the data frame along the tract |
-| `mmf.reanchor_tol` | `mmf_reanchor_tol` | 1e-3 | Drift (radians) between the carried and the data's $\mathbf{e}_1$ at which the adaptive mode re-anchors |
+| `mmf.reanchor_tol` | `mmf_reanchor_tol` | 0.2 | Drift (radians) between the carried and the data's $\mathbf{e}_1$ at which the adaptive mode re-anchors |
 | `mmf.gradient_delta` | `mmf_gradient_delta` | 1e-3 | Central-difference step (voxels) for the derivative of the interpolated principal axis |
-| `mmf.hold` | `mmf_hold` | `'none'` | `none` / `hold` (MMF-4h) / `march` (MMF-4s) — how a tract crosses degenerate data; reads `nim.eval`. See [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md) |
+| `mmf.hold` | `mmf_hold` | `'march'` | `none` (MMF-4a) / `hold` (MMF-4h) / `march` (MMF-4s, the default) — how a tract crosses degenerate data; reads `nim.eval`. See [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md) |
 | `mmf.hold_min` | `mmf_hold_min` | 0.2 | Linear shape CL below which the data are degenerate |
 | `mmf.hold_k` | `mmf_hold_k` | 3 | Trusted nodes the coast starts from |
 | `mmf.hold_guard` | `mmf_hold_guard` | 0.5 | Erosion radius of the confidence, voxels |
-| `mmf.coast_max` | `mmf_coast_max` | 12 | Longest coast, voxels of arc |
-| `mmf.exit_tol` | `mmf_exit_tol` | 0.5 | Largest angle (radians) to the data with which a tract may leave the zone |
+| `mmf.coast_max` | `mmf_coast_max` | Inf | Longest coast, voxels of arc (Inf: no cap) |
+| `mmf.exit_tol` | `mmf_exit_tol` | Inf | Largest angle (radians) to the data with which a tract may leave the zone (Inf: no exit test) |
 | `mmf.exit_delay` | `mmf_exit_delay` | 0 | Arc of coast beyond the edge of the zone before that test, voxels |
 
 ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle limit

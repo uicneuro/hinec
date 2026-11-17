@@ -591,7 +591,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
     end
     methods (Test)
         function holdChangesNothingWithoutAZone(tc)
-            % mmf_dti leaves it off. On data with CL above the floor everywhere the zone is
+            % mmf_dti sets it off (the schema default is march). On data with CL above the floor everywhere the zone is
             % empty, so the scheme, its fill of the zone and its stencils change nothing.
             tc.verifyEqual(tc.Opts.mmf_hold, 'none');
             o = tc.holdOpts('none');
@@ -755,6 +755,25 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             o.mmf_exit_tol = 1;                                          % the same tract with a tolerance above the 0.52 rad
             evalc('[~, meta] = nim_tractography_mmf(nim, o);');
             tc.verifyEqual(tc.countOf(meta, 'exit'), 0);
+        end
+        function byDefaultThereIsNoExitTestAndNoCap(tc)
+            % mmf.exit_tol and mmf.coast_max are Inf by default: the tract of
+            % aCoastThatLeavesTheBundleStops, 0.52 rad off the data beyond the pancakes,
+            % is re-anchored and goes on, and the coast has no cap.
+            nim = make_synthetic_nim('crossing');
+            nim.evec(47:end, 27:33, :, 1, 1) = cosd(30); nim.evec(47:end, 27:33, :, 2, 1) = sind(30);
+            nim.evec(47:end, 27:33, :, 1, 2) = -sind(30); nim.evec(47:end, 27:33, :, 2, 2) = cosd(30);
+            o = tc.holdOpts('hold'); o.seed_mask = false(size(nim.FA)); o.seed_mask(30, 30, 3) = true;
+            o.seed_density = 8; o.max_arc = 100; o.max_steps = 500; o.angle_thresh = 225;
+            tc.verifyEqual(o.mmf_exit_tol, Inf);                         % the schema defaults, through tc.Opts
+            tc.verifyEqual(o.mmf_coast_max, Inf);
+            o = rmfield(o, {'mmf_exit_tol', 'mmf_coast_max'});           % and the tracker's own
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            tc.verifyEqual(meta.mmf.exit_tol, Inf);
+            tc.verifyEqual(meta.mmf.coast_max, Inf);
+            tc.verifyEqual(tc.countOf(meta, 'exit'), 0);
+            tc.verifyEqual(tc.countOf(meta, 'coast'), 0);
+            tc.verifyTrue(any(cellfun(@(t) max(t(:, 1)), T) > 50));      % beyond the pancakes, where the exit test stopped it
         end
         function aCoastLongerThanTheCapStops(tc)
             nim = make_synthetic_nim('crossing');
@@ -965,11 +984,35 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             o.mmf_hold_k = 1;
             evalc('T1 = nim_tractography_mmf(nim, o);');
             tc.verifyGreaterThan(max(abs(T1{1}(end, :) - T3{1}(end, :))), 1e-3);
-            o.mmf_hold_k = 3; o.mmf_hold_min = 0.7;
+            o.mmf_hold_k = 3; o.mmf_hold_min = 0.7; o.mmf_coast_max = 12;      % the cap is Inf by default
             evalc('[Tz, meta] = nim_tractography_mmf(nim, o);');
             tc.verifyEqual(tc.countOf(meta, 'coast'), 2);
             tc.verifyLessThan(sum(sqrt(sum(diff(Tz{1}) .^ 2, 2))), 26);
             tc.verifyEqual(meta.mmf.hold_min, 0.7);
+        end
+        function algorithmMmfAloneIsMMF4s(tc)
+            % The schema defaults of tractography.mmf are those of MMF-4s (hold: march,
+            % reanchor_tol 0.2 rad): a config that only selects the algorithm runs it, and a
+            % tracker handed neither option does too. mmf_dti.yml sets hold: none and
+            % reanchor_tol 0.001 and stays MMF-4a.
+            here = fileparts(mfilename('fullpath'));
+            cfgdir = fullfile(fileparts(fileparts(here)), 'config');
+            p = [tempname '.yml'];
+            fid = fopen(p, 'w'); fprintf(fid, 'tractography:\n  algorithm: mmf\n'); fclose(fid);
+            c = onCleanup(@() delete(p));
+            evalc('d = nim_config_to_options(load_config_yaml(p));');
+            tc.verifyEqual(d.mmf_hold, 'march');
+            tc.verifyEqual(d.mmf_reanchor_tol, 0.2);
+            evalc('m = nim_config_to_options(load_config_yaml(fullfile(cfgdir, ''mmf_dti_march.yml'')));');
+            tc.verifyEqual(d.mmf_hold, m.mmf_hold);
+            tc.verifyEqual(d.mmf_reanchor_tol, m.mmf_reanchor_tol);
+            evalc('a = nim_config_to_options(load_config_yaml(fullfile(cfgdir, ''mmf_dti.yml'')));');
+            tc.verifyEqual(a.mmf_hold, 'none');
+            tc.verifyEqual(a.mmf_reanchor_tol, 1e-3);
+            o = rmfield(tc.holdOpts('none'), {'mmf_hold', 'mmf_reanchor_tol'});   % the tracker's own defaults
+            evalc('[~, meta] = nim_tractography_mmf(tc.Nim, o);');
+            tc.verifyEqual(meta.mmf.hold, 'march');
+            tc.verifyEqual(meta.mmf.reanchor_tol, 0.2);
         end
         function thePresetsAreMmfDtiWithTheSchemeOn(tc)
             here = fileparts(mfilename('fullpath'));

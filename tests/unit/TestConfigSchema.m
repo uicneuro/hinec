@@ -180,6 +180,38 @@ classdef TestConfigSchema < matlab.unittest.TestCase
             tc.verifyError(@() load_config_yaml(p), 'load_config_yaml:outOfRange');
         end
 
+        function infIsANumberOnlyWhereTheRangeAllowsIt(tc)
+            % mmf.exit_tol and mmf.coast_max have the range [0, Inf] and the default Inf
+            % (no exit test, no cap); inf, Inf and .inf are that number in a config and
+            % with --set, and a key with a finite range still rejects it.
+            w = warning('off','all'); cw = onCleanup(@() warning(w));
+            S = nim_config_schema();
+            for key = {'tractography.mmf.exit_tol', 'tractography.mmf.coast_max'}
+                e = S(strcmp({S.path}, key{1}));
+                tc.verifyEqual(e.default, Inf, key{1});
+                tc.verifyEqual(e.range, [0 Inf], key{1});
+            end
+            p = [tempname '.yml'];  c = onCleanup(@() delete(p));
+            fid = fopen(p,'w'); fprintf(fid, 'tractography:\n  algorithm: mmf\n'); fclose(fid);
+            cfg = load_config_yaml(p);
+            tc.verifyEqual(cfg.tractography.mmf.exit_tol, Inf);
+            tc.verifyEqual(cfg.tractography.mmf.coast_max, Inf);
+            words = {'inf', 'Inf', '.inf'};
+            for k = 1:numel(words)
+                fid = fopen(p,'w'); fprintf(fid, 'tractography:\n  mmf:\n    exit_tol: 0.5\n    coast_max: %s\n', words{k}); fclose(fid);
+                ck = load_config_yaml(p);
+                tc.verifyEqual(ck.tractography.mmf.coast_max, Inf, words{k});
+                tc.verifyEqual(ck.tractography.mmf.exit_tol, 0.5);
+                c2 = nim_config_apply_overrides(ck, {['mmf.exit_tol=' words{k}], 'mmf.coast_max=12'});
+                tc.verifyEqual(c2.tractography.mmf.exit_tol, Inf, words{k});
+                tc.verifyEqual(c2.tractography.mmf.coast_max, 12);
+            end
+            tc.verifyError(@() nim_config_apply_overrides(cfg, {'mmf.hold_guard=inf'}), 'nim_config_apply_overrides:badType');
+            tc.verifyError(@() nim_config_apply_overrides(cfg, {'mmf.exit_tol=-inf'}), 'nim_config_apply_overrides:badType');
+            fid = fopen(p,'w'); fprintf(fid, 'tractography:\n  mmf:\n    hold_guard: inf\n'); fclose(fid);
+            tc.verifyError(@() load_config_yaml(p), 'load_config_yaml:badType');
+        end
+
         % ------------------------------------------------------- migration
         function legacyIntegrationOrderMigrates(tc)
             w = warning('off','all'); cw = onCleanup(@() warning(w));

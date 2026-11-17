@@ -180,6 +180,10 @@ function value = parse_scalar(str)
     if strcmpi(str, 'true'),  value = true;  return; end
     if strcmpi(str, 'false'), value = false; return; end
     if strcmpi(str, 'null') || strcmp(str, '~'), value = []; return; end
+    if ~isempty(regexpi(str, '^[+-]?\.?inf$', 'once'))           % inf, Inf, .inf (YAML): no limit, for the keys whose range allows it
+        value = Inf;  if str(1) == '-', value = -Inf; end
+        return;
+    end
     num = str2double(str);
     if ~isnan(num) && ~isempty(regexp(str, '^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$', 'once'))
         value = num;

@@ -251,7 +251,7 @@ end
 function v = check_value(v, entry, src)
     switch entry.type
         case 'numeric'
-            if ~isnumeric(v) || ~isscalar(v) || ~isfinite(v)
+            if ~isnumeric(v) || ~isscalar(v) || isnan(v) || (isinf(v) && ~any(entry.range == v))   % Inf only as a bound of the range
                 error('load_config_yaml:badType', '%s: "%s" must be a finite number, got "%s".', ...
                     src, entry.path, val2str(v));
             end

@@ -168,7 +168,7 @@ dx/ds = e1,   dE/ds = Omega(x, e1) E,   Omega_1j = w_1j(x, e1) . e1   (CF4, h = 
 In MMF-ml it is the read weight c(X, T): a point where c < `mmf.hold_min`
 (0.15) has lost the tract's own layer. There the tract coasts on the mean
 connection of its last `mmf.hold_k` trusted nodes, at most `mmf.coast_max`
-voxels. On reaching trusted data again it is re-anchored if its heading is
+voxels (`Inf` by default: no cap). On reaching trusted data again it is re-anchored if its heading is
 within `mmf.exit_tol` (1.2 rad) of the layer read there. Otherwise it stops
 (`exit`).
 
