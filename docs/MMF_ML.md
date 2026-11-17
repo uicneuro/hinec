@@ -11,9 +11,11 @@ termination, the coast through missing data and the exit test are those of
 MMF-4h, but for two things that differ since 2026-11-16. The termination: the
 original `advanceFrame.m` has line 945 (`maxRot(bad) = NaN;`) switched off, so an
 MMF-4h tract runs on straight through non-tissue, while `advanceFrame_ml.m` keeps the
-line and an MMF-ml tract still stops at the mask and the FA floor. The seeding: with
-the hold scheme on, the original skips the seeds in the zone (`mmf.seed_trusted`),
-and the copy tracks every seed.
+line and an MMF-ml tract still stops at the mask and the FA floor. The seeding was
+the other: with the hold scheme on, the original skips the seeds in the zone
+(`mmf.seed_trusted`), and since 2026-11-17 the copy does too, by the confidence it
+reads: a seed where the read weight of the lift of its heading is below
+`mmf.hold_min` is not tracked (`seeds_skipped`: `zone`).
 
 **MMF-ml leaves the professor's scheme untouched.** Sehun Chun's
 `advanceFrame.m` and `nim_tractography_mmf.m` are not edited. MMF-ml runs on
@@ -24,9 +26,9 @@ f(X, T) of the position and the heading. `runTractography` sends
 `mmf.veto_arc > 0`). Every other `mmf` run uses the originals.
 `tests/unit/TestAdvanceFrameMl.m` checks that, with neither addition in use,
 the copies take exactly the same steps as the originals where the originals'
-own later changes do not apply (its seeds lie outside the zone, so
-`mmf.seed_trusted` skips none, and its tracts stay in tissue, so line 945 does not
-come into play).
+own later changes do not apply (its tracts stay in tissue, so line 945 does not
+come into play), and that both skip the same seeds in the zone
+(`mmf.seed_trusted`).
 
 ```
 ./bin/run_tractography.sh mmf_ml --score          # config/mmf_ml.yml

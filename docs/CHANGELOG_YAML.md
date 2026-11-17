@@ -1,5 +1,20 @@
 # YAML Configuration Changelog
 
+## 2026-11-17 - `mmf.seed_trusted` in `nim_tractography_mmf_ml` too
+
+- No new key. `nim_tractography_mmf_ml` (the runs with `field: lift` or
+  `mmf.veto_arc > 0`) now reads `tractography.mmf.seed_trusted` (default `true`) as
+  `nim_tractography_mmf` does since 2026-11-16: with `mmf.hold` `hold` or `march`, a
+  seed whose confidence is finite and below `mmf.hold_min` is not tracked. The
+  confidence is the one the scheme reads at a node: CL on `field: dti`, and on
+  `field: lift` the read weight of the lift of the seed's heading (the lower of the
+  two directions the seed is tracked in). The seed is counted in
+  `meta.mmf.seeds_skipped` under `zone`, its `debug.trace` record keeps its
+  confidence, and `meta.mmf` gains `seed_trusted`.
+- **Behaviour change** for those runs, `config/mmf_ml.yml` included: the seeds in the
+  zone are no longer tracked. `seed_trusted: false` restores the tracker as it was.
+  The scores of [MMF_ML.md](MMF_ML.md) were measured before and not measured again.
+
 ## 2026-11-17 - `mmf.exit_tol` and `mmf.coast_max` are `Inf` by default
 
 - The defaults of `tractography.mmf.exit_tol` and `tractography.mmf.coast_max` are now

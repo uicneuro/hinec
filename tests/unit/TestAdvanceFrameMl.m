@@ -2,10 +2,10 @@ classdef TestAdvanceFrameMl < matlab.unittest.TestCase
 % advanceFrame_ml and nim_tractography_mmf_ml are copies of Sehun Chun's advanceFrame and
 % nim_tractography_mmf with two additions: heading-aware fields (MMF-ml) and the history veto.
 % With neither in use they must take exactly the steps of the originals where the originals' own
-% later changes do not apply: since 2026-11-16 nim_tractography_mmf skips the seeds in the zone
-% (mmf.seed_trusted), which the copy does not read, and advanceFrame no longer stops a tract at a
-% non-finite connection (line 945 off; advanceFrame_ml keeps it). So the fixture's seeds lie
-% outside the zone and its tracts stay in tissue.
+% later changes do not apply: since 2026-11-16 advanceFrame no longer stops a tract at a
+% non-finite connection (line 945 off; advanceFrame_ml keeps it), so the fixture's tracts stay in
+% tissue. Both skip the seeds in the zone (mmf.seed_trusted; the copy since 2026-11-17), which
+% theCopySkipsTheSeedsInTheZoneAsTheOriginal checks with a seed in the band.
 % Fixture: the rigid-rotation phantom of TestMmfTracker (circles about the axis, FA 1 in an
 % annulus), with a band of low linear shape CL = (l1 - l2)/l1 = 0.17 for the hold scheme to coast
 % through.
@@ -43,14 +43,47 @@ classdef TestAdvanceFrameMl < matlab.unittest.TestCase
     end
 
     methods (Test)
+        function theCopySkipsTheSeedsInTheZoneAsTheOriginal(tc)
+            % mmf.seed_trusted: a seed in the band of low CL is not tracked by either tracker, the
+            % other seeds give the same tracks, and without the key both track it.
+            setenv('HINEC_DISABLE_PARFOR', '1'); c = onCleanup(@() setenv('HINEC_DISABLE_PARFOR', ''));
+            seed = tc.Opts.seed_mask; seed(46, 35, 5) = true;            % y = 35 is in the band (33.5 < y < 37.5), r = 16.1
+            for hold = {'hold', 'march'}
+                o = tc.Opts; o.mmf_hold = hold{1}; o.mmf_veto_arc = 0; o.seed_mask = seed;
+                o.trace = true; o.trace_max = 0;
+                evalc('[T0, m0] = nim_tractography_mmf(tc.Nim, o);');
+                evalc('[T1, m1] = nim_tractography_mmf_ml(tc.Nim, o);');
+                tc.verifyEqual(m0.mmf.seeds_skipped.reason, {'zone'}, hold{1});
+                tc.verifyEqual(m1.mmf.seeds_skipped.reason, {'zone'}, hold{1});
+                tc.verifyEqual(m1.mmf.seeds_skipped.count, m0.mmf.seeds_skipped.count, hold{1});
+                tc.verifyEqual(m1.mmf.seeds_skipped.count, 1, hold{1});
+                tc.verifyEqual(m1.mmf.seeds_alive, m0.mmf.seeds_alive, hold{1});
+                tc.verifyTrue(m1.mmf.seed_trusted, hold{1});
+                tc.verifyTrue(isequal(T1, T0), ['tracks differ with mmf.hold ' hold{1}]);
+                tc.verifyEqual(numel(T1), nnz(tc.Opts.seed_mask), hold{1});
+                k = find(strcmp(arrayfun(@(t) t.forward.termination, m1.trace, 'UniformOutput', false), 'zone'));
+                tc.assertNumElements(k, 1, hold{1});
+                tc.verifyEqual(m1.trace(k).seed_point, [46 35 5], hold{1});
+                tc.verifyEqual(m1.trace(k).forward.n_steps, 0, hold{1});
+                tc.verifyLessThan(m1.trace(k).forward.confidence, m1.mmf.hold_min, hold{1});
+                o.mmf_seed_trusted = false;                               % both track it
+                evalc('[~, f0] = nim_tractography_mmf(tc.Nim, o);');
+                evalc('[F1, f1] = nim_tractography_mmf_ml(tc.Nim, o);');
+                tc.verifyEmpty(f1.mmf.seeds_skipped.reason, hold{1});
+                tc.verifyEmpty(f0.mmf.seeds_skipped.reason, hold{1});
+                tc.verifyFalse(f1.mmf.seed_trusted, hold{1});
+                tc.verifyEqual(numel(F1), nnz(seed), hold{1});
+            end
+            o = tc.Opts; o.mmf_hold = 'none'; o.mmf_veto_arc = 0; o.seed_mask = seed;   % no zone without the scheme
+            evalc('[~, mn] = nim_tractography_mmf_ml(tc.Nim, o);');
+            tc.verifyFalse(any(strcmp(mn.mmf.seeds_skipped.reason, 'zone')));
+        end
         function theTrackerCopyMatchesTheOriginal(tc)
             % MMF-4a, MMF-4h and MMF-4s on field: dti, veto off: identical tracks and metadata counts.
             setenv('HINEC_DISABLE_PARFOR', '1'); c = onCleanup(@() setenv('HINEC_DISABLE_PARFOR', ''));
             for hold = {'none', 'hold', 'march'}
                 o = tc.Opts; o.mmf_hold = hold{1}; o.mmf_veto_arc = 0;
                 evalc('[T0, m0] = nim_tractography_mmf(tc.Nim, o);');
-                tc.assertFalse(any(strcmp(m0.mmf.seeds_skipped.reason, 'zone')), ...
-                    ['a seed lies in the zone, which only the original skips (mmf.seed_trusted): ' hold{1}]);
                 P = vertcat(T0{:}); rr = hypot(P(:, 1) - 30.5, P(:, 2) - 30.5);
                 tc.assertTrue(all(rr > 4 & rr < 27), ['a track leaves the tissue, where only the original runs on (line 945): ' hold{1}]);
                 evalc('[T1, m1] = nim_tractography_mmf_ml(tc.Nim, o);');

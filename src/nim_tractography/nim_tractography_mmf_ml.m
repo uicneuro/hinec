@@ -133,6 +133,8 @@ function [tracks, meta] = nim_tractography_mmf_ml(nim, options)
 %   mmf_exit_delay     the confidence floor, the ring, the erosion radius, the
 %                      longest coast (default Inf: no cap), the test on leaving the
 %                      zone (default Inf: no test) and the arc of coast before it
+%   mmf_seed_trusted   with mmf_hold, a seed in the zone is not tracked (default
+%                      true; false tracks it, a straight coast)
 %   angle_thresh       degrees of turning per VOXEL OF ARC (nim_angle_limit),
 %                      applied as advanceFrame's 'MaxTurn', see above
 %   max_arc            arc length followed from the seed in each direction
@@ -153,7 +155,8 @@ function [tracks, meta] = nim_tractography_mmf_ml(nim, options)
 %           below mmf.hold_min, before the erosion), reanchored_fraction and
 %           coasted_fraction of the steps, seeds_alive, and seeds_skipped
 %           (reason/count of the seeds outside
-%           the volume or the mask, below the FA floor or without a direction);
+%           the volume or the mask, below the FA floor or without a direction,
+%           and with mmf.hold and mmf.seed_trusted of those in the zone, 'zone');
 %           trace (debug.trace): per traced seed, forward/backward records with
 %           the fields the hinec tracker writes - pos, dir (the carried e1),
 %           fa (interpolated), h, chord, turn (degrees: the rotation of the
@@ -216,6 +219,7 @@ end
 hold_guard = o('mmf_hold_guard', 0.5);
 coast_max  = o('mmf_coast_max', Inf);                      % Inf: no cap of the coast
 exit_delay = o('mmf_exit_delay', 0);
+seed_trusted = logical(o('mmf_seed_trusted', true));   % the schema default (tractography.mmf.seed_trusted)
 veto_arc   = o('mmf_veto_arc', 0);
 veto_tol   = o('mmf_veto_tol', pi / 6);
 if veto_arc > 0 && ~use_hold
@@ -360,7 +364,7 @@ fld = struct('DI', {DI}, 'FAI', FAI, 'prop', prop, 'dims', dims, 'fa_min', termi
              'CLI', CLI, 'TSI', TSI, 'probes', probes, 'hold_min', ifelse(use_hold, hold_min, -Inf));
 fprintf('MMF: connection %s (%s)\n', conn, ifelse(strcmp(conn, 'nodal'), ...
     'computed at the voxel nodes, interpolated', sprintf('central difference %.2g voxel of the interpolated field', delta)));
-names = reason_names();
+names = [reason_names(), {'zone'}];             % why a seed is skipped: e1_at's codes, then a seed in the zone (mmf.seed_trusted)
 hold_args = {};
 if use_hold
     hold_args = {'Confidence', @(X) confidence_at(X, fld), 'HoldMin', hold_min, 'HoldK', hold_k, 'HoldCurvature', hold_mode, ...
@@ -387,9 +391,6 @@ if use_lift                                     % the seed heading: the voxel's 
     code0(~m1 & (code0 == 0 | code0 == 5)) = 5; code0(alive_seed) = 0;
     e1s(alive_seed, :) = ul(alive_seed, :);
 end
-skipped_cnt = arrayfun(@(c) nnz(code0 == c), 1:numel(names))';   % the seeds not tracked, by reason
-has = find(skipped_cnt > 0);
-fprintf('MMF: %d seeds, %d inside tissue with a direction\n', n_seeds, nnz(alive_seed));
 
 % ---- which seeds are traced per step (debug.trace) ---------------------------
 do_trace = false(n_seeds, 1);
@@ -422,6 +423,33 @@ if use_lift
     end
     fprintf('MMF: lifted field, %d lifts per voxel at most, %.1f%% of the tissue voxels with two or more\n', ...
         size(nim.lift_ok, 4), 100 * nnz(sum(nim.lift_ok, 4) >= 2) / max(nnz(any(nim.lift_ok, 4)), 1));
+end
+n_direction = nnz(alive_seed);
+seed_conf = NaN(n_seeds, 1);                    % the confidence of a seed skipped in the zone, for its trace
+if use_hold && seed_trusted
+    % A seed in the zone has no trusted node and would coast straight (nim_tractography_mmf, 2026-11-16;
+    % here since 2026-11-17). The test is advanceFrame_ml's own at a first node, with the confidence the
+    % scheme reads: CL, or on the lifted field the read weight of the lift of the seed's heading (the
+    % lower of the two directions the seed is tracked in), finite and below the floor.
+    cfSeed = hold_args{find(strcmp(hold_args, 'Confidence')) + 1};
+    ia = find(alive_seed);
+    if nargin(cfSeed) == 2
+        cs = min(cfSeed(seed_points(ia, :), e1s(ia, :)), cfSeed(seed_points(ia, :), -e1s(ia, :)));
+    else
+        cs = cfSeed(seed_points(ia, :));
+    end
+    cs = cs(:); inz = isfinite(cs) & cs < hold_min;
+    iz = ia(inz);
+    seed_conf(iz) = cs(inz);
+    code0(iz) = numel(names); alive_seed(iz) = false;
+end
+skipped_cnt = arrayfun(@(c) nnz(code0 == c), 1:numel(names))';   % the seeds not tracked, by reason
+has = find(skipped_cnt > 0);
+if use_hold && seed_trusted
+    fprintf('MMF: %d seeds, %d inside tissue with a direction, of which %d in the zone (confidence below %.3g) are not tracked (mmf.seed_trusted)\n', ...
+        n_seeds, n_direction, skipped_cnt(end), hold_min);
+else
+    fprintf('MMF: %d seeds, %d inside tissue with a direction\n', n_seeds, n_direction);
 end
 live  = find(alive_seed);
 half  = cell(n_seeds, 2);                       % forward, backward halves (seed first)
@@ -489,7 +517,7 @@ meta.n_seeds     = n_seeds;
 meta.mmf = struct('order', order, 'mode', mode, 'reanchor_tol', rtol, 'twist', 'zero', ...
                   'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'connection', conn, 'kernel', kernel, ...
                   'hold', hold_mode, 'hold_min', hold_min, 'hold_k', hold_k, 'hold_guard', hold_guard, 'zone_fraction', zone_fraction, ...
-                  'coast_max', coast_max, 'exit_tol', exit_tol, 'exit_delay', exit_delay, 'veto_arc', veto_arc, 'veto_tol', veto_tol, 'veto_returns', n_veto, ...
+                  'coast_max', coast_max, 'exit_tol', exit_tol, 'exit_delay', exit_delay, 'seed_trusted', seed_trusted, 'veto_arc', veto_arc, 'veto_tol', veto_tol, 'veto_returns', n_veto, ...
                   'reanchored_fraction', n_re / max(n_st, 1), 'coasted_fraction', n_co / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
                   'seeds_skipped', struct('reason', {reshape(names(has), [], 1)}, 'count', {skipped_cnt(has)}));
 tt = term(alive_seed, :); tt = tt(:); tt = tt(~cellfun(@isempty, tt));
@@ -505,8 +533,8 @@ end
 if any(do_trace)
     ti = find(do_trace(:))';
     for k = ti(~alive_seed(ti))                 % a skipped seed: a zero-step record with its reason
-        trace_fwd{k} = trace_skipped(seed_points(k, :), names{code0(k)}, dirnames{1}, fld);
-        trace_bwd{k} = trace_skipped(seed_points(k, :), names{code0(k)}, dirnames{2}, fld);
+        trace_fwd{k} = trace_skipped(seed_points(k, :), names{code0(k)}, dirnames{1}, fld, seed_conf(k));
+        trace_bwd{k} = trace_skipped(seed_points(k, :), names{code0(k)}, dirnames{2}, fld, seed_conf(k));
     end
     meta.trace = struct('seed_index', num2cell(ti), ...
                         'seed_point', num2cell(seed_points(ti, :), 2)', ...
@@ -807,11 +835,12 @@ rec = struct('direction', dirname, 'pos', P, 'dir', reshape(F(1:n, 1, :), n, 3),
              'confidence', info.confidence{q}(1:n), 'n_steps', n - 1, 'termination', reason);
 end
 
-function rec = trace_skipped(x, reason, dirname, fld)
-% The zero-step record of a seed that was not tracked.
+function rec = trace_skipped(x, reason, dirname, fld, conf)
+% The zero-step record of a seed that was not tracked; conf, the confidence of a
+% seed skipped in the zone (NaN for the other reasons).
 rec = struct('direction', dirname, 'pos', x, 'dir', NaN(1, 3), 'fa', fld.FAI(x(1), x(2), x(3)), ...
              'h', NaN, 'chord', NaN, 'turn', NaN, 'flip', false, 'drift', 0, 'reanchored', false, ...
-             'kappa', NaN, 's', 0, 'coasted', false, 'confidence', NaN, 'n_steps', 0, 'termination', reason);
+             'kappa', NaN, 's', 0, 'coasted', false, 'confidence', conf, 'n_steps', 0, 'termination', reason);
 end
 
 function seed_points = seeds_from_mask(seed_mask, options, dims)
