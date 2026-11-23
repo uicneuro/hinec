@@ -648,7 +648,7 @@ tractography:
     reanchor_tol: 0.2                     # radians
     gradient_delta: 0.001                 # voxels
     hold: none | hold | march             # default march (MMF-4s); hold_min, hold_k, hold_guard,
-                                          # coast_max, exit_tol, exit_delay go with it
+                                          # coast_max goes with it (exit_tol, exit_delay: obsolete, ignored)
   diagnostics: true|false
 ```
 

@@ -20,8 +20,9 @@ tractography:
   interpolation:
     method: spline        # C2 kernel: the connection is a derivative of the field
   termination:
-    angle_max: 0          # off. mmf.exit_tol is Inf by default (no exit test), so nothing tests the
-                          # direction on leaving the zone here; set mmf.exit_tol (0.5 gave the docs' scores)
+    angle_max: 0          # off. There is no exit test (mmf.exit_tol is obsolete since 2026-11-23), so
+                          # nothing tests the direction on leaving the zone here; set angle_max for a test
+                          # (mmf.exit_tol 0.5 gave the docs' scores)
     max_arc: 600
   mmf:
     mode: adaptive
