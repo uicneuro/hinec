@@ -164,17 +164,14 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 mode there is no re-anchoring). The exit test of
 %                 'ExitTol', which stopped a tract leaving with a drift
 %                 above it ('exit'), is obsolete since 2026-11-23 and
-%                 commented out below. With 'ExitDelay' n > 0
-%                 the coast goes on for n more steps beyond the zone's edge,
-%                 on the held connection, and the frame is re-anchored at the end
-%                 of them, where the data's direction is read clear of the
-%                 swing ahead of a degenerate zone (these nodes count as
-%                 coasted in info.coasted, do not enter the ring and do not
-%                 count towards 'CoastMax'; 2026-11-02). A coast of more than
+%                 commented out below. So is 'ExitDelay' (2026-11-02 to
+%                 2026-11-23), which carried the coast on for n more steps
+%                 beyond the zone's edge before the re-anchoring: the coast
+%                 now ends at the first trusted node. A coast of more than
 %                 'CoastMax' consecutive steps started in the zone stops the
 %                 tract ('coast'; default Inf). A non-finite confidence is
 %                 no data: the connection is used as it is (NaN stops the
-%                 tract as usual), during the steps of 'ExitDelay' as well.
+%                 tract as usual).
 %                 The ring is kept in the carried frame, so a re-anchoring
 %                 with three frame vectors, which changes its normal plane,
 %                 turns the ring with it. The nodes in the zone are reported in
@@ -250,11 +247,13 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 leaving the zone; default Inf, 'ReanchorTol' before
 %                 2026-11-17.)
 %       'ExitDelay'
-%                 steps of coast beyond the zone's edge before the
-%                 re-anchoring (default 0: re-anchored at the first trusted
-%                 node; in 'transport' mode the coast is extended the same
-%                 way). Before 2026-11-23 the exit test of 'ExitTol' was
-%                 applied at the end of these steps.
+%                 OBSOLETE since 2026-11-23: still accepted, so that old
+%                 callers run, but ignored whatever its value, with the
+%                 warning advanceFrame:obsoleteExitDelay. The coast ends at
+%                 the first trusted node beyond the zone, where the tract is
+%                 re-anchored (the behaviour of the former default 0).
+%                 (Was: steps of coast beyond the zone's edge before the
+%                 exit test, later the re-anchoring; default 0.)
 %       'HoldTwist', 'HoldCurvature'
 %                 'zero' | 'hold' for the twist (default 'zero') and
 %                 'hold' | 'zero' | 'march' for the curvature (default
@@ -390,7 +389,7 @@ holdMin    = 0.2;
 holdK      = 3;
 holdCap    = Inf;
 coastMax   = Inf;
-exitDelay  = 0;              % hold scheme: steps of coast beyond the zone's edge before the re-anchoring
+% exitDelay  = 0;            % obsolete 2026-11-23: no coast beyond the zone's edge whatever 'ExitDelay' is
 holdTwist  = 'zero';
 holdCurv   = 'hold';
 holdDiv    = 'zero';         % MMF-4s: the divergence term of the march
@@ -443,9 +442,11 @@ for n = 1:2:numel(varargin)
                 '''ExitTol'' is obsolete and ignored: a tract leaving the zone is always re-anchored.');
             % validateattributes(val, {'numeric'}, {'scalar', 'real', 'nonnegative', 'nonnan'}, 'advanceFrame', '''ExitTol''');
             % exitTol = double(val);
-        case 'exitdelay'
-            validateattributes(val, {'numeric'}, {'scalar', 'integer', 'nonnegative'}, 'advanceFrame', '''ExitDelay''');
-            exitDelay = double(val);
+        case 'exitdelay'                        % obsolete 2026-11-23: accepted and ignored, whatever the value
+            warning('advanceFrame:obsoleteExitDelay', ...
+                '''ExitDelay'' is obsolete and ignored: the coast ends at the first trusted node beyond the zone.');
+            % validateattributes(val, {'numeric'}, {'scalar', 'integer', 'nonnegative'}, 'advanceFrame', '''ExitDelay''');
+            % exitDelay = double(val);
         case 'holdtwist'
             holdTwist = validatestring(val, {'zero', 'hold'}, 'advanceFrame', '''HoldTwist''');
         case 'holdcurvature'
@@ -606,7 +607,7 @@ abuf    = NaN(nseed, holdK);                % hold scheme: the arc length of the
 spread  = cell(nseed, 1);                   % the transverse component used at the nodes
 hcount  = zeros(nseed, 1);
 coast   = zeros(nseed, 1);                  % consecutive steps started in the zone
-grace   = zeros(nseed, 1);                  % steps of coast left beyond the zone's edge ('ExitDelay')
+% grace   = zeros(nseed, 1);                % steps of coast left beyond the zone's edge ('ExitDelay', obsolete 2026-11-23)
 if useHold
     c0 = evalCL(X(:, 1:expdim));
 else
@@ -641,17 +642,19 @@ for n = 1:nstep
         else
             holdOm = Om0;  sgS = sg0;  uE = ones(numel(idx), 1);
         end
-        forcedS = grace(idx) > 0;               % rows still coasting beyond the zone's edge ('ExitDelay')
+        forcedS = false(numel(idx), 1);         % no row coasts beyond the zone's edge ('ExitDelay' obsolete 2026-11-23)
+        % forcedS = grace(idx) > 0;             % rows still coasting beyond the zone's edge ('ExitDelay')
         [Xn, En, Om1, maxRot, zoneS] = lieStep(Xa, Ea, h, order, omegaFcn, evalCL, holdMin, holdOm, expdim, forcedS);
         zoneD = zoneS & ~forcedS;               % the start node is degenerate by the confidence (counts towards 'CoastMax')
         cE = evalCL(Xn(:, 1:expdim));           % confidence at the end of the step
         zoneC = isfinite(cE) & cE < holdMin;    % the end node is degenerate by the confidence
-        g = grace(idx);                         % 'ExitDelay': the coast goes on beyond the zone's edge
-        g(zoneS & ~zoneC & g == 0) = exitDelay + 1;      % the edge is reached: exitDelay more steps of coast
-        g = max(g - 1, 0);                      % one of them spent
-        g(zoneC) = 0;                           % back in the degenerate zone
-        grace(idx) = g;
-        zoneE = zoneC | g > 0;                  % the end node still coasts
+        zoneE = zoneC;                          % the end node coasts where it is degenerate ('ExitDelay' obsolete 2026-11-23)
+        % g = grace(idx);                       % 'ExitDelay': the coast goes on beyond the zone's edge
+        % g(zoneS & ~zoneC & g == 0) = exitDelay + 1;    % the edge is reached: exitDelay more steps of coast
+        % g = max(g - 1, 0);                    % one of them spent
+        % g(zoneC) = 0;                         % back in the degenerate zone
+        % grace(idx) = g;
+        % zoneE = zoneC | g > 0;                % the end node still coasts
         sgS(~zoneS) = sgM(~zoneS);              % the transverse component used at the start node: the data's where trusted
         fo = marchHold & zoneE & uE < uMin;
     else
@@ -763,7 +766,8 @@ if ~isempty(idx)
     sgL = NaN(numel(idx), 1);
     if useHold                                  % the held (or marched) connection where the last node is in the zone
         cL = evalCL(X(idx, 1:expdim));
-        zL = isfinite(cL) & (cL < holdMin | grace(idx) > 0);
+        zL = isfinite(cL) & cL < holdMin;       % ('ExitDelay' obsolete 2026-11-23)
+        % zL = isfinite(cL) & (cL < holdMin | grace(idx) > 0);
         sgL = sigmaFcn(X(idx, :), E(idx, :, :));
         [Om0, bl0, dv0, sb0, sg0] = ringMeans(hbuf(idx, :, :, :), sbuf(idx, :, :, :), dbuf(idx, :), abuf(idx, :), hcount(idx), m, holdTwist, holdCurv);
         if marchHold
@@ -813,9 +817,9 @@ info.coasted    = coasted;
 info.confidence = confid;
 info.held       = held;
 info.spread     = spread;
-% info.hold.exitTol: left out since 2026-11-23 ('ExitTol' obsolete)
+% info.hold.exitTol and info.hold.exitDelay: left out since 2026-11-23 ('ExitTol' and 'ExitDelay' obsolete)
 info.hold       = struct('on', useHold, 'holdMin', holdMin, 'holdK', holdK, 'holdCap', holdCap, ...
-                         'coastMax', coastMax, 'exitDelay', exitDelay, 'holdTwist', holdTwist, 'holdCurvature', holdCurv, 'holdDivergence', holdDiv);
+                         'coastMax', coastMax, 'holdTwist', holdTwist, 'holdCurvature', holdCurv, 'holdDivergence', holdDiv);
 info.order   = order;
 info.mode    = mode;
 info.twist   = twist;

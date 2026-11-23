@@ -1004,27 +1004,48 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                 tc.verifyLessThan(max(out), bound.(scheme{1}), scheme{1});   % 0.4 to 0.6 with the ring left behind
             end
         end
-        function theExitDelayLengthensTheCoast(tc)
+        function exitDelayIsObsoleteWhateverItsValue(tc)
+            % mmf.exit_delay is obsolete since 2026-11-23: with 2 or 6 voxels (2 gave
+            % 10 more coasted nodes until then) the tracts and the coast are those
+            % without it, and the tracker warns that the key is ignored.
             nim = make_synthetic_nim('crossing');
             o = tc.holdOpts('hold'); o.seed_mask = false(size(nim.FA)); o.seed_mask(30, 30, 3) = true;
             o.max_arc = 100; o.max_steps = 500; o.angle_thresh = 225; o.trace = true; o.trace_max = 0;
-            evalc('[~, m0] = nim_tractography_mmf(nim, o);');
-            o.mmf_exit_delay = 2;
-            evalc('[~, m2] = nim_tractography_mmf(nim, o);');
-            tc.verifyEqual(nnz(m2.trace(1).forward.coasted) - nnz(m0.trace(1).forward.coasted), 10);
-            tc.verifyEqual(m2.mmf.exit_delay, 2);
-            % Here the band ends two voxels beyond the crossing. Until 2026-11-16 the tract
-            % stopped there ('outside_mask'); since then (a non-finite connection is taken as
-            % zero) it runs on straight along x beyond the tissue to the face of the volume.
-            nim.FA(49:end, :, :) = 0; nim.mask(49:end, :, :) = 0;
-            o.mmf_exit_delay = 6;
-            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
-            tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 0);
-            tc.verifyEqual(tc.countOf(meta, 'outside'), 2);
-            P = T{1}; out = P(:, 1) >= 48.5;
-            tc.verifyGreaterThan(max(P(:, 1)), 79);
-            tc.verifyEqual(P(out, 2:3), repmat([30 3], nnz(out), 1), 'AbsTol', 1e-9);
+            o = rmfield(o, intersect(fieldnames(o), {'mmf_exit_delay'}));
+            evalc('[T0, m0] = nim_tractography_mmf(nim, o);');
+            for d = [2 6]
+                o.mmf_exit_delay = d;
+                lastwarn('');
+                out = evalc('[T, m] = nim_tractography_mmf(nim, o);');
+                [~, wid] = lastwarn;                                     % the warning, unless a later one took its place
+                tc.verifyTrue(strcmp(wid, 'mmf:obsoleteExitDelay') || contains(out, 'exit_delay ('), sprintf('exit_delay %g', d));
+                tc.verifyEqual(T, T0, sprintf('exit_delay %g', d));
+                tc.verifyEqual(nnz(m.trace(1).forward.coasted), nnz(m0.trace(1).forward.coasted));
+                tc.verifyFalse(isfield(m.mmf, 'exit_delay'));
+            end
         end
+        % Until 2026-11-23 (mmf.exit_delay obsolete since):
+        % function theExitDelayLengthensTheCoast(tc)
+        %     nim = make_synthetic_nim('crossing');
+        %     o = tc.holdOpts('hold'); o.seed_mask = false(size(nim.FA)); o.seed_mask(30, 30, 3) = true;
+        %     o.max_arc = 100; o.max_steps = 500; o.angle_thresh = 225; o.trace = true; o.trace_max = 0;
+        %     evalc('[~, m0] = nim_tractography_mmf(nim, o);');
+        %     o.mmf_exit_delay = 2;
+        %     evalc('[~, m2] = nim_tractography_mmf(nim, o);');
+        %     tc.verifyEqual(nnz(m2.trace(1).forward.coasted) - nnz(m0.trace(1).forward.coasted), 10);
+        %     tc.verifyEqual(m2.mmf.exit_delay, 2);
+        %     % Here the band ends two voxels beyond the crossing. Until 2026-11-16 the tract
+        %     % stopped there ('outside_mask'); since then (a non-finite connection is taken as
+        %     % zero) it runs on straight along x beyond the tissue to the face of the volume.
+        %     nim.FA(49:end, :, :) = 0; nim.mask(49:end, :, :) = 0;
+        %     o.mmf_exit_delay = 6;
+        %     evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+        %     tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 0);
+        %     tc.verifyEqual(tc.countOf(meta, 'outside'), 2);
+        %     P = T{1}; out = P(:, 1) >= 48.5;
+        %     tc.verifyGreaterThan(max(P(:, 1)), 79);
+        %     tc.verifyEqual(P(out, 2:3), repmat([30 3], nnz(out), 1), 'AbsTol', 1e-9);
+        % end
         function theTraceRecordsTheCoast(tc)
             nim = make_synthetic_nim('crossing');
             o = tc.holdOpts('march'); o.seed_mask = false(size(nim.FA)); o.seed_mask(30, 30, 3) = true;

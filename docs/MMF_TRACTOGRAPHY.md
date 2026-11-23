@@ -181,7 +181,7 @@ key is still read, so that existing configs load, but ignored whatever its value
 occurs. The rest of this paragraph keeps the history of the test. Since 2026-11-16
 the re-anchoring holds only
 where the coast leaves the zone onto tissue: a coast that leaves it into non-tissue
-(outside the mask, below the FA floor; also when the `exit_delay` steps end there) has
+(outside the mask, below the FA floor) has
 no data frame at the end of the step, so it is not re-anchored,
 and its steps through non-tissue are no coast, so its `coast_max` count restarts.
 Where it re-enters tissue it is an ordinary trusted step: the `adaptive` mode
@@ -200,9 +200,11 @@ keeps its heading and only `angle_max` applies. `exit_tol` is apart from
 to sit above the disagreement of neighbouring voxels. In the tissue of the sample
 dataset (FA at least 0.2) a quarter of the neighbouring voxels differ by more than
 0.2 rad, and with the 0.2 rad of the suite's noise-free fields as the test 23% of its
-half-tracks ended on it. `exit_delay` carries the coast on for that
-arc beyond the edge before the re-anchoring (before the test, until 2026-11-23); those steps neither count towards `coast_max`
-nor reset it. A coast longer than `coast_max` voxels stops (`coast`), and so does a
+half-tracks ended on it. `exit_delay`, which carried the coast on for that
+arc beyond the edge before the test (steps that neither counted towards `coast_max`
+nor reset it), is obsolete since 2026-11-23 too: accepted and ignored, with the
+warning `mmf:obsoleteExitDelay` when it is not 0; the coast ends at the first trusted
+node. A coast longer than `coast_max` voxels stops (`coast`), and so does a
 marched coast whose fan closes to a tenth of its cross-section, the density ten
 times the ring's (`focus`). `angle_max`, when it is active, applies to the coast's
 own rotation.
@@ -350,8 +352,8 @@ a point in 3-D, at r/r_0 = 0.32 where the cross-section is a tenth); that a trac
 low-CL voxels below the FA floor
 or outside the mask does not coast; the ring across a re-anchoring (circles in a tilted
 plane, two sectors fewer trusted nodes apart than the ring holds: the march stays in
-the plane to 0.04 voxel, against 0.4 to 0.6 with the ring left behind); that the FA floor and the mask inside the zone are crossed, with `exit_delay`
-as well; the
+the plane to 0.04 voxel, against 0.4 to 0.6 with the ring left behind); that the FA floor and the mask inside the zone are crossed; that `exit_delay` is
+ignored; the
 share of the zone and its warning at 40%; that `hold_min` and `hold_k` reach the
 scheme; the signs of the axial data; the trace and the rejected inputs.
 

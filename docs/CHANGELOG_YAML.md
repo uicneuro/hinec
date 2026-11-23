@@ -1,5 +1,18 @@
 # YAML Configuration Changelog
 
+## 2026-11-23 - `mmf.exit_delay` is obsolete too: no coast beyond the zone
+
+- `tractography.mmf.exit_delay` (flat `mmf_exit_delay`) is still a key, so that
+  existing configs load, but it has no effect: whatever its value the coast ends at
+  the first trusted node beyond the zone, where the tract is re-anchored, the
+  behaviour of the default `0`. `nim_tractography_mmf` warns
+  (`mmf:obsoleteExitDelay`) when it is not 0; `meta.mmf` no longer has `exit_delay`.
+  A config that sets it changes meaning.
+- `advanceFrame.m`: the option `'ExitDelay'` is accepted and ignored, with the warning
+  `advanceFrame:obsoleteExitDelay`; `info.hold` no longer has `exitDelay`. The code
+  of the delay is commented out, not deleted. The same change is made in the
+  moving-frames test suite's copy of `advanceFrame.m`.
+
 ## 2026-11-23 - `mmf.exit_tol` is obsolete: no exit test, whatever its value
 
 - `tractography.mmf.exit_tol` (flat `mmf_exit_tol`) is still a key, so that existing
@@ -16,8 +29,8 @@
   `exit_tol: 0.5`, can no longer be reproduced by a setting.
 - `advanceFrame.m`: the option `'ExitTol'` is accepted and ignored, with the warning
   `advanceFrame:obsoleteExitTol`; `info.hold` no longer has `exitTol`. The code of the
-  test is commented out, not deleted. `'ExitDelay'` still carries the coast on beyond
-  the zone's edge; the tract is re-anchored at the end of it. The same change is made
+  test is commented out, not deleted. (`'ExitDelay'` was kept by this change; see the
+  entry above.) The same change is made
   in the moving-frames test suite's copy of `advanceFrame.m`.
 
 ## 2026-11-17 - MMF-4s is the moving-frames scheme presented

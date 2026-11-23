@@ -654,7 +654,7 @@ plus:
 | `mmf.hold_guard` | `mmf_hold_guard` | 0.5 | Erosion radius of the confidence, voxels |
 | `mmf.coast_max` | `mmf_coast_max` | Inf | Longest coast, voxels of arc (Inf: no cap) |
 | `mmf.exit_tol` | `mmf_exit_tol` | Inf | Obsolete since 2026-11-23: accepted and ignored, whatever the value (a warning when finite); there is no exit test |
-| `mmf.exit_delay` | `mmf_exit_delay` | 0 | Arc of coast beyond the edge of the zone before the re-anchoring, voxels |
+| `mmf.exit_delay` | `mmf_exit_delay` | 0 | Obsolete since 2026-11-23: accepted and ignored, whatever the value (a warning when not 0); the coast ends at the first trusted node |
 | `mmf.seed_trusted` | `mmf_seed_trusted` | true | With the scheme on, a seed in the zone (confidence below `hold_min`) is not tracked (`seeds_skipped`: `zone`) |
 
 ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle limit

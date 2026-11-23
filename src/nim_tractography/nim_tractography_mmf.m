@@ -135,12 +135,12 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %   mmf_reanchor_tol   drift tolerance of the adaptive mode, radians (default 0.2)
 %   mmf_gradient_delta central-difference step for d e1/dx_k, voxels
 %   mmf_hold           'none' | 'hold' | 'march' (default 'march', MMF-4s; needs nim.eval), and for those
-%   mmf_hold_min, mmf_hold_k, mmf_hold_guard, mmf_coast_max,
-%   mmf_exit_delay     the confidence floor, the buffer, the erosion radius, the
-%                      longest coast (default Inf: no cap) and the arc of coast
-%                      beyond the zone before the re-anchoring
-%   mmf_exit_tol       obsolete since 2026-11-23, accepted and ignored (a warning
-%                      when finite): there is no exit test
+%   mmf_hold_min, mmf_hold_k, mmf_hold_guard,
+%   mmf_coast_max      the confidence floor, the buffer, the erosion radius and the
+%                      longest coast (default Inf: no cap)
+%   mmf_exit_tol,      obsolete since 2026-11-23, accepted and ignored (a warning
+%   mmf_exit_delay     when finite, resp. nonzero): there is no exit test and no
+%                      coast beyond the zone
 %   mmf_seed_trusted   with mmf_hold, a seed in the zone is not tracked (default
 %                      true; false tracks it, a straight coast)
 %   angle_thresh       degrees of turning per VOXEL OF ARC (nim_angle_limit),
@@ -225,7 +225,11 @@ if use_hold && (hold_k < 1 || hold_k ~= round(hold_k))
 end
 hold_guard = o('mmf_hold_guard', 0.5);
 coast_max  = o('mmf_coast_max', Inf);                      % Inf: no cap of the coast
-exit_delay = o('mmf_exit_delay', 0);
+% exit_delay = o('mmf_exit_delay', 0);                     % obsolete 2026-11-23: no coast beyond the zone, whatever the value
+if use_hold && o('mmf_exit_delay', 0) ~= 0
+    warning('mmf:obsoleteExitDelay', ['nim_tractography_mmf: tractography.mmf.exit_delay (%g) is obsolete since 2026-11-23 ' ...
+            'and ignored: the coast ends at the first trusted node beyond the zone.'], o('mmf_exit_delay', 0));
+end
 seed_trusted = logical(o('mmf_seed_trusted', true));   % the schema default (tractography.mmf.seed_trusted)
 maxTurn = deg2rad(nim_angle_limit(options.angle_thresh, h));   % min(angle_max*h, 90) deg per step; Inf disables
 angle_off = ~isfinite(maxTurn);
@@ -370,7 +374,7 @@ names = [reason_names(), {'zone'}];             % why a seed is skipped: e1_at's
 hold_args = {};
 if use_hold
     hold_args = {'Confidence', @(X) confidence_at(X, fld), 'HoldMin', hold_min, 'HoldK', hold_k, 'HoldCurvature', hold_mode, ...
-                 'CoastMax', round(coast_max / h), 'ExitDelay', round(exit_delay / h)};   % 'ExitTol', exit_tol: obsolete 2026-11-23
+                 'CoastMax', round(coast_max / h)};   % 'ExitTol', exit_tol, 'ExitDelay', round(exit_delay / h): obsolete 2026-11-23
     fprintf('MMF: %s through degenerate data, CL below %.3g (%.1f%% of the tissue voxels) eroded by %.3g voxel, from %d trusted nodes, %s, %s\n', ...
         ifelse(strcmp(hold_mode, 'hold'), 'MMF-4h holds the connection', 'MMF-4s marches the connection'), hold_min, 100 * zone_fraction, hold_guard, hold_k, ...
         ifelse(isfinite(coast_max), sprintf('at most %.3g voxels of arc', coast_max), 'no cap of the coast'), ...
@@ -477,11 +481,11 @@ meta = struct();
 meta.seed_index  = reshape(find(kept), 1, []);
 meta.seed_points = seed_points(kept, :);
 meta.n_seeds     = n_seeds;
-% meta.mmf.exit_tol: left out since 2026-11-23 (mmf.exit_tol obsolete)
+% meta.mmf.exit_tol and exit_delay: left out since 2026-11-23 (mmf.exit_tol and mmf.exit_delay obsolete)
 meta.mmf = struct('order', order, 'mode', mode, 'reanchor_tol', rtol, 'twist', 'zero', ...
                   'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'connection', conn, 'kernel', kernel, ...
                   'hold', hold_mode, 'hold_min', hold_min, 'hold_k', hold_k, 'hold_guard', hold_guard, 'zone_fraction', zone_fraction, ...
-                  'coast_max', coast_max, 'exit_delay', exit_delay, 'seed_trusted', seed_trusted, ...
+                  'coast_max', coast_max, 'seed_trusted', seed_trusted, ...
                   'reanchored_fraction', n_re / max(n_st, 1), 'coasted_fraction', n_co / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
                   'seeds_skipped', struct('reason', {reshape(names(has), [], 1)}, 'count', {skipped_cnt(has)}));
 tt = term(alive_seed, :); tt = tt(:); tt = tt(~cellfun(@isempty, tt));

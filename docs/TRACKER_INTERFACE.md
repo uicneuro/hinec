@@ -152,8 +152,8 @@ same for the fields a tracker is expected to honour.
 | `mmf_reanchor_tol` | `mmf.reanchor_tol` | drift (radians) between the carried and the data's `e1` at which the adaptive mode re-anchors; `mmf` only |
 | `mmf_hold` | `mmf.hold` | how a tract crosses degenerate data: `march` (MMF-4s, the default); reads `nim.eval`; `mmf` only |
 | `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard` | `mmf.*` | confidence floor, trusted nodes of the ring, erosion radius (voxels); `mmf` only |
-| `mmf_coast_max`, `mmf_exit_delay` | `mmf.*` | longest coast (voxels of arc), arc of coast beyond the zone before the re-anchoring (voxels); `mmf` only |
-| `mmf_exit_tol` | `mmf.exit_tol` | obsolete since 2026-11-23: accepted and ignored, a warning when finite (there is no exit test); `mmf` only |
+| `mmf_coast_max` | `mmf.coast_max` | longest coast (voxels of arc); `mmf` only |
+| `mmf_exit_tol`, `mmf_exit_delay` | `mmf.*` | obsolete since 2026-11-23: accepted and ignored, a warning when finite, resp. not 0 (there is no exit test and no coast beyond the zone); `mmf` only |
 | `mmf_seed_trusted` | `mmf.seed_trusted` | with the scheme on, a seed in the zone is not tracked (`seeds_skipped`: `zone`); `mmf` only |
 | `mmf_gradient_delta` | `mmf.gradient_delta` | central-difference step (voxels) for the derivative of the interpolated principal axis that forms the connection; `mmf` only |
 
@@ -284,8 +284,8 @@ field through the exponential step of `advanceFrame.m`. It reads
 `options.mmf_mode`, `options.mmf_reanchor_tol`, `options.mmf_gradient_delta`,
 `options.mmf_connection`, `options.mmf_max_turn` and the hold scheme's
 `options.mmf_hold`, `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard`, `mmf_coast_max`,
-`mmf_exit_delay` and `mmf_seed_trusted` (the `mmf.*` group; `mmf_exit_tol` only to warn that it
-is ignored, obsolete since 2026-11-23; the scheme also reads
+and `mmf_seed_trusted` (the `mmf.*` group; `mmf_exit_tol` and `mmf_exit_delay` only to warn
+that they are ignored, obsolete since 2026-11-23; the scheme also reads
 `nim.eval`), runs on
 `field: dti` only (`csd` is rejected), maps
 `integrator` `euler` / `rk2` / `rk4` to Lie group order 1 / 2 / 4 (`rkf45` is
