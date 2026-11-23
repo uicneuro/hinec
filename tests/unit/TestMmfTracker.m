@@ -796,26 +796,53 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyLessThan(gap.march, 0.2 * gap.hold);
             tc.verifyLessThan(gap.march, 0.1);
         end
-        function aCoastThatLeavesTheBundleStops(tc)
-            % Beyond the pancakes band A runs 30 degrees off, 0.52 rad: within the
-            % limit per step from angle_max, and above an exit_tol of 0.2.
+        function exitTolIsObsoleteWhateverItsValue(tc)
+            % mmf.exit_tol is obsolete since 2026-11-23: beyond the pancakes band A
+            % runs 30 degrees off, 0.52 rad, within the limit per step from
+            % angle_max, and with exit_tol 0.2 (which stopped all 8 tracts there,
+            % 'exit', until then) the tracts are re-anchored and go on, as without
+            % it; the tracker warns that the key is ignored.
             nim = make_synthetic_nim('crossing');
             nim.evec(47:end, 27:33, :, 1, 1) = cosd(30); nim.evec(47:end, 27:33, :, 2, 1) = sind(30);
             nim.evec(47:end, 27:33, :, 1, 2) = -sind(30); nim.evec(47:end, 27:33, :, 2, 2) = cosd(30);
             o = tc.holdOpts('hold'); o.seed_mask = false(size(nim.FA)); o.seed_mask(30, 30, 3) = true;
-            o.seed_density = 8; o.max_arc = 100; o.max_steps = 500; o.angle_thresh = 225; o.mmf_exit_tol = 0.2;
-            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
-            tc.verifyEqual(tc.countOf(meta, 'exit'), 8);
-            tc.verifyTrue(all(cellfun(@(t) max(t(:, 1)), T) < 50));
-            tc.verifyEqual(meta.mmf.exit_tol, 0.2);
-            o.mmf_exit_tol = 1;                                          % the same tract with a tolerance above the 0.52 rad
-            evalc('[~, meta] = nim_tractography_mmf(nim, o);');
-            tc.verifyEqual(tc.countOf(meta, 'exit'), 0);
+            o.seed_density = 8; o.max_arc = 100; o.max_steps = 500; o.angle_thresh = 225;
+            o = rmfield(o, 'mmf_exit_tol');
+            evalc('[T0, ~] = nim_tractography_mmf(nim, o);');
+            for tol = [0, 0.2, 1]
+                o.mmf_exit_tol = tol;
+                lastwarn('');
+                out = evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+                [~, wid] = lastwarn;                                     % the warning, unless a later one took its place
+                tc.verifyTrue(strcmp(wid, 'mmf:obsoleteExitTol') || contains(out, 'exit_tol (') , sprintf('exit_tol %g', tol));
+                tc.verifyEqual(tc.countOf(meta, 'exit'), 0, sprintf('exit_tol %g', tol));
+                tc.verifyFalse(isfield(meta.mmf, 'exit_tol'));
+                tc.verifyEqual(T, T0, sprintf('exit_tol %g', tol));
+            end
+            tc.verifyTrue(any(cellfun(@(t) max(t(:, 1)), T0) > 50));      % beyond the pancakes
         end
+        % Until 2026-11-23 (mmf.exit_tol obsolete since):
+        % function aCoastThatLeavesTheBundleStops(tc)
+        %     % Beyond the pancakes band A runs 30 degrees off, 0.52 rad: within the
+        %     % limit per step from angle_max, and above an exit_tol of 0.2.
+        %     nim = make_synthetic_nim('crossing');
+        %     nim.evec(47:end, 27:33, :, 1, 1) = cosd(30); nim.evec(47:end, 27:33, :, 2, 1) = sind(30);
+        %     nim.evec(47:end, 27:33, :, 1, 2) = -sind(30); nim.evec(47:end, 27:33, :, 2, 2) = cosd(30);
+        %     o = tc.holdOpts('hold'); o.seed_mask = false(size(nim.FA)); o.seed_mask(30, 30, 3) = true;
+        %     o.seed_density = 8; o.max_arc = 100; o.max_steps = 500; o.angle_thresh = 225; o.mmf_exit_tol = 0.2;
+        %     evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+        %     tc.verifyEqual(tc.countOf(meta, 'exit'), 8);
+        %     tc.verifyTrue(all(cellfun(@(t) max(t(:, 1)), T) < 50));
+        %     tc.verifyEqual(meta.mmf.exit_tol, 0.2);
+        %     o.mmf_exit_tol = 1;                                          % the same tract with a tolerance above the 0.52 rad
+        %     evalc('[~, meta] = nim_tractography_mmf(nim, o);');
+        %     tc.verifyEqual(tc.countOf(meta, 'exit'), 0);
+        % end
         function byDefaultThereIsNoExitTestAndNoCap(tc)
-            % mmf.exit_tol and mmf.coast_max are Inf by default: the tract of
-            % aCoastThatLeavesTheBundleStops, 0.52 rad off the data beyond the pancakes,
-            % is re-anchored and goes on, and the coast has no cap.
+            % mmf.exit_tol (obsolete since 2026-11-23) and mmf.coast_max are Inf by
+            % default: the tract of exitTolIsObsoleteWhateverItsValue, 0.52 rad off the
+            % data beyond the pancakes, is re-anchored and goes on, and the coast has
+            % no cap.
             nim = make_synthetic_nim('crossing');
             nim.evec(47:end, 27:33, :, 1, 1) = cosd(30); nim.evec(47:end, 27:33, :, 2, 1) = sind(30);
             nim.evec(47:end, 27:33, :, 1, 2) = -sind(30); nim.evec(47:end, 27:33, :, 2, 2) = cosd(30);
@@ -825,11 +852,11 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyEqual(o.mmf_coast_max, Inf);
             o = rmfield(o, {'mmf_exit_tol', 'mmf_coast_max'});           % and the tracker's own
             evalc('[T, meta] = nim_tractography_mmf(nim, o);');
-            tc.verifyEqual(meta.mmf.exit_tol, Inf);
+            % tc.verifyEqual(meta.mmf.exit_tol, Inf);                    % not in meta since 2026-11-23
             tc.verifyEqual(meta.mmf.coast_max, Inf);
             tc.verifyEqual(tc.countOf(meta, 'exit'), 0);
             tc.verifyEqual(tc.countOf(meta, 'coast'), 0);
-            tc.verifyTrue(any(cellfun(@(t) max(t(:, 1)), T) > 50));      % beyond the pancakes, where the exit test stopped it
+            tc.verifyTrue(any(cellfun(@(t) max(t(:, 1)), T) > 50));      % beyond the pancakes, where an exit_tol of 0.2 stopped it until 2026-11-23
         end
         function aCoastLongerThanTheCapStops(tc)
             nim = make_synthetic_nim('crossing');

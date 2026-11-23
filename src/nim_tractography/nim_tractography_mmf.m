@@ -64,7 +64,7 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % Through non-tissue the hold ring takes the zero connection: a coast that starts
 % within mmf.hold_k steps after such a run holds a reduced curvature, and a
 % straight one after a run of at least mmf.hold_k steps. A coast that leaves the
-% zone into non-tissue is not exit-tested (the data frame is not finite there) and
+% zone into non-tissue is not re-anchored (the data frame is not finite there) and
 % its coast_max count restarts; where it re-enters tissue it is re-anchored like
 % any trusted step, and only angle_max limits that snap (nothing with
 % angle_max <= 0). advanceFrame.m's own help still describes the 'nan' stop (the
@@ -91,10 +91,12 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % zone where the confidence is below mmf.hold_min the tract coasts, on the mean
 % connection of its last mmf.hold_k trusted nodes (held) or on that curvature
 % and fan-out marched by the flatness law of the connection (marched), and on
-% leaving the zone it is re-anchored if its heading agrees with the data and
-% stops otherwise ('exit', by mmf.exit_tol, in the adaptive and reanchor modes; a
-% coast longer than mmf.coast_max stops, 'coast'; both are Inf by default, no
-% test and no cap; a
+% leaving the zone it is always re-anchored on the data, in the adaptive and
+% reanchor modes (the exit test of mmf.exit_tol, which stopped a tract whose
+% heading disagreed with the data there, 'exit', is obsolete since 2026-11-23:
+% the key is accepted and ignored, with the warning mmf:obsoleteExitTol when it
+% is finite); a coast longer than mmf.coast_max stops, 'coast' (Inf by default,
+% no cap); a
 % marched coast that reaches the focus of its fan stops, 'focus'). The confidence
 % is the linear shape CL = (lambda_1 - lambda_2)/lambda_1 of the voxel tensors,
 % interpolated linearly and eroded by mmf.hold_guard voxels, see confidence_at.
@@ -133,10 +135,12 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %   mmf_reanchor_tol   drift tolerance of the adaptive mode, radians (default 0.2)
 %   mmf_gradient_delta central-difference step for d e1/dx_k, voxels
 %   mmf_hold           'none' | 'hold' | 'march' (default 'march', MMF-4s; needs nim.eval), and for those
-%   mmf_hold_min, mmf_hold_k, mmf_hold_guard, mmf_coast_max, mmf_exit_tol,
-%   mmf_exit_delay     the confidence floor, the ring, the erosion radius, the
-%                      longest coast (default Inf: no cap), the test on leaving the
-%                      zone (default Inf: no test) and the arc of coast before it
+%   mmf_hold_min, mmf_hold_k, mmf_hold_guard, mmf_coast_max,
+%   mmf_exit_delay     the confidence floor, the buffer, the erosion radius, the
+%                      longest coast (default Inf: no cap) and the arc of coast
+%                      beyond the zone before the re-anchoring
+%   mmf_exit_tol       obsolete since 2026-11-23, accepted and ignored (a warning
+%                      when finite): there is no exit test
 %   mmf_seed_trusted   with mmf_hold, a seed in the zone is not tracked (default
 %                      true; false tracks it, a straight coast)
 %   angle_thresh       degrees of turning per VOXEL OF ARC (nim_angle_limit),
@@ -152,8 +156,8 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %           forward half], integration nodes only, arc length >= min_length
 %   meta    seed_index (1 x T), seed_points (T x 3), n_seeds;
 %           termination: reason/count over the half-tracks of the live seeds
-%           (max_arc, angle, outside, no_direction, and with mmf.hold coast,
-%           exit, focus; empty when no seed is alive; fa, outside_mask and
+%           (max_arc, angle, outside, no_direction, and with mmf.hold coast
+%           and focus; exit no longer occurs since 2026-11-23; empty when no seed is alive; fa, outside_mask and
 %           outside_domain no longer occur since 2026-11-16, see TERMINATION);
 %           mmf: the scheme settings, zone_fraction (the share of the tissue voxels
 %           below mmf.hold_min, before the erosion), reanchored_fraction and
@@ -210,7 +214,11 @@ if use_hold && (~isfield(nim, 'eval') || isempty(nim.eval))
     error('mmf:hold', 'nim_tractography_mmf: mmf.hold needs the eigenvalues nim.eval for the confidence of the data.');
 end
 hold_min   = o('mmf_hold_min', 0.2);
-exit_tol   = o('mmf_exit_tol', Inf);                       % Inf: no exit test
+% exit_tol   = o('mmf_exit_tol', Inf);                     % obsolete 2026-11-23: no exit test, whatever the value
+if use_hold && isfinite(o('mmf_exit_tol', Inf))
+    warning('mmf:obsoleteExitTol', ['nim_tractography_mmf: tractography.mmf.exit_tol (%g) is obsolete since 2026-11-23 ' ...
+            'and ignored: a tract leaving the zone is always re-anchored.'], o('mmf_exit_tol', Inf));
+end
 hold_k     = o('mmf_hold_k', 3);
 if use_hold && (hold_k < 1 || hold_k ~= round(hold_k))
     error('mmf:hold', 'nim_tractography_mmf: tractography.mmf.hold_k must be a positive integer, not %g.', hold_k);
@@ -362,11 +370,12 @@ names = [reason_names(), {'zone'}];             % why a seed is skipped: e1_at's
 hold_args = {};
 if use_hold
     hold_args = {'Confidence', @(X) confidence_at(X, fld), 'HoldMin', hold_min, 'HoldK', hold_k, 'HoldCurvature', hold_mode, ...
-                 'CoastMax', round(coast_max / h), 'ExitTol', exit_tol, 'ExitDelay', round(exit_delay / h)};
+                 'CoastMax', round(coast_max / h), 'ExitDelay', round(exit_delay / h)};   % 'ExitTol', exit_tol: obsolete 2026-11-23
     fprintf('MMF: %s through degenerate data, CL below %.3g (%.1f%% of the tissue voxels) eroded by %.3g voxel, from %d trusted nodes, %s, %s\n', ...
         ifelse(strcmp(hold_mode, 'hold'), 'MMF-4h holds the connection', 'MMF-4s marches the connection'), hold_min, 100 * zone_fraction, hold_guard, hold_k, ...
         ifelse(isfinite(coast_max), sprintf('at most %.3g voxels of arc', coast_max), 'no cap of the coast'), ...
-        ifelse(isfinite(exit_tol), sprintf('exit test %.3g rad', exit_tol), 'no exit test'));
+        'no exit test');
+        % ifelse(isfinite(exit_tol), sprintf('exit test %.3g rad', exit_tol), 'no exit test'));   % obsolete 2026-11-23
 end
 
 % ---- seeds -------------------------------------------------------------------
@@ -468,10 +477,11 @@ meta = struct();
 meta.seed_index  = reshape(find(kept), 1, []);
 meta.seed_points = seed_points(kept, :);
 meta.n_seeds     = n_seeds;
+% meta.mmf.exit_tol: left out since 2026-11-23 (mmf.exit_tol obsolete)
 meta.mmf = struct('order', order, 'mode', mode, 'reanchor_tol', rtol, 'twist', 'zero', ...
                   'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'connection', conn, 'kernel', kernel, ...
                   'hold', hold_mode, 'hold_min', hold_min, 'hold_k', hold_k, 'hold_guard', hold_guard, 'zone_fraction', zone_fraction, ...
-                  'coast_max', coast_max, 'exit_tol', exit_tol, 'exit_delay', exit_delay, 'seed_trusted', seed_trusted, ...
+                  'coast_max', coast_max, 'exit_delay', exit_delay, 'seed_trusted', seed_trusted, ...
                   'reanchored_fraction', n_re / max(n_st, 1), 'coasted_fraction', n_co / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
                   'seeds_skipped', struct('reason', {reshape(names(has), [], 1)}, 'count', {skipped_cnt(has)}));
 tt = term(alive_seed, :); tt = tt(:); tt = tt(~cellfun(@isempty, tt));

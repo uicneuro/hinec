@@ -173,11 +173,16 @@ no data: CL is interpolated over the voxels of tissue alone and the erosion read
 nothing else, so neither the edge of the mask nor the FA floor is a zone.
 
 **Leaving it.** In the `adaptive` and `reanchor` modes, a tract reaching a trusted
-node is re-anchored if its heading is within `exit_tol` of the data; otherwise the
-coast has left the bundle and it stops (`exit`). Since 2026-11-16 this holds only
+node is always re-anchored on the data, whatever its heading. The exit test of
+`exit_tol`, which stopped a tract whose heading was more than `exit_tol` off the data
+there (`exit`, the coast having left the bundle), is obsolete since 2026-11-23: the
+key is still read, so that existing configs load, but ignored whatever its value
+(the tracker warns, `mmf:obsoleteExitTol`, when it is finite), and `exit` no longer
+occurs. The rest of this paragraph keeps the history of the test. Since 2026-11-16
+the re-anchoring holds only
 where the coast leaves the zone onto tissue: a coast that leaves it into non-tissue
 (outside the mask, below the FA floor; also when the `exit_delay` steps end there) has
-no data frame at the end of the step, so it is neither re-anchored nor exit-tested,
+no data frame at the end of the step, so it is not re-anchored,
 and its steps through non-tissue are no coast, so its `coast_max` count restarts.
 Where it re-enters tissue it is an ordinary trusted step: the `adaptive` mode
 re-anchors when the drift reaches `reanchor_tol` (`reanchor` always), and only
@@ -186,7 +191,8 @@ Since 2026-11-17 `exit_tol` and
 `coast_max` are `Inf` by default: no exit test, a tract leaving the zone is always
 re-anchored, and no cap of the coast. The scores below were measured with
 `exit_tol: 0.5` and `coast_max: 12`, the defaults until then, and were not measured
-again; set the two keys to get them. The heading test of
+again; `coast_max: 12` can still be set, but since 2026-11-23 no setting gives the
+exit test of `exit_tol: 0.5` back. The heading test of
 `angle_max` comes first: data at the end of the step further from the heading
 at its start than `angle_max` allows stop the tract with `angle`. In `transport` mode nothing is re-anchored or tested on leaving: the tract
 keeps its heading and only `angle_max` applies. `exit_tol` is apart from
@@ -195,7 +201,7 @@ to sit above the disagreement of neighbouring voxels. In the tissue of the sampl
 dataset (FA at least 0.2) a quarter of the neighbouring voxels differ by more than
 0.2 rad, and with the 0.2 rad of the suite's noise-free fields as the test 23% of its
 half-tracks ended on it. `exit_delay` carries the coast on for that
-arc beyond the edge before the test; those steps neither count towards `coast_max`
+arc beyond the edge before the re-anchoring (before the test, until 2026-11-23); those steps neither count towards `coast_max`
 nor reset it. A coast longer than `coast_max` voxels stops (`coast`), and so does a
 marched coast whose fan closes to a tenth of its cross-section, the density ten
 times the ring's (`focus`). `angle_max`, when it is active, applies to the coast's
@@ -337,8 +343,9 @@ every one of these tracts stops at the zone (`angle`):
 
 Without the filling of the zone and the one-sided stencils of the section above the
 circles read 1.0 and 1.5 voxels, the spirals outwards 1.2 and 1.8, and the helix 2.6. The test also pins that the scheme changes
-nothing without a zone; `exit` (band A turned by 30 degrees beyond the crossing, with
-`exit_tol` 0.2, and no stop with `exit_tol` above that); `coast`; `focus` (rays through
+nothing without a zone; that `exit_tol` is ignored (band A turned by 30 degrees beyond
+the crossing: the same tracts, re-anchored and going on, with `exit_tol` 0, 0.2 and 1 as
+without it; until 2026-11-23 `exit_tol` 0.2 stopped them, `exit`); `coast`; `focus` (rays through
 a point in 3-D, at r/r_0 = 0.32 where the cross-section is a tenth); that a tract beside
 low-CL voxels below the FA floor
 or outside the mask does not coast; the ring across a re-anchoring (circles in a tilted
@@ -353,7 +360,9 @@ scheme; the signs of the axial data; the trace and the rejected inputs.
 
 With the scheme on, the tract transports its frame wherever the data are degenerate,
 and these are the places where the data's axis turns sharply. `angle_max` then
-has little left to do, and the scheme's own exit test does that. (The numbers of this
+has little left to do, and the scheme's own exit test did that until it was made
+obsolete on 2026-11-23; since then nothing tests the direction on leaving the zone
+with `angle_max: 0`. (The numbers of this
 section and the next were measured before 2026-11-16, when tracts stopped at the mask
 and the FA floor; since then they run on through non-tissue, see Termination, and the
 scores would have to be measured again.) With `angle_max` off the stops it made become
@@ -409,7 +418,7 @@ balances the two per bundle. All seeds with FA at least 0.1 in the mask,
 This row was run with the `angle_max` of 225 that the preset has since dropped (see
 above). The settings were chosen on half the seeds, by a
 local reimplementation of the scorer's rules that read F1 about 0.01 lower and kept the
-order: `hold_min` 0.15 to 0.2, `hold_guard` 0.5, `exit_tol` 0.5 to 0.8 and `coast_max`
+order: `hold_min` 0.15 to 0.2, `hold_guard` 0.5, `exit_tol` 0.5 to 0.8 (obsolete since 2026-11-23) and `coast_max`
 12 to 20 were the best of those tried, 0.15 with the higher F1 and 0.2 with fewer wrong
 paths; `hold_min` 0.25 and `hold_guard` 1 cost overlap. `hold_min` 0.2 is 39% of this
 phantom's tissue voxels.

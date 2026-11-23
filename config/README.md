@@ -287,8 +287,8 @@ tractography:
     hold_min: 0.2            # linear shape CL below which the data are degenerate
     coast_max: 12            # voxels of arc; a longer coast stops the tract
                              # (default inf: no cap)
-    exit_tol: 0.5            # radians; heading off the data at which leaving the
-                             # zone stops the tract (default inf: no exit test)
+    # exit_tol: 0.5          # obsolete since 2026-11-23: ignored, there is no exit
+                             # test (a tract leaving the zone is always re-anchored)
     seed_trusted: true       # with hold or march, a seed in the zone is not tracked
 ```
 

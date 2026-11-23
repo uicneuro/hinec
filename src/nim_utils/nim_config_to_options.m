@@ -150,7 +150,7 @@ function options = nim_config_to_options(config)
     options.mmf_hold_k         = t.mmf.hold_k;
     options.mmf_hold_guard     = t.mmf.hold_guard;
     options.mmf_coast_max      = t.mmf.coast_max;
-    options.mmf_exit_tol       = t.mmf.exit_tol;
+    options.mmf_exit_tol       = t.mmf.exit_tol;     % obsolete 2026-11-23: passed on only so that the tracker can warn that it is ignored
     options.mmf_exit_delay     = t.mmf.exit_delay;
     options.mmf_seed_trusted   = t.mmf.seed_trusted;
 

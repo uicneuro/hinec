@@ -182,7 +182,8 @@ classdef TestConfigSchema < matlab.unittest.TestCase
 
         function infIsANumberOnlyWhereTheRangeAllowsIt(tc)
             % mmf.exit_tol and mmf.coast_max have the range [0, Inf] and the default Inf
-            % (no exit test, no cap); inf, Inf and .inf are that number in a config and
+            % (no cap; mmf.exit_tol, obsolete since 2026-11-23, is still read so that
+            % existing configs load, and the tracker ignores it); inf, Inf and .inf are that number in a config and
             % with --set, and a key with a finite range still rejects it.
             w = warning('off','all'); cw = onCleanup(@() warning(w));
             S = nim_config_schema();

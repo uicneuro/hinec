@@ -1,5 +1,25 @@
 # YAML Configuration Changelog
 
+## 2026-11-23 - `mmf.exit_tol` is obsolete: no exit test, whatever its value
+
+- `tractography.mmf.exit_tol` (flat `mmf_exit_tol`) is still a key, so that existing
+  configs load, but it has no effect: whatever its value, a tract leaving the zone is
+  always re-anchored on the data, the behaviour of the default `Inf` since
+  2026-11-17, and the stop reason `exit` no longer occurs. `nim_tractography_mmf`
+  warns (`mmf:obsoleteExitTol`) when it is finite. `meta.mmf` no longer has
+  `exit_tol`.
+- **A config that sets a finite `exit_tol` changes meaning**: until now it stopped
+  tracts leaving the zone more than `exit_tol` off the data; now they are re-anchored
+  and go on. With `termination.angle_max: 0`, as in `config/mmf_dti_march.yml`,
+  nothing tests the direction on leaving the zone; set `angle_max` for a test. The
+  ISMRM 2015 scores of [MMF_TRACTOGRAPHY.md](MMF_TRACTOGRAPHY.md), measured with
+  `exit_tol: 0.5`, can no longer be reproduced by a setting.
+- `advanceFrame.m`: the option `'ExitTol'` is accepted and ignored, with the warning
+  `advanceFrame:obsoleteExitTol`; `info.hold` no longer has `exitTol`. The code of the
+  test is commented out, not deleted. `'ExitDelay'` still carries the coast on beyond
+  the zone's edge; the tract is re-anchored at the end of it. The same change is made
+  in the moving-frames test suite's copy of `advanceFrame.m`.
+
 ## 2026-11-17 - MMF-4s is the moving-frames scheme presented
 
 - `config/mmf_dti.yml` (MMF-4a) and `config/mmf_dti_hold.yml` (MMF-4h) are no longer
