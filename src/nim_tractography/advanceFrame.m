@@ -140,9 +140,8 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 crossing fitted as a pancake): at such a stage point the
 %                 connection is NOT read from the data but HELD, Omega_hold
 %                 = the running mean of the connection at the last 'HoldK'
-%                 TRUSTED nodes (outside the zone, with rotation rate theta
-%                 <= 'HoldCap'; a node of non-finite confidence and finite
-%                 connection is one), taken in the carried frame - the only frame in
+%                 TRUSTED nodes (outside the zone, with data, and with
+%                 rotation rate theta <= 'HoldCap'), taken in the carried frame - the only frame in
 %                 which "the same curvature as before" is defined - with
 %                 its twist Omega_23 set to zero ('HoldTwist' 'zero',
 %                 default) or kept ('hold'), or with its curvature set to
@@ -170,8 +169,13 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 now ends at the first trusted node. A coast of more than
 %                 'CoastMax' consecutive steps started in the zone stops the
 %                 tract ('coast'; default Inf). A non-finite confidence is
-%                 no data: the connection is used as it is (NaN stops the
-%                 tract as usual).
+%                 no data, which counts as the zone (2026-11-24): the
+%                 tract coasts (or marches) through it on its buffer, such
+%                 nodes never enter the buffer, and the frame is re-anchored
+%                 where the data return. (Before, the connection was read
+%                 there; its NaN, taken as zero since 'nan' no longer stops
+%                 a tract, made the tract run straight and filled the buffer
+%                 with zero curvature.)
 %                 The ring is kept in the carried frame, so a re-anchoring
 %                 with three frame vectors, which changes its normal plane,
 %                 turns the ring with it. The nodes in the zone are reported in
@@ -619,7 +623,7 @@ for k = 1:nseed
     drift{k}  = 0;
     reanch{k} = false;
     confid{k} = c0(k);
-    coasted{k} = useHold && isfinite(c0(k)) && c0(k) < holdMin;
+    coasted{k} = useHold && ~(c0(k) >= holdMin);   % no data (NaN) counts as the zone (2026-11-24)
 end
 active = true(nseed, 1);
 nstep  = ceil(smax / h);
@@ -647,7 +651,7 @@ for n = 1:nstep
         [Xn, En, Om1, maxRot, zoneS] = lieStep(Xa, Ea, h, order, omegaFcn, evalCL, holdMin, holdOm, expdim, forcedS);
         zoneD = zoneS & ~forcedS;               % the start node is degenerate by the confidence (counts towards 'CoastMax')
         cE = evalCL(Xn(:, 1:expdim));           % confidence at the end of the step
-        zoneC = isfinite(cE) & cE < holdMin;    % the end node is degenerate by the confidence
+        zoneC = ~(cE >= holdMin);               % the end node is degenerate by the confidence, or has no data (2026-11-24)
         zoneE = zoneC;                          % the end node coasts where it is degenerate ('ExitDelay' obsolete 2026-11-23)
         % g = grace(idx);                       % 'ExitDelay': the coast goes on beyond the zone's edge
         % g(zoneS & ~zoneC & g == 0) = exitDelay + 1;    % the edge is reached: exitDelay more steps of coast
@@ -766,7 +770,7 @@ if ~isempty(idx)
     sgL = NaN(numel(idx), 1);
     if useHold                                  % the held (or marched) connection where the last node is in the zone
         cL = evalCL(X(idx, 1:expdim));
-        zL = isfinite(cL) & cL < holdMin;       % ('ExitDelay' obsolete 2026-11-23)
+        zL = ~(cL >= holdMin);                  % no data counts as the zone (2026-11-24); ('ExitDelay' obsolete 2026-11-23)
         % zL = isfinite(cL) & (cL < holdMin | grace(idx) > 0);
         sgL = sigmaFcn(X(idx, :), E(idx, :, :));
         [Om0, bl0, dv0, sb0, sg0] = ringMeans(hbuf(idx, :, :, :), sbuf(idx, :, :, :), dbuf(idx, :), abuf(idx, :), hcount(idx), m, holdTwist, holdCurv);
@@ -876,12 +880,12 @@ function [Om, bad, th, zone] = stageOmega(X, E, omegaFcn, evalCL, holdMin, holdO
 % The connection at a stage: from the data, or the held one of the tract
 % where the confidence of the data is below holdMin (hold scheme) or the
 % tract still coasts beyond the zone's edge (forced, 'ExitDelay'), the data
-% not being read there. A non-finite confidence is no data at all: the
-% connection is read, and stops the tract if it is not finite.
+% not being read there. A non-finite confidence is no data, which counts as
+% the zone (2026-11-24): the held connection is used there too.
 zone = false(size(X, 1), 1);
 if ~isempty(evalCL)
     c = evalCL(X(:, 1:expdim));
-    zone = isfinite(c(:)) & (c(:) < holdMin | forced(:));
+    zone = ~(c(:) >= holdMin) | forced(:);   % no data (NaN) counts as the zone (2026-11-24)
 end
 if any(zone)
     Om = holdOm;
