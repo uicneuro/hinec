@@ -61,13 +61,15 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % resolution for an advanceFrame with the line on). Only a last node that lies
 % outside tissue is dropped here; the earlier nodes of such a run stay in the
 % track. Leaving the volume stops a tract; the cut boundary point is dropped.
-% Through non-tissue the hold ring takes the zero connection: a coast that starts
-% within mmf.hold_k steps after such a run holds a reduced curvature, and a
-% straight one after a run of at least mmf.hold_k steps. A coast that leaves the
-% zone into non-tissue is not re-anchored (the data frame is not finite there) and
-% its coast_max count restarts; where it re-enters tissue it is re-anchored like
-% any trusted step, and only angle_max limits that snap (nothing with
-% angle_max <= 0). advanceFrame.m's own help still describes the 'nan' stop (the
+% With mmf.hold, SINCE 2026-11-24 non-tissue (confidence NaN) counts as the
+% zone: the tract coasts (hold) or marches (march) through it on its buffer
+% instead of running straight, its nodes there do not enter the buffer, they
+% count towards coast_max and are reported as coasted, and where the tract
+% re-enters tissue it is always re-anchored (only angle_max limits that snap,
+% nothing with angle_max <= 0). Until then the zero connection of non-tissue
+% entered the buffer, so that a coast after such a run held a reduced or zero
+% curvature, and a coast leaving the zone into non-tissue ran on straight
+% (its coast_max count restarting). Without mmf.hold the run is straight. advanceFrame.m's own help still describes the 'nan' stop (the
 % file is the suite's). The angle
 % limit termination.angle_max (degrees per voxel of arc; through
 % nim_angle_limit it is min(angle_max*h, 90) degrees per step, none for
@@ -100,11 +102,10 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % marched coast that reaches the focus of its fan stops, 'focus'). The confidence
 % is the linear shape CL = (lambda_1 - lambda_2)/lambda_1 of the voxel tensors,
 % interpolated linearly and eroded by mmf.hold_guard voxels, see confidence_at.
-% advanceFrame takes a non-finite confidence for no data and then reads the
-% connection, which is not finite outside tissue: the confidence is NaN there,
-% and since 2026-11-16 the tract crosses the slab of non-tissue straight, as
-% everywhere else (see TERMINATION; before, the volume, the mask and the FA floor
-% stayed stops inside the zone). A seed in
+% The confidence is NaN outside tissue, which advanceFrame takes for no data and,
+% since 2026-11-24, counts as the zone: the tract crosses a slab of non-tissue on
+% its buffer (see TERMINATION; from 2026-11-16 it crossed it straight, and before
+% that the volume, the mask and the FA floor stayed stops inside the zone). A seed in
 % the zone has no trusted node and would coast straight along the axis of the
 % filled field: with mmf.seed_trusted (the default) it is not tracked, but skipped
 % as 'zone' (its confidence, read as the scheme reads it at a node, finite and

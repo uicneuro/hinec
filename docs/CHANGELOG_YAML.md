@@ -1,5 +1,19 @@
 # YAML Configuration Changelog
 
+## 2026-11-24 - `algorithm: mmf` with `mmf.hold`: non-tissue counts as the zone
+
+- No new key. In `src/nim_tractography/advanceFrame.m` a node or stage whose
+  confidence is not finite (no data: outside the volume or the mask, below the FA
+  floor) counts as the zone of the hold scheme, as one below `mmf.hold_min` does.
+- **Behaviour change** for runs with `mmf.hold: hold` or `march` (MMF-4h, MMF-4s):
+  a tract crosses non-tissue on its buffer (held or marched) instead of running
+  straight, non-tissue nodes no longer enter the buffer with a zero connection, its
+  steps there count towards `mmf.coast_max` and are reported as coasted, and it is
+  re-anchored where it reaches trusted tissue. Runs without `mmf.hold` are
+  unchanged. The same change is made in the moving-frames test suite's copy of
+  `advanceFrame.m`, where it removed the deviations of up to 2.7 boxes of the
+  tracts whose fibre crosses a box without data just before the crossing.
+
 ## 2026-11-23 - `mmf.exit_delay` is obsolete too: no coast beyond the zone
 
 - `tractography.mmf.exit_delay` (flat `mmf_exit_delay`) is still a key, so that

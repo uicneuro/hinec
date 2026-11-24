@@ -178,15 +178,13 @@ node is always re-anchored on the data, whatever its heading. The exit test of
 there (`exit`, the coast having left the bundle), is obsolete since 2026-11-23: the
 key is still read, so that existing configs load, but ignored whatever its value
 (the tracker warns, `mmf:obsoleteExitTol`, when it is finite), and `exit` no longer
-occurs. The rest of this paragraph keeps the history of the test. Since 2026-11-16
-the re-anchoring holds only
-where the coast leaves the zone onto tissue: a coast that leaves it into non-tissue
-(outside the mask, below the FA floor) has
-no data frame at the end of the step, so it is not re-anchored,
-and its steps through non-tissue are no coast, so its `coast_max` count restarts.
-Where it re-enters tissue it is an ordinary trusted step: the `adaptive` mode
-re-anchors when the drift reaches `reanchor_tol` (`reanchor` always), and only
-`angle_max` limits that snap, nothing with the preset's `angle_max: 0`.
+occurs. The rest of this paragraph keeps the history of the test. Since 2026-11-24
+non-tissue (outside the mask, below the FA floor) counts as the zone: a coast that
+leaves the zone into non-tissue goes on coasting through it (its steps count
+towards `coast_max`), and the tract is re-anchored where it reaches trusted
+tissue; only `angle_max` limits that snap, nothing with the preset's
+`angle_max: 0`. (From 2026-11-16 until then such a coast was not re-anchored in
+non-tissue, ran on straight there, and its `coast_max` count restarted.)
 Since 2026-11-17 `exit_tol` and
 `coast_max` are `Inf` by default: no exit test, a tract leaving the zone is always
 re-anchored, and no cap of the coast. The scores below were measured with
@@ -208,14 +206,19 @@ node. A coast longer than `coast_max` voxels stops (`coast`), and so does a
 marched coast whose fan closes to a tenth of its cross-section, the density ten
 times the ring's (`focus`). `angle_max`, when it is active, applies to the coast's
 own rotation.
-**The mask and the FA floor are crossed like elsewhere** (leaving the volume still
+**The mask and the FA floor are crossed like the zone** (leaving the volume still
 stops the tract, `outside`): the confidence is NaN outside tissue, which
-`advanceFrame` takes for no data, and the connection is not finite there, which since
-2026-11-16 it takes as zero (see Termination). The tract crosses a slab of non-tissue
-straight, no longer as a coast (no `coast_max` count, no exit test, see "Leaving
-it"), and the zero connection of its steps enters the ring: a coast that starts within
-`hold_k` steps after such a run holds a reduced curvature, and a straight one after a
-run of at least `hold_k` steps. A seed in the zone has no trusted node
+`advanceFrame` takes for no data, and since 2026-11-24 no data counts as the zone.
+The tract crosses a slab of non-tissue on its buffer, held (`hold`) or marched
+(`march`), its steps there count towards `coast_max`, they never enter the buffer,
+and it is re-anchored where it reaches trusted tissue. From 2026-11-16 until then
+it crossed such a slab straight (the connection there, not finite, being taken as
+zero, see Termination), and that zero connection entered the buffer, so that a
+coast starting within `hold_k` steps after such a run held a reduced curvature, and
+a straight one after a run of at least `hold_k` steps; on the crossing-bundles test
+fields of the moving-frames suite this put the tracts whose fibre passes through a
+box without data just before the crossing onto the other family (up to 2.7 boxes
+off their fibre, against 0.65 at most with the change). A seed in the zone has no trusted node
 and would coast straight, along the
 axis of the filled field described next. **Seeds only in trusted data**
 (`mmf.seed_trusted`, default `true`, since 2026-11-16): such a seed is not tracked
