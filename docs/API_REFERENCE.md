@@ -655,7 +655,8 @@ plus:
 | `mmf.coast_max` | `mmf_coast_max` | Inf | Longest coast, voxels of arc (Inf: no cap) |
 | `mmf.exit_tol` | `mmf_exit_tol` | Inf | Obsolete since 2026-11-23: accepted and ignored, whatever the value (a warning when finite); there is no exit test |
 | `mmf.exit_delay` | `mmf_exit_delay` | 0 | Obsolete since 2026-11-23: accepted and ignored, whatever the value (a warning when not 0); the coast ends at the first trusted node |
-| `mmf.seed_trusted` | `mmf_seed_trusted` | true | With the scheme on, a seed in the zone (confidence below `hold_min`) is not tracked (`seeds_skipped`: `zone`) |
+| `mmf.seed_trusted` | `mmf_seed_trusted` | false | With the scheme on, `true` = a seed in the zone (confidence below `hold_min`) is not tracked (`seeds_skipped`: `zone`); the default until 2026-11-25 |
+| `mmf.seed_grace` | `mmf_seed_grace` | 0.25 | With the scheme on, voxels of arc from the seed over which each half-track reads the data whatever the confidence; the nodes fill the buffer (0: none) |
 
 ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle limit
 `termination.angle_max` becomes `advanceFrame`'s `MaxTurn` through

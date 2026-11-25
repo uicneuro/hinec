@@ -1,5 +1,25 @@
 # YAML Configuration Changelog
 
+## 2026-11-25 - `mmf.seed_grace`: seeds in the zone tracked from their own data
+
+- New key `tractography.mmf.seed_grace` (numeric, voxels of arc, default `0.25`;
+  flat option name `mmf_seed_grace`), read by `algorithm: mmf` with `mmf.hold` `hold`
+  or `march`: each half-track reads the data for this arc from its seed whatever the
+  confidence (advanceFrame's new option `'SeedGrace'`), so that the nodes there fill
+  the buffer, and the scheme applies by the confidence beyond it. Non-tissue stays
+  untrusted. `meta.mmf` gains `seed_grace`.
+- **Default change:** `tractography.mmf.seed_trusted` is now `false` (it was `true`
+  since 2026-11-16), so the seeds in the zone are tracked, with the grace, instead of
+  being skipped as `zone`. **Behaviour change** for runs with `mmf.hold: hold` or
+  `march`: more tracks (the seeds in the zone), and the tracks of seeds within
+  `seed_grace` of the zone differ. `seed_trusted: true, seed_grace: 0` restores the
+  tracker of 2026-11-24. Runs without `mmf.hold` are unchanged.
+- The same `'SeedGrace'` is added to the moving-frames test suite's copy of
+  `advanceFrame.m`, whose crossing drivers now use the wall seeds and a grace of 0.25
+  box by default (best of 0, 0.25, 0.5, 1, 1.5 box on its 15 crossing cases).
+- The ISMRM 2015 scores of `docs/MMF_TRACTOGRAPHY.md` were measured before this
+  change (and before those of 2026-11-16 to 2026-11-24) and have not been re-scored.
+
 ## 2026-11-24 - `algorithm: mmf` with `mmf.hold`: non-tissue counts as the zone
 
 - No new key. In `src/nim_tractography/advanceFrame.m` a node or stage whose

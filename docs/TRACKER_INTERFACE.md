@@ -154,7 +154,8 @@ same for the fields a tracker is expected to honour.
 | `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard` | `mmf.*` | confidence floor, trusted nodes of the ring, erosion radius (voxels); `mmf` only |
 | `mmf_coast_max` | `mmf.coast_max` | longest coast (voxels of arc); `mmf` only |
 | `mmf_exit_tol`, `mmf_exit_delay` | `mmf.*` | obsolete since 2026-11-23: accepted and ignored, a warning when finite, resp. not 0 (there is no exit test and no coast beyond the zone); `mmf` only |
-| `mmf_seed_trusted` | `mmf.seed_trusted` | with the scheme on, a seed in the zone is not tracked (`seeds_skipped`: `zone`); `mmf` only |
+| `mmf_seed_trusted` | `mmf.seed_trusted` | with the scheme on, `true` = a seed in the zone is not tracked (`seeds_skipped`: `zone`); default `false`; `mmf` only |
+| `mmf_seed_grace` | `mmf.seed_grace` | with the scheme on, voxels of arc from the seed over which each half-track reads the data whatever the confidence (default 0.25); `mmf` only |
 | `mmf_gradient_delta` | `mmf.gradient_delta` | central-difference step (voxels) for the derivative of the interpolated principal axis that forms the connection; `mmf` only |
 
 ### Present but not yours
@@ -284,7 +285,7 @@ field through the exponential step of `advanceFrame.m`. It reads
 `options.mmf_mode`, `options.mmf_reanchor_tol`, `options.mmf_gradient_delta`,
 `options.mmf_connection`, `options.mmf_max_turn` and the hold scheme's
 `options.mmf_hold`, `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard`, `mmf_coast_max`,
-and `mmf_seed_trusted` (the `mmf.*` group; `mmf_exit_tol` and `mmf_exit_delay` only to warn
+`mmf_seed_trusted` and `mmf_seed_grace` (the `mmf.*` group; `mmf_exit_tol` and `mmf_exit_delay` only to warn
 that they are ignored, obsolete since 2026-11-23; the scheme also reads
 `nim.eval`), runs on
 `field: dti` only (`csd` is rejected), maps

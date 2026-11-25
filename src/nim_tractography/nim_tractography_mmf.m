@@ -107,11 +107,24 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % its buffer (see TERMINATION; from 2026-11-16 it crossed it straight, and before
 % that the volume, the mask and the FA floor stayed stops inside the zone). A seed in
 % the zone has no trusted node and would coast straight along the axis of the
-% filled field: with mmf.seed_trusted (the default) it is not tracked, but skipped
-% as 'zone' (its confidence, read as the scheme reads it at a node, finite and
-% below mmf.hold_min: advanceFrame's own test of a first node; the erosion also
-% takes the seeds within about mmf.hold_guard of the zone), and without it it
-% coasts (where that axis ties, it is skipped as 'no_direction'). The trusted nodes must not
+% filled field. SINCE 2026-11-25 such a seed is tracked (mmf.seed_trusted false,
+% the default) with a GRACE: each half-track reads the data for mmf.seed_grace
+% voxels of arc from the seed (default 0.25) whatever the confidence (advanceFrame
+% 'SeedGrace'): the connection is read there, the frame re-anchored as in trusted
+% data, and those nodes fill the buffer; beyond the grace the scheme applies by
+% the confidence, so that the coast or march through the zone starts from the
+% seed's own data instead of a straight line. Non-tissue (NaN) stays untrusted in
+% the grace. The grace applies to every seed, so a seed within mmf.seed_grace of
+% the zone also reads it there. With mmf.seed_trusted true (the default from
+% 2026-11-16 to 2026-11-25) a seed in the zone is not tracked, but skipped as
+% 'zone' (its confidence, read as the scheme reads it at a node, finite and below
+% mmf.hold_min: advanceFrame's own test of a first node; the erosion also takes
+% the seeds within about mmf.hold_guard of the zone); with seed_trusted false and
+% seed_grace 0 it coasts straight (where that axis ties, it is skipped as
+% 'no_direction'). In the 2-D crossing tests of the moving-frames suite the wall
+% seeds with a grace of 0.25 box gave a mean largest MMF-4s error of 1.55 boxes
+% over 15 cases, against 3.84 without the grace; longer graces did worse (1.85 at
+% 0.5, 3.41 at 1), since they read the blend of the two bundles longer. The trusted nodes must not
 % read the zone either, and they would, through the kernel (the spline is
 % global, and the jump of the axis at the edge of a zone rings over several
 % voxels) and through the stencil of the nodal connection (two voxels), which
@@ -143,7 +156,11 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %   mmf_exit_delay     when finite, resp. nonzero): there is no exit test and no
 %                      coast beyond the zone
 %   mmf_seed_trusted   with mmf_hold, a seed in the zone is not tracked (default
-%                      true; false tracks it, a straight coast)
+%                      false since 2026-11-25: it is tracked, with the grace;
+%                      true 2026-11-16 to 2026-11-25)
+%   mmf_seed_grace     with mmf_hold, voxels of arc from the seed over which each
+%                      half-track reads the data whatever the confidence (default
+%                      0.25; 0: none, a seed in the zone coasts straight)
 %   angle_thresh       degrees of turning per VOXEL OF ARC (nim_angle_limit),
 %                      applied as advanceFrame's 'MaxTurn', see above
 %   max_arc            arc length followed from the seed in each direction
@@ -231,7 +248,11 @@ if use_hold && o('mmf_exit_delay', 0) ~= 0
     warning('mmf:obsoleteExitDelay', ['nim_tractography_mmf: tractography.mmf.exit_delay (%g) is obsolete since 2026-11-23 ' ...
             'and ignored: the coast ends at the first trusted node beyond the zone.'], o('mmf_exit_delay', 0));
 end
-seed_trusted = logical(o('mmf_seed_trusted', true));   % the schema default (tractography.mmf.seed_trusted)
+seed_trusted = logical(o('mmf_seed_trusted', false));  % the schema default (tractography.mmf.seed_trusted; true 2026-11-16 to 2026-11-25)
+seed_grace   = o('mmf_seed_grace', 0.25);               % the schema default (tractography.mmf.seed_grace, 2026-11-25)
+if ~(isnumeric(seed_grace) && isscalar(seed_grace) && isreal(seed_grace) && seed_grace >= 0 && isfinite(seed_grace))
+    error('mmf:hold', 'nim_tractography_mmf: tractography.mmf.seed_grace must be a finite number >= 0 (voxels).');
+end
 maxTurn = deg2rad(nim_angle_limit(options.angle_thresh, h));   % min(angle_max*h, 90) deg per step; Inf disables
 angle_off = ~isfinite(maxTurn);
 if angle_off
@@ -375,11 +396,11 @@ names = [reason_names(), {'zone'}];             % why a seed is skipped: e1_at's
 hold_args = {};
 if use_hold
     hold_args = {'Confidence', @(X) confidence_at(X, fld), 'HoldMin', hold_min, 'HoldK', hold_k, 'HoldCurvature', hold_mode, ...
-                 'CoastMax', round(coast_max / h)};   % 'ExitTol', exit_tol, 'ExitDelay', round(exit_delay / h): obsolete 2026-11-23
+                 'CoastMax', round(coast_max / h), 'SeedGrace', seed_grace};   % 'ExitTol', exit_tol, 'ExitDelay', round(exit_delay / h): obsolete 2026-11-23
     fprintf('MMF: %s through degenerate data, CL below %.3g (%.1f%% of the tissue voxels) eroded by %.3g voxel, from %d trusted nodes, %s, %s\n', ...
         ifelse(strcmp(hold_mode, 'hold'), 'MMF-4h holds the connection', 'MMF-4s marches the connection'), hold_min, 100 * zone_fraction, hold_guard, hold_k, ...
         ifelse(isfinite(coast_max), sprintf('at most %.3g voxels of arc', coast_max), 'no cap of the coast'), ...
-        'no exit test');
+        ifelse(seed_grace > 0, sprintf('no exit test, the data read for %.3g voxel from every seed (seed_grace)', seed_grace), 'no exit test'));
         % ifelse(isfinite(exit_tol), sprintf('exit test %.3g rad', exit_tol), 'no exit test'));   % obsolete 2026-11-23
 end
 
@@ -486,7 +507,7 @@ meta.n_seeds     = n_seeds;
 meta.mmf = struct('order', order, 'mode', mode, 'reanchor_tol', rtol, 'twist', 'zero', ...
                   'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'connection', conn, 'kernel', kernel, ...
                   'hold', hold_mode, 'hold_min', hold_min, 'hold_k', hold_k, 'hold_guard', hold_guard, 'zone_fraction', zone_fraction, ...
-                  'coast_max', coast_max, 'seed_trusted', seed_trusted, ...
+                  'coast_max', coast_max, 'seed_trusted', seed_trusted, 'seed_grace', ifelse(use_hold, seed_grace, 0), ...
                   'reanchored_fraction', n_re / max(n_st, 1), 'coasted_fraction', n_co / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
                   'seeds_skipped', struct('reason', {reshape(names(has), [], 1)}, 'count', {skipped_cnt(has)}));
 tt = term(alive_seed, :); tt = tt(:); tt = tt(~cellfun(@isempty, tt));

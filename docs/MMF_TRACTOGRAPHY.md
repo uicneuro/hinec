@@ -130,8 +130,9 @@ The reasons are counted over the half-tracks of the seeds that were tracked in
 see below; since 2026-11-16 `fa`, `outside_mask` and `outside_domain` do not
 occur, see above). Seeds outside tissue or without a
 direction are not tracked and are counted by reason in
-`meta.mmf.seeds_skipped`, and so, with `mmf.hold` and `mmf.seed_trusted` (the
-default), are the seeds in the zone of the scheme (`zone`, see below). ACT masks are
+`meta.mmf.seeds_skipped`, and so, with `mmf.hold` and `mmf.seed_trusted: true` (the
+default from 2026-11-16 to 2026-11-25), are the seeds in the zone of the scheme
+(`zone`, see below). ACT masks are
 not used by this tracker.
 
 With `debug.trace` the per-step records of the traced seeds have the layout of
@@ -220,8 +221,24 @@ fields of the moving-frames suite this put the tracts whose fibre passes through
 box without data just before the crossing onto the other family (up to 2.7 boxes
 off their fibre, against 0.65 at most with the change). A seed in the zone has no trusted node
 and would coast straight, along the
-axis of the filled field described next. **Seeds only in trusted data**
-(`mmf.seed_trusted`, default `true`, since 2026-11-16): such a seed is not tracked
+axis of the filled field described next. **The grace at the seed**
+(`mmf.seed_grace`, voxels of arc, default `0.25`, since 2026-11-25; advanceFrame
+`'SeedGrace'`): each half-track reads the data for this arc from its seed whatever
+the confidence. The connection is read there, the frame is re-anchored as in trusted
+data, and those nodes fill the buffer; beyond the grace the scheme applies by the
+confidence, so a seed in the zone coasts or marches through it on its own data
+rather than along a straight line. Non-tissue stays untrusted in the grace, and the
+grace applies to every seed (one within `seed_grace` of the zone reads it there). On
+the crossing-bundles test fields of the moving-frames suite, with the seeds on the
+entry walls (also those in the zone), a grace of 0.25 box gave a mean largest MMF-4s
+error of 1.55 boxes over the 15 cases and 8 of 150 tracts more than a box off their
+fibre, against 3.84 and 29 without it; 0.5 gave 1.85 and 9, 1 gave 3.41 and 48: a
+longer grace reads the blend of the two bundles longer and sends more seeds onto the
+other one. The tracts whose fibre meets the crossing right after the wall stay off
+their fibre with any grace. With the grace, `mmf.seed_trusted` is `false` by default
+(since 2026-11-25), so that the seeds in the zone are tracked.
+**Seeds only in trusted data**
+(`mmf.seed_trusted: true`, the default from 2026-11-16 to 2026-11-25): such a seed is not tracked
 but skipped as `zone` in `meta.mmf.seeds_skipped`, its trace record (with
 `debug.trace`) a zero-step one that keeps its confidence. The test is the scheme's
 own at a first node, the confidence read as at every node (CL interpolated over the
@@ -238,8 +255,10 @@ dropped seeds stay counted in `meta.n_seeds`). It differs from
 voxels the tensor refit fills (`preprocessing.refit_zeroed_tensors`): at the noisy
 edge of a mask their floored tensors are close to linear, CL near 1, and read as
 trusted. With
-`seed_trusted: false` the seed coasts as before; where the axis of the filled field
-ties, the seed is skipped as `no_direction` either way.
+`seed_trusted: false` and `seed_grace: 0` the seed coasts straight, as before
+2026-11-16; where the axis of the filled field ties, the seed is skipped as
+`no_direction` either way. `seed_trusted: true, seed_grace: 0` gives the tracker of
+2026-11-24.
 
 **The trusted nodes must not read the zone.** The held connection comes from the
 nodes just before it, and these are exactly where the voxel pipeline would mix the
