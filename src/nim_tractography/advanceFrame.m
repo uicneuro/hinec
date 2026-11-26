@@ -235,6 +235,29 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 holds in a rotation-minimizing frame, so m = 3 needs 'Twist'
 %                 'zero'; 'HoldTwist' and 'HoldDivergence' 'hold' are not
 %                 defined for it.
+%       'SeedGrace'
+%                 the hold scheme: arc length from the seed, in domain units,
+%                 over which the data are read whatever their confidence
+%                 (default 0: none; 2026-11-25). A tract seeded in the
+%                 untrusted region has no trusted node, and the hold would
+%                 coast it straight from the seed; with a grace g every
+%                 stage point and node at arc length s <= g from the seed
+%                 with finite confidence counts as trusted: the connection
+%                 is read from the data, the frame is re-anchored as in the
+%                 trusted data, and the nodes enter the buffer. Beyond g
+%                 the scheme applies as usual by the confidence (MMF-4h
+%                 holds, MMF-4s marches, on the buffer the grace filled).
+%                 A grace node whose measured confidence is below HoldMin
+%                 (or that has no data) gives the buffer its connection
+%                 (curvature) but not its transverse component sigma (the
+%                 fan-out): the data there are the blended crossing, and
+%                 their sigma made MMF-4s stop at a false focus
+%                 (2026-11-25). Sigma is the mean over the buffer's other
+%                 nodes, 0 when every node is such a grace node (the coast
+%                 is then a circle).
+%                 No data (NaN) stays untrusted in the grace. info.coasted
+%                 is false at the grace nodes; info.confidence keeps the
+%                 measured value.
 %       'HoldMin' confidence below which the data are degenerate (default 0.2)
 %       'HoldK'   length of the running mean of trusted connections (default 3)
 %       'HoldCap' largest rotation rate theta of a trusted connection that
@@ -390,6 +413,7 @@ reanchorTol = 1e-3;
 % exitTol    = Inf;          % obsolete 2026-11-23: no exit test whatever 'ExitTol' is (was: the test on leaving the zone, Inf: none)
 confidence = [];             % the hold scheme: confidence of the data (handle or nodal field)
 holdMin    = 0.2;
+seedGrace  = 0;              % the hold scheme: arc length from the seed over which the data are read whatever the confidence ('SeedGrace', 2026-11-25)
 holdK      = 3;
 holdCap    = Inf;
 coastMax   = Inf;
@@ -432,6 +456,9 @@ for n = 1:2:numel(varargin)
         case 'holdmin'
             validateattributes(val, {'numeric'}, {'scalar', 'real', 'nonnan'}, 'advanceFrame', '''HoldMin''');
             holdMin = double(val);
+        case 'seedgrace'
+            validateattributes(val, {'numeric'}, {'scalar', 'real', 'nonnegative', 'nonnan'}, 'advanceFrame', '''SeedGrace''');
+            seedGrace = double(val);
         case 'holdk'
             validateattributes(val, {'numeric'}, {'scalar', 'integer', 'positive'}, 'advanceFrame', '''HoldK''');
             holdK = double(val);
@@ -528,6 +555,10 @@ else
     evalCL = [];
 end
 useHold = ~isempty(evalCL);
+liftCL  = [];                                         % 'SeedGrace': the confidence with finite values below the floor raised to it
+if useHold && seedGrace > 0
+    liftCL = @(X) graceLift(evalCL(X), holdMin);
+end
 if any(strcmp(mode, {'reanchor', 'adaptive'})) && isempty(evalMF)
     error('advanceFrame:noFrames', '''Mode'', ''%s'' needs the data frames mf.', mode);
 end
@@ -623,7 +654,7 @@ for k = 1:nseed
     drift{k}  = 0;
     reanch{k} = false;
     confid{k} = c0(k);
-    coasted{k} = useHold && ~(c0(k) >= holdMin);   % no data (NaN) counts as the zone (2026-11-24)
+    coasted{k} = useHold && ~(c0(k) >= holdMin) && ~(seedGrace > 0 && isfinite(c0(k)));   % no data (NaN) counts as the zone (2026-11-24); the seed is in the grace ('SeedGrace')
 end
 active = true(nseed, 1);
 nstep  = ceil(smax / h);
@@ -637,7 +668,12 @@ for n = 1:nstep
     fo = false(numel(idx), 1);                  % MMF-4s: rows whose coast reaches the focus of its fan
     if useHold
         sA = (n - 1) * h;                       % arc length of the step's start node
+        gC = -Inf;                              % 'SeedGrace': the stages at abscissa c <= gC of the step lie in the grace
+        if ~isempty(liftCL), gC = (seedGrace - sA) / h; end
+        endGrace = gC >= 1 - 1e-9;              % the end node in the grace
         [sgM, dvM, blM] = sigmaFcn(Xa, Ea);     % the data's transverse component (and block, divergence term) at the start nodes
+        graceLow = false(numel(idx), 1);        % 'SeedGrace': start nodes in the grace whose own confidence is untrusted (2026-11-25)
+        if gC >= -1e-9, cA = evalCL(Xa(:, 1:expdim)); graceLow = ~(cA(:) >= holdMin); end
         [Om0, bl0, dv0, sb0, sg0] = ringMeans(hbuf(idx, :, :, :), sbuf(idx, :, :, :), dbuf(idx, :), abuf(idx, :), hcount(idx), m, holdTwist, holdCurv);
         if marchHold                            % the connection prescribed along the coast, stage by stage
             holdOm = @(c) marchedOmega(Om0, bl0, dv0, sA + c * h - sb0, uMin);
@@ -648,10 +684,11 @@ for n = 1:nstep
         end
         forcedS = false(numel(idx), 1);         % no row coasts beyond the zone's edge ('ExitDelay' obsolete 2026-11-23)
         % forcedS = grace(idx) > 0;             % rows still coasting beyond the zone's edge ('ExitDelay')
-        [Xn, En, Om1, maxRot, zoneS] = lieStep(Xa, Ea, h, order, omegaFcn, evalCL, holdMin, holdOm, expdim, forcedS);
+        [Xn, En, Om1, maxRot, zoneS] = lieStep(Xa, Ea, h, order, omegaFcn, evalCL, holdMin, holdOm, expdim, forcedS, liftCL, gC);
         zoneD = zoneS & ~forcedS;               % the start node is degenerate by the confidence (counts towards 'CoastMax')
         cE = evalCL(Xn(:, 1:expdim));           % confidence at the end of the step
         zoneC = ~(cE >= holdMin);               % the end node is degenerate by the confidence, or has no data (2026-11-24)
+        if endGrace, zoneC = ~isfinite(cE); end % in the grace ('SeedGrace'): only no data is untrusted
         zoneE = zoneC;                          % the end node coasts where it is degenerate ('ExitDelay' obsolete 2026-11-23)
         % g = grace(idx);                       % 'ExitDelay': the coast goes on beyond the zone's edge
         % g(zoneS & ~zoneC & g == 0) = exitDelay + 1;    % the edge is reached: exitDelay more steps of coast
@@ -706,6 +743,7 @@ for n = 1:nstep
                 slot = mod(hcount(k), holdK) + 1;
                 hbuf(k, slot, :, :) = Om1(q, :, :);
                 sbuf(k, slot, :, :) = blM(q, :, :);  dbuf(k, slot) = dvM(q);  abuf(k, slot) = sA;
+                if graceLow(q), sbuf(k, slot, :, :) = NaN; end         % a grace node in the untrusted region gives no sigma (2026-11-25)
                 hcount(k) = hcount(k) + 1;
             end
         end
@@ -832,7 +870,7 @@ info.reanchorTol = reanchorTol;
 end
 
 % =========================================================================
-function [Xn, En, Om1, maxRot, zone1] = lieStep(X, E, h, order, omegaFcn, evalCL, holdMin, holdOm, expdim, forced)
+function [Xn, En, Om1, maxRot, zone1] = lieStep(X, E, h, order, omegaFcn, evalCL, holdMin, holdOm, expdim, forced, liftCL, gC)
 % One step of the Lie group integrator for the pose (X, E) with the
 % exponential poseExp; Om1 is Omega at the start of the step and maxRot
 % the largest rotation h*theta over the stages of the step (NaN when the
@@ -849,8 +887,10 @@ if nargin < 6
     evalCL = [];  holdMin = NaN;  holdOm = [];  expdim = size(X, 2);
 end
 if nargin < 10, forced = false(size(X, 1), 1); end
+if nargin < 12 || isempty(liftCL), liftCL = evalCL; gC = -Inf; end   % 'SeedGrace': the stages at abscissa c <= gC read the lifted confidence
 if isa(holdOm, 'function_handle'), heldAt = holdOm; else, heldAt = @(c) holdOm; end
-stage = @(Xs, Es, c) stageOmega(Xs, Es, omegaFcn, evalCL, holdMin, heldAt(c), expdim, forced);
+clAt  = @(c) pickCL(c <= gC + 1e-9, liftCL, evalCL);
+stage = @(Xs, Es, c) stageOmega(Xs, Es, omegaFcn, clAt(c), holdMin, heldAt(c), expdim, forced);
 [Om1, bad, th, zone1] = stage(X, E, 0);
 rates = th;
 switch order
@@ -874,6 +914,16 @@ switch order
 end
 maxRot = h * max(rates, [], 2);
 %maxRot(bad) = NaN;
+end
+
+function f = pickCL(inGrace, liftCL, evalCL)
+% the confidence of a stage: lifted in the grace of the seed ('SeedGrace')
+if inGrace, f = liftCL; else, f = evalCL; end
+end
+
+function c = graceLift(c, holdMin)
+% 'SeedGrace': a finite confidence below the floor raised to it (trusted); no data (NaN) stays untrusted
+c(isfinite(c) & c < holdMin) = holdMin;
 end
 
 function [Om, bad, th, zone] = stageOmega(X, E, omegaFcn, evalCL, holdMin, holdOm, expdim, forced)

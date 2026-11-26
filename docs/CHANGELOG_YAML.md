@@ -1,5 +1,26 @@
 # YAML Configuration Changelog
 
+## 2026-11-26 - `mmf.seed_grace`: an optional grace at the seed; seeds stay in trusted data
+
+- New key `tractography.mmf.seed_grace` (numeric, voxels of arc, default `0` = none;
+  flat option name `mmf_seed_grace`), read by `algorithm: mmf` with `mmf.hold` `hold`
+  or `march`: each half-track reads the data for this arc from its seed whatever the
+  confidence (advanceFrame's new option `'SeedGrace'`), so that the nodes there fill
+  the buffer, and the scheme applies by the confidence beyond it. A grace node whose
+  own confidence is below `hold_min` gives the buffer its connection but no sigma.
+  Non-tissue stays untrusted. `meta.mmf` gains `seed_grace`. It matters mainly with
+  `mmf.seed_trusted: false`, where it lets a seed in the zone start from its own
+  data instead of coasting straight.
+- `tractography.mmf.seed_trusted` stays `true` by default: a seed in the zone is not
+  tracked. On the moving-frames test suite's crossing cases no remedy for seeds in
+  the zone (a grace of 0.25 to 1.5 box, following the data until the first trusted
+  node, a pointwise confidence along the seed walls) matched seeding in trusted data,
+  since the blended data at such a seed give a wrong curvature and heading. The
+  suite's crossing drivers re-seed in trusted data by default again (2026-11-26).
+- With the defaults the tracker is that of 2026-11-24: no behaviour change.
+- The ISMRM 2015 scores of `docs/MMF_TRACTOGRAPHY.md` were measured before the
+  changes of 2026-11-16 to 2026-11-24 and have not been re-scored.
+
 ## 2026-11-24 - `algorithm: mmf` with `mmf.hold`: non-tissue counts as the zone
 
 - No new key. In `src/nim_tractography/advanceFrame.m` a node or stage whose

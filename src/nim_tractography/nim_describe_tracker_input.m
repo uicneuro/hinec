@@ -293,7 +293,8 @@ function [groups, d] = options_dictionary()
     d.mmf_coast_max      = {'tractography.mmf.coast_max', 'mmf only: longest coast, voxels of arc'};
     d.mmf_exit_tol       = {'tractography.mmf.exit_tol', 'mmf only: OBSOLETE since 2026-11-23, ignored (no exit test; was the largest drift, radians, of a tract leaving the zone)'};
     d.mmf_exit_delay     = {'tractography.mmf.exit_delay', 'mmf only: OBSOLETE since 2026-11-23, ignored (no coast beyond the zone; was the arc of coast beyond its edge, voxels)'};
-    d.mmf_seed_trusted   = {'tractography.mmf.seed_trusted', 'mmf only: with hold or march, a seed whose confidence is below hold_min is not tracked (seeds_skipped: zone)'};
+    d.mmf_seed_trusted   = {'tractography.mmf.seed_trusted', 'mmf only: with hold or march, true = a seed whose confidence is below hold_min is not tracked (seeds_skipped: zone); default true'};
+    d.mmf_seed_grace     = {'tractography.mmf.seed_grace', 'mmf only: with hold or march, voxels of arc from the seed over which the data are read whatever the confidence (default 0 = none)'};
     d.trace     = {'tractography.debug.trace', 'record a per-step trace (position, direction, FA, turn, stop reason) into meta.trace'};
     d.trace_max = {'tractography.debug.trace_max', 'how many seeds to trace, sampled evenly (0 = all)'};
     d.output_arc_step   = {'tractography.output.arc_step', 'step 6: resample saved tracks to this arc spacing (0 = keep every step)'};
@@ -310,7 +311,7 @@ function [groups, d] = options_dictionary()
     groups(end+1) = struct('title', 'ACT', 'fields', {{'act_enabled','wm_mask','gm_mask','csf_mask'}});
     groups(end+1) = struct('title', 'field construction (consumed in step 2, not by the tracker)', 'fields', ...
         {{'csd_lmax','csd_peaks_file','csd_max_peaks','csd_peak_thresh','csd_peak_min_sep','csd_n_iter'}});
-    groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_mode','mmf_reanchor_tol','mmf_gradient_delta','mmf_connection','mmf_max_turn','mmf_hold','mmf_hold_min','mmf_hold_k','mmf_hold_guard','mmf_coast_max','mmf_exit_tol','mmf_exit_delay','mmf_seed_trusted'}});
+    groups(end+1) = struct('title', 'mmf', 'fields', {{'mmf_mode','mmf_reanchor_tol','mmf_gradient_delta','mmf_connection','mmf_max_turn','mmf_hold','mmf_hold_min','mmf_hold_k','mmf_hold_guard','mmf_coast_max','mmf_exit_tol','mmf_exit_delay','mmf_seed_trusted','mmf_seed_grace'}});
     groups(end+1) = struct('title', 'stitching', 'fields', {{'stitching'}});
     groups(end+1) = struct('title', 'post-processing (steps 5-6, not read by the tracker)', 'fields', ...
         {{'include_roi','exclude_roi','roi_filter_mode','roi_filter_dilate','endpoints_in','contained_in','any_in', ...
