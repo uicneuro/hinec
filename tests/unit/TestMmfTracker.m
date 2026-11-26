@@ -1190,7 +1190,13 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                 tc.verifyEqual(T{1}, T0{1}, 'AbsTol', 1e-12, [scheme{1} ': the trusted seed far from the zone']);
                 same = isequal(size(T{2}), size(T0{2})) && max(abs(T{2}(:) - T0{2}(:))) < 1e-6;
                 tc.verifyFalse(same, [scheme{1} ': the grace changes the track of the seed in the zone']);
+                Tg.(scheme{1}) = T{2};  Cg.(scheme{1}) = meta.trace(2);
             end
+            % The grace nodes of the seed in the zone have no trusted data, so they give the
+            % buffer no sigma (advanceFrame, 2026-11-25): MMF-4s then coasts with sigma = 0 and
+            % its track equals MMF-4h's.
+            tc.verifyTrue(any(Cg.march.forward.coasted) || any(Cg.march.backward.coasted), 'the seed in the zone coasts after the grace');
+            tc.verifyEqual(Tg.march, Tg.hold, 'AbsTol', 1e-10, 'march = hold from grace nodes in the zone (no sigma)');
         end
         function algorithmMmfAloneIsMMF4s(tc)
             % The schema defaults of tractography.mmf are those of MMF-4s (hold: march,
