@@ -289,8 +289,8 @@ tractography:
                              # (default inf: no cap)
     # exit_tol: 0.5          # obsolete since 2026-11-23: ignored, there is no exit
                              # test (a tract leaving the zone is always re-anchored)
-    seed_trusted: false      # true: with hold or march, a seed in the zone is not tracked
-    seed_grace: 0.25         # voxels of arc from the seed read whatever the confidence
+    seed_trusted: true       # true: with hold or march, a seed in the zone is not tracked
+    seed_grace: 0            # voxels of arc from the seed read whatever the confidence
 ```
 
 Every key, its type, range and default is generated from the schema

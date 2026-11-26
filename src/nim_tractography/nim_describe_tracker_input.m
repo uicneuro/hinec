@@ -293,8 +293,8 @@ function [groups, d] = options_dictionary()
     d.mmf_coast_max      = {'tractography.mmf.coast_max', 'mmf only: longest coast, voxels of arc'};
     d.mmf_exit_tol       = {'tractography.mmf.exit_tol', 'mmf only: OBSOLETE since 2026-11-23, ignored (no exit test; was the largest drift, radians, of a tract leaving the zone)'};
     d.mmf_exit_delay     = {'tractography.mmf.exit_delay', 'mmf only: OBSOLETE since 2026-11-23, ignored (no coast beyond the zone; was the arc of coast beyond its edge, voxels)'};
-    d.mmf_seed_trusted   = {'tractography.mmf.seed_trusted', 'mmf only: with hold or march, true = a seed whose confidence is below hold_min is not tracked (seeds_skipped: zone); default false'};
-    d.mmf_seed_grace     = {'tractography.mmf.seed_grace', 'mmf only: with hold or march, voxels of arc from the seed over which the data are read whatever the confidence (default 0.25)'};
+    d.mmf_seed_trusted   = {'tractography.mmf.seed_trusted', 'mmf only: with hold or march, true = a seed whose confidence is below hold_min is not tracked (seeds_skipped: zone); default true'};
+    d.mmf_seed_grace     = {'tractography.mmf.seed_grace', 'mmf only: with hold or march, voxels of arc from the seed over which the data are read whatever the confidence (default 0 = none)'};
     d.trace     = {'tractography.debug.trace', 'record a per-step trace (position, direction, FA, turn, stop reason) into meta.trace'};
     d.trace_max = {'tractography.debug.trace_max', 'how many seeds to trace, sampled evenly (0 = all)'};
     d.output_arc_step   = {'tractography.output.arc_step', 'step 6: resample saved tracks to this arc spacing (0 = keep every step)'};

@@ -247,6 +247,14 @@ function [tracts, frames, info] = advanceFrame(w, mf, dom, seeds, dir0, h, smax,
 %                 trusted data, and the nodes enter the buffer. Beyond g
 %                 the scheme applies as usual by the confidence (MMF-4h
 %                 holds, MMF-4s marches, on the buffer the grace filled).
+%                 A grace node whose measured confidence is below HoldMin
+%                 (or that has no data) gives the buffer its connection
+%                 (curvature) but not its transverse component sigma (the
+%                 fan-out): the data there are the blended crossing, and
+%                 their sigma made MMF-4s stop at a false focus
+%                 (2026-11-25). Sigma is the mean over the buffer's other
+%                 nodes, 0 when every node is such a grace node (the coast
+%                 is then a circle).
 %                 No data (NaN) stays untrusted in the grace. info.coasted
 %                 is false at the grace nodes; info.confidence keeps the
 %                 measured value.
@@ -664,6 +672,8 @@ for n = 1:nstep
         if ~isempty(liftCL), gC = (seedGrace - sA) / h; end
         endGrace = gC >= 1 - 1e-9;              % the end node in the grace
         [sgM, dvM, blM] = sigmaFcn(Xa, Ea);     % the data's transverse component (and block, divergence term) at the start nodes
+        graceLow = false(numel(idx), 1);        % 'SeedGrace': start nodes in the grace whose own confidence is untrusted (2026-11-25)
+        if gC >= -1e-9, cA = evalCL(Xa(:, 1:expdim)); graceLow = ~(cA(:) >= holdMin); end
         [Om0, bl0, dv0, sb0, sg0] = ringMeans(hbuf(idx, :, :, :), sbuf(idx, :, :, :), dbuf(idx, :), abuf(idx, :), hcount(idx), m, holdTwist, holdCurv);
         if marchHold                            % the connection prescribed along the coast, stage by stage
             holdOm = @(c) marchedOmega(Om0, bl0, dv0, sA + c * h - sb0, uMin);
@@ -733,6 +743,7 @@ for n = 1:nstep
                 slot = mod(hcount(k), holdK) + 1;
                 hbuf(k, slot, :, :) = Om1(q, :, :);
                 sbuf(k, slot, :, :) = blM(q, :, :);  dbuf(k, slot) = dvM(q);  abuf(k, slot) = sA;
+                if graceLow(q), sbuf(k, slot, :, :) = NaN; end         % a grace node in the untrusted region gives no sigma (2026-11-25)
                 hcount(k) = hcount(k) + 1;
             end
         end

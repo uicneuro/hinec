@@ -1113,7 +1113,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyEqual(meta.mmf.hold_min, 0.7);
         end
         function aSeedInTheZoneIsNotTracked(tc)
-            % mmf.seed_trusted true (the default from 2026-11-16 to 2026-11-25): a seed whose
+            % mmf.seed_trusted true (the default; false on 2026-11-25 only): a seed whose
             % confidence is below the floor has no trusted node and would coast straight along
             % the filled axis; it is skipped as 'zone' and accounted for, and the other seeds
             % are tracked as without the key.
@@ -1124,8 +1124,8 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             seed(36, 45, 5) = true;                                      % phi = 69 deg, r = 15.5: in the zone
             for scheme = {'hold', 'march'}
                 o = tc.holdOpts(scheme{1}); o.seed_mask = seed; o.trace = true; o.trace_max = 0;
-                tc.verifyFalse(o.mmf_seed_trusted, 'the schema default (false since 2026-11-25) reaches the options');
-                o.mmf_seed_trusted = true;  o.mmf_seed_grace = 0;          % the tracker of 2026-11-24
+                tc.verifyTrue(o.mmf_seed_trusted, 'the schema default (true) reaches the options');
+                tc.verifyEqual(o.mmf_seed_grace, 0, 'the schema default (0) reaches the options');   % the tracker of 2026-11-24
                 evalc('[T, meta] = nim_tractography_mmf(nim, o);');
                 evalc('nim_check_tracker_output(T, meta);');
                 tc.assertNumElements(T, 1, scheme{1});
@@ -1157,8 +1157,8 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyFalse(any(strcmp(meta.mmf.seeds_skipped.reason, 'zone')));
         end
         function aSeedInTheZoneStartsWithTheGrace(tc)
-            % The defaults since 2026-11-25 (mmf.seed_trusted false, mmf.seed_grace 0.25): a
-            % seed in the zone is tracked, and each half-track reads the data for seed_grace
+            % The option (mmf.seed_trusted false, mmf.seed_grace 0.25; the defaults on 2026-11-25
+            % only): a seed in the zone is tracked, and each half-track reads the data for seed_grace
             % voxels of arc (its nodes there are not coasted and fill the buffer) before the
             % scheme applies by the confidence; a seed far from the zone is unaffected.
             [nim, ~, phi] = tc.spiralNim(pi/2);
@@ -1168,7 +1168,8 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             seed(36, 45, 5) = true;                                      % phi = 69 deg, r = 15.5: in the zone
             for scheme = {'hold', 'march'}
                 o = tc.holdOpts(scheme{1}); o.seed_mask = seed; o.trace = true; o.trace_max = 0;
-                tc.verifyEqual(o.mmf_seed_grace, 0.25, 'the schema default reaches the options');
+                tc.verifyEqual(o.mmf_seed_grace, 0, 'the schema default (0) reaches the options');
+                o.mmf_seed_trusted = false;  o.mmf_seed_grace = 0.25;
                 evalc('[T, meta] = nim_tractography_mmf(nim, o);');
                 evalc('nim_check_tracker_output(T, meta);');
                 tc.assertNumElements(T, 2, scheme{1});

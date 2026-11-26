@@ -154,8 +154,8 @@ same for the fields a tracker is expected to honour.
 | `mmf_hold_min`, `mmf_hold_k`, `mmf_hold_guard` | `mmf.*` | confidence floor, trusted nodes of the ring, erosion radius (voxels); `mmf` only |
 | `mmf_coast_max` | `mmf.coast_max` | longest coast (voxels of arc); `mmf` only |
 | `mmf_exit_tol`, `mmf_exit_delay` | `mmf.*` | obsolete since 2026-11-23: accepted and ignored, a warning when finite, resp. not 0 (there is no exit test and no coast beyond the zone); `mmf` only |
-| `mmf_seed_trusted` | `mmf.seed_trusted` | with the scheme on, `true` = a seed in the zone is not tracked (`seeds_skipped`: `zone`); default `false`; `mmf` only |
-| `mmf_seed_grace` | `mmf.seed_grace` | with the scheme on, voxels of arc from the seed over which each half-track reads the data whatever the confidence (default 0.25); `mmf` only |
+| `mmf_seed_trusted` | `mmf.seed_trusted` | with the scheme on, `true` = a seed in the zone is not tracked (`seeds_skipped`: `zone`); default `true`; `mmf` only |
+| `mmf_seed_grace` | `mmf.seed_grace` | with the scheme on, voxels of arc from the seed over which each half-track reads the data whatever the confidence (default 0 = none); `mmf` only |
 | `mmf_gradient_delta` | `mmf.gradient_delta` | central-difference step (voxels) for the derivative of the interpolated principal axis that forms the connection; `mmf` only |
 
 ### Present but not yours
