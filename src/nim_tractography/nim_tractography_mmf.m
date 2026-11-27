@@ -69,7 +69,14 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % nothing with angle_max <= 0). Until then the zero connection of non-tissue
 % entered the buffer, so that a coast after such a run held a reduced or zero
 % curvature, and a coast leaving the zone into non-tissue ran on straight
-% (its coast_max count restarting). Without mmf.hold the run is straight. advanceFrame.m's own help still describes the 'nan' stop (the
+% (its coast_max count restarting). Without mmf.hold the run is straight.
+% SINCE 2026-11-27 the mask stops the tract again (mmf.mask_stop, default true):
+% each half ends at its last node inside the propagation mask (or the brain
+% mask), termination 'outside_mask'. The tracking is causal, so this is the
+% tract that a stop at the mask would give; the FA floor and points without an
+% axis are still no stop inside the mask. mmf.mask_stop false gives the tracker
+% of 2026-11-16 to 2026-11-26, whose tracts left the brain and ended outside
+% every bundle (ISMRM 2015: MMF-4a F1 0 on 2026-11-26). advanceFrame.m's own help still describes the 'nan' stop (the
 % file is the suite's). The angle
 % limit termination.angle_max (degrees per voxel of arc; through
 % nim_angle_limit it is min(angle_max*h, 90) degrees per step, none for
@@ -102,6 +109,10 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % marched coast that reaches the focus of its fan stops, 'focus'). The confidence
 % is the linear shape CL = (lambda_1 - lambda_2)/lambda_1 of the voxel tensors,
 % interpolated linearly and eroded by mmf.hold_guard voxels, see confidence_at.
+% With mmf.confidence csd_peaks (2026-11-27) it is instead 1 in a voxel with one
+% CSD peak and 0 in a voxel with two or more (NaN with none; a peak counts when
+% its weight is at least mmf.peak_ratio times the largest, every peak with 0),
+% interpolated and eroded the same way; nim_field provisions the peaks.
 % The confidence is NaN outside tissue, which advanceFrame takes for no data and,
 % since 2026-11-24, counts as the zone: the tract crosses a slab of non-tissue on
 % its buffer (see TERMINATION; from 2026-11-16 it crossed it straight, and before
@@ -163,6 +174,17 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %   mmf_seed_trusted   with mmf_hold, a seed in the zone is not tracked (default
 %                      true; false, the default on 2026-11-25 only: it is
 %                      tracked, with the grace)
+%   mmf_mask_stop      true (default, 2026-11-27): a half ends at its last node
+%                      inside the propagation mask ('outside_mask'); false: it
+%                      runs on through non-tissue (2026-11-16 to 2026-11-26)
+%   mmf_confidence     with mmf_hold, 'cl' (default: CL of the tensor) or
+%                      'csd_peaks' (1 for one CSD peak, 0 for two or more;
+%                      needs nim.npeaks and nim.peak_w), and mmf_peak_ratio
+%                      (with csd_peaks: a peak counts when its weight is at least
+%                      this fraction of the largest; default 0 = every peak);
+%                      'map' (2026-11-27): the volume in mmf_confidence_file
+%                      (NIfTI, or MAT with a variable 'confidence'), on the
+%                      dataset grid, e.g. 1 = trusted, 0 = a known crossing
 %   mmf_seed_grace     with mmf_hold, voxels of arc from the seed over which each
 %                      half-track reads the data whatever the confidence (default
 %                      0 = none; with seed_trusted false a seed in the zone then
@@ -255,6 +277,23 @@ if use_hold && o('mmf_exit_delay', 0) ~= 0
             'and ignored: the coast ends at the first trusted node beyond the zone.'], o('mmf_exit_delay', 0));
 end
 seed_trusted = logical(o('mmf_seed_trusted', true));   % the schema default (tractography.mmf.seed_trusted; false on 2026-11-25 only)
+mask_stop    = logical(o('mmf_mask_stop', true));       % the schema default (tractography.mmf.mask_stop, 2026-11-27)
+confidence   = lower(char(string(o('mmf_confidence', 'cl'))));   % the schema default (tractography.mmf.confidence, 2026-11-27)
+if ~any(strcmp(confidence, {'cl', 'csd_peaks', 'map'}))
+    error('mmf:confidence', 'nim_tractography_mmf: mmf.confidence must be cl, csd_peaks or map, not ''%s''.', confidence);
+end
+confidence_file = char(string(o('mmf_confidence_file', '')));   % with mmf.confidence map (2026-11-27)
+if use_hold && strcmp(confidence, 'map') && isempty(confidence_file)
+    error('mmf:confidence', 'nim_tractography_mmf: mmf.confidence map needs tractography.mmf.confidence_file (a NIfTI or MAT volume on the dataset grid).');
+end
+peak_ratio   = o('mmf_peak_ratio', 0);
+if ~(isnumeric(peak_ratio) && isscalar(peak_ratio) && isreal(peak_ratio) && peak_ratio >= 0 && peak_ratio <= 1)
+    error('mmf:confidence', 'nim_tractography_mmf: tractography.mmf.peak_ratio must be a number in [0, 1].');
+end
+if use_hold && strcmp(confidence, 'csd_peaks') && ~(isfield(nim, 'npeaks') && ~isempty(nim.npeaks) && isfield(nim, 'peak_w'))
+    error('mmf:confidence', ['nim_tractography_mmf: mmf.confidence csd_peaks needs the CSD peaks nim.npeaks and nim.peak_w ' ...
+          '(provisioned by nim_field from tractography.csd.*).']);
+end
 seed_grace   = o('mmf_seed_grace', 0);                  % the schema default (tractography.mmf.seed_grace; 0.25 on 2026-11-25 only)
 if ~(isnumeric(seed_grace) && isscalar(seed_grace) && isreal(seed_grace) && seed_grace >= 0 && isfinite(seed_grace))
     error('mmf:hold', 'nim_tractography_mmf: tractography.mmf.seed_grace must be a finite number >= 0 (voxels).');
@@ -300,7 +339,13 @@ end
 CLI = []; TSI = []; probes = zeros(0, 3);
 if use_hold
     L  = sort(double(nim.eval), 4, 'descend');
-    CL = (L(:, :, :, 1) - L(:, :, :, 2)) ./ L(:, :, :, 1);
+    if strcmp(confidence, 'csd_peaks')             % mmf.confidence csd_peaks (2026-11-27): 1 for one peak, 0 for two or more
+        CL = csd_peak_confidence(nim, peak_ratio);
+    elseif strcmp(confidence, 'map')               % mmf.confidence map (2026-11-27): a given volume, e.g. an oracle crossing map
+        CL = map_confidence(confidence_file, dims);
+    else                                           % mmf.confidence cl, the default
+        CL = (L(:, :, :, 1) - L(:, :, :, 2)) ./ L(:, :, :, 1);
+    end
     CL(~(L(:, :, :, 1) > 0) | ~prop | ~(double(nim.FA) >= termination_fa)) = NaN;
     Ct = CL; Ct(isnan(CL)) = 0;                                     % interpolated over the tissue only: see confidence_at
     CLI = griddedInterpolant({1:dims(1), 1:dims(2), 1:dims(3)}, Ct, 'linear', 'none');
@@ -403,8 +448,9 @@ hold_args = {};
 if use_hold
     hold_args = {'Confidence', @(X) confidence_at(X, fld), 'HoldMin', hold_min, 'HoldK', hold_k, 'HoldCurvature', hold_mode, ...
                  'CoastMax', round(coast_max / h), 'SeedGrace', seed_grace};   % 'ExitTol', exit_tol, 'ExitDelay', round(exit_delay / h): obsolete 2026-11-23
-    fprintf('MMF: %s through degenerate data, CL below %.3g (%.1f%% of the tissue voxels) eroded by %.3g voxel, from %d trusted nodes, %s, %s\n', ...
-        ifelse(strcmp(hold_mode, 'hold'), 'MMF-4h holds the connection', 'MMF-4s marches the connection'), hold_min, 100 * zone_fraction, hold_guard, hold_k, ...
+    fprintf('MMF: %s through degenerate data, %s below %.3g (%.1f%% of the tissue voxels) eroded by %.3g voxel, from %d trusted nodes, %s, %s\n', ...
+        ifelse(strcmp(hold_mode, 'hold'), 'MMF-4h holds the connection', 'MMF-4s marches the connection'), ...
+        ifelse(strcmp(confidence, 'csd_peaks'), sprintf('confidence csd_peaks (1 for one CSD peak, peak_ratio %g)', peak_ratio), ifelse(strcmp(confidence, 'map'), sprintf('confidence map %s', confidence_file), 'CL')), hold_min, 100 * zone_fraction, hold_guard, hold_k, ...
         ifelse(isfinite(coast_max), sprintf('at most %.3g voxels of arc', coast_max), 'no cap of the coast'), ...
         ifelse(seed_grace > 0, sprintf('no exit test, the data read for %.3g voxel from every seed (seed_grace)', seed_grace), 'no exit test'));
         % ifelse(isfinite(exit_tol), sprintf('exit test %.3g rad', exit_tol), 'no exit test'));   % obsolete 2026-11-23
@@ -475,8 +521,16 @@ for c0 = 1:chunk:numel(live)
             k = idx(q);
             P = Pq{q}; xdrop = zeros(0, 3);
             if ~okend(q) && size(P, 1) > 1, xdrop = P(end, :); P = P(1:end-1, :); end
+            jm = [];
+            if mask_stop                        % mmf.mask_stop (2026-11-27): the half ends at its last node inside the mask
+                vm = round(P); inv = all(vm >= 1, 2) & all(vm <= dims, 2);
+                inm = false(size(P, 1), 1); inm(inv) = prop(sub2ind(dims, vm(inv, 1), vm(inv, 2), vm(inv, 3)));
+                jm = find(~inm(2:end), 1);
+                if ~isempty(jm), P = P(1:jm, :); end
+            end
             half{k, dirn} = P;
-            term{k, dirn} = why_stopped(info.stop{q}, P, fr{q}, h, fld, xdrop);
+            if isempty(jm), term{k, dirn} = why_stopped(info.stop{q}, P, fr{q}, h, fld, xdrop);
+            else, term{k, dirn} = 'outside_mask'; end
             re = info.reanchored{q}(2:size(P, 1));
             n_re = n_re + nnz(re); n_st = n_st + numel(re);
             n_co = n_co + nnz(info.coasted{q}(2:size(P, 1)));
@@ -513,7 +567,7 @@ meta.n_seeds     = n_seeds;
 meta.mmf = struct('order', order, 'mode', mode, 'reanchor_tol', rtol, 'twist', 'zero', ...
                   'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'connection', conn, 'kernel', kernel, ...
                   'hold', hold_mode, 'hold_min', hold_min, 'hold_k', hold_k, 'hold_guard', hold_guard, 'zone_fraction', zone_fraction, ...
-                  'coast_max', coast_max, 'seed_trusted', seed_trusted, 'seed_grace', ifelse(use_hold, seed_grace, 0), ...
+                  'coast_max', coast_max, 'seed_trusted', seed_trusted, 'seed_grace', ifelse(use_hold, seed_grace, 0), 'mask_stop', mask_stop, 'confidence', ifelse(use_hold, confidence, 'none'), 'peak_ratio', peak_ratio, 'confidence_file', ifelse(use_hold && strcmp(confidence, 'map'), confidence_file, ''), ...
                   'reanchored_fraction', n_re / max(n_st, 1), 'coasted_fraction', n_co / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
                   'seeds_skipped', struct('reason', {reshape(names(has), [], 1)}, 'count', {skipped_cnt(has)}));
 tt = term(alive_seed, :); tt = tt(:); tt = tt(~cellfun(@isempty, tt));
@@ -883,4 +937,47 @@ end
 
 function s = ifelse(c, a, b)
 if c, s = a; else, s = b; end
+end
+
+function C = map_confidence(file, dims)
+% mmf.confidence map (2026-11-27): the confidence read from a volume on the dataset grid, a NIfTI
+% (niftiread, stored voxel order, as nim_read) or a MAT file with a variable 'confidence' (or one
+% variable only). Non-finite values are no data, as elsewhere.
+if ~isfile(file)
+    error('mmf:confidence', 'nim_tractography_mmf: mmf.confidence_file ''%s'' does not exist.', file);
+end
+if endsWith(lower(file), '.mat')
+    S = load(file);
+    f = fieldnames(S);
+    if isfield(S, 'confidence'), C = S.confidence;
+    elseif numel(f) == 1,        C = S.(f{1});
+    else, error('mmf:confidence', 'nim_tractography_mmf: %s holds no variable ''confidence''.', file);
+    end
+else
+    C = niftiread(file);
+end
+C = double(C);
+sz = size(C); sz(end+1:3) = 1;
+d = dims; d(end+1:3) = 1;
+if ~isequal(sz(1:3), d(1:3)) || ndims(C) > 3
+    error('mmf:confidence', 'nim_tractography_mmf: the confidence map %s is %s, the dataset grid %s.', file, mat2str(sz), mat2str(d(1:3)));
+end
+end
+
+function C = csd_peak_confidence(nim, ratio)
+% The confidence of mmf.confidence csd_peaks (2026-11-27): 1 in a voxel with one CSD
+% peak, 0 in a voxel with two or more (a crossing), NaN in a voxel with none. With
+% ratio > 0 a peak counts only when its weight is at least ratio times the largest
+% of the voxel (nim.peak_w, X x Y x Z x P; the slots beyond nim.npeaks are unused).
+np = double(nim.npeaks);
+if ratio > 0
+    W  = double(nim.peak_w);
+    P  = size(W, 4);
+    active = reshape(1:P, [1 1 1 P]) <= np;
+    Wa = W; Wa(~active) = -Inf;
+    w1 = max(Wa, [], 4);
+    np = sum(active & W >= ratio * w1, 4);
+end
+C = double(np == 1);
+C(np < 1) = NaN;
 end

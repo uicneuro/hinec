@@ -1,5 +1,41 @@
 # YAML Configuration Changelog
 
+## 2026-11-27 - `mmf.confidence: map`: the hold confidence from a given volume
+
+- `tractography.mmf.confidence` accepts `map`, and the new key
+  `tractography.mmf.confidence_file` (string, default empty; flat option
+  `mmf_confidence_file`) names the volume: a NIfTI (stored voxel order) or a MAT file
+  with a variable `confidence`, on the dataset grid. It is used as the confidence as
+  CL is (NaN outside the tissue, interpolated, eroded, compared with
+  `mmf.hold_min`). Meant for an oracle test, e.g. the FiberCup ground-truth bundles
+  giving 0 only where two of them cross. `meta.mmf` gains `confidence_file`.
+- No behaviour change: `cl` stays the default.
+
+## 2026-11-27 - `mmf.confidence`: the hold confidence from the number of CSD peaks
+
+- New keys `tractography.mmf.confidence` (`cl`, the default, or `csd_peaks`; flat
+  option `mmf_confidence`) and `tractography.mmf.peak_ratio` (numeric in [0, 1],
+  default `0`; `mmf_peak_ratio`), read by `algorithm: mmf` with `mmf.hold` `hold` or
+  `march`. With `csd_peaks` the confidence is 1 in a voxel with one CSD peak, 0 with
+  two or more and NaN with none; a peak counts only when its weight is at least
+  `peak_ratio` times the largest (0 = every peak). `nim_field` provisions the CSD
+  peaks (`tractography.csd.*`, the same cache as `field: csd`) while the tracked
+  field stays dti. `meta.mmf` gains `confidence` and `peak_ratio`.
+- No behaviour change: `cl` is the default.
+
+## 2026-11-27 - `mmf.mask_stop`: MMF tracts stop at the mask again
+
+- New key `tractography.mmf.mask_stop` (logical, default `true`; flat option
+  `mmf_mask_stop`), read by `algorithm: mmf`: each half-track ends at its last node
+  inside the propagation mask (or the brain mask), termination `outside_mask`.
+  `meta.mmf` gains `mask_stop`.
+- **Behaviour change** for every `algorithm: mmf` run: from 2026-11-16 to 2026-11-26
+  a tract that left the mask ran on through non-tissue (straight, or on the buffer
+  with `mmf.hold`) to the face of the volume, so that its ends lay outside every
+  bundle (ISMRM 2015, 2026-11-26: MMF-4a F1 0). The tracking is causal, so a stopped
+  track is the start of the free one. `mask_stop: false` restores the 2026-11-26
+  tracker. The FA floor is still no stop inside the mask.
+
 ## 2026-11-26 - `mmf.seed_grace`: an optional grace at the seed; seeds stay in trusted data
 
 - New key `tractography.mmf.seed_grace` (numeric, voxels of arc, default `0` = none;

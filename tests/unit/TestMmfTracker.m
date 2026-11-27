@@ -222,9 +222,10 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             % that leaves the mask runs on straight along its carried e1. One half runs out
             % through the blocked half-plane to the face of the volume ('outside'), the other
             % comes round the circle and crosses it straight to max_arc. Until then both
-            % stopped at the edge of the mask ('outside_mask').
+            % stopped at the edge of the mask ('outside_mask'), as they do again since
+            % 2026-11-27 with mmf.mask_stop (the default; see stopsAtTheMaskByDefault).
             nim = tc.Nim; nim.mask(:, 1:30, :) = false;
-            o = tc.Opts; o.propagation_mask = nim.mask;
+            o = tc.Opts; o.propagation_mask = nim.mask; o.mmf_mask_stop = false;
             for integ = {'euler', 'rk2', 'rk4'}
                 o.integrator = integ{1};
                 evalc('[T, meta] = nim_tractography_mmf(nim, o);');
@@ -236,6 +237,25 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                 tc.verifyLessThan(min(P(:, 2)), 2, [integ{1} ': the half in the blocked half-plane reaches the face']);
                 tc.verifyLessThan(tc.offStraight(P, out), 1e-9, [integ{1} ': beyond the mask a half runs straight']);
             end
+        end
+
+        function stopsAtTheMaskByDefault(tc)
+            % mmf.mask_stop (2026-11-27, default true): both halves end at their last node
+            % inside the mask, 'outside_mask', and are the first nodes of the halves that
+            % run on without it (the tracking is causal).
+            nim = tc.Nim; nim.mask(:, 1:30, :) = false;
+            o = tc.Opts; o.propagation_mask = nim.mask;
+            tc.verifyTrue(o.mmf_mask_stop, 'the schema default reaches the options');
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            tc.assertNumElements(T, 1);
+            tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 2);
+            tc.verifyTrue(meta.mmf.mask_stop);
+            P = T{1}; v = round(P);
+            tc.verifyTrue(all(nim.mask(sub2ind(size(nim.mask), v(:, 1), v(:, 2), v(:, 3)))), 'every node inside the mask');
+            o.mmf_mask_stop = false;
+            evalc('T0 = nim_tractography_mmf(nim, o);');
+            Q = T0{1}; [~, i0] = min(sum((P - meta.seed_points(1, :)) .^ 2, 2)); [~, j0] = min(sum((Q - meta.seed_points(1, :)) .^ 2, 2));
+            tc.verifyEqual(Q(j0 - i0 + 1 : j0 - i0 + size(P, 1), :), P, 'AbsTol', 1e-12, 'the stopped track is the start of the free one');
         end
 
         function propagationMaskTakesPrecedenceOverTheBrainMask(tc)
@@ -382,7 +402,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             % 60 before coming round), ~95 voxels in all; the circle through (36, 31)
             % runs the full 120.
             nim = tc.Nim; nim.mask(:, 41:end, :) = false;
-            o = tc.Opts; o.seed_density = 8; o.propagation_mask = nim.mask;
+            o = tc.Opts; o.seed_density = 8; o.propagation_mask = nim.mask; o.mmf_mask_stop = false;
             o.seed_mask = false(size(FA)); o.seed_mask(46, 31, 5) = true; o.seed_mask(36, 31, 5) = true;
             evalc('[T, meta] = nim_tractography_mmf(nim, o);');
             tc.verifyEqual(meta.n_seeds, 16);
@@ -681,6 +701,89 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                 evalc('nim_check_tracker_output(T, meta);');
             end
         end
+        function theCsdPeakCountIsAConfidence(tc)
+            % mmf.confidence csd_peaks (2026-11-27): the confidence is 1 in a voxel with one CSD
+            % peak and 0 in a voxel with two or more. On the crossing fixture with two peaks
+            % exactly in the pancakes the tract crosses as with CL; with one peak everywhere
+            % there is no zone and it stops on angle_max as without the scheme; peak_ratio
+            % drops a second peak smaller than that fraction of the first.
+            nim = make_synthetic_nim('crossing');
+            L = sort(nim.eval, 4, 'descend'); cl = (L(:, :, :, 1) - L(:, :, :, 2)) ./ L(:, :, :, 1);
+            crossing = nim.FA > 0 & cl < 0.2;
+            tc.assumeTrue(any(crossing(:)), 'the fixture has pancakes');
+            nim.npeaks = ones(size(nim.FA)); nim.npeaks(crossing) = 2;
+            nim.peak_w = zeros([size(nim.FA) 3]); w1 = ones(size(nim.FA)); w2 = zeros(size(nim.FA)); w2(crossing) = 0.3;
+            nim.peak_w(:, :, :, 1) = w1; nim.peak_w(:, :, :, 2) = w2;
+            o = tc.holdOpts('march');
+            tc.verifyEqual(o.mmf_confidence, 'cl', 'the schema default (cl) reaches the options');
+            tc.verifyEqual(o.mmf_peak_ratio, 0, 'the schema default (0) reaches the options');
+            o.seed_mask = false(size(nim.FA)); o.seed_mask(10, 30, 3) = true; o.seed_density = 8;
+            o.max_arc = 100; o.max_steps = 500; o.angle_thresh = 225;
+            evalc('[Tc, mc] = nim_tractography_mmf(nim, o);');               % CL, the default
+            o.mmf_confidence = 'csd_peaks';
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            evalc('nim_check_tracker_output(T, meta);');
+            tc.verifyEqual(meta.mmf.confidence, 'csd_peaks');
+            tc.verifyEqual(mc.mmf.confidence, 'cl');
+            tc.assertNumElements(T, 8);
+            tc.verifyEqual(meta.termination.reason, {'outside'});
+            tc.verifyTrue(all(cellfun(@(t) max(t(:, 1)), T) > 79));
+            tc.verifyLessThan(max(cellfun(@(t) max(abs(t(:, 2) - 30)), T)), 0.3);
+            tc.verifyGreaterThan(meta.mmf.coasted_fraction, 0.05);
+            tc.verifyEqual(meta.mmf.zone_fraction, mc.mmf.zone_fraction, 'AbsTol', 1e-12, 'the same zone as CL < 0.2');
+            o.mmf_peak_ratio = 0.5;                                            % the second peak (0.3) no longer counts
+            evalc('[T5, m5] = nim_tractography_mmf(nim, o);');
+            tc.verifyEqual(m5.mmf.zone_fraction, 0);
+            tc.verifyEqual(tc.countOf(m5, 'angle'), 8);
+            tc.verifyTrue(all(cellfun(@(t) max(t(:, 1)), T5) < 40));
+            o.mmf_peak_ratio = 0.25;                                           % it counts again
+            evalc('[~, m25] = nim_tractography_mmf(nim, o);');
+            tc.verifyEqual(m25.mmf.zone_fraction, meta.mmf.zone_fraction, 'AbsTol', 1e-12);
+            n1 = rmfield(nim, {'npeaks', 'peak_w'});
+            tc.verifyError(@() nim_tractography_mmf(n1, o), 'mmf:confidence');
+            o.mmf_confidence = 'fod';
+            tc.verifyError(@() nim_tractography_mmf(nim, o), 'mmf:confidence');
+        end
+        function aConfidenceMapIsReadFromAFile(tc)
+            % mmf.confidence map (2026-11-27): the confidence read from a MAT or NIfTI volume on
+            % the dataset grid. A map 0 in the pancakes of the crossing fixture and 1 elsewhere is
+            % the CSD-peak confidence of theCsdPeakCountIsAConfidence: the same zone, the same
+            % crossing. A map of the wrong size, a missing file and no file are errors.
+            nim = make_synthetic_nim('crossing');
+            L = sort(nim.eval, 4, 'descend'); cl = (L(:, :, :, 1) - L(:, :, :, 2)) ./ L(:, :, :, 1);
+            crossing = nim.FA > 0 & cl < 0.2;
+            tc.assumeTrue(any(crossing(:)), 'the fixture has pancakes');
+            confidence = double(~crossing);
+            d = tempname; mkdir(d); cu = onCleanup(@() rmdir(d, 's'));
+            f = fullfile(d, 'conf.mat'); save(f, 'confidence');
+            o = tc.holdOpts('march');
+            tc.verifyEmpty(o.mmf_confidence_file, 'the schema default (empty) reaches the options');
+            o.seed_mask = false(size(nim.FA)); o.seed_mask(10, 30, 3) = true; o.seed_density = 8;
+            o.max_arc = 100; o.max_steps = 500; o.angle_thresh = 225;
+            evalc('[~, mc] = nim_tractography_mmf(nim, o);');                % CL < 0.2, the default
+            o.mmf_confidence = 'map'; o.mmf_confidence_file = f;
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            evalc('nim_check_tracker_output(T, meta);');
+            tc.verifyEqual(meta.mmf.confidence, 'map');
+            tc.verifyEqual(meta.mmf.confidence_file, f);
+            tc.assertNumElements(T, 8);
+            tc.verifyEqual(meta.termination.reason, {'outside'});
+            tc.verifyTrue(all(cellfun(@(t) max(t(:, 1)), T) > 79));
+            tc.verifyEqual(meta.mmf.zone_fraction, mc.mmf.zone_fraction, 'AbsTol', 1e-12, 'the same zone as CL < 0.2');
+            if exist('niftiwrite', 'file')                                      % the same volume as NIfTI
+                niftiwrite(single(confidence), fullfile(d, 'conf'));
+                o.mmf_confidence_file = fullfile(d, 'conf.nii');
+                evalc('[~, mn] = nim_tractography_mmf(nim, o);');
+                tc.verifyEqual(mn.mmf.zone_fraction, meta.mmf.zone_fraction, 'AbsTol', 1e-12);
+            end
+            confidence = confidence(1:end-1, :, :); save(f, 'confidence');      % the wrong grid
+            o.mmf_confidence_file = f;
+            tc.verifyError(@() nim_tractography_mmf(nim, o), 'mmf:confidence');
+            o.mmf_confidence_file = fullfile(d, 'none.mat');
+            tc.verifyError(@() nim_tractography_mmf(nim, o), 'mmf:confidence');
+            o.mmf_confidence_file = '';
+            tc.verifyError(@() nim_tractography_mmf(nim, o), 'mmf:confidence');
+        end
         function theHoldStaysOnTheCircleThroughADegenerateSector(tc)
             % Circles, kappa constant: the case the hold is exact on, and sigma = 0, so
             % that the march is the hold. The sector turns the axis by 90 degrees over about
@@ -913,7 +1016,9 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             % 2026-11-16 a tract that went out of tissue in the zone stopped there ('fa',
             % 'outside_mask'). Since then (advanceFrame.m line 945 switched off) a
             % non-finite connection is taken as zero: the coast crosses the slab and both
-            % halves go on round the circle to max_arc.
+            % halves go on round the circle to max_arc. Since 2026-11-27 the mask stops a
+            % tract again (mmf.mask_stop, the default): the half that meets the slab ends
+            % there ('outside_mask'); without it, it crosses as before.
             [nim, ~, phi] = tc.spiralNim(pi/2);
             nim = tc.degenerate(nim, phi > deg2rad(60) & phi < deg2rad(80));
             cut = phi > deg2rad(68) & phi < deg2rad(72);
@@ -928,6 +1033,12 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyGreaterThan(nnz(FAI(T{1}) < o.termination_fa), 0, 'the coast crosses the slab below the floor');
             tc.verifyLessThan(onCircle(T{1}), 0.5);
             n2 = nim; n2.mask(cut) = false; n2.FA = tc.Nim.FA;
+            evalc('[T, meta] = nim_tractography_mmf(n2, o);');          % mmf.mask_stop (default)
+            tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 1);
+            tc.verifyEqual(tc.countOf(meta, 'max_arc'), 1);
+            vox = sub2ind(size(n2.mask), round(T{1}(:, 1)), round(T{1}(:, 2)), round(T{1}(:, 3)));
+            tc.verifyTrue(all(n2.mask(vox)), 'with mask_stop every node lies inside the mask');
+            o.mmf_mask_stop = false;
             evalc('[T, meta] = nim_tractography_mmf(n2, o);');
             tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 0);
             tc.verifyEqual(tc.countOf(meta, 'max_arc'), 2);
@@ -1190,7 +1301,13 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                 tc.verifyEqual(T{1}, T0{1}, 'AbsTol', 1e-12, [scheme{1} ': the trusted seed far from the zone']);
                 same = isequal(size(T{2}), size(T0{2})) && max(abs(T{2}(:) - T0{2}(:))) < 1e-6;
                 tc.verifyFalse(same, [scheme{1} ': the grace changes the track of the seed in the zone']);
+                Tg.(scheme{1}) = T{2};  Cg.(scheme{1}) = meta.trace(2);
             end
+            % The grace nodes of the seed in the zone have no trusted data, so they give the
+            % buffer no sigma (advanceFrame, 2026-11-25): MMF-4s then coasts with sigma = 0 and
+            % its track equals MMF-4h's.
+            tc.verifyTrue(any(Cg.march.forward.coasted) || any(Cg.march.backward.coasted), 'the seed in the zone coasts after the grace');
+            tc.verifyEqual(Tg.march, Tg.hold, 'AbsTol', 1e-10, 'march = hold from grace nodes in the zone (no sigma)');
         end
         function algorithmMmfAloneIsMMF4s(tc)
             % The schema defaults of tractography.mmf are those of MMF-4s (hold: march,

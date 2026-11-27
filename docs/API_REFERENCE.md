@@ -656,6 +656,10 @@ plus:
 | `mmf.exit_tol` | `mmf_exit_tol` | Inf | Obsolete since 2026-11-23: accepted and ignored, whatever the value (a warning when finite); there is no exit test |
 | `mmf.exit_delay` | `mmf_exit_delay` | 0 | Obsolete since 2026-11-23: accepted and ignored, whatever the value (a warning when not 0); the coast ends at the first trusted node |
 | `mmf.seed_trusted` | `mmf_seed_trusted` | true | With the scheme on, `true` = a seed in the zone (confidence below `hold_min`) is not tracked (`seeds_skipped`: `zone`); `false` was the default on 2026-11-25 only |
+| `mmf.mask_stop` | `mmf_mask_stop` | true | A half-track ends at its last node inside the propagation mask (`outside_mask`); `false` lets it run on through non-tissue (2026-11-16 to 2026-11-26) |
+| `mmf.confidence` | `mmf_confidence` | `cl` | The confidence of the hold scheme: `cl` = CL of the tensor; `csd_peaks` = 1 in a voxel with one CSD peak, 0 with two or more, NaN with none (nim_field provisions the CSD peaks from `tractography.csd.*` although the field stays dti); `map` = the volume in `mmf.confidence_file` (2026-11-27) |
+| `mmf.peak_ratio` | `mmf_peak_ratio` | 0 | With `csd_peaks`: a peak counts only when its weight is at least this fraction of the voxel's largest; 0 = every peak CSD kept (2026-11-27) |
+| `mmf.confidence_file` | `mmf_confidence_file` | `''` | With `map`: the confidence volume, NIfTI or MAT (variable `confidence`), on the dataset grid (2026-11-27) |
 | `mmf.seed_grace` | `mmf_seed_grace` | 0 | With the scheme on, voxels of arc from the seed over which each half-track reads the data whatever the confidence; the nodes fill the buffer (0: none) |
 
 ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle limit

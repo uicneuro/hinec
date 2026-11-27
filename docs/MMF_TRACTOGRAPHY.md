@@ -99,6 +99,15 @@ tests and these notes) restores it. `advanceFrame.m`'s own help still describes 
 `nan` stop, as the suite's copy does. Leaving the volume stops the tract, and the
 cut boundary point is dropped.
 
+**Since 2026-11-27 the mask stops a tract again** (`mmf.mask_stop`, default `true`):
+each half-track ends at its last node inside the propagation mask (or the brain
+mask), termination `outside_mask`. The tracking is causal, so this is the start of
+the track that runs on without the key, and the straight runs (or coasts) outside
+the brain are gone; inside the mask the FA floor and points without an axis are
+still no stop. `mask_stop: false` restores the tracker of 2026-11-16 to 2026-11-26,
+whose tracts ended at the face of the volume (ISMRM 2015 on 2026-11-26: MMF-4a F1 0,
+99.9 % of its half-tracks leaving the volume).
+
 The angle limit `termination.angle_max` (degrees per voxel of arc, through
 `nim_angle_limit`: `min(angle_max * h, 90)` degrees per step, none for
 `angle_max <= 0`) becomes `advanceFrame`'s `MaxTurn`. It bounds two turns: the
@@ -127,8 +136,8 @@ test of the streamline trackers does. `termination.max_arc` is `advanceFrame`'s
 The reasons are counted over the half-tracks of the seeds that were tracked in
 `meta.termination` (`max_arc`, `angle`, `fa`, `outside_mask`, `outside`,
 `outside_domain`, `no_direction`, and with `mmf.hold` `coast`, `exit` and `focus`,
-see below; since 2026-11-16 `fa`, `outside_mask` and `outside_domain` do not
-occur, see above). Seeds outside tissue or without a
+see below; since 2026-11-16 `fa` and `outside_domain` do not occur, and
+`outside_mask` only with `mmf.mask_stop`, the default since 2026-11-27, see above). Seeds outside tissue or without a
 direction are not tracked and are counted by reason in
 `meta.mmf.seeds_skipped`, and so, with `mmf.hold` and `mmf.seed_trusted: true` (the
 default; `false` on 2026-11-25 only), are the seeds in the zone of the scheme
@@ -172,6 +181,25 @@ the erosion (`meta.mmf.zone_fraction`, and on the console), and warns above 40%
 (`mmf:holdZone`). A voxel without a fit, outside the mask or below the FA floor is
 no data: CL is interpolated over the voxels of tissue alone and the erosion reads
 nothing else, so neither the edge of the mask nor the FA floor is a zone.
+
+**The confidence from the number of CSD peaks** (`mmf.confidence: csd_peaks`,
+2026-11-27; `cl` stays the default). On FiberCup (3 mm, b 1500, median FA about
+0.15) CL does not single out the X crossing: its median is 0.18 inside the X and
+0.15 in the rest of the phantom, so no `hold_min` makes the zone the crossing. With
+`csd_peaks` the confidence is 1 in a voxel with one CSD peak, 0 in a voxel with two
+or more and NaN in a voxel with none, interpolated and eroded as CL is; a peak counts
+only when its weight is at least `mmf.peak_ratio` times the largest of the voxel (0,
+the default, counts every peak CSD kept, `tractography.csd.peak_thresh` and
+`max_peaks`). `nim_field` provisions the peaks (the same cached sidecar as
+`field: csd`) while the tracked field stays dti. The confidence takes the values 0
+and 1 at the voxels, so any `hold_min` in (0, 1] gives the same zone at the voxels
+(the interpolation between them still depends on it).
+
+**A given confidence map** (`mmf.confidence: map`, 2026-11-27): the confidence is read
+from `mmf.confidence_file`, a NIfTI or MAT volume on the dataset grid, and used as CL
+is. It serves oracle tests: on FiberCup a map built from the published ground-truth
+bundles (Théberge et al. 2021), 0 where two bundles cross at more than 30 degrees and
+1 elsewhere, makes the zone exactly the crossings.
 
 **Leaving it.** In the `adaptive` and `reanchor` modes, a tract reaching a trusted
 node is always re-anchored on the data, whatever its heading. The exit test of

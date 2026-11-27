@@ -291,6 +291,11 @@ tractography:
                              # test (a tract leaving the zone is always re-anchored)
     seed_trusted: true       # true: with hold or march, a seed in the zone is not tracked
     seed_grace: 0            # voxels of arc from the seed read whatever the confidence
+    mask_stop: true          # a tract ends at its last node inside the mask
+    confidence: cl           # hold confidence: cl (tensor CL), csd_peaks (1 for one CSD peak, 0 for two or more)
+                             # or map (the volume in confidence_file)
+    peak_ratio: 0            # csd_peaks only: a peak counts when >= this fraction of the largest (0 = every peak)
+    confidence_file: ''      # map only: NIfTI or MAT (variable confidence) on the dataset grid
 ```
 
 Every key, its type, range and default is generated from the schema
