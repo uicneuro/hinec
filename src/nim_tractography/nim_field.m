@@ -22,6 +22,10 @@ function nim = nim_field(nim, options, nim_path)
 %                       is provisioned before the dispatch. Supplied peaks use
 %                       the dataset's voxel-axis direction coordinates.
 %
+%   Also: with tractography.mmf.confidence csd_peaks (algorithm mmf, hold or
+%   march) the CSD peaks are provisioned as for 'csd', whatever the field, for
+%   the confidence of the hold scheme (nim_tractography_mmf).
+%
 %   nim_path is the path of the nim on disk; the sidecars are written beside it.
 
 if nargin < 2 || isempty(options), options = struct(); end
@@ -37,6 +41,18 @@ case 'csd'
     nim = provision_csd(nim, options, nim_path);
 otherwise
     fprintf('field=%s: principal eigenvector from the nim; nothing to provision\n', fld);
+end
+
+% The mmf tracker's hold scheme can read its confidence from the number of CSD
+% peaks (tractography.mmf.confidence csd_peaks, 2026-11-27) while it tracks the
+% dti field: the peaks are provisioned as for field=csd (same settings, same cache).
+alg  = lower(char(string(getfield_default(options, 'algorithm', ''))));
+conf = lower(char(string(getfield_default(options, 'mmf_confidence', 'cl'))));
+hold = lower(char(string(getfield_default(options, 'mmf_hold', 'march'))));
+if strcmp(conf, 'csd_peaks') && any(strcmp(alg, {'', 'mmf'})) && ~strcmp(hold, 'none') && ...
+        ~(isfield(nim, 'npeaks') && ~isempty(nim.npeaks))
+    fprintf('mmf.confidence=csd_peaks: provisioning the CSD peaks for the confidence of the hold scheme\n');
+    nim = provision_csd(nim, options, nim_path);
 end
 end
 

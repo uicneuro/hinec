@@ -701,6 +701,49 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                 evalc('nim_check_tracker_output(T, meta);');
             end
         end
+        function theCsdPeakCountIsAConfidence(tc)
+            % mmf.confidence csd_peaks (2026-11-27): the confidence is 1 in a voxel with one CSD
+            % peak and 0 in a voxel with two or more. On the crossing fixture with two peaks
+            % exactly in the pancakes the tract crosses as with CL; with one peak everywhere
+            % there is no zone and it stops on angle_max as without the scheme; peak_ratio
+            % drops a second peak smaller than that fraction of the first.
+            nim = make_synthetic_nim('crossing');
+            L = sort(nim.eval, 4, 'descend'); cl = (L(:, :, :, 1) - L(:, :, :, 2)) ./ L(:, :, :, 1);
+            crossing = nim.FA > 0 & cl < 0.2;
+            tc.assumeTrue(any(crossing(:)), 'the fixture has pancakes');
+            nim.npeaks = ones(size(nim.FA)); nim.npeaks(crossing) = 2;
+            nim.peak_w = zeros([size(nim.FA) 3]); w1 = ones(size(nim.FA)); w2 = zeros(size(nim.FA)); w2(crossing) = 0.3;
+            nim.peak_w(:, :, :, 1) = w1; nim.peak_w(:, :, :, 2) = w2;
+            o = tc.holdOpts('march');
+            tc.verifyEqual(o.mmf_confidence, 'cl', 'the schema default (cl) reaches the options');
+            tc.verifyEqual(o.mmf_peak_ratio, 0, 'the schema default (0) reaches the options');
+            o.seed_mask = false(size(nim.FA)); o.seed_mask(10, 30, 3) = true; o.seed_density = 8;
+            o.max_arc = 100; o.max_steps = 500; o.angle_thresh = 225;
+            evalc('[Tc, mc] = nim_tractography_mmf(nim, o);');               % CL, the default
+            o.mmf_confidence = 'csd_peaks';
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            evalc('nim_check_tracker_output(T, meta);');
+            tc.verifyEqual(meta.mmf.confidence, 'csd_peaks');
+            tc.verifyEqual(mc.mmf.confidence, 'cl');
+            tc.assertNumElements(T, 8);
+            tc.verifyEqual(meta.termination.reason, {'outside'});
+            tc.verifyTrue(all(cellfun(@(t) max(t(:, 1)), T) > 79));
+            tc.verifyLessThan(max(cellfun(@(t) max(abs(t(:, 2) - 30)), T)), 0.3);
+            tc.verifyGreaterThan(meta.mmf.coasted_fraction, 0.05);
+            tc.verifyEqual(meta.mmf.zone_fraction, mc.mmf.zone_fraction, 'AbsTol', 1e-12, 'the same zone as CL < 0.2');
+            o.mmf_peak_ratio = 0.5;                                            % the second peak (0.3) no longer counts
+            evalc('[T5, m5] = nim_tractography_mmf(nim, o);');
+            tc.verifyEqual(m5.mmf.zone_fraction, 0);
+            tc.verifyEqual(tc.countOf(m5, 'angle'), 8);
+            tc.verifyTrue(all(cellfun(@(t) max(t(:, 1)), T5) < 40));
+            o.mmf_peak_ratio = 0.25;                                           % it counts again
+            evalc('[~, m25] = nim_tractography_mmf(nim, o);');
+            tc.verifyEqual(m25.mmf.zone_fraction, meta.mmf.zone_fraction, 'AbsTol', 1e-12);
+            n1 = rmfield(nim, {'npeaks', 'peak_w'});
+            tc.verifyError(@() nim_tractography_mmf(n1, o), 'mmf:confidence');
+            o.mmf_confidence = 'fod';
+            tc.verifyError(@() nim_tractography_mmf(nim, o), 'mmf:confidence');
+        end
         function theHoldStaysOnTheCircleThroughADegenerateSector(tc)
             % Circles, kappa constant: the case the hold is exact on, and sigma = 0, so
             % that the march is the hold. The sector turns the axis by 90 degrees over about

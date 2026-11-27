@@ -155,6 +155,8 @@ function options = nim_config_to_options(config)
     options.mmf_seed_trusted   = t.mmf.seed_trusted;
     options.mmf_seed_grace     = t.mmf.seed_grace;
     options.mmf_mask_stop      = t.mmf.mask_stop;
+    options.mmf_confidence     = t.mmf.confidence;
+    options.mmf_peak_ratio     = t.mmf.peak_ratio;
 
     % --- stitching ----------------------------------------------------------
     options.stitching       = t.stitching;

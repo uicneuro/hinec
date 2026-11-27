@@ -1,5 +1,17 @@
 # YAML Configuration Changelog
 
+## 2026-11-27 - `mmf.confidence`: the hold confidence from the number of CSD peaks
+
+- New keys `tractography.mmf.confidence` (`cl`, the default, or `csd_peaks`; flat
+  option `mmf_confidence`) and `tractography.mmf.peak_ratio` (numeric in [0, 1],
+  default `0`; `mmf_peak_ratio`), read by `algorithm: mmf` with `mmf.hold` `hold` or
+  `march`. With `csd_peaks` the confidence is 1 in a voxel with one CSD peak, 0 with
+  two or more and NaN with none; a peak counts only when its weight is at least
+  `peak_ratio` times the largest (0 = every peak). `nim_field` provisions the CSD
+  peaks (`tractography.csd.*`, the same cache as `field: csd`) while the tracked
+  field stays dti. `meta.mmf` gains `confidence` and `peak_ratio`.
+- No behaviour change: `cl` is the default.
+
 ## 2026-11-27 - `mmf.mask_stop`: MMF tracts stop at the mask again
 
 - New key `tractography.mmf.mask_stop` (logical, default `true`; flat option

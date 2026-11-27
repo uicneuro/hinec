@@ -182,6 +182,19 @@ the erosion (`meta.mmf.zone_fraction`, and on the console), and warns above 40%
 no data: CL is interpolated over the voxels of tissue alone and the erosion reads
 nothing else, so neither the edge of the mask nor the FA floor is a zone.
 
+**The confidence from the number of CSD peaks** (`mmf.confidence: csd_peaks`,
+2026-11-27; `cl` stays the default). On FiberCup (3 mm, b 1500, median FA about
+0.15) CL does not single out the X crossing: its median is 0.18 inside the X and
+0.15 in the rest of the phantom, so no `hold_min` makes the zone the crossing. With
+`csd_peaks` the confidence is 1 in a voxel with one CSD peak, 0 in a voxel with two
+or more and NaN in a voxel with none, interpolated and eroded as CL is; a peak counts
+only when its weight is at least `mmf.peak_ratio` times the largest of the voxel (0,
+the default, counts every peak CSD kept, `tractography.csd.peak_thresh` and
+`max_peaks`). `nim_field` provisions the peaks (the same cached sidecar as
+`field: csd`) while the tracked field stays dti. The confidence takes the values 0
+and 1 at the voxels, so any `hold_min` in (0, 1] gives the same zone at the voxels
+(the interpolation between them still depends on it).
+
 **Leaving it.** In the `adaptive` and `reanchor` modes, a tract reaching a trusted
 node is always re-anchored on the data, whatever its heading. The exit test of
 `exit_tol`, which stopped a tract whose heading was more than `exit_tol` off the data
