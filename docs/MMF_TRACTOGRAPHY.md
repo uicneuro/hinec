@@ -99,6 +99,15 @@ tests and these notes) restores it. `advanceFrame.m`'s own help still describes 
 `nan` stop, as the suite's copy does. Leaving the volume stops the tract, and the
 cut boundary point is dropped.
 
+**Since 2026-11-27 the mask stops a tract again** (`mmf.mask_stop`, default `true`):
+each half-track ends at its last node inside the propagation mask (or the brain
+mask), termination `outside_mask`. The tracking is causal, so this is the start of
+the track that runs on without the key, and the straight runs (or coasts) outside
+the brain are gone; inside the mask the FA floor and points without an axis are
+still no stop. `mask_stop: false` restores the tracker of 2026-11-16 to 2026-11-26,
+whose tracts ended at the face of the volume (ISMRM 2015 on 2026-11-26: MMF-4a F1 0,
+99.9 % of its half-tracks leaving the volume).
+
 The angle limit `termination.angle_max` (degrees per voxel of arc, through
 `nim_angle_limit`: `min(angle_max * h, 90)` degrees per step, none for
 `angle_max <= 0`) becomes `advanceFrame`'s `MaxTurn`. It bounds two turns: the
@@ -127,8 +136,8 @@ test of the streamline trackers does. `termination.max_arc` is `advanceFrame`'s
 The reasons are counted over the half-tracks of the seeds that were tracked in
 `meta.termination` (`max_arc`, `angle`, `fa`, `outside_mask`, `outside`,
 `outside_domain`, `no_direction`, and with `mmf.hold` `coast`, `exit` and `focus`,
-see below; since 2026-11-16 `fa`, `outside_mask` and `outside_domain` do not
-occur, see above). Seeds outside tissue or without a
+see below; since 2026-11-16 `fa` and `outside_domain` do not occur, and
+`outside_mask` only with `mmf.mask_stop`, the default since 2026-11-27, see above). Seeds outside tissue or without a
 direction are not tracked and are counted by reason in
 `meta.mmf.seeds_skipped`, and so, with `mmf.hold` and `mmf.seed_trusted: true` (the
 default; `false` on 2026-11-25 only), are the seeds in the zone of the scheme

@@ -69,7 +69,14 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 % nothing with angle_max <= 0). Until then the zero connection of non-tissue
 % entered the buffer, so that a coast after such a run held a reduced or zero
 % curvature, and a coast leaving the zone into non-tissue ran on straight
-% (its coast_max count restarting). Without mmf.hold the run is straight. advanceFrame.m's own help still describes the 'nan' stop (the
+% (its coast_max count restarting). Without mmf.hold the run is straight.
+% SINCE 2026-11-27 the mask stops the tract again (mmf.mask_stop, default true):
+% each half ends at its last node inside the propagation mask (or the brain
+% mask), termination 'outside_mask'. The tracking is causal, so this is the
+% tract that a stop at the mask would give; the FA floor and points without an
+% axis are still no stop inside the mask. mmf.mask_stop false gives the tracker
+% of 2026-11-16 to 2026-11-26, whose tracts left the brain and ended outside
+% every bundle (ISMRM 2015: MMF-4a F1 0 on 2026-11-26). advanceFrame.m's own help still describes the 'nan' stop (the
 % file is the suite's). The angle
 % limit termination.angle_max (degrees per voxel of arc; through
 % nim_angle_limit it is min(angle_max*h, 90) degrees per step, none for
@@ -163,6 +170,9 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %   mmf_seed_trusted   with mmf_hold, a seed in the zone is not tracked (default
 %                      true; false, the default on 2026-11-25 only: it is
 %                      tracked, with the grace)
+%   mmf_mask_stop      true (default, 2026-11-27): a half ends at its last node
+%                      inside the propagation mask ('outside_mask'); false: it
+%                      runs on through non-tissue (2026-11-16 to 2026-11-26)
 %   mmf_seed_grace     with mmf_hold, voxels of arc from the seed over which each
 %                      half-track reads the data whatever the confidence (default
 %                      0 = none; with seed_trusted false a seed in the zone then
@@ -255,6 +265,7 @@ if use_hold && o('mmf_exit_delay', 0) ~= 0
             'and ignored: the coast ends at the first trusted node beyond the zone.'], o('mmf_exit_delay', 0));
 end
 seed_trusted = logical(o('mmf_seed_trusted', true));   % the schema default (tractography.mmf.seed_trusted; false on 2026-11-25 only)
+mask_stop    = logical(o('mmf_mask_stop', true));       % the schema default (tractography.mmf.mask_stop, 2026-11-27)
 seed_grace   = o('mmf_seed_grace', 0);                  % the schema default (tractography.mmf.seed_grace; 0.25 on 2026-11-25 only)
 if ~(isnumeric(seed_grace) && isscalar(seed_grace) && isreal(seed_grace) && seed_grace >= 0 && isfinite(seed_grace))
     error('mmf:hold', 'nim_tractography_mmf: tractography.mmf.seed_grace must be a finite number >= 0 (voxels).');
@@ -475,8 +486,16 @@ for c0 = 1:chunk:numel(live)
             k = idx(q);
             P = Pq{q}; xdrop = zeros(0, 3);
             if ~okend(q) && size(P, 1) > 1, xdrop = P(end, :); P = P(1:end-1, :); end
+            jm = [];
+            if mask_stop                        % mmf.mask_stop (2026-11-27): the half ends at its last node inside the mask
+                vm = round(P); inv = all(vm >= 1, 2) & all(vm <= dims, 2);
+                inm = false(size(P, 1), 1); inm(inv) = prop(sub2ind(dims, vm(inv, 1), vm(inv, 2), vm(inv, 3)));
+                jm = find(~inm(2:end), 1);
+                if ~isempty(jm), P = P(1:jm, :); end
+            end
             half{k, dirn} = P;
-            term{k, dirn} = why_stopped(info.stop{q}, P, fr{q}, h, fld, xdrop);
+            if isempty(jm), term{k, dirn} = why_stopped(info.stop{q}, P, fr{q}, h, fld, xdrop);
+            else, term{k, dirn} = 'outside_mask'; end
             re = info.reanchored{q}(2:size(P, 1));
             n_re = n_re + nnz(re); n_st = n_st + numel(re);
             n_co = n_co + nnz(info.coasted{q}(2:size(P, 1)));
@@ -513,7 +532,7 @@ meta.n_seeds     = n_seeds;
 meta.mmf = struct('order', order, 'mode', mode, 'reanchor_tol', rtol, 'twist', 'zero', ...
                   'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'connection', conn, 'kernel', kernel, ...
                   'hold', hold_mode, 'hold_min', hold_min, 'hold_k', hold_k, 'hold_guard', hold_guard, 'zone_fraction', zone_fraction, ...
-                  'coast_max', coast_max, 'seed_trusted', seed_trusted, 'seed_grace', ifelse(use_hold, seed_grace, 0), ...
+                  'coast_max', coast_max, 'seed_trusted', seed_trusted, 'seed_grace', ifelse(use_hold, seed_grace, 0), 'mask_stop', mask_stop, ...
                   'reanchored_fraction', n_re / max(n_st, 1), 'coasted_fraction', n_co / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
                   'seeds_skipped', struct('reason', {reshape(names(has), [], 1)}, 'count', {skipped_cnt(has)}));
 tt = term(alive_seed, :); tt = tt(:); tt = tt(~cellfun(@isempty, tt));

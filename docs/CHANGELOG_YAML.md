@@ -1,5 +1,18 @@
 # YAML Configuration Changelog
 
+## 2026-11-27 - `mmf.mask_stop`: MMF tracts stop at the mask again
+
+- New key `tractography.mmf.mask_stop` (logical, default `true`; flat option
+  `mmf_mask_stop`), read by `algorithm: mmf`: each half-track ends at its last node
+  inside the propagation mask (or the brain mask), termination `outside_mask`.
+  `meta.mmf` gains `mask_stop`.
+- **Behaviour change** for every `algorithm: mmf` run: from 2026-11-16 to 2026-11-26
+  a tract that left the mask ran on through non-tissue (straight, or on the buffer
+  with `mmf.hold`) to the face of the volume, so that its ends lay outside every
+  bundle (ISMRM 2015, 2026-11-26: MMF-4a F1 0). The tracking is causal, so a stopped
+  track is the start of the free one. `mask_stop: false` restores the 2026-11-26
+  tracker. The FA floor is still no stop inside the mask.
+
 ## 2026-11-26 - `mmf.seed_grace`: an optional grace at the seed; seeds stay in trusted data
 
 - New key `tractography.mmf.seed_grace` (numeric, voxels of arc, default `0` = none;

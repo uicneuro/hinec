@@ -291,6 +291,7 @@ tractography:
                              # test (a tract leaving the zone is always re-anchored)
     seed_trusted: true       # true: with hold or march, a seed in the zone is not tracked
     seed_grace: 0            # voxels of arc from the seed read whatever the confidence
+    mask_stop: true          # a tract ends at its last node inside the mask
 ```
 
 Every key, its type, range and default is generated from the schema

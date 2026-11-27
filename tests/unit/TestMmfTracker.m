@@ -222,9 +222,10 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             % that leaves the mask runs on straight along its carried e1. One half runs out
             % through the blocked half-plane to the face of the volume ('outside'), the other
             % comes round the circle and crosses it straight to max_arc. Until then both
-            % stopped at the edge of the mask ('outside_mask').
+            % stopped at the edge of the mask ('outside_mask'), as they do again since
+            % 2026-11-27 with mmf.mask_stop (the default; see stopsAtTheMaskByDefault).
             nim = tc.Nim; nim.mask(:, 1:30, :) = false;
-            o = tc.Opts; o.propagation_mask = nim.mask;
+            o = tc.Opts; o.propagation_mask = nim.mask; o.mmf_mask_stop = false;
             for integ = {'euler', 'rk2', 'rk4'}
                 o.integrator = integ{1};
                 evalc('[T, meta] = nim_tractography_mmf(nim, o);');
@@ -236,6 +237,25 @@ classdef TestMmfTracker < matlab.unittest.TestCase
                 tc.verifyLessThan(min(P(:, 2)), 2, [integ{1} ': the half in the blocked half-plane reaches the face']);
                 tc.verifyLessThan(tc.offStraight(P, out), 1e-9, [integ{1} ': beyond the mask a half runs straight']);
             end
+        end
+
+        function stopsAtTheMaskByDefault(tc)
+            % mmf.mask_stop (2026-11-27, default true): both halves end at their last node
+            % inside the mask, 'outside_mask', and are the first nodes of the halves that
+            % run on without it (the tracking is causal).
+            nim = tc.Nim; nim.mask(:, 1:30, :) = false;
+            o = tc.Opts; o.propagation_mask = nim.mask;
+            tc.verifyTrue(o.mmf_mask_stop, 'the schema default reaches the options');
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            tc.assertNumElements(T, 1);
+            tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 2);
+            tc.verifyTrue(meta.mmf.mask_stop);
+            P = T{1}; v = round(P);
+            tc.verifyTrue(all(nim.mask(sub2ind(size(nim.mask), v(:, 1), v(:, 2), v(:, 3)))), 'every node inside the mask');
+            o.mmf_mask_stop = false;
+            evalc('T0 = nim_tractography_mmf(nim, o);');
+            Q = T0{1}; [~, i0] = min(sum((P - meta.seed_points(1, :)) .^ 2, 2)); [~, j0] = min(sum((Q - meta.seed_points(1, :)) .^ 2, 2));
+            tc.verifyEqual(Q(j0 - i0 + 1 : j0 - i0 + size(P, 1), :), P, 'AbsTol', 1e-12, 'the stopped track is the start of the free one');
         end
 
         function propagationMaskTakesPrecedenceOverTheBrainMask(tc)
@@ -382,7 +402,7 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             % 60 before coming round), ~95 voxels in all; the circle through (36, 31)
             % runs the full 120.
             nim = tc.Nim; nim.mask(:, 41:end, :) = false;
-            o = tc.Opts; o.seed_density = 8; o.propagation_mask = nim.mask;
+            o = tc.Opts; o.seed_density = 8; o.propagation_mask = nim.mask; o.mmf_mask_stop = false;
             o.seed_mask = false(size(FA)); o.seed_mask(46, 31, 5) = true; o.seed_mask(36, 31, 5) = true;
             evalc('[T, meta] = nim_tractography_mmf(nim, o);');
             tc.verifyEqual(meta.n_seeds, 16);

@@ -656,6 +656,7 @@ plus:
 | `mmf.exit_tol` | `mmf_exit_tol` | Inf | Obsolete since 2026-11-23: accepted and ignored, whatever the value (a warning when finite); there is no exit test |
 | `mmf.exit_delay` | `mmf_exit_delay` | 0 | Obsolete since 2026-11-23: accepted and ignored, whatever the value (a warning when not 0); the coast ends at the first trusted node |
 | `mmf.seed_trusted` | `mmf_seed_trusted` | true | With the scheme on, `true` = a seed in the zone (confidence below `hold_min`) is not tracked (`seeds_skipped`: `zone`); `false` was the default on 2026-11-25 only |
+| `mmf.mask_stop` | `mmf_mask_stop` | true | A half-track ends at its last node inside the propagation mask (`outside_mask`); `false` lets it run on through non-tissue (2026-11-16 to 2026-11-26) |
 | `mmf.seed_grace` | `mmf_seed_grace` | 0 | With the scheme on, voxels of arc from the seed over which each half-track reads the data whatever the confidence; the nodes fill the buffer (0: none) |
 
 ACT masks (`wm_mask`, `gm_mask`, `csf_mask`) are not used. The angle limit
