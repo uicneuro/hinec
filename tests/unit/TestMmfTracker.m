@@ -933,7 +933,9 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             % 2026-11-16 a tract that went out of tissue in the zone stopped there ('fa',
             % 'outside_mask'). Since then (advanceFrame.m line 945 switched off) a
             % non-finite connection is taken as zero: the coast crosses the slab and both
-            % halves go on round the circle to max_arc.
+            % halves go on round the circle to max_arc. Since 2026-11-27 the mask stops a
+            % tract again (mmf.mask_stop, the default): the half that meets the slab ends
+            % there ('outside_mask'); without it, it crosses as before.
             [nim, ~, phi] = tc.spiralNim(pi/2);
             nim = tc.degenerate(nim, phi > deg2rad(60) & phi < deg2rad(80));
             cut = phi > deg2rad(68) & phi < deg2rad(72);
@@ -948,6 +950,12 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             tc.verifyGreaterThan(nnz(FAI(T{1}) < o.termination_fa), 0, 'the coast crosses the slab below the floor');
             tc.verifyLessThan(onCircle(T{1}), 0.5);
             n2 = nim; n2.mask(cut) = false; n2.FA = tc.Nim.FA;
+            evalc('[T, meta] = nim_tractography_mmf(n2, o);');          % mmf.mask_stop (default)
+            tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 1);
+            tc.verifyEqual(tc.countOf(meta, 'max_arc'), 1);
+            vox = sub2ind(size(n2.mask), round(T{1}(:, 1)), round(T{1}(:, 2)), round(T{1}(:, 3)));
+            tc.verifyTrue(all(n2.mask(vox)), 'with mask_stop every node lies inside the mask');
+            o.mmf_mask_stop = false;
             evalc('[T, meta] = nim_tractography_mmf(n2, o);');
             tc.verifyEqual(tc.countOf(meta, 'outside_mask'), 0);
             tc.verifyEqual(tc.countOf(meta, 'max_arc'), 2);
