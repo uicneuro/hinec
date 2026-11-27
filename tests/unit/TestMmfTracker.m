@@ -744,6 +744,46 @@ classdef TestMmfTracker < matlab.unittest.TestCase
             o.mmf_confidence = 'fod';
             tc.verifyError(@() nim_tractography_mmf(nim, o), 'mmf:confidence');
         end
+        function aConfidenceMapIsReadFromAFile(tc)
+            % mmf.confidence map (2026-11-27): the confidence read from a MAT or NIfTI volume on
+            % the dataset grid. A map 0 in the pancakes of the crossing fixture and 1 elsewhere is
+            % the CSD-peak confidence of theCsdPeakCountIsAConfidence: the same zone, the same
+            % crossing. A map of the wrong size, a missing file and no file are errors.
+            nim = make_synthetic_nim('crossing');
+            L = sort(nim.eval, 4, 'descend'); cl = (L(:, :, :, 1) - L(:, :, :, 2)) ./ L(:, :, :, 1);
+            crossing = nim.FA > 0 & cl < 0.2;
+            tc.assumeTrue(any(crossing(:)), 'the fixture has pancakes');
+            confidence = double(~crossing);
+            d = tempname; mkdir(d); cu = onCleanup(@() rmdir(d, 's'));
+            f = fullfile(d, 'conf.mat'); save(f, 'confidence');
+            o = tc.holdOpts('march');
+            tc.verifyEmpty(o.mmf_confidence_file, 'the schema default (empty) reaches the options');
+            o.seed_mask = false(size(nim.FA)); o.seed_mask(10, 30, 3) = true; o.seed_density = 8;
+            o.max_arc = 100; o.max_steps = 500; o.angle_thresh = 225;
+            evalc('[~, mc] = nim_tractography_mmf(nim, o);');                % CL < 0.2, the default
+            o.mmf_confidence = 'map'; o.mmf_confidence_file = f;
+            evalc('[T, meta] = nim_tractography_mmf(nim, o);');
+            evalc('nim_check_tracker_output(T, meta);');
+            tc.verifyEqual(meta.mmf.confidence, 'map');
+            tc.verifyEqual(meta.mmf.confidence_file, f);
+            tc.assertNumElements(T, 8);
+            tc.verifyEqual(meta.termination.reason, {'outside'});
+            tc.verifyTrue(all(cellfun(@(t) max(t(:, 1)), T) > 79));
+            tc.verifyEqual(meta.mmf.zone_fraction, mc.mmf.zone_fraction, 'AbsTol', 1e-12, 'the same zone as CL < 0.2');
+            if exist('niftiwrite', 'file')                                      % the same volume as NIfTI
+                niftiwrite(single(confidence), fullfile(d, 'conf'));
+                o.mmf_confidence_file = fullfile(d, 'conf.nii');
+                evalc('[~, mn] = nim_tractography_mmf(nim, o);');
+                tc.verifyEqual(mn.mmf.zone_fraction, meta.mmf.zone_fraction, 'AbsTol', 1e-12);
+            end
+            confidence = confidence(1:end-1, :, :); save(f, 'confidence');      % the wrong grid
+            o.mmf_confidence_file = f;
+            tc.verifyError(@() nim_tractography_mmf(nim, o), 'mmf:confidence');
+            o.mmf_confidence_file = fullfile(d, 'none.mat');
+            tc.verifyError(@() nim_tractography_mmf(nim, o), 'mmf:confidence');
+            o.mmf_confidence_file = '';
+            tc.verifyError(@() nim_tractography_mmf(nim, o), 'mmf:confidence');
+        end
         function theHoldStaysOnTheCircleThroughADegenerateSector(tc)
             % Circles, kappa constant: the case the hold is exact on, and sigma = 0, so
             % that the march is the hold. The sector turns the axis by 90 degrees over about

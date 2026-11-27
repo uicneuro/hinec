@@ -181,7 +181,10 @@ function [tracks, meta] = nim_tractography_mmf(nim, options)
 %                      'csd_peaks' (1 for one CSD peak, 0 for two or more;
 %                      needs nim.npeaks and nim.peak_w), and mmf_peak_ratio
 %                      (with csd_peaks: a peak counts when its weight is at least
-%                      this fraction of the largest; default 0 = every peak)
+%                      this fraction of the largest; default 0 = every peak);
+%                      'map' (2026-11-27): the volume in mmf_confidence_file
+%                      (NIfTI, or MAT with a variable 'confidence'), on the
+%                      dataset grid, e.g. 1 = trusted, 0 = a known crossing
 %   mmf_seed_grace     with mmf_hold, voxels of arc from the seed over which each
 %                      half-track reads the data whatever the confidence (default
 %                      0 = none; with seed_trusted false a seed in the zone then
@@ -276,8 +279,12 @@ end
 seed_trusted = logical(o('mmf_seed_trusted', true));   % the schema default (tractography.mmf.seed_trusted; false on 2026-11-25 only)
 mask_stop    = logical(o('mmf_mask_stop', true));       % the schema default (tractography.mmf.mask_stop, 2026-11-27)
 confidence   = lower(char(string(o('mmf_confidence', 'cl'))));   % the schema default (tractography.mmf.confidence, 2026-11-27)
-if ~any(strcmp(confidence, {'cl', 'csd_peaks'}))
-    error('mmf:confidence', 'nim_tractography_mmf: mmf.confidence must be cl or csd_peaks, not ''%s''.', confidence);
+if ~any(strcmp(confidence, {'cl', 'csd_peaks', 'map'}))
+    error('mmf:confidence', 'nim_tractography_mmf: mmf.confidence must be cl, csd_peaks or map, not ''%s''.', confidence);
+end
+confidence_file = char(string(o('mmf_confidence_file', '')));   % with mmf.confidence map (2026-11-27)
+if use_hold && strcmp(confidence, 'map') && isempty(confidence_file)
+    error('mmf:confidence', 'nim_tractography_mmf: mmf.confidence map needs tractography.mmf.confidence_file (a NIfTI or MAT volume on the dataset grid).');
 end
 peak_ratio   = o('mmf_peak_ratio', 0);
 if ~(isnumeric(peak_ratio) && isscalar(peak_ratio) && isreal(peak_ratio) && peak_ratio >= 0 && peak_ratio <= 1)
@@ -334,6 +341,8 @@ if use_hold
     L  = sort(double(nim.eval), 4, 'descend');
     if strcmp(confidence, 'csd_peaks')             % mmf.confidence csd_peaks (2026-11-27): 1 for one peak, 0 for two or more
         CL = csd_peak_confidence(nim, peak_ratio);
+    elseif strcmp(confidence, 'map')               % mmf.confidence map (2026-11-27): a given volume, e.g. an oracle crossing map
+        CL = map_confidence(confidence_file, dims);
     else                                           % mmf.confidence cl, the default
         CL = (L(:, :, :, 1) - L(:, :, :, 2)) ./ L(:, :, :, 1);
     end
@@ -441,7 +450,7 @@ if use_hold
                  'CoastMax', round(coast_max / h), 'SeedGrace', seed_grace};   % 'ExitTol', exit_tol, 'ExitDelay', round(exit_delay / h): obsolete 2026-11-23
     fprintf('MMF: %s through degenerate data, %s below %.3g (%.1f%% of the tissue voxels) eroded by %.3g voxel, from %d trusted nodes, %s, %s\n', ...
         ifelse(strcmp(hold_mode, 'hold'), 'MMF-4h holds the connection', 'MMF-4s marches the connection'), ...
-        ifelse(strcmp(confidence, 'csd_peaks'), sprintf('confidence csd_peaks (1 for one CSD peak, peak_ratio %g)', peak_ratio), 'CL'), hold_min, 100 * zone_fraction, hold_guard, hold_k, ...
+        ifelse(strcmp(confidence, 'csd_peaks'), sprintf('confidence csd_peaks (1 for one CSD peak, peak_ratio %g)', peak_ratio), ifelse(strcmp(confidence, 'map'), sprintf('confidence map %s', confidence_file), 'CL')), hold_min, 100 * zone_fraction, hold_guard, hold_k, ...
         ifelse(isfinite(coast_max), sprintf('at most %.3g voxels of arc', coast_max), 'no cap of the coast'), ...
         ifelse(seed_grace > 0, sprintf('no exit test, the data read for %.3g voxel from every seed (seed_grace)', seed_grace), 'no exit test'));
         % ifelse(isfinite(exit_tol), sprintf('exit test %.3g rad', exit_tol), 'no exit test'));   % obsolete 2026-11-23
@@ -558,7 +567,7 @@ meta.n_seeds     = n_seeds;
 meta.mmf = struct('order', order, 'mode', mode, 'reanchor_tol', rtol, 'twist', 'zero', ...
                   'max_turn_rad', ifelse(angle_off, Inf, maxTurn), 'gradient_delta', delta, 'connection', conn, 'kernel', kernel, ...
                   'hold', hold_mode, 'hold_min', hold_min, 'hold_k', hold_k, 'hold_guard', hold_guard, 'zone_fraction', zone_fraction, ...
-                  'coast_max', coast_max, 'seed_trusted', seed_trusted, 'seed_grace', ifelse(use_hold, seed_grace, 0), 'mask_stop', mask_stop, 'confidence', ifelse(use_hold, confidence, 'none'), 'peak_ratio', peak_ratio, ...
+                  'coast_max', coast_max, 'seed_trusted', seed_trusted, 'seed_grace', ifelse(use_hold, seed_grace, 0), 'mask_stop', mask_stop, 'confidence', ifelse(use_hold, confidence, 'none'), 'peak_ratio', peak_ratio, 'confidence_file', ifelse(use_hold && strcmp(confidence, 'map'), confidence_file, ''), ...
                   'reanchored_fraction', n_re / max(n_st, 1), 'coasted_fraction', n_co / max(n_st, 1), 'seeds_alive', nnz(alive_seed), ...
                   'seeds_skipped', struct('reason', {reshape(names(has), [], 1)}, 'count', {skipped_cnt(has)}));
 tt = term(alive_seed, :); tt = tt(:); tt = tt(~cellfun(@isempty, tt));
@@ -928,6 +937,31 @@ end
 
 function s = ifelse(c, a, b)
 if c, s = a; else, s = b; end
+end
+
+function C = map_confidence(file, dims)
+% mmf.confidence map (2026-11-27): the confidence read from a volume on the dataset grid, a NIfTI
+% (niftiread, stored voxel order, as nim_read) or a MAT file with a variable 'confidence' (or one
+% variable only). Non-finite values are no data, as elsewhere.
+if ~isfile(file)
+    error('mmf:confidence', 'nim_tractography_mmf: mmf.confidence_file ''%s'' does not exist.', file);
+end
+if endsWith(lower(file), '.mat')
+    S = load(file);
+    f = fieldnames(S);
+    if isfield(S, 'confidence'), C = S.confidence;
+    elseif numel(f) == 1,        C = S.(f{1});
+    else, error('mmf:confidence', 'nim_tractography_mmf: %s holds no variable ''confidence''.', file);
+    end
+else
+    C = niftiread(file);
+end
+C = double(C);
+sz = size(C); sz(end+1:3) = 1;
+d = dims; d(end+1:3) = 1;
+if ~isequal(sz(1:3), d(1:3)) || ndims(C) > 3
+    error('mmf:confidence', 'nim_tractography_mmf: the confidence map %s is %s, the dataset grid %s.', file, mat2str(sz), mat2str(d(1:3)));
+end
 end
 
 function C = csd_peak_confidence(nim, ratio)

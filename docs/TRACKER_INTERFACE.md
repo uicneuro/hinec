@@ -156,8 +156,9 @@ same for the fields a tracker is expected to honour.
 | `mmf_exit_tol`, `mmf_exit_delay` | `mmf.*` | obsolete since 2026-11-23: accepted and ignored, a warning when finite, resp. not 0 (there is no exit test and no coast beyond the zone); `mmf` only |
 | `mmf_seed_trusted` | `mmf.seed_trusted` | with the scheme on, `true` = a seed in the zone is not tracked (`seeds_skipped`: `zone`); default `true`; `mmf` only |
 | `mmf_mask_stop` | `mmf.mask_stop` | `true` = a half-track ends at its last node inside the propagation mask (`outside_mask`); default `true`; `mmf` only |
-| `mmf_confidence` | `mmf.confidence` | `cl` (default, CL of the tensor) or `csd_peaks` (1 for one CSD peak, 0 for two or more; needs `nim.npeaks`, `nim.peak_w`); `mmf` only |
+| `mmf_confidence` | `mmf.confidence` | `cl` (default, CL of the tensor), `csd_peaks` (1 for one CSD peak, 0 for two or more; needs `nim.npeaks`, `nim.peak_w`) or `map` (the volume in `mmf_confidence_file`); `mmf` only |
 | `mmf_peak_ratio` | `mmf.peak_ratio` | with `csd_peaks`: a peak counts when its weight is at least this fraction of the largest (default 0 = every peak); `mmf` only |
+| `mmf_confidence_file` | `mmf.confidence_file` | with `map`: the confidence volume, NIfTI or MAT (variable `confidence`), on the dataset grid; `mmf` only |
 | `mmf_seed_grace` | `mmf.seed_grace` | with the scheme on, voxels of arc from the seed over which each half-track reads the data whatever the confidence (default 0 = none); `mmf` only |
 | `mmf_gradient_delta` | `mmf.gradient_delta` | central-difference step (voxels) for the derivative of the interpolated principal axis that forms the connection; `mmf` only |
 

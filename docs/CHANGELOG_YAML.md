@@ -1,5 +1,16 @@
 # YAML Configuration Changelog
 
+## 2026-11-27 - `mmf.confidence: map`: the hold confidence from a given volume
+
+- `tractography.mmf.confidence` accepts `map`, and the new key
+  `tractography.mmf.confidence_file` (string, default empty; flat option
+  `mmf_confidence_file`) names the volume: a NIfTI (stored voxel order) or a MAT file
+  with a variable `confidence`, on the dataset grid. It is used as the confidence as
+  CL is (NaN outside the tissue, interpolated, eroded, compared with
+  `mmf.hold_min`). Meant for an oracle test, e.g. the FiberCup ground-truth bundles
+  giving 0 only where two of them cross. `meta.mmf` gains `confidence_file`.
+- No behaviour change: `cl` stays the default.
+
 ## 2026-11-27 - `mmf.confidence`: the hold confidence from the number of CSD peaks
 
 - New keys `tractography.mmf.confidence` (`cl`, the default, or `csd_peaks`; flat

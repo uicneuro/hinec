@@ -195,6 +195,12 @@ the default, counts every peak CSD kept, `tractography.csd.peak_thresh` and
 and 1 at the voxels, so any `hold_min` in (0, 1] gives the same zone at the voxels
 (the interpolation between them still depends on it).
 
+**A given confidence map** (`mmf.confidence: map`, 2026-11-27): the confidence is read
+from `mmf.confidence_file`, a NIfTI or MAT volume on the dataset grid, and used as CL
+is. It serves oracle tests: on FiberCup a map built from the published ground-truth
+bundles (Théberge et al. 2021), 0 where two bundles cross at more than 30 degrees and
+1 elsewhere, makes the zone exactly the crossings.
+
 **Leaving it.** In the `adaptive` and `reanchor` modes, a tract reaching a trusted
 node is always re-anchored on the data, whatever its heading. The exit test of
 `exit_tol`, which stopped a tract whose heading was more than `exit_tol` off the data
